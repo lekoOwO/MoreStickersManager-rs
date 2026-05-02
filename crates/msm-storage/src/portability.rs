@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use msm_domain::StickerPack;
 use sqlx::Row;
 
-use crate::{StorageRepository, StorageResult, models::PackVisibility};
+use crate::{models::PackVisibility, StorageRepository, StorageResult};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,7 +34,7 @@ pub struct PortableSubscriptionGroup {
 ///
 /// # Errors
 ///
-/// Returns an error when the repository is not backed by SQLite, SQL fails, or stored JSON is invalid.
+/// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored JSON is invalid.
 pub async fn export_user_data(
     repo: &StorageRepository,
     user_id: &str,
@@ -84,7 +84,7 @@ pub async fn export_user_data(
 ///
 /// # Errors
 ///
-/// Returns an error when the repository is not backed by SQLite, SQL fails, or embedded pack data is invalid.
+/// Returns an error when the repository is not backed by `SQLite`, SQL fails, or embedded pack data is invalid.
 pub async fn import_user_data(
     repo: &StorageRepository,
     tenant_id: &str,
@@ -162,11 +162,11 @@ mod tests {
     use msm_domain::Sticker;
 
     use crate::{
-        DatabaseConfig,
         db::DbPool,
         models::PackVisibility,
         portability::{export_user_data, import_user_data},
         repositories::StorageRepository,
+        DatabaseConfig,
     };
 
     #[tokio::test]
@@ -215,7 +215,9 @@ mod tests {
 
         let target = migrated_repo().await;
         target.create_tenant("tenant_2", "Target").await.unwrap();
-        import_user_data(&target, "tenant_2", &export).await.unwrap();
+        import_user_data(&target, "tenant_2", &export)
+            .await
+            .unwrap();
 
         let pack_id = pack.id.clone();
         let imported_packs = target.list_user_sticker_packs("user_1").await.unwrap();

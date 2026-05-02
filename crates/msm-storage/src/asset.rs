@@ -23,7 +23,10 @@ impl AssetKey {
     ///
     /// Returns an error when either component is empty or contains path separators,
     /// drive separators, parent directory segments, or NUL bytes.
-    pub fn new(pack_public_id: impl Into<String>, filename: impl Into<String>) -> StorageResult<Self> {
+    pub fn new(
+        pack_public_id: impl Into<String>,
+        filename: impl Into<String>,
+    ) -> StorageResult<Self> {
         let pack_public_id = pack_public_id.into();
         let filename = filename.into();
         validate_component(&pack_public_id)?;

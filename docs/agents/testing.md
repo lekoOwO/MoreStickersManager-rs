@@ -25,3 +25,20 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
+
+## P2 Storage Tests
+
+Run:
+
+```powershell
+cargo test -p msm-storage
+```
+
+These tests prove:
+
+- database URL parsing rejects unsupported schemes;
+- local asset keys reject traversal attempts;
+- local asset bytes can be written, read, and deleted;
+- SQLite migrations create the P2 schema;
+- repository operations can create tenant, user, pack, sticker, and subscription records;
+- portable user data can be exported from one SQLite database and imported into another.

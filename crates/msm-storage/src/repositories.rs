@@ -2,7 +2,7 @@ use chrono::Utc;
 use msm_domain::StickerPack;
 use sqlx::{Row, SqlitePool};
 
-use crate::{DbPool, StorageError, StorageResult, models::PackVisibility};
+use crate::{models::PackVisibility, DbPool, StorageError, StorageResult};
 
 #[derive(Clone)]
 pub struct StorageRepository {
@@ -19,7 +19,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by SQLite or the insert fails.
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
     pub async fn create_tenant(&self, id: &str, name: &str) -> StorageResult<()> {
         let now = now();
         sqlx::query("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, ?)")
@@ -35,8 +35,13 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by SQLite or the insert fails.
-    pub async fn create_user(&self, id: &str, email: &str, display_name: &str) -> StorageResult<()> {
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    pub async fn create_user(
+        &self,
+        id: &str,
+        email: &str,
+        display_name: &str,
+    ) -> StorageResult<()> {
         let now = now();
         sqlx::query(
             "INSERT INTO users (id, email, display_name, is_disabled, created_at) VALUES (?, ?, ?, 0, ?)",
@@ -54,8 +59,13 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by SQLite or the insert fails.
-    pub async fn add_tenant_member(&self, tenant_id: &str, user_id: &str, role: &str) -> StorageResult<()> {
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    pub async fn add_tenant_member(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        role: &str,
+    ) -> StorageResult<()> {
         let now = now();
         sqlx::query(
             "INSERT INTO tenant_members (tenant_id, user_id, role, created_at) VALUES (?, ?, ?, ?)",
@@ -73,7 +83,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when serialization fails, the repository is not backed by SQLite, or SQL fails.
+    /// Returns an error when serialization fails, the repository is not backed by `SQLite`, or SQL fails.
     pub async fn upsert_sticker_pack(
         &self,
         id: &str,
@@ -145,7 +155,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by SQLite or the insert fails.
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
     pub async fn create_subscription_group(
         &self,
         id: &str,
@@ -175,7 +185,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by SQLite or the insert fails.
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
     pub async fn add_pack_to_subscription_group(
         &self,
         subscription_group_id: &str,
@@ -199,7 +209,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by SQLite or SQL/JSON parsing fails.
+    /// Returns an error when the repository is not backed by `SQLite` or SQL/JSON parsing fails.
     pub async fn find_sticker_pack(&self, id: &str) -> StorageResult<Option<StickerPack>> {
         let row = sqlx::query("SELECT sticker_pack_json FROM sticker_packs WHERE id = ?")
             .bind(id)
@@ -217,7 +227,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by SQLite or SQL/JSON parsing fails.
+    /// Returns an error when the repository is not backed by `SQLite` or SQL/JSON parsing fails.
     pub async fn list_user_sticker_packs(&self, user_id: &str) -> StorageResult<Vec<StickerPack>> {
         let rows = sqlx::query(
             "SELECT sticker_pack_json FROM sticker_packs WHERE owner_user_id = ? ORDER BY title, id",
@@ -238,8 +248,11 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by SQLite or SQL fails.
-    pub async fn list_subscription_pack_ids(&self, subscription_group_id: &str) -> StorageResult<Vec<String>> {
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn list_subscription_pack_ids(
+        &self,
+        subscription_group_id: &str,
+    ) -> StorageResult<Vec<String>> {
         let rows = sqlx::query(
             "SELECT pack_id FROM subscription_group_packs
             WHERE subscription_group_id = ?
@@ -270,10 +283,7 @@ mod tests {
     use msm_domain::Sticker;
 
     use crate::{
-        DatabaseConfig,
-        db::DbPool,
-        models::PackVisibility,
-        repositories::StorageRepository,
+        db::DbPool, models::PackVisibility, repositories::StorageRepository, DatabaseConfig,
     };
 
     #[tokio::test]

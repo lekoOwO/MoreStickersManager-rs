@@ -17,7 +17,7 @@ impl DbPool {
     ///
     /// # Errors
     ///
-    /// Returns an error when SQLx cannot establish the database connection.
+    /// Returns an error when `SQLx` cannot establish the database connection.
     pub async fn connect(config: &DatabaseConfig) -> StorageResult<Self> {
         match config.kind() {
             DatabaseKind::Sqlite => connect_sqlite(config.url()).await.map(Self::Sqlite),
@@ -30,7 +30,7 @@ impl DbPool {
         }
     }
 
-    /// Runs embedded SQLx migrations against the database pool.
+    /// Runs embedded `SQLx` migrations against the database pool.
     ///
     /// # Errors
     ///
@@ -56,11 +56,11 @@ impl DbPool {
     }
 }
 
-/// Connects to a SQLite database URL.
+/// Connects to a `SQLite` database URL.
 ///
 /// # Errors
 ///
-/// Returns an error when SQLx cannot open the SQLite database.
+/// Returns an error when `SQLx` cannot open the `SQLite` database.
 pub async fn connect_sqlite(url: &str) -> StorageResult<SqlitePool> {
     let options = url
         .parse::<SqliteConnectOptions>()?
@@ -78,7 +78,7 @@ pub async fn connect_sqlite(url: &str) -> StorageResult<SqlitePool> {
 mod tests {
     use sqlx::Row;
 
-    use crate::{DatabaseConfig, db::DbPool};
+    use crate::{db::DbPool, DatabaseConfig};
 
     #[tokio::test]
     async fn runs_sqlite_migrations() {
