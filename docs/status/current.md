@@ -1,15 +1,15 @@
 # Current Status
 
-Phase: P4 backend API and OpenAPI.
+Phase: P5 CLI client.
 
 Last completed:
-- P4 API design, implementation plan, API crate scaffold, health/OpenAPI routes, pack import/list/export routes, and asset read route.
+- P5 CLI design, implementation plan, CLI crate scaffold, command parser, output formatting, HTTP client, and command execution tests.
 
 Current task:
-- Complete P4 verification.
+- Complete P5 verification.
 
 Last verification:
-- `cargo test -p msm-api reads_asset_bytes`
+- `cargo test -p msm-cli`
 
 Next step:
 - Run workspace format, clippy, and tests.

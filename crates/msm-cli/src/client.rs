@@ -2,11 +2,7 @@ use async_trait::async_trait;
 use msm_domain::StickerPack;
 use url::Url;
 
-use crate::{
-    CliError, CliResult,
-    command::PackVisibility,
-    output::HealthResponse,
-};
+use crate::{command::PackVisibility, output::HealthResponse, CliError, CliResult};
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

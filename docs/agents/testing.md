@@ -75,3 +75,19 @@ These tests prove:
 - `/openapi.json` exposes generated route metadata;
 - pack import, list, and `.stickerpack` export work through HTTP;
 - local asset bytes can be read through `/assets/packs/{pack_public_id}/{filename}`.
+
+## P5 CLI Tests
+
+Run:
+
+```powershell
+cargo test -p msm-cli
+```
+
+These tests prove:
+
+- CLI arguments parse for health, list, import, and export commands;
+- reqwest client endpoint URL construction is stable;
+- command execution works against a fake client;
+- import reads `.stickerpack` JSON from disk;
+- export can print JSON to stdout.

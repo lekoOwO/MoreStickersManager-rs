@@ -4,9 +4,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use msm_domain::StickerPack;
 
 use crate::{
-    CliError, CliResult,
     client::{ImportPackPayload, MsmClient, ReqwestMsmClient},
     output::{format_export, format_health, format_import, format_pack_list},
+    CliError, CliResult,
 };
 
 #[derive(Clone, Debug, Parser, PartialEq, Eq)]
@@ -164,10 +164,10 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::{
-        CliResult,
         client::{ImportPackPayload, MsmClient},
-        command::{Cli, Command, OutputFormat, PackCommand, PackVisibility, execute_with_client},
+        command::{execute_with_client, Cli, Command, OutputFormat, PackCommand, PackVisibility},
         output::HealthResponse,
+        CliResult,
     };
 
     #[test]
@@ -247,9 +247,10 @@ mod tests {
 
     #[tokio::test]
     async fn executes_health_command() {
-        let output = execute_with_client(Cli::parse_from(["msm", "health"]), &FakeClient::default())
-            .await
-            .unwrap();
+        let output =
+            execute_with_client(Cli::parse_from(["msm", "health"]), &FakeClient::default())
+                .await
+                .unwrap();
 
         assert_eq!(output, "ok");
     }

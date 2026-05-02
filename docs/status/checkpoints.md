@@ -33,3 +33,10 @@
 - Added `msm-api` crate with Axum router state, API error model, DTOs, and utoipa document generation.
 - Added `/healthz`, `/openapi.json`, pack import/list/export routes, and local asset read route.
 - Verified route behavior with API crate tests.
+
+## 2026-05-03 P5 CLI Implementation
+
+- Added P5 CLI client design and implementation plan.
+- Added `msm-cli` crate with `msm` binary.
+- Added clap command model, human/JSON output helpers, reqwest API client, and command execution over an `MsmClient` trait.
+- Verified CLI parser and execution behavior with fake-client tests.

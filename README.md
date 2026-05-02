@@ -24,6 +24,17 @@ Before the Rust workspace exists, use:
 git status --short
 ```
 
+## CLI Slice
+
+The current CLI is an HTTP client for the P4 API slice:
+
+```powershell
+cargo run -p msm-cli -- health
+cargo run -p msm-cli -- packs list --user-id user_1
+cargo run -p msm-cli -- packs import --tenant-id tenant_1 --owner-user-id user_1 --pack-id pack_1 --visibility private --file pack.stickerpack
+cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
+```
+
 ## Project Docs
 
 - `docs/dev/architecture.md`: architecture and crate boundaries.

@@ -1,6 +1,6 @@
 use msm_domain::StickerPack;
 
-use crate::{CliResult, command::OutputFormat};
+use crate::{command::OutputFormat, CliResult};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct HealthResponse {
