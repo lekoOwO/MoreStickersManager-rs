@@ -3,16 +3,18 @@
 Phase: P0/P1 foundation.
 
 Last completed:
-- Platform roadmap and foundation design was approved.
+- Repository hygiene, documentation baseline, Rust workspace, `msm-domain` compatibility models, provider ID helpers, asset URL resolver, golden fixtures, and CI baseline.
 
 Current task:
-- Implement repository hygiene, docs, Rust workspace, and `msm-domain` compatibility core.
+- Ready for review of P0/P1 implementation.
 
 Last verification:
-- `git log --oneline -1 --format="%h %an <%ae> %s"` showed the design commit author as `Leko <leko@leko.moe>`.
+- `cargo fmt --all -- --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`
 
 Next step:
-- Add repository hygiene and documentation baseline.
+- Review P0/P1 implementation and decide whether to start P2 storage and asset core design.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -15,6 +15,11 @@ pub struct AssetUrlInput<'a> {
 }
 
 impl AssetUrlConfig {
+    /// Creates URL resolution config with an MSM public app URL.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `public_app_url` is not an absolute URL.
     pub fn new(public_app_url: &str) -> DomainResult<Self> {
         Ok(Self {
             public_app_url: parse_base_url(public_app_url)?,
@@ -22,6 +27,11 @@ impl AssetUrlConfig {
         })
     }
 
+    /// Sets the optional system-wide public asset URL.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `public_asset_url` is not an absolute URL.
     pub fn with_public_asset_url(mut self, public_asset_url: &str) -> DomainResult<Self> {
         self.public_asset_url = Some(parse_base_url(public_asset_url)?);
         Ok(self)
@@ -34,6 +44,11 @@ impl AssetUrlConfig {
     }
 }
 
+/// Resolves the exported public URL for an internal sticker asset.
+///
+/// # Errors
+///
+/// Returns an error when the configured base URL cannot accept path segments.
 pub fn resolve_asset_url(
     config: &AssetUrlConfig,
     input: &AssetUrlInput<'_>,

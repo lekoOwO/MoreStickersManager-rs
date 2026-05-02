@@ -72,14 +72,30 @@ pub struct DynamicPackSetMeta {
 }
 
 impl StickerPack {
+    /// Parses a `MoreStickers`-compatible sticker pack from JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the input is not valid JSON for the sticker pack schema.
     pub fn from_json_str(input: &str) -> DomainResult<Self> {
         Ok(serde_json::from_str(input)?)
     }
 
+    /// Serializes the sticker pack as pretty JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization fails.
     pub fn to_pretty_json(&self) -> DomainResult<String> {
         Ok(serde_json::to_string_pretty(self)?)
     }
 
+    /// Reads a `.stickerpack` file from disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the path extension is not `.stickerpack`, the file cannot be read,
+    /// or the file content is not valid sticker pack JSON.
     pub fn read_stickerpack_file(path: impl AsRef<Path>) -> DomainResult<Self> {
         let path = path.as_ref();
         if path.extension().and_then(|value| value.to_str()) != Some("stickerpack") {
@@ -94,10 +110,20 @@ impl StickerPack {
 }
 
 impl DynamicPackSetMeta {
+    /// Parses a `MoreStickers` dynamic pack set from JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the input is not valid JSON for the dynamic pack set schema.
     pub fn from_json_str(input: &str) -> DomainResult<Self> {
         Ok(serde_json::from_str(input)?)
     }
 
+    /// Serializes the dynamic pack set as pretty JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization fails.
     pub fn to_pretty_json(&self) -> DomainResult<String> {
         Ok(serde_json::to_string_pretty(self)?)
     }
