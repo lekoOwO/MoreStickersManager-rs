@@ -22,6 +22,9 @@ pub enum CliError {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
+    #[error("domain error: {0}")]
+    Domain(#[from] msm_domain::DomainError),
+
     #[error("client error: {0}")]
     Client(String),
 }
