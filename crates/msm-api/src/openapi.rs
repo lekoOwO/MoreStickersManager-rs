@@ -1,12 +1,16 @@
 use axum::Json;
 use utoipa::OpenApi;
 
-use crate::{dto::HealthResponse, error::ApiErrorBody, routes::health};
+use crate::{
+    dto::{HealthResponse, ImportPackRequest},
+    error::ApiErrorBody,
+    routes::{health, packs},
+};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(health::healthz),
-    components(schemas(HealthResponse, ApiErrorBody)),
+    paths(health::healthz, packs::import_pack, packs::list_packs, packs::export_pack),
+    components(schemas(HealthResponse, ApiErrorBody, ImportPackRequest)),
     tags((name = "system", description = "System endpoints"))
 )]
 pub struct ApiDoc;
