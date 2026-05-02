@@ -108,3 +108,21 @@ These tests prove:
 - LINE emoji fixture payloads normalize to upstream-compatible LINE emoji IDs;
 - empty provider packs are rejected before producing invalid `.stickerpack` output;
 - implemented and planned providers are visible in the provider registry.
+
+## P7 Web UI Tests
+
+Run:
+
+```powershell
+npm run web:typecheck
+npm run web:test
+npm run web:build
+```
+
+These tests prove:
+
+- Vue and TypeScript compile for the `apps/web` workspace;
+- theme preference defaults, persistence, and DOM class application work;
+- locale preference defaults and message lookup work for Traditional Chinese and English;
+- the dashboard renders mock pack totals, providers, and visibility labels;
+- Vite can produce `apps/web/dist` for later Rust binary embedding.

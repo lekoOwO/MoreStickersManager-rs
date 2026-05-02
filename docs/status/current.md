@@ -1,20 +1,24 @@
 # Current Status
 
-Phase: P6 provider normalization core.
+Phase: P7 Web UI foundation.
 
 Last completed:
-- P6 provider design, implementation plan, provider registry, Telegram normalizer, LINE sticker normalizer, LINE emoji normalizer, and provider unit tests.
+- P7 Web UI design, implementation plan, npm workspace scaffold, Vue/Vite app, Tailwind CSS v4 design tokens, Shadcn Vue-compatible primitives, theme/i18n preferences, responsive dashboard shell, and frontend tests.
 
 Current task:
-- P6 is verified. Continue to the Web UI foundation phase.
+- P7 is verified. Continue with API integration or Rust binary frontend embedding.
 
 Last verification:
 - `cargo fmt --all -- --check`
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
+- `npm run web:typecheck`
+- `npm run web:test`
+- `npm run web:build`
 
 Next step:
-- Start the Web UI foundation phase with Vue, Shadcn Vue, Tailwind CSS v4, RWD, i18n, and theme support.
+- Start P8. Recommended next slice: connect the Web UI dashboard to the P4 API through a typed frontend client while keeping mock-data fallback for tests.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
+- `skills-lock.json` is an existing untracked local skill lock file and is not part of P7.

@@ -48,3 +48,12 @@
 - Added Telegram fixture normalization with MoreStickersConverter-compatible IDs and self-hosted image URL output.
 - Added LINE sticker and LINE emoji fixture normalization with upstream-compatible IDs.
 - Verified provider registry and normalizer behavior with focused unit tests.
+
+## 2026-05-03 P7 Web UI Foundation
+
+- Added P7 Web UI foundation design and implementation plan.
+- Added root npm workspace and `apps/web` Vite Vue application.
+- Added Tailwind CSS v4 design tokens, Shadcn Vue-compatible `Button`, `Card`, and `Badge` primitives, and `components.json`.
+- Added persisted theme and locale preference controllers with tests.
+- Added responsive dashboard shell with desktop side rail, mobile navigation, theme toggle, language toggle, and mock sticker-pack metrics.
+- Verified frontend typecheck, tests, and production build during implementation.

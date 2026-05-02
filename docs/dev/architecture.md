@@ -12,6 +12,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-mcp`: MCP endpoint, added in P9.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
 - `msm-app`: final service binary and embedded frontend, added after API and Web UI foundations exist.
+- `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7.
 
 ## Dependency Rule
 
@@ -26,3 +27,12 @@ It must keep output IDs and `.stickerpack` field names compatible with upstream
 moreStickers conventions. Network fetching and asset downloading are not part of
 the P6 provider boundary; they should be added behind explicit provider
 capabilities so API, CLI, MCP, and Web UI can expose the same feature set.
+
+## Frontend Boundary
+
+`apps/web` is an npm workspace package. It owns the browser UI, local UI
+primitives, i18n labels, theme preferences, and mock frontend client used by P7.
+The frontend must keep API access behind small client modules so later OpenAPI
+or handwritten HTTP clients can replace mock data without rewriting dashboard
+components. `apps/web/dist` is a build artifact and must remain ignored until a
+Rust embedding phase copies or embeds it intentionally.

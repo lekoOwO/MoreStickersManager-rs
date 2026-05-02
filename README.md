@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P6 provider normalization core.
+Current phase: P7 Web UI foundation.
 
 ## Compatibility Target
 
@@ -46,10 +46,26 @@ MoreStickers-compatible packs:
 
 Remote provider fetch and asset download are intentionally separate future tasks.
 
+## Web UI Slice
+
+The current Web UI is a Vue/Vite frontend foundation with Shadcn Vue-compatible
+local primitives and Tailwind CSS v4:
+
+```powershell
+npm run web:dev
+npm run web:typecheck
+npm run web:test
+npm run web:build
+```
+
+P7 uses mock sticker-pack data only. Backend API integration, authentication,
+CRUD, and binary embedding are later phases.
+
 ## Project Docs
 
 - `docs/dev/architecture.md`: architecture and crate boundaries.
 - `docs/dev/compatibility.md`: sticker pack format compatibility.
+- `docs/dev/providers.md`: provider normalization status.
 - `docs/user/README.md`: user-facing documentation index.
 - `docs/agents/README.md`: agent handoff entrypoint.
 - `docs/status/current.md`: current development state.
