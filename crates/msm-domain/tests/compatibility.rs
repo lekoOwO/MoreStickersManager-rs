@@ -1,6 +1,6 @@
 use msm_domain::{
-    line_emoji_id, line_emoji_pack_id, line_sticker_id, line_sticker_pack_id, telegram_pack_id,
-    telegram_sticker_id,
+    line_emoji_id, line_emoji_pack_id, line_sticker_id, line_sticker_pack_id, resolve_asset_url,
+    telegram_pack_id, telegram_sticker_id, AssetUrlConfig, AssetUrlInput,
 };
 
 #[test]
@@ -47,4 +47,35 @@ fn provider_ids_reject_empty_components() {
     assert!(line_sticker_id("", "sticker").is_err());
     assert!(line_emoji_pack_id("").is_err());
     assert!(line_emoji_id("pack", "").is_err());
+}
+
+#[test]
+fn asset_url_uses_app_public_url_when_cdn_is_absent() {
+    let config = AssetUrlConfig::new("https://msm.example").unwrap();
+    let input = AssetUrlInput {
+        pack_public_id: "pack_name",
+        filename: "file_unique_id.webp",
+    };
+
+    assert_eq!(
+        resolve_asset_url(&config, &input).unwrap(),
+        "https://msm.example/assets/packs/pack_name/file_unique_id.webp"
+    );
+}
+
+#[test]
+fn asset_url_uses_public_asset_url_when_configured() {
+    let config = AssetUrlConfig::new("https://msm.example")
+        .unwrap()
+        .with_public_asset_url("https://cdn.example/msm")
+        .unwrap();
+    let input = AssetUrlInput {
+        pack_public_id: "pack_name",
+        filename: "file_unique_id.webp",
+    };
+
+    assert_eq!(
+        resolve_asset_url(&config, &input).unwrap(),
+        "https://cdn.example/msm/assets/packs/pack_name/file_unique_id.webp"
+    );
 }
