@@ -16,6 +16,10 @@ pub fn build_router(state: ApiState) -> Router {
     Router::new()
         .route("/healthz", get(routes::health::healthz))
         .route("/openapi.json", get(openapi::openapi_json))
+        .route(
+            "/assets/packs/{pack_public_id}/{filename}",
+            get(routes::assets::read_asset),
+        )
         .route("/api/v1/packs", get(routes::packs::list_packs))
         .route("/api/v1/packs/import", axum::routing::post(routes::packs::import_pack))
         .route(
@@ -131,6 +135,31 @@ mod tests {
             .unwrap();
         let exported: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(exported["id"], "MoreStickers:Telegram:Pack:sample");
+    }
+
+    #[tokio::test]
+    async fn reads_asset_bytes() {
+        let state = test_state().await;
+        let key = msm_storage::AssetKey::new("pack_1", "sticker.webp").unwrap();
+        state.asset_store().write(&key, b"webp-bytes").await.unwrap();
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/packs/pack_1/sticker.webp")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "image/webp"
+        );
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"webp-bytes");
     }
 
     async fn test_state() -> ApiState {

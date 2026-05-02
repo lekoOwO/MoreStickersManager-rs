@@ -4,12 +4,18 @@ use utoipa::OpenApi;
 use crate::{
     dto::{HealthResponse, ImportPackRequest},
     error::ApiErrorBody,
-    routes::{health, packs},
+    routes::{assets, health, packs},
 };
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(health::healthz, packs::import_pack, packs::list_packs, packs::export_pack),
+    paths(
+        health::healthz,
+        assets::read_asset,
+        packs::import_pack,
+        packs::list_packs,
+        packs::export_pack
+    ),
     components(schemas(HealthResponse, ApiErrorBody, ImportPackRequest)),
     tags((name = "system", description = "System endpoints"))
 )]
