@@ -61,6 +61,17 @@ npm run web:build
 P7 uses mock sticker-pack data only. Backend API integration, authentication,
 CRUD, and binary embedding are later phases.
 
+To connect the dashboard to the current P4 API list route, set:
+
+```powershell
+$env:VITE_MSM_API_BASE_URL="http://localhost:3000"
+$env:VITE_MSM_USER_ID="user_1"
+npm run web:dev
+```
+
+If `VITE_MSM_API_BASE_URL` is not set, the dashboard uses deterministic mock
+data for local preview and tests.
+
 ## Project Docs
 
 - `docs/dev/architecture.md`: architecture and crate boundaries.

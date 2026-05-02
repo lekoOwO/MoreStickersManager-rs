@@ -25,3 +25,13 @@ npm run web:build
 The P7 Web UI uses mock data. It demonstrates the app shell, responsive layout,
 theme toggle, language toggle, and sticker-pack dashboard before backend API
 integration is wired in.
+
+To point the dashboard at the current pack-list API:
+
+```powershell
+$env:VITE_MSM_API_BASE_URL="http://localhost:3000"
+$env:VITE_MSM_USER_ID="user_1"
+npm run web:dev
+```
+
+When `VITE_MSM_API_BASE_URL` is omitted, the dashboard falls back to mock data.

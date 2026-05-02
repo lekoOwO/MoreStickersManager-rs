@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P7 Web UI foundation.
+Phase: P8 Web API client.
 
 Last completed:
-- P7 Web UI design, implementation plan, npm workspace scaffold, Vue/Vite app, Tailwind CSS v4 design tokens, Shadcn Vue-compatible primitives, theme/i18n preferences, responsive dashboard shell, and frontend tests.
+- P8 Web API client design, implementation plan, typed pack client, P4 list route response mapper, mock fallback, dashboard client integration, and frontend tests.
 
 Current task:
-- P7 is verified. Continue with API integration or Rust binary frontend embedding.
+- P8 is verified. Continue with Rust service binary/frontend embedding or authenticated Web API flows.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start P8. Recommended next slice: connect the Web UI dashboard to the P4 API through a typed frontend client while keeping mock-data fallback for tests.
+- Start P9. Recommended next slice: Rust app binary that serves the API and embedded Web UI dist.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

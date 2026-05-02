@@ -126,3 +126,19 @@ These tests prove:
 - locale preference defaults and message lookup work for Traditional Chinese and English;
 - the dashboard renders mock pack totals, providers, and visibility labels;
 - Vite can produce `apps/web/dist` for later Rust binary embedding.
+
+## P8 Web API Client Tests
+
+Run:
+
+```powershell
+npm run web:test
+```
+
+These tests prove:
+
+- the Web pack client falls back to mock data when no API base URL is configured;
+- `/api/v1/packs?userId=...` URL construction encodes user IDs correctly;
+- P4 `StickerPackRecord` JSON maps into dashboard summaries;
+- provider inference handles Telegram, LINE stickers, and LINE emojis;
+- the dashboard still renders through the client boundary without network access in tests.

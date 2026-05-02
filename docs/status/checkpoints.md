@@ -57,3 +57,12 @@
 - Added persisted theme and locale preference controllers with tests.
 - Added responsive dashboard shell with desktop side rail, mobile navigation, theme toggle, language toggle, and mock sticker-pack metrics.
 - Verified frontend typecheck, tests, and production build during implementation.
+
+## 2026-05-03 P8 Web API Client
+
+- Added P8 Web API client design and implementation plan.
+- Added typed frontend pack API client for `/api/v1/packs?userId=...`.
+- Added mapping from current P4 `StickerPackRecord` JSON into dashboard `StickerPackSummary` data.
+- Added mock fallback when `VITE_MSM_API_BASE_URL` is unset.
+- Connected dashboard data loading through the client boundary.
+- Verified frontend typecheck, tests, and production build during implementation.
