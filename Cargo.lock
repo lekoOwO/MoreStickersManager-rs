@@ -1124,6 +1124,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "url",
@@ -1137,6 +1138,16 @@ dependencies = [
  "serde_json",
  "thiserror",
  "url",
+]
+
+[[package]]
+name = "msm-providers"
+version = "0.1.0"
+dependencies = [
+ "msm-domain",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
