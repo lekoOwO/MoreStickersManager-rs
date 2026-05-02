@@ -91,3 +91,20 @@ These tests prove:
 - command execution works against a fake client;
 - import reads `.stickerpack` JSON from disk;
 - export can print JSON to stdout.
+
+## P6 Provider Tests
+
+Run:
+
+```powershell
+cargo test -p msm-providers
+```
+
+These tests prove:
+
+- Telegram fixture payloads normalize to upstream-compatible pack and sticker IDs;
+- Telegram self-hosted image URLs follow the MoreStickersConverter URL pattern;
+- LINE sticker fixture payloads normalize to upstream-compatible LINE sticker IDs;
+- LINE emoji fixture payloads normalize to upstream-compatible LINE emoji IDs;
+- empty provider packs are rejected before producing invalid `.stickerpack` output;
+- implemented and planned providers are visible in the provider registry.

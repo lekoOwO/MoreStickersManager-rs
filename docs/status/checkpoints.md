@@ -40,3 +40,11 @@
 - Added `msm-cli` crate with `msm` binary.
 - Added clap command model, human/JSON output helpers, reqwest API client, and command execution over an `MsmClient` trait.
 - Verified CLI parser and execution behavior with fake-client tests.
+
+## 2026-05-03 P6 Provider Implementation
+
+- Added P6 provider interface design and implementation plan.
+- Added `msm-providers` crate with provider metadata, capability registry, and provider trait.
+- Added Telegram fixture normalization with MoreStickersConverter-compatible IDs and self-hosted image URL output.
+- Added LINE sticker and LINE emoji fixture normalization with upstream-compatible IDs.
+- Verified provider registry and normalizer behavior with focused unit tests.

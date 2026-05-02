@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P0/P1 foundation and format compatibility.
+Current phase: P6 provider normalization core.
 
 ## Compatibility Target
 
@@ -34,6 +34,17 @@ cargo run -p msm-cli -- packs list --user-id user_1
 cargo run -p msm-cli -- packs import --tenant-id tenant_1 --owner-user-id user_1 --pack-id pack_1 --visibility private --file pack.stickerpack
 cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
 ```
+
+## Provider Slice
+
+The `msm-providers` crate currently normalizes already-fetched provider JSON into
+MoreStickers-compatible packs:
+
+- Telegram sticker sets preserve `MoreStickers:Telegram:*` IDs and MSM self-hosted asset URLs.
+- LINE sticker packs preserve `MoreStickers:Line:Pack:*` and `MoreStickers:Line:Sticker:*` IDs.
+- LINE emoji packs preserve `MoreStickers:Line:Emoji-Pack:*` and `MoreStickers:Line-Emoji:*` IDs.
+
+Remote provider fetch and asset download are intentionally separate future tasks.
 
 ## Project Docs
 

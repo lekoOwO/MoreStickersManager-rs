@@ -1,8 +1,11 @@
 # MSM User Documentation
 
-MSM currently has foundation, storage, authorization, API, and CLI slices.
+MSM currently has foundation, storage, authorization, API, CLI, and provider
+normalization slices.
 
 Current usable contract: `.stickerpack` compatibility is documented in `../dev/compatibility.md`.
+
+Provider normalization status is documented in `../dev/providers.md`.
 
 Current CLI examples:
 
