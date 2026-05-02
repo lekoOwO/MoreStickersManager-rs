@@ -252,7 +252,7 @@ impl StorageRepository {
         Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
     }
 
-    fn sqlite(&self) -> StorageResult<&SqlitePool> {
+    pub(crate) fn sqlite(&self) -> StorageResult<&SqlitePool> {
         self.pool
             .sqlite()
             .ok_or_else(|| StorageError::UnsupportedDatabaseKind {
