@@ -5,6 +5,7 @@
 - `crates/msm-domain`: MoreStickers-compatible domain models and pure helpers.
 - `crates/msm-domain/src/authz.rs`: pure authorization policy primitives and evaluators.
 - `crates/msm-storage`: SQL storage primitives, local asset storage, and portable export/import.
+- `crates/msm-api`: Axum API routes and utoipa OpenAPI generation.
 - `docs/status`: current state and development log.
 - `docs/dev`: human developer references.
 - `docs/agents`: progressive disclosure handoff docs.

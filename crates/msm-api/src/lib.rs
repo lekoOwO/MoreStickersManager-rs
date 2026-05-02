@@ -1,4 +1,4 @@
-#![doc = "HTTP API and OpenAPI surface for MoreStickersManager-rs."]
+#![doc = "HTTP API and `OpenAPI` surface for MoreStickersManager-rs."]
 
 pub mod dto;
 pub mod error;
@@ -6,12 +6,11 @@ pub mod openapi;
 pub mod routes;
 pub mod state;
 
-use axum::{Router, routing::get};
+use axum::{routing::get, Router};
 
 pub use error::{ApiError, ApiResult};
 pub use state::ApiState;
 
-#[must_use]
 pub fn build_router(state: ApiState) -> Router {
     Router::new()
         .route("/healthz", get(routes::health::healthz))
@@ -21,7 +20,10 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::assets::read_asset),
         )
         .route("/api/v1/packs", get(routes::packs::list_packs))
-        .route("/api/v1/packs/import", axum::routing::post(routes::packs::import_pack))
+        .route(
+            "/api/v1/packs/import",
+            axum::routing::post(routes::packs::import_pack),
+        )
         .route(
             "/api/v1/packs/{pack_id}/stickerpack",
             get(routes::packs::export_pack),
@@ -32,19 +34,24 @@ pub fn build_router(state: ApiState) -> Router {
 #[cfg(test)]
 mod tests {
     use axum::{
-        body::{Body, to_bytes},
+        body::{to_bytes, Body},
         http::{Request, StatusCode},
     };
     use msm_domain::Sticker;
     use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
     use tower::ServiceExt;
 
-    use crate::{ApiState, build_router};
+    use crate::{build_router, ApiState};
 
     #[tokio::test]
     async fn health_endpoint_returns_ok() {
         let response = build_router(test_state().await)
-            .oneshot(Request::builder().uri("/healthz").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/healthz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
@@ -75,7 +82,11 @@ mod tests {
     #[tokio::test]
     async fn imports_lists_and_exports_pack() {
         let state = test_state().await;
-        state.repository().create_tenant("tenant_1", "Tenant").await.unwrap();
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
         state
             .repository()
             .create_user("user_1", "leko@example.com", "Leko")
@@ -141,7 +152,11 @@ mod tests {
     async fn reads_asset_bytes() {
         let state = test_state().await;
         let key = msm_storage::AssetKey::new("pack_1", "sticker.webp").unwrap();
-        state.asset_store().write(&key, b"webp-bytes").await.unwrap();
+        state
+            .asset_store()
+            .write(&key, b"webp-bytes")
+            .await
+            .unwrap();
 
         let response = build_router(state)
             .oneshot(

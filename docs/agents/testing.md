@@ -60,3 +60,18 @@ These tests prove:
 - PAT access requires matching scopes;
 - pack secrets and subscription secrets only grant their narrow resource access;
 - public subscription groups do not globally expose private pack assets.
+
+## P4 API Tests
+
+Run:
+
+```powershell
+cargo test -p msm-api
+```
+
+These tests prove:
+
+- `/healthz` returns `{"status":"ok"}`;
+- `/openapi.json` exposes generated route metadata;
+- pack import, list, and `.stickerpack` export work through HTTP;
+- local asset bytes can be read through `/assets/packs/{pack_public_id}/{filename}`.

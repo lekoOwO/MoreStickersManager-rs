@@ -1,13 +1,13 @@
 use axum::{
-    Json,
     extract::{Path, Query, State},
     http::StatusCode,
+    Json,
 };
 use msm_domain::StickerPack;
 
 use crate::{
-    ApiError, ApiResult, ApiState,
     dto::{ImportPackRequest, ListPacksQuery},
+    ApiError, ApiResult, ApiState,
 };
 
 #[utoipa::path(
@@ -21,6 +21,11 @@ use crate::{
         (status = 500, description = "Storage failure", body = crate::error::ApiErrorBody)
     )
 )]
+/// Imports a `MoreStickers` sticker pack into storage.
+///
+/// # Errors
+///
+/// Returns an error when the request pack JSON is invalid or storage fails.
 pub async fn import_pack(
     State(state): State<ApiState>,
     Json(request): Json<ImportPackRequest>,
@@ -48,6 +53,11 @@ pub async fn import_pack(
     params(ListPacksQuery),
     responses((status = 200, description = "Owned sticker packs", body = Vec<serde_json::Value>))
 )]
+/// Lists sticker packs owned by a user.
+///
+/// # Errors
+///
+/// Returns an error when storage fails or a stored pack cannot be serialized.
 pub async fn list_packs(
     State(state): State<ApiState>,
     Query(query): Query<ListPacksQuery>,
@@ -74,6 +84,11 @@ pub async fn list_packs(
         (status = 404, description = "Pack not found", body = crate::error::ApiErrorBody)
     )
 )]
+/// Exports one stored pack as a `MoreStickers` sticker pack JSON payload.
+///
+/// # Errors
+///
+/// Returns an error when the pack does not exist, storage fails, or the pack cannot be serialized.
 pub async fn export_pack(
     State(state): State<ApiState>,
     Path(pack_id): Path<String>,

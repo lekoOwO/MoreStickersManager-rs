@@ -1,15 +1,15 @@
 # Current Status
 
-Phase: P3 authorization domain.
+Phase: P4 backend API and OpenAPI.
 
 Last completed:
-- P3 authorization design, implementation plan, pure domain policy evaluator, and authorization tests.
+- P4 API design, implementation plan, API crate scaffold, health/OpenAPI routes, pack import/list/export routes, and asset read route.
 
 Current task:
-- Complete P3 verification.
+- Complete P4 verification.
 
 Last verification:
-- `cargo test -p msm-domain --test authorization`
+- `cargo test -p msm-api reads_asset_bytes`
 
 Next step:
 - Run workspace format, clippy, and tests.

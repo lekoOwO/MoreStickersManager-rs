@@ -26,3 +26,10 @@
 - Added `msm-domain::authz` with principal, permission, role, resource, access context, and policy decision types.
 - Added pack and subscription policy evaluators.
 - Verified authorization behavior with dedicated integration tests.
+
+## 2026-05-02 P4 API Implementation
+
+- Added P4 backend API and OpenAPI design and implementation plan.
+- Added `msm-api` crate with Axum router state, API error model, DTOs, and utoipa document generation.
+- Added `/healthz`, `/openapi.json`, pack import/list/export routes, and local asset read route.
+- Verified route behavior with API crate tests.

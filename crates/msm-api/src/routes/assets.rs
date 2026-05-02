@@ -20,6 +20,11 @@ use crate::{ApiError, ApiResult, ApiState};
         (status = 404, description = "Asset not found", body = crate::error::ApiErrorBody)
     )
 )]
+/// Reads a local sticker asset.
+///
+/// # Errors
+///
+/// Returns an error when the asset key is invalid, the asset is missing, or storage fails.
 pub async fn read_asset(
     State(state): State<ApiState>,
     Path((pack_public_id, filename)): Path<(String, String)>,
@@ -27,10 +32,14 @@ pub async fn read_asset(
     let key = AssetKey::new(pack_public_id, filename)
         .map_err(|_| ApiError::NotFound("Asset not found".to_owned()))?;
     let filename = key.filename().to_owned();
-    let bytes = state.asset_store().read(&key).await.map_err(|error| match error {
-        StorageError::AssetNotFound { .. } => ApiError::NotFound("Asset not found".to_owned()),
-        other => ApiError::from(other),
-    })?;
+    let bytes = state
+        .asset_store()
+        .read(&key)
+        .await
+        .map_err(|error| match error {
+            StorageError::AssetNotFound { .. } => ApiError::NotFound("Asset not found".to_owned()),
+            other => ApiError::from(other),
+        })?;
     let content_type = mime_guess::from_path(filename)
         .first_or_octet_stream()
         .to_string();
