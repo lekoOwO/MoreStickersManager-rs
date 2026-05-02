@@ -69,7 +69,7 @@ pub async fn connect_sqlite(url: &str) -> StorageResult<SqlitePool> {
         .journal_mode(SqliteJournalMode::Wal);
 
     Ok(SqlitePoolOptions::new()
-        .max_connections(5)
+        .max_connections(1)
         .connect_with(options)
         .await?)
 }

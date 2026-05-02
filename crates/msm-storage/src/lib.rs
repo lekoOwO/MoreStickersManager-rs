@@ -9,4 +9,6 @@ pub mod portability;
 pub mod repositories;
 
 pub use config::{DatabaseConfig, DatabaseKind};
+pub use db::DbPool;
 pub use error::{StorageError, StorageResult};
+pub use repositories::StorageRepository;
