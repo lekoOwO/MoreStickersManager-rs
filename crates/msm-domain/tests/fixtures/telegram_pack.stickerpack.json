@@ -1,0 +1,22 @@
+{
+  "id": "MoreStickers:Telegram:Pack:sample_pack",
+  "title": "Sample Telegram Pack",
+  "logo": {
+    "id": "MoreStickers:Telegram:Sticker:sample_pack:file_unique_1",
+    "image": "https://msm.example/assets/packs/sample_pack/file_unique_1.webp",
+    "title": "smile",
+    "stickerPackId": "MoreStickers:Telegram:Pack:sample_pack",
+    "filename": "file_unique_1.webp",
+    "isAnimated": false
+  },
+  "stickers": [
+    {
+      "id": "MoreStickers:Telegram:Sticker:sample_pack:file_unique_1",
+      "image": "https://msm.example/assets/packs/sample_pack/file_unique_1.webp",
+      "title": "smile",
+      "stickerPackId": "MoreStickers:Telegram:Pack:sample_pack",
+      "filename": "file_unique_1.webp",
+      "isAnimated": false
+    }
+  ]
+}

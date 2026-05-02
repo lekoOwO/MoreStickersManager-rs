@@ -1,0 +1,33 @@
+{
+  "id": "sub_sample",
+  "version": "1",
+  "title": "Sample Subscription",
+  "author": {
+    "name": "MSM"
+  },
+  "packs": [
+    {
+      "id": "MoreStickers:Telegram:Pack:sample_pack",
+      "title": "Sample Telegram Pack",
+      "logo": {
+        "id": "MoreStickers:Telegram:Sticker:sample_pack:file_unique_1",
+        "image": "https://msm.example/assets/packs/sample_pack/file_unique_1.webp",
+        "title": "smile",
+        "stickerPackId": "MoreStickers:Telegram:Pack:sample_pack",
+        "filename": "file_unique_1.webp",
+        "isAnimated": false
+      },
+      "dynamic": {
+        "version": "1",
+        "refreshUrl": "https://msm.example/api/public/packs/sample_pack/stickerpack",
+        "authHeaders": {
+          "Authorization": "Bearer sample"
+        }
+      }
+    }
+  ],
+  "refreshUrl": "https://msm.example/api/public/subscriptions/sub_sample",
+  "authHeaders": {
+    "Authorization": "Bearer sample"
+  }
+}

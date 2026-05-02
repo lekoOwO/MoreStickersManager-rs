@@ -1,0 +1,24 @@
+{
+  "id": "MoreStickers:Line:Emoji-Pack:abcde",
+  "title": "Sample LINE Emoji",
+  "author": {
+    "name": "Emoji Author",
+    "url": "https://store.line.me/emojis/author/en"
+  },
+  "logo": {
+    "id": "MoreStickers:Line-Emoji:abcde:fghij",
+    "image": "https://stickershop.line-scdn.net/sticonshop/v1/sticon/fghij/android/sticon.png",
+    "title": "fghij",
+    "stickerPackId": "MoreStickers:Line:Emoji-Pack:abcde",
+    "isAnimated": true
+  },
+  "stickers": [
+    {
+      "id": "MoreStickers:Line-Emoji:abcde:fghij",
+      "image": "https://stickershop.line-scdn.net/sticonshop/v1/sticon/fghij/android/sticon.png",
+      "title": "fghij",
+      "stickerPackId": "MoreStickers:Line:Emoji-Pack:abcde",
+      "isAnimated": true
+    }
+  ]
+}

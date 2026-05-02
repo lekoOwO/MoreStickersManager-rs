@@ -1,6 +1,7 @@
 use msm_domain::{
     line_emoji_id, line_emoji_pack_id, line_sticker_id, line_sticker_pack_id, resolve_asset_url,
-    telegram_pack_id, telegram_sticker_id, AssetUrlConfig, AssetUrlInput,
+    telegram_pack_id, telegram_sticker_id, AssetUrlConfig, AssetUrlInput, DynamicPackSetMeta,
+    StickerPack,
 };
 
 #[test]
@@ -78,4 +79,80 @@ fn asset_url_uses_public_asset_url_when_configured() {
         resolve_asset_url(&config, &input).unwrap(),
         "https://cdn.example/msm/assets/packs/pack_name/file_unique_id.webp"
     );
+}
+
+#[test]
+fn telegram_fixture_roundtrips() {
+    let input = include_str!("fixtures/telegram_pack.stickerpack.json");
+    let pack = StickerPack::from_json_str(input).unwrap();
+
+    assert_eq!(pack.id, "MoreStickers:Telegram:Pack:sample_pack");
+    assert_eq!(pack.logo.sticker_pack_id, pack.id);
+    assert_eq!(pack.stickers.len(), 1);
+
+    let output = pack.to_pretty_json().unwrap();
+    assert!(output.contains("\"stickerPackId\""));
+    assert!(output.contains("\"isAnimated\""));
+}
+
+#[test]
+fn line_sticker_fixture_roundtrips() {
+    let input = include_str!("fixtures/line_sticker_pack.stickerpack.json");
+    let pack = StickerPack::from_json_str(input).unwrap();
+
+    assert_eq!(pack.id, "MoreStickers:Line:Pack:12345");
+    assert_eq!(pack.author.unwrap().name, "LINE Author");
+    assert_eq!(
+        pack.stickers[0].sticker_pack_id,
+        "MoreStickers:Line:Pack:12345"
+    );
+}
+
+#[test]
+fn line_emoji_fixture_roundtrips() {
+    let input = include_str!("fixtures/line_emoji_pack.stickerpack.json");
+    let pack = StickerPack::from_json_str(input).unwrap();
+
+    assert_eq!(pack.id, "MoreStickers:Line:Emoji-Pack:abcde");
+    assert_eq!(pack.stickers[0].is_animated, Some(true));
+}
+
+#[test]
+fn dynamic_pack_set_fixture_roundtrips() {
+    let input = include_str!("fixtures/dynamic_pack_set.json");
+    let pack_set = DynamicPackSetMeta::from_json_str(input).unwrap();
+
+    assert_eq!(pack_set.id, "sub_sample");
+    assert_eq!(pack_set.packs.len(), 1);
+    assert_eq!(
+        pack_set.packs[0].dynamic.refresh_url,
+        "https://msm.example/api/public/packs/sample_pack/stickerpack"
+    );
+
+    let output = pack_set.to_pretty_json().unwrap();
+    assert!(output.contains("\"refreshUrl\""));
+    assert!(output.contains("\"authHeaders\""));
+}
+
+#[test]
+fn optional_fields_are_skipped_when_absent() {
+    let pack = StickerPack {
+        id: "MoreStickers:Telegram:Pack:minimal".to_owned(),
+        title: "Minimal".to_owned(),
+        author: None,
+        logo: msm_domain::Sticker {
+            id: "MoreStickers:Telegram:Sticker:minimal:file".to_owned(),
+            image: "https://msm.example/assets/packs/minimal/file.webp".to_owned(),
+            title: "file".to_owned(),
+            sticker_pack_id: "MoreStickers:Telegram:Pack:minimal".to_owned(),
+            filename: None,
+            is_animated: None,
+        },
+        stickers: Vec::new(),
+    };
+
+    let output = pack.to_pretty_json().unwrap();
+    assert!(!output.contains("\"author\""));
+    assert!(!output.contains("\"filename\""));
+    assert!(!output.contains("\"isAnimated\""));
 }

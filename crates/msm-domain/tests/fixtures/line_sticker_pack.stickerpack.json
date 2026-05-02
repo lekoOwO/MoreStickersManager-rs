@@ -1,0 +1,24 @@
+{
+  "id": "MoreStickers:Line:Pack:12345",
+  "title": "Sample LINE Stickers",
+  "author": {
+    "name": "LINE Author",
+    "url": "https://store.line.me/creators/author/en"
+  },
+  "logo": {
+    "id": "MoreStickers:Line:Sticker:12345:67890",
+    "image": "https://stickershop.line-scdn.net/stickershop/v1/sticker/67890/android/sticker.png",
+    "title": "67890",
+    "stickerPackId": "MoreStickers:Line:Pack:12345",
+    "isAnimated": false
+  },
+  "stickers": [
+    {
+      "id": "MoreStickers:Line:Sticker:12345:67890",
+      "image": "https://stickershop.line-scdn.net/stickershop/v1/sticker/67890/android/sticker.png",
+      "title": "67890",
+      "stickerPackId": "MoreStickers:Line:Pack:12345",
+      "isAnimated": false
+    }
+  ]
+}
