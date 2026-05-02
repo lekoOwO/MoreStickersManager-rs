@@ -1,0 +1,44 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Node and frontend builds
+/node_modules/
+**/node_modules/
+/dist/
+**/dist/
+/.vite/
+**/.vite/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local data
+/data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+
+# Logs and coverage
+*.log
+/coverage/
+**/coverage/
+lcov.info
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+/tmp/
+*.tmp
+*.bak
