@@ -5,6 +5,7 @@ members = [
     "crates/msm-api",
     "crates/msm-cli",
     "crates/msm-providers",
+    "crates/msm-app",
 ]
 resolver = "2"
 
