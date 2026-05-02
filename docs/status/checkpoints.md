@@ -74,3 +74,11 @@
 - Added environment-based runtime config for bind address, database URL, asset directory, and Web UI dist directory.
 - Added startup composition for storage migrations, local asset store, API router, and Web UI static serving with SPA fallback.
 - Verified `msm-app` format, clippy, and tests during implementation.
+
+## 2026-05-03 P10 Embedded Web Assets
+
+- Added P10 embedded Web asset design and implementation plan.
+- Added `msm-app` build script that embeds `apps/web/dist` when present and a placeholder dist when absent.
+- Replaced disk-only Web fallback with a disk-first and embedded-second fallback handler.
+- Added safe Web path normalization and embedded index tests.
+- Verified `msm-app` format, clippy, and tests during implementation.

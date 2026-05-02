@@ -158,3 +158,18 @@ These tests prove:
 - environment overrides are parsed correctly;
 - invalid bind addresses fail before startup;
 - the composition crate builds with API, storage, and static Web UI serving.
+
+## P10 Embedded Web Asset Tests
+
+Run:
+
+```powershell
+cargo test -p msm-app
+cargo clippy -p msm-app --all-targets -- -D warnings
+```
+
+These tests prove:
+
+- unsafe Web fallback paths reject traversal attempts;
+- embedded `index.html` exists even when the real frontend dist was not built;
+- the service crate still compiles with embedded asset support.

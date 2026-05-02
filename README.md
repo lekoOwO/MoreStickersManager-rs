@@ -88,8 +88,10 @@ Environment variables:
 - `MSM_ASSET_DIR`: local asset directory, default `data/assets`.
 - `MSM_WEB_DIST_DIR`: Web UI dist directory, default `apps/web/dist`.
 
-P9 serves Web UI files from `apps/web/dist` on disk. A later embedding phase will
-replace disk serving with embedded frontend assets.
+When `apps/web/dist` exists before `cargo build -p msm-app`, P10 embeds that
+dist into the binary. If dist is missing, the binary embeds a small placeholder
+page so clean Rust builds still work. At runtime `MSM_WEB_DIST_DIR` remains a
+disk override for development.
 
 ## Project Docs
 

@@ -41,6 +41,9 @@ Rust embedding phase copies or embeds it intentionally.
 
 `msm-app` is the composition crate. It reads runtime configuration from
 environment variables, runs storage migrations, creates the local asset store,
-mounts the API router, and serves Web UI build output from `apps/web/dist`.
-Frontend assets are still disk-served in P9; final binary embedding is a later
-phase that should preserve the same router boundary.
+mounts the API router, and serves Web UI assets.
+
+P10 embeds Web assets into the binary through an `msm-app` build script. If
+`apps/web/dist/index.html` exists during compilation, that real dist is embedded.
+Otherwise a committed placeholder is embedded so clean Rust-only builds remain
+valid. Runtime serving is disk-first (`MSM_WEB_DIST_DIR`) and embedded-second.

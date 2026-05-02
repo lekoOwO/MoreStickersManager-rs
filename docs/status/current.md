@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P9 service binary.
+Phase: P10 embedded Web assets.
 
 Last completed:
-- P9 service binary design, implementation plan, `msm-app` crate, environment config, storage initialization, API router composition, local asset store setup, Web UI dist static serving, and config tests.
+- P10 embedded Web asset design, implementation plan, `msm-app` build script, placeholder Web dist, disk-first embedded-second Web fallback handler, safe path normalization, and embedded asset tests.
 
 Current task:
-- P9 is verified. Continue with embedded frontend bytes or authenticated Web API flows.
+- P10 is verified. Continue with authenticated Web API flows or MCP endpoint.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start P10. Recommended next slice: embed Web UI assets into the Rust binary while preserving disk override for development.
+- Start the next planned slice: MCP endpoint or auth/PAT foundation.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
