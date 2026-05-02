@@ -4,13 +4,22 @@ use std::{
     collections::BTreeMap,
     env,
     net::{AddrParseError, SocketAddr},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
-use axum::Router;
+use axum::{
+    body::Body,
+    extract::OriginalUri,
+    http::{header::CONTENT_TYPE, Response, StatusCode, Uri},
+    routing::get,
+    Router,
+};
+use bytes::Bytes;
+use include_dir::{include_dir, Dir};
 use msm_api::{build_router, ApiState};
 use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
-use tower_http::services::{ServeDir, ServeFile};
+
+static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppConfig {
@@ -91,10 +100,35 @@ pub async fn initialize_state(config: &AppConfig) -> AppResult<ApiState> {
 }
 
 pub fn build_app_router(state: ApiState, web_dist_dir: impl Into<PathBuf>) -> Router {
-    let web_dist_dir = web_dist_dir.into();
-    let index_file = web_dist_dir.join("index.html");
-    let static_service = ServeDir::new(web_dist_dir).not_found_service(ServeFile::new(index_file));
-    build_router(state).fallback_service(static_service)
+    let assets = WebAssets::new(web_dist_dir.into());
+    build_router(state).fallback(get(move |OriginalUri(uri): OriginalUri| {
+        serve_web_asset(uri, assets.clone())
+    }))
+}
+
+#[derive(Clone, Debug)]
+struct WebAssets {
+    disk_dir: PathBuf,
+}
+
+impl WebAssets {
+    fn new(disk_dir: PathBuf) -> Self {
+        Self { disk_dir }
+    }
+}
+
+async fn serve_web_asset(uri: Uri, assets: WebAssets) -> Response<Body> {
+    let Some(path) = normalized_web_path(uri.path()) else {
+        return status_response(StatusCode::BAD_REQUEST);
+    };
+
+    if let Some(response) = disk_asset_response(&assets.disk_dir, &path).await {
+        return response;
+    }
+
+    embedded_asset_response(&path)
+        .or_else(|| embedded_asset_response("index.html"))
+        .unwrap_or_else(|| status_response(StatusCode::NOT_FOUND))
 }
 
 fn read(vars: &BTreeMap<String, String>, key: &str, default: &str) -> String {
@@ -102,6 +136,58 @@ fn read(vars: &BTreeMap<String, String>, key: &str, default: &str) -> String {
         .filter(|value| !value.trim().is_empty())
         .cloned()
         .unwrap_or_else(|| default.to_owned())
+}
+
+fn normalized_web_path(path: &str) -> Option<String> {
+    let trimmed = path.trim_start_matches('/');
+    let candidate = if trimmed.is_empty() || trimmed.ends_with('/') {
+        "index.html"
+    } else {
+        trimmed
+    };
+
+    if candidate.contains('\\')
+        || candidate
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
+        return None;
+    }
+
+    Some(candidate.to_owned())
+}
+
+async fn disk_asset_response(disk_dir: &Path, path: &str) -> Option<Response<Body>> {
+    let disk_path = disk_dir.join(path);
+    let bytes = tokio::fs::read(&disk_path).await.ok()?;
+    Some(asset_response(path, Bytes::from(bytes)))
+}
+
+fn embedded_asset_response(path: &str) -> Option<Response<Body>> {
+    let file = EMBEDDED_WEB_DIR.get_file(path)?;
+    Some(asset_response(
+        path,
+        Bytes::copy_from_slice(file.contents()),
+    ))
+}
+
+fn asset_response(path: &str, bytes: Bytes) -> Response<Body> {
+    Response::builder()
+        .header(
+            CONTENT_TYPE,
+            mime_guess::from_path(path)
+                .first_or_octet_stream()
+                .essence_str(),
+        )
+        .body(Body::from(bytes))
+        .expect("asset response should be buildable")
+}
+
+fn status_response(status: StatusCode) -> Response<Body> {
+    Response::builder()
+        .status(status)
+        .body(Body::empty())
+        .expect("status response should be buildable")
 }
 
 #[cfg(test)]
@@ -153,5 +239,25 @@ mod tests {
         let error = AppConfig::from_env_map(&vars).expect_err("invalid bind address must fail");
 
         assert!(error.to_string().contains("invalid bind address"));
+    }
+
+    #[test]
+    fn normalizes_safe_web_paths() {
+        assert_eq!(
+            super::normalized_web_path("/").as_deref(),
+            Some("index.html")
+        );
+        assert_eq!(
+            super::normalized_web_path("/assets/index.js").as_deref(),
+            Some("assets/index.js")
+        );
+        assert!(super::normalized_web_path("/../secret").is_none());
+        assert!(super::normalized_web_path("/assets/../secret").is_none());
+        assert!(super::normalized_web_path("/assets\\secret").is_none());
+    }
+
+    #[test]
+    fn embedded_index_exists() {
+        assert!(super::EMBEDDED_WEB_DIR.get_file("index.html").is_some());
     }
 }
