@@ -3,13 +3,18 @@ import { computed, onMounted, ref } from "vue";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createPackClient } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
-import { listStickerPacks, type PackVisibility, type StickerPackSummary } from "@/lib/sticker-packs";
+import { type PackVisibility, type StickerPackSummary } from "@/lib/sticker-packs";
 
 const props = defineProps<{
   locale: Locale;
 }>();
 
+const packClient = createPackClient({
+  baseUrl: import.meta.env.VITE_MSM_API_BASE_URL,
+  userId: import.meta.env.VITE_MSM_USER_ID,
+});
 const packs = ref<StickerPackSummary[]>([]);
 
 const labels = computed(() => allMessages()[props.locale]);
@@ -24,7 +29,7 @@ const providerCounts = computed(() => {
 });
 
 onMounted(async () => {
-  packs.value = await listStickerPacks();
+  packs.value = await packClient.listStickerPacks();
 });
 
 function visibilityLabel(visibility: PackVisibility) {
