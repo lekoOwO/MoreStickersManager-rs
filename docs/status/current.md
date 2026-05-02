@@ -1,15 +1,15 @@
 # Current Status
 
-Phase: P2 storage and asset core.
+Phase: P3 authorization domain.
 
 Last completed:
-- `msm-storage` scaffold, storage config, local asset store, schema models, SQLite migrations, repository operations, and portable export/import.
+- P3 authorization design, implementation plan, pure domain policy evaluator, and authorization tests.
 
 Current task:
-- Complete P2 verification.
+- Complete P3 verification.
 
 Last verification:
-- `cargo test -p msm-storage portability`
+- `cargo test -p msm-domain --test authorization`
 
 Next step:
 - Run workspace format, clippy, and tests.

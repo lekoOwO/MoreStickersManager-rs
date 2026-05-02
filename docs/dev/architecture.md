@@ -5,6 +5,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 ## Crate Boundaries
 
 - `msm-domain`: compatibility models, pure ID helpers, pure URL resolution, and import/export helpers.
+- `msm-domain::authz`: pure authorization policy evaluation for pack and subscription access.
 - `msm-storage`: database repositories and asset storage, added in P2.
 - `msm-api`: HTTP API and OpenAPI, added in P4.
 - `msm-cli`: command-line client, added in P5.
@@ -15,3 +16,5 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 ## Dependency Rule
 
 `msm-domain` must not depend on Axum, SQLx, provider SDKs, frontend code, or runtime-specific infrastructure.
+
+Authorization policies stay in `msm-domain` so API, CLI, MCP, and Web UI assumptions can share the same rules.

@@ -1,7 +1,7 @@
 #![doc = "Domain models and pure helpers for MoreStickersManager-rs."]
 
-pub mod error;
 pub mod authz;
+pub mod error;
 pub mod ids;
 pub mod stickerpack;
 pub mod url;

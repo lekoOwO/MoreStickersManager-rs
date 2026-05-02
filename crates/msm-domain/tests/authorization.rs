@@ -113,8 +113,12 @@ fn pat_with_asset_read_can_read_accessible_asset() {
         scopes: BTreeSet::from([Permission::AssetRead]),
     };
 
-    let decision =
-        evaluate_pack_access(&principal, PackAction::ReadAsset, &pack, &AccessContext::default());
+    let decision = evaluate_pack_access(
+        &principal,
+        PackAction::ReadAsset,
+        &pack,
+        &AccessContext::default(),
+    );
 
     assert!(decision.allowed);
     assert_eq!(decision.reason, PolicyReason::AllowedByPatScope);

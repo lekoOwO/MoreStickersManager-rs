@@ -3,6 +3,7 @@
 ## Implemented in P0/P1
 
 - `crates/msm-domain`: MoreStickers-compatible domain models and pure helpers.
+- `crates/msm-domain/src/authz.rs`: pure authorization policy primitives and evaluators.
 - `crates/msm-storage`: SQL storage primitives, local asset storage, and portable export/import.
 - `docs/status`: current state and development log.
 - `docs/dev`: human developer references.

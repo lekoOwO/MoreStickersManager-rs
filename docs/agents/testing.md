@@ -42,3 +42,21 @@ These tests prove:
 - SQLite migrations create the P2 schema;
 - repository operations can create tenant, user, pack, sticker, and subscription records;
 - portable user data can be exported from one SQLite database and imported into another.
+
+## P3 Authorization Tests
+
+Run:
+
+```powershell
+cargo test -p msm-domain --test authorization
+```
+
+These tests prove:
+
+- tenant admins can manage in-tenant resources but cannot cross tenants;
+- owners can manage owned private packs;
+- tenant members can only read member-access private packs;
+- anonymous access is limited to public resources;
+- PAT access requires matching scopes;
+- pack secrets and subscription secrets only grant their narrow resource access;
+- public subscription groups do not globally expose private pack assets.

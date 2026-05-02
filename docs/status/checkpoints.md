@@ -19,3 +19,10 @@
 - Added `msm-storage` crate.
 - Added database URL config, local asset store, P2 schema models, SQLite migration runner, SQLite repository operations, and portable user export/import.
 - Verified focused storage tests while implementing each component.
+
+## 2026-05-02 P3 Authorization Implementation
+
+- Added P3 authorization domain design and implementation plan.
+- Added `msm-domain::authz` with principal, permission, role, resource, access context, and policy decision types.
+- Added pack and subscription policy evaluators.
+- Verified authorization behavior with dedicated integration tests.

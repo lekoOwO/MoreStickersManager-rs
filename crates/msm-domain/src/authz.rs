@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Permission {
     SystemConfigure,
     TenantManageMembers,
@@ -156,7 +156,8 @@ pub fn evaluate_pack_access(
     match principal {
         Principal::Anonymous => evaluate_anonymous_pack(action, resource),
         Principal::PackSecret { pack_id } => {
-            if pack_id == &resource.id && matches!(action, PackAction::Read | PackAction::ReadAsset) {
+            if pack_id == &resource.id && matches!(action, PackAction::Read | PackAction::ReadAsset)
+            {
                 PolicyDecision::allow(PolicyReason::AllowedByPackSecret)
             } else {
                 PolicyDecision::deny(PolicyReason::DeniedSecretMismatch)
@@ -165,7 +166,8 @@ pub fn evaluate_pack_access(
         Principal::SubscriptionSecret {
             subscription_group_id,
         } => {
-            let context_matches = context.subscription_group_id.as_ref() == Some(subscription_group_id)
+            let context_matches = context.subscription_group_id.as_ref()
+                == Some(subscription_group_id)
                 && context.subscription_pack_ids.contains(&resource.id);
             if context_matches && matches!(action, PackAction::Read | PackAction::ReadAsset) {
                 PolicyDecision::allow(PolicyReason::AllowedBySubscriptionSecret)
@@ -227,7 +229,15 @@ pub fn evaluate_subscription_access(
             tenant_id,
             role,
             permissions,
-        } => evaluate_user_subscription(user_id, tenant_id, role, permissions, required, action, resource),
+        } => evaluate_user_subscription(
+            user_id,
+            tenant_id,
+            role,
+            permissions,
+            required,
+            action,
+            resource,
+        ),
         Principal::PersonalAccessToken {
             user_id,
             tenant_id,
@@ -263,7 +273,7 @@ fn evaluate_user_pack(
         return PolicyDecision::allow(PolicyReason::AllowedByAdmin);
     }
 
-    if !role_allows(role, permissions, &required) {
+    if !role_allows(role, permissions, required) {
         return PolicyDecision::deny(PolicyReason::DeniedMissingPermission);
     }
 
@@ -323,7 +333,7 @@ fn evaluate_user_subscription(
         return PolicyDecision::allow(PolicyReason::AllowedByAdmin);
     }
 
-    if !role_allows(role, permissions, &required) {
+    if !role_allows(role, permissions, required) {
         return PolicyDecision::deny(PolicyReason::DeniedMissingPermission);
     }
 
@@ -363,11 +373,15 @@ fn evaluate_pat_subscription(
     }
 }
 
-fn role_allows(role: &Role, custom_permissions: &BTreeSet<Permission>, required: &Permission) -> bool {
+fn role_allows(
+    role: &Role,
+    custom_permissions: &BTreeSet<Permission>,
+    required: Permission,
+) -> bool {
     match role {
         Role::Admin => true,
-        Role::User => built_in_user_permissions().contains(required),
-        Role::Custom(_) => custom_permissions.contains(required),
+        Role::User => built_in_user_permissions().contains(&required),
+        Role::Custom(_) => custom_permissions.contains(&required),
     }
 }
 
