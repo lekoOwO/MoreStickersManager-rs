@@ -10,7 +10,7 @@ export interface StickerPackSummary {
   updatedAt: string;
 }
 
-const mockPacks: StickerPackSummary[] = [
+export const mockStickerPacks: StickerPackSummary[] = [
   {
     id: "telegram-cats",
     title: "Telegram Cats",
@@ -40,6 +40,6 @@ const mockPacks: StickerPackSummary[] = [
   },
 ];
 
-export async function listStickerPacks(): Promise<StickerPackSummary[]> {
-  return [...mockPacks];
+export async function listMockStickerPacks(): Promise<StickerPackSummary[]> {
+  return [...mockStickerPacks];
 }
