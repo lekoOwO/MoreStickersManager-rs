@@ -8,7 +8,8 @@
 - `crates/msm-api`: Axum API routes and utoipa OpenAPI generation.
 - `crates/msm-cli`: HTTP CLI client for MSM API operations.
 - `crates/msm-providers`: provider registry plus Telegram and LINE fixture normalizers.
-- `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, and mock dashboard.
+- `crates/msm-app`: runnable Axum service binary composing storage, API, assets, and Web UI static serving.
+- `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, and P4 pack-list API client.
 - `components.json`: Shadcn Vue configuration for the Web UI workspace.
 - `docs/status`: current state and development log.
 - `docs/dev`: human developer references.
@@ -16,8 +17,7 @@
 
 ## Not Implemented Yet
 
-- API server.
-- Web UI API integration.
+- Embedded frontend bytes in the Rust binary.
 - MCP endpoint.
 - Provider network integrations and asset download orchestration.
 

@@ -11,7 +11,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-cli`: command-line client, added in P5.
 - `msm-mcp`: MCP endpoint, added in P9.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
-- `msm-app`: final service binary and embedded frontend, added after API and Web UI foundations exist.
+- `msm-app`: runnable service composition binary, added in P9.
 - `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7.
 
 ## Dependency Rule
@@ -36,3 +36,11 @@ The frontend must keep API access behind small client modules so later OpenAPI
 or handwritten HTTP clients can replace mock data without rewriting dashboard
 components. `apps/web/dist` is a build artifact and must remain ignored until a
 Rust embedding phase copies or embeds it intentionally.
+
+## Service Boundary
+
+`msm-app` is the composition crate. It reads runtime configuration from
+environment variables, runs storage migrations, creates the local asset store,
+mounts the API router, and serves Web UI build output from `apps/web/dist`.
+Frontend assets are still disk-served in P9; final binary embedding is a later
+phase that should preserve the same router boundary.

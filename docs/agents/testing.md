@@ -142,3 +142,19 @@ These tests prove:
 - P4 `StickerPackRecord` JSON maps into dashboard summaries;
 - provider inference handles Telegram, LINE stickers, and LINE emojis;
 - the dashboard still renders through the client boundary without network access in tests.
+
+## P9 Service Binary Tests
+
+Run:
+
+```powershell
+cargo test -p msm-app
+cargo clippy -p msm-app --all-targets -- -D warnings
+```
+
+These tests prove:
+
+- service configuration uses safe defaults;
+- environment overrides are parsed correctly;
+- invalid bind addresses fail before startup;
+- the composition crate builds with API, storage, and static Web UI serving.

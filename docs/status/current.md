@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P8 Web API client.
+Phase: P9 service binary.
 
 Last completed:
-- P8 Web API client design, implementation plan, typed pack client, P4 list route response mapper, mock fallback, dashboard client integration, and frontend tests.
+- P9 service binary design, implementation plan, `msm-app` crate, environment config, storage initialization, API router composition, local asset store setup, Web UI dist static serving, and config tests.
 
 Current task:
-- P8 is verified. Continue with Rust service binary/frontend embedding or authenticated Web API flows.
+- P9 is verified. Continue with embedded frontend bytes or authenticated Web API flows.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start P9. Recommended next slice: Rust app binary that serves the API and embedded Web UI dist.
+- Start P10. Recommended next slice: embed Web UI assets into the Rust binary while preserving disk override for development.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

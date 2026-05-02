@@ -66,3 +66,11 @@
 - Added mock fallback when `VITE_MSM_API_BASE_URL` is unset.
 - Connected dashboard data loading through the client boundary.
 - Verified frontend typecheck, tests, and production build during implementation.
+
+## 2026-05-03 P9 Service Binary
+
+- Added P9 service binary design and implementation plan.
+- Added `msm-app` crate.
+- Added environment-based runtime config for bind address, database URL, asset directory, and Web UI dist directory.
+- Added startup composition for storage migrations, local asset store, API router, and Web UI static serving with SPA fallback.
+- Verified `msm-app` format, clippy, and tests during implementation.

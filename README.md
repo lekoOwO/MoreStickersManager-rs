@@ -72,6 +72,25 @@ npm run web:dev
 If `VITE_MSM_API_BASE_URL` is not set, the dashboard uses deterministic mock
 data for local preview and tests.
 
+## Service Binary
+
+Run the current all-in-one service:
+
+```powershell
+npm run web:build
+cargo run -p msm-app
+```
+
+Environment variables:
+
+- `MSM_BIND_ADDR`: bind address, default `127.0.0.1:3000`.
+- `MSM_DATABASE_URL`: database URL, default `sqlite:data/msm.sqlite3`.
+- `MSM_ASSET_DIR`: local asset directory, default `data/assets`.
+- `MSM_WEB_DIST_DIR`: Web UI dist directory, default `apps/web/dist`.
+
+P9 serves Web UI files from `apps/web/dist` on disk. A later embedding phase will
+replace disk serving with embedded frontend assets.
+
 ## Project Docs
 
 - `docs/dev/architecture.md`: architecture and crate boundaries.

@@ -35,3 +35,14 @@ npm run web:dev
 ```
 
 When `VITE_MSM_API_BASE_URL` is omitted, the dashboard falls back to mock data.
+
+Current service binary example:
+
+```powershell
+npm run web:build
+cargo run -p msm-app
+```
+
+By default the service listens on `127.0.0.1:3000`, uses
+`sqlite:data/msm.sqlite3`, stores assets under `data/assets`, and serves the Web
+UI from `apps/web/dist`.
