@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/msm-domain", "crates/msm-storage"]
+members = ["crates/msm-domain", "crates/msm-storage", "crates/msm-api"]
 resolver = "2"
 
 [workspace.package]
