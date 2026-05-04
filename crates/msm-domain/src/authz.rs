@@ -22,6 +22,57 @@ pub enum Permission {
     PatManage,
 }
 
+impl Permission {
+    #[must_use]
+    pub fn as_key(self) -> &'static str {
+        match self {
+            Self::SystemConfigure => "system.configure",
+            Self::TenantManageMembers => "tenant.manage_members",
+            Self::TenantViewAuditLog => "tenant.view_audit_log",
+            Self::PackCreate => "pack.create",
+            Self::PackRead => "pack.read",
+            Self::PackUpdate => "pack.update",
+            Self::PackDelete => "pack.delete",
+            Self::PackManageAccess => "pack.manage_access",
+            Self::AssetRead => "asset.read",
+            Self::SubscriptionCreate => "subscription.create",
+            Self::SubscriptionRead => "subscription.read",
+            Self::SubscriptionUpdate => "subscription.update",
+            Self::SubscriptionDelete => "subscription.delete",
+            Self::SubscriptionManageAccess => "subscription.manage_access",
+            Self::ProviderImport => "provider.import",
+            Self::ExportRun => "export.run",
+            Self::ImportRun => "import.run",
+            Self::PatManage => "pat.manage",
+        }
+    }
+
+    #[must_use]
+    pub fn from_key(key: &str) -> Option<Self> {
+        match key {
+            "system.configure" => Some(Self::SystemConfigure),
+            "tenant.manage_members" => Some(Self::TenantManageMembers),
+            "tenant.view_audit_log" => Some(Self::TenantViewAuditLog),
+            "pack.create" => Some(Self::PackCreate),
+            "pack.read" => Some(Self::PackRead),
+            "pack.update" => Some(Self::PackUpdate),
+            "pack.delete" => Some(Self::PackDelete),
+            "pack.manage_access" => Some(Self::PackManageAccess),
+            "asset.read" => Some(Self::AssetRead),
+            "subscription.create" => Some(Self::SubscriptionCreate),
+            "subscription.read" => Some(Self::SubscriptionRead),
+            "subscription.update" => Some(Self::SubscriptionUpdate),
+            "subscription.delete" => Some(Self::SubscriptionDelete),
+            "subscription.manage_access" => Some(Self::SubscriptionManageAccess),
+            "provider.import" => Some(Self::ProviderImport),
+            "export.run" => Some(Self::ExportRun),
+            "import.run" => Some(Self::ImportRun),
+            "pat.manage" => Some(Self::PatManage),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Role {
     Admin,
@@ -422,4 +473,49 @@ fn built_in_user_permissions() -> BTreeSet<Permission> {
     ]
     .into_iter()
     .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Permission;
+
+    #[test]
+    fn permission_keys_roundtrip() {
+        for permission in all_permissions() {
+            assert_eq!(
+                Permission::from_key(permission.as_key()),
+                Some(permission),
+                "permission key should roundtrip"
+            );
+        }
+    }
+
+    #[test]
+    fn permission_keys_reject_unknown_values() {
+        assert_eq!(Permission::from_key("pack.unknown"), None);
+        assert_eq!(Permission::from_key(""), None);
+    }
+
+    fn all_permissions() -> Vec<Permission> {
+        vec![
+            Permission::SystemConfigure,
+            Permission::TenantManageMembers,
+            Permission::TenantViewAuditLog,
+            Permission::PackCreate,
+            Permission::PackRead,
+            Permission::PackUpdate,
+            Permission::PackDelete,
+            Permission::PackManageAccess,
+            Permission::AssetRead,
+            Permission::SubscriptionCreate,
+            Permission::SubscriptionRead,
+            Permission::SubscriptionUpdate,
+            Permission::SubscriptionDelete,
+            Permission::SubscriptionManageAccess,
+            Permission::ProviderImport,
+            Permission::ExportRun,
+            Permission::ImportRun,
+            Permission::PatManage,
+        ]
+    }
 }
