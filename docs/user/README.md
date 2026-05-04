@@ -65,3 +65,9 @@ PAT foundation status:
 - only the secret hash is stored;
 - scope keys include values such as `pack.read`, `asset.read`, and `pat.manage`;
 - API/CLI/MCP authentication enforcement is not wired yet.
+
+PAT API endpoints:
+
+- `POST /api/v1/pats`
+- `GET /api/v1/pats?userId=...`
+- `DELETE /api/v1/pats/{token_id}`

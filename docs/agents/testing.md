@@ -209,3 +209,20 @@ These tests prove:
 - PAT creation returns the raw token once and stores only a hash;
 - valid tokens verify to active records;
 - invalid, revoked, and expired tokens fail verification.
+
+## P13 PAT Management API Tests
+
+Run:
+
+```powershell
+cargo test -p msm-api
+cargo clippy -p msm-api --all-targets -- -D warnings
+```
+
+These tests prove:
+
+- OpenAPI includes `/api/v1/pats`;
+- PAT create returns a raw token once;
+- PAT list responses omit raw tokens and token hashes;
+- PAT revoke invalidates storage verification;
+- unknown PAT scopes return `400 Bad Request`.

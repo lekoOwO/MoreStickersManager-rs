@@ -99,3 +99,12 @@
 - Added PAT creation, listing, verification, expiry rejection, and revocation in `msm-storage`.
 - Added random token secret generation and SHA-256 secret hashing.
 - Verified focused domain and storage tests plus storage clippy during implementation.
+
+## 2026-05-04 P13 PAT Management API
+
+- Added P13 PAT management API design and implementation plan.
+- Added PAT create, list, and revoke DTOs and routes.
+- Added hash-free PAT response mapping and create-only raw token output.
+- Added OpenAPI coverage for PAT endpoints.
+- Added API tests for create/list/revoke and unknown scope rejection.
+- Verified API tests and clippy during implementation.

@@ -117,6 +117,15 @@ Only `sha256(random_secret)` is stored. Permission scopes use stable keys such
 as `pack.read`, `asset.read`, and `pat.manage`. API/CLI/MCP enforcement is a
 later auth integration phase.
 
+P13 exposes PAT lifecycle APIs:
+
+- `POST /api/v1/pats`
+- `GET /api/v1/pats?userId=...`
+- `DELETE /api/v1/pats/{token_id}`
+
+Create responses include the raw token. List responses intentionally omit raw
+tokens and token hashes.
+
 ## Project Docs
 
 - `docs/dev/architecture.md`: architecture and crate boundaries.
