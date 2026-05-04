@@ -28,6 +28,14 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/packs/{pack_id}/stickerpack",
             get(routes::packs::export_pack),
         )
+        .route(
+            "/api/v1/pats",
+            get(routes::pats::list_pats).post(routes::pats::create_pat),
+        )
+        .route(
+            "/api/v1/pats/{token_id}",
+            axum::routing::delete(routes::pats::revoke_pat),
+        )
         .with_state(state)
 }
 
@@ -77,6 +85,7 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
         assert!(json["paths"].get("/healthz").is_some());
+        assert!(json["paths"].get("/api/v1/pats").is_some());
     }
 
     #[tokio::test]
@@ -175,6 +184,105 @@ mod tests {
         );
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"webp-bytes");
+    }
+
+    #[tokio::test]
+    async fn creates_lists_and_revokes_personal_access_token() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+
+        let create_body = serde_json::json!({
+            "id": "cli1",
+            "userId": "user_1",
+            "name": "CLI",
+            "scopes": ["pack.read", "asset.read"],
+            "expiresAt": null,
+        });
+        let create_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/pats")
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+        let body = to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let created: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let token = created["token"].as_str().unwrap().to_owned();
+        assert!(token.starts_with("msm_pat_cli1_"));
+        assert!(created.get("tokenHash").is_none());
+
+        let list_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/pats?userId=user_1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_response.status(), StatusCode::OK);
+        let body = to_bytes(list_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let listed: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(listed[0]["id"], "cli1");
+        assert!(listed[0].get("token").is_none());
+        assert!(listed[0].get("tokenHash").is_none());
+
+        let revoke_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/pats/cli1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(revoke_response.status(), StatusCode::NO_CONTENT);
+        assert!(state
+            .repository()
+            .verify_personal_access_token(&token)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn create_personal_access_token_rejects_unknown_scopes() {
+        let state = test_state().await;
+        let create_body = serde_json::json!({
+            "id": "cli1",
+            "userId": "user_1",
+            "name": "CLI",
+            "scopes": ["pack.unknown"],
+            "expiresAt": null,
+        });
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/pats")
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
     async fn test_state() -> ApiState {

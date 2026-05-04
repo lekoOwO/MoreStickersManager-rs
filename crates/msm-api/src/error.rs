@@ -44,7 +44,12 @@ impl IntoResponse for ApiError {
 
 impl From<msm_storage::StorageError> for ApiError {
     fn from(error: msm_storage::StorageError) -> Self {
-        Self::Internal(error.to_string())
+        match error {
+            msm_storage::StorageError::InvalidPersonalAccessToken { .. } => {
+                Self::BadRequest(error.to_string())
+            }
+            _ => Self::Internal(error.to_string()),
+        }
     }
 }
 

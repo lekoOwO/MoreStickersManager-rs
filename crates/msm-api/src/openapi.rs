@@ -4,9 +4,12 @@ use axum::Json;
 use utoipa::OpenApi;
 
 use crate::{
-    dto::{HealthResponse, ImportPackRequest},
+    dto::{
+        CreatePersonalAccessTokenRequest, CreatedPersonalAccessTokenResponse, HealthResponse,
+        ImportPackRequest, PersonalAccessTokenResponse,
+    },
     error::ApiErrorBody,
-    routes::{assets, health, packs},
+    routes::{assets, health, packs, pats},
 };
 
 #[derive(OpenApi)]
@@ -16,9 +19,19 @@ use crate::{
         assets::read_asset,
         packs::import_pack,
         packs::list_packs,
-        packs::export_pack
+        packs::export_pack,
+        pats::create_pat,
+        pats::list_pats,
+        pats::revoke_pat
     ),
-    components(schemas(HealthResponse, ApiErrorBody, ImportPackRequest)),
+    components(schemas(
+        HealthResponse,
+        ApiErrorBody,
+        ImportPackRequest,
+        CreatePersonalAccessTokenRequest,
+        CreatedPersonalAccessTokenResponse,
+        PersonalAccessTokenResponse
+    )),
     tags((name = "system", description = "System endpoints"))
 )]
 pub struct ApiDoc;
