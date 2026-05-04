@@ -1,5 +1,6 @@
 #![doc = "HTTP API and `OpenAPI` surface for MoreStickersManager-rs."]
 
+pub mod auth;
 pub mod dto;
 pub mod error;
 pub mod openapi;
@@ -45,7 +46,9 @@ mod tests {
         body::{to_bytes, Body},
         http::{Request, StatusCode},
     };
-    use msm_domain::Sticker;
+    use std::collections::BTreeSet;
+
+    use msm_domain::{Permission, Sticker};
     use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
     use tower::ServiceExt;
 
@@ -106,6 +109,13 @@ mod tests {
             .add_tenant_member("tenant_1", "user_1", "admin")
             .await
             .unwrap();
+        let token = create_pat(
+            &state,
+            "patfull",
+            "user_1",
+            [Permission::ImportRun, Permission::PackRead],
+        )
+        .await;
 
         let pack = sample_pack();
         let import_body = serde_json::json!({
@@ -121,6 +131,7 @@ mod tests {
                 Request::builder()
                     .method("POST")
                     .uri("/api/v1/packs/import")
+                    .header("authorization", format!("Bearer {token}"))
                     .header("content-type", "application/json")
                     .body(Body::from(import_body.to_string()))
                     .unwrap(),
@@ -133,6 +144,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .uri("/api/v1/packs?userId=user_1")
+                    .header("authorization", format!("Bearer {token}"))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -144,6 +156,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .uri("/api/v1/packs/pack_1/stickerpack")
+                    .header("authorization", format!("Bearer {token}"))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -184,6 +197,158 @@ mod tests {
         );
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"webp-bytes");
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_requires_bearer_for_pack_list() {
+        let response = build_router(test_state().await)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs?userId=user_1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_allows_owner_pack_list_with_pack_read() {
+        let state = seeded_state().await;
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs?userId=user_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_rejects_pack_list_missing_scope() {
+        let state = seeded_state().await;
+        let token = create_pat(&state, "patasset", "user_1", [Permission::AssetRead]).await;
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs?userId=user_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_rejects_pack_list_user_mismatch() {
+        let state = seeded_state().await;
+        state
+            .repository()
+            .create_user("user_2", "other@example.com", "Other")
+            .await
+            .unwrap();
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs?userId=user_2")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_import_requires_import_run_and_matching_owner() {
+        let state = empty_state_with_owner().await;
+        let pack = sample_pack();
+        let import_body = serde_json::json!({
+            "tenantId": "tenant_1",
+            "ownerUserId": "user_1",
+            "packId": "pack_1",
+            "visibility": "private",
+            "pack": pack,
+        });
+        let read_only_token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+
+        let forbidden = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/packs/import")
+                    .header("authorization", format!("Bearer {read_only_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(import_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+
+        let import_token = create_pat(&state, "patimport", "user_1", [Permission::ImportRun]).await;
+        let created = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/packs/import")
+                    .header("authorization", format!("Bearer {import_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(import_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(created.status(), StatusCode::CREATED);
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_export_requires_pack_read() {
+        let state = seeded_state().await;
+        let asset_token = create_pat(&state, "patasset", "user_1", [Permission::AssetRead]).await;
+        let forbidden = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs/pack_1/stickerpack")
+                    .header("authorization", format!("Bearer {asset_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+
+        let read_token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+        let ok = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs/pack_1/stickerpack")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(ok.status(), StatusCode::OK);
     }
 
     #[tokio::test]
@@ -292,6 +457,57 @@ mod tests {
         let repository = StorageRepository::new(pool);
         let assets = LocalAssetStore::new(tempfile::tempdir().unwrap().keep());
         ApiState::new(repository, assets)
+    }
+
+    async fn seeded_state() -> ApiState {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_1",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack(),
+            )
+            .await
+            .unwrap();
+        state
+    }
+
+    async fn empty_state_with_owner() -> ApiState {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_1", "admin")
+            .await
+            .unwrap();
+        state
+    }
+
+    async fn create_pat<const N: usize>(
+        state: &ApiState,
+        id: &str,
+        user_id: &str,
+        scopes: [Permission; N],
+    ) -> String {
+        state
+            .repository()
+            .create_personal_access_token(id, user_id, "Test PAT", &BTreeSet::from(scopes), None)
+            .await
+            .unwrap()
+            .token
     }
 
     fn sample_pack() -> msm_domain::StickerPack {

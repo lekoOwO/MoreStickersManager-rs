@@ -7,6 +7,8 @@ use axum::{
 #[derive(Debug)]
 pub enum ApiError {
     BadRequest(String),
+    Unauthorized(String),
+    Forbidden(String),
     NotFound(String),
     Internal(String),
 }
@@ -28,6 +30,8 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {
             Self::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", message),
+            Self::Unauthorized(message) => (StatusCode::UNAUTHORIZED, "unauthorized", message),
+            Self::Forbidden(message) => (StatusCode::FORBIDDEN, "forbidden", message),
             Self::NotFound(message) => (StatusCode::NOT_FOUND, "not_found", message),
             Self::Internal(message) => (StatusCode::INTERNAL_SERVER_ERROR, "internal", message),
         };

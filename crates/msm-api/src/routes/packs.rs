@@ -1,11 +1,13 @@
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     Json,
 };
+use msm_domain::Permission;
 use msm_domain::StickerPack;
 
 use crate::{
+    auth::require_pat,
     dto::{ImportPackRequest, ListPacksQuery},
     ApiError, ApiResult, ApiState,
 };
@@ -28,8 +30,12 @@ use crate::{
 /// Returns an error when the request pack JSON is invalid or storage fails.
 pub async fn import_pack(
     State(state): State<ApiState>,
+    headers: HeaderMap,
     Json(request): Json<ImportPackRequest>,
 ) -> ApiResult<StatusCode> {
+    let pat = require_pat(&headers, &state, Permission::ImportRun).await?;
+    pat.require_user(&request.owner_user_id)?;
+
     let pack: StickerPack = serde_json::from_value(request.pack)
         .map_err(|error| ApiError::BadRequest(error.to_string()))?;
     state
@@ -60,8 +66,12 @@ pub async fn import_pack(
 /// Returns an error when storage fails or a stored pack cannot be serialized.
 pub async fn list_packs(
     State(state): State<ApiState>,
+    headers: HeaderMap,
     Query(query): Query<ListPacksQuery>,
 ) -> ApiResult<Json<Vec<serde_json::Value>>> {
+    let pat = require_pat(&headers, &state, Permission::PackRead).await?;
+    pat.require_user(&query.user_id)?;
+
     let packs = state
         .repository()
         .list_user_sticker_packs(&query.user_id)
@@ -91,8 +101,10 @@ pub async fn list_packs(
 /// Returns an error when the pack does not exist, storage fails, or the pack cannot be serialized.
 pub async fn export_pack(
     State(state): State<ApiState>,
+    headers: HeaderMap,
     Path(pack_id): Path<String>,
 ) -> ApiResult<Json<serde_json::Value>> {
+    let _pat = require_pat(&headers, &state, Permission::PackRead).await?;
     let pack = state
         .repository()
         .find_sticker_pack(&pack_id)

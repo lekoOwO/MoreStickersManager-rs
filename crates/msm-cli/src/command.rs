@@ -18,6 +18,9 @@ pub struct Cli {
     #[arg(long, default_value = "http://127.0.0.1:8080")]
     pub base_url: String,
 
+    #[arg(long)]
+    pub pat: Option<String>,
+
     #[arg(long, value_enum, default_value_t = OutputFormat::Human)]
     pub output_format: OutputFormat,
 
@@ -193,7 +196,12 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
 /// Returns an error when command execution fails.
 pub async fn run_from_env() -> CliResult<()> {
     let cli = Cli::parse();
-    let client = ReqwestMsmClient::new(&cli.base_url)?;
+    let pat = cli.pat.clone().or_else(|| {
+        std::env::var("MSM_PAT")
+            .ok()
+            .filter(|token| !token.is_empty())
+    });
+    let client = ReqwestMsmClient::new_with_pat(&cli.base_url, pat)?;
     let output = execute_with_client(cli, &client).await?;
     if !output.is_empty() {
         println!("{output}");
@@ -241,6 +249,13 @@ mod tests {
 
         assert_eq!(cli.output_format, OutputFormat::Human);
         assert!(matches!(cli.command, Command::Health));
+    }
+
+    #[test]
+    fn parses_global_pat_option() {
+        let cli = Cli::parse_from(["msm", "--pat", "msm_pat_cli1_secret", "health"]);
+
+        assert_eq!(cli.pat.as_deref(), Some("msm_pat_cli1_secret"));
     }
 
     #[test]

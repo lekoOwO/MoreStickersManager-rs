@@ -21,7 +21,9 @@ mod tests {
         body::{to_bytes, Body},
         http::{Request, StatusCode},
     };
-    use msm_domain::Sticker;
+    use std::collections::BTreeSet;
+
+    use msm_domain::{Permission, Sticker};
     use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
     use serde_json::{json, Value};
     use tower::ServiceExt;
@@ -69,8 +71,10 @@ mod tests {
     #[tokio::test]
     async fn tools_call_lists_sticker_packs() {
         let state = seeded_state().await;
-        let response = post_mcp(
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+        let response = post_mcp_with_auth(
             state,
+            &token,
             json!({
                 "jsonrpc": "2.0",
                 "id": 1,
@@ -93,8 +97,10 @@ mod tests {
     #[tokio::test]
     async fn tools_call_exports_sticker_pack() {
         let state = seeded_state().await;
-        let response = post_mcp(
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+        let response = post_mcp_with_auth(
             state,
+            &token,
             json!({
                 "jsonrpc": "2.0",
                 "id": 1,
@@ -116,9 +122,11 @@ mod tests {
     #[tokio::test]
     async fn tools_call_imports_sticker_pack() {
         let state = empty_state_with_owner().await;
+        let token = create_pat(&state, "patimport", "user_1", [Permission::ImportRun]).await;
         let pack = sample_pack();
-        let response = post_mcp(
+        let response = post_mcp_with_auth(
             state,
+            &token,
             json!({
                 "jsonrpc": "2.0",
                 "id": 1,
@@ -156,22 +164,148 @@ mod tests {
         assert_eq!(response["error"]["code"], -32601);
     }
 
+    #[tokio::test]
+    async fn pat_enforcement_tools_call_requires_bearer() {
+        let response = post_mcp(
+            seeded_state().await,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_sticker_packs",
+                    "arguments": { "userId": "user_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], true);
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("Personal Access Token"));
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_tools_call_allows_pack_read_list() {
+        let state = seeded_state().await;
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_sticker_packs",
+                    "arguments": { "userId": "user_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_tools_call_import_requires_import_run() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.import_sticker_pack",
+                    "arguments": {
+                        "tenantId": "tenant_1",
+                        "ownerUserId": "user_1",
+                        "packId": "pack_1",
+                        "visibility": "private",
+                        "pack": sample_pack()
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], true);
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("import.run"));
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_tools_call_rejects_user_mismatch() {
+        let state = seeded_state().await;
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_sticker_packs",
+                    "arguments": { "userId": "user_2" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], true);
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("user mismatch"));
+    }
+
     async fn post_mcp(state: msm_api::ApiState, body: Value) -> Value {
+        post_mcp_request(state, None, body).await
+    }
+
+    async fn post_mcp_with_auth(state: msm_api::ApiState, token: &str, body: Value) -> Value {
+        post_mcp_request(state, Some(token), body).await
+    }
+
+    async fn post_mcp_request(state: msm_api::ApiState, token: Option<&str>, body: Value) -> Value {
+        let mut builder = Request::builder()
+            .method("POST")
+            .uri("/mcp")
+            .header("content-type", "application/json");
+        if let Some(token) = token {
+            builder = builder.header("authorization", format!("Bearer {token}"));
+        }
+
         let response = build_router(state)
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/mcp")
-                    .header("content-type", "application/json")
-                    .body(Body::from(body.to_string()))
-                    .unwrap(),
-            )
+            .oneshot(builder.body(Body::from(body.to_string())).unwrap())
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         serde_json::from_slice(&body).unwrap()
+    }
+
+    async fn create_pat<const N: usize>(
+        state: &msm_api::ApiState,
+        id: &str,
+        user_id: &str,
+        scopes: [Permission; N],
+    ) -> String {
+        state
+            .repository()
+            .create_personal_access_token(id, user_id, "MCP", &BTreeSet::from(scopes), None)
+            .await
+            .unwrap()
+            .token
     }
 
     async fn seeded_state() -> msm_api::ApiState {

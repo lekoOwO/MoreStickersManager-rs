@@ -1,6 +1,13 @@
-use axum::{extract::State, http::StatusCode, Json};
-use msm_api::ApiState;
-use msm_domain::StickerPack;
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    Json,
+};
+use msm_api::{
+    auth::{require_pat, VerifiedPat},
+    ApiError, ApiState,
+};
+use msm_domain::{Permission, StickerPack};
 use msm_storage::models::PackVisibility;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -15,13 +22,22 @@ use crate::{
 
 pub async fn mcp_post(
     State(state): State<ApiState>,
+    headers: HeaderMap,
     Json(request): Json<JsonRpcRequest>,
 ) -> (StatusCode, Json<JsonRpcResponse>) {
-    let response = handle_mcp_message(state, request).await;
+    let response = handle_mcp_message_with_headers(state, headers, request).await;
     (StatusCode::OK, Json(response))
 }
 
 pub async fn handle_mcp_message(state: ApiState, request: JsonRpcRequest) -> JsonRpcResponse {
+    handle_mcp_message_with_headers(state, HeaderMap::new(), request).await
+}
+
+async fn handle_mcp_message_with_headers(
+    state: ApiState,
+    headers: HeaderMap,
+    request: JsonRpcRequest,
+) -> JsonRpcResponse {
     let id = request.id.unwrap_or(Value::Null);
     if request.jsonrpc != "2.0" {
         return JsonRpcResponse::error(id, -32600, "Invalid JSON-RPC version");
@@ -31,12 +47,17 @@ pub async fn handle_mcp_message(state: ApiState, request: JsonRpcRequest) -> Jso
         "initialize" => serialize_success(id, initialize_result()),
         "ping" => JsonRpcResponse::success(id, json!({})),
         "tools/list" => serialize_success(id, list_tools_result()),
-        "tools/call" => call_tool(state, id, request.params).await,
+        "tools/call" => call_tool(state, &headers, id, request.params).await,
         _ => JsonRpcResponse::error(id, -32601, "Method not found"),
     }
 }
 
-async fn call_tool(state: ApiState, id: Value, params: Option<Value>) -> JsonRpcResponse {
+async fn call_tool(
+    state: ApiState,
+    headers: &HeaderMap,
+    id: Value,
+    params: Option<Value>,
+) -> JsonRpcResponse {
     let params = match parse_params::<CallToolParams>(params) {
         Ok(params) => params,
         Err(response) => return response.with_id(id),
@@ -44,9 +65,9 @@ async fn call_tool(state: ApiState, id: Value, params: Option<Value>) -> JsonRpc
     let arguments = params.arguments.unwrap_or_else(|| json!({}));
 
     let result = match params.name.as_str() {
-        LIST_STICKER_PACKS => list_sticker_packs(&state, arguments).await,
-        EXPORT_STICKER_PACK => export_sticker_pack(&state, arguments).await,
-        IMPORT_STICKER_PACK => import_sticker_pack(&state, arguments).await,
+        LIST_STICKER_PACKS => list_sticker_packs(&state, headers, arguments).await,
+        EXPORT_STICKER_PACK => export_sticker_pack(&state, headers, arguments).await,
+        IMPORT_STICKER_PACK => import_sticker_pack(&state, headers, arguments).await,
         _ => Err("Unknown tool".to_owned()),
     };
 
@@ -56,8 +77,16 @@ async fn call_tool(state: ApiState, id: Value, params: Option<Value>) -> JsonRpc
     }
 }
 
-async fn list_sticker_packs(state: &ApiState, arguments: Value) -> Result<CallToolResult, String> {
+async fn list_sticker_packs(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
     let args = parse_arguments::<ListStickerPacksArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackRead).await?;
+    pat.require_user(&args.user_id)
+        .map_err(auth_error_message)?;
+
     let packs = state
         .repository()
         .list_user_sticker_packs(&args.user_id)
@@ -70,8 +99,13 @@ async fn list_sticker_packs(state: &ApiState, arguments: Value) -> Result<CallTo
     ))
 }
 
-async fn export_sticker_pack(state: &ApiState, arguments: Value) -> Result<CallToolResult, String> {
+async fn export_sticker_pack(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
     let args = parse_arguments::<ExportStickerPackArgs>(arguments)?;
+    let _pat = require_tool_pat(state, headers, Permission::PackRead).await?;
     let pack = state
         .repository()
         .find_sticker_pack(&args.pack_id)
@@ -85,8 +119,16 @@ async fn export_sticker_pack(state: &ApiState, arguments: Value) -> Result<CallT
     ))
 }
 
-async fn import_sticker_pack(state: &ApiState, arguments: Value) -> Result<CallToolResult, String> {
+async fn import_sticker_pack(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
     let args = parse_arguments::<ImportStickerPackArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ImportRun).await?;
+    pat.require_user(&args.owner_user_id)
+        .map_err(auth_error_message)?;
+
     let visibility = match args.visibility.as_str() {
         "public" => PackVisibility::Public,
         "private" => PackVisibility::Private,
@@ -111,6 +153,26 @@ async fn import_sticker_pack(state: &ApiState, arguments: Value) -> Result<CallT
         format!("Imported sticker pack `{}`.", args.pack_id),
         json!({ "imported": true, "packId": args.pack_id }),
     ))
+}
+
+async fn require_tool_pat(
+    state: &ApiState,
+    headers: &HeaderMap,
+    required: Permission,
+) -> Result<VerifiedPat, String> {
+    require_pat(headers, state, required)
+        .await
+        .map_err(auth_error_message)
+}
+
+fn auth_error_message(error: ApiError) -> String {
+    match error {
+        ApiError::Unauthorized(message) => format!("Personal Access Token unauthorized: {message}"),
+        ApiError::Forbidden(message)
+        | ApiError::BadRequest(message)
+        | ApiError::NotFound(message)
+        | ApiError::Internal(message) => message,
+    }
 }
 
 fn serialize_success(id: Value, result: impl serde::Serialize) -> JsonRpcResponse {

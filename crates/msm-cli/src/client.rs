@@ -67,6 +67,7 @@ pub trait MsmClient {
 pub struct ReqwestMsmClient {
     base_url: Url,
     http: reqwest::Client,
+    bearer_token: Option<String>,
 }
 
 impl ReqwestMsmClient {
@@ -76,12 +77,22 @@ impl ReqwestMsmClient {
     ///
     /// Returns an error when `base_url` is not a valid absolute URL.
     pub fn new(base_url: &str) -> CliResult<Self> {
+        Self::new_with_pat(base_url, None)
+    }
+
+    /// Creates a new HTTP-backed MSM client with an optional Bearer PAT.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `base_url` is not a valid absolute URL.
+    pub fn new_with_pat(base_url: &str, bearer_token: Option<String>) -> CliResult<Self> {
         Ok(Self {
             base_url: Url::parse(base_url).map_err(|source| CliError::InvalidBaseUrl {
                 url: base_url.to_owned(),
                 source,
             })?,
             http: reqwest::Client::new(),
+            bearer_token,
         })
     }
 
@@ -98,14 +109,25 @@ impl ReqwestMsmClient {
                 source,
             })
     }
+
+    #[must_use]
+    pub fn bearer_token(&self) -> Option<&str> {
+        self.bearer_token.as_deref()
+    }
+
+    fn authorize(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match self.bearer_token() {
+            Some(token) => request.bearer_auth(token),
+            None => request,
+        }
+    }
 }
 
 #[async_trait]
 impl MsmClient for ReqwestMsmClient {
     async fn health(&self) -> CliResult<HealthResponse> {
         Ok(self
-            .http
-            .get(self.endpoint("/healthz")?)
+            .authorize(self.http.get(self.endpoint("/healthz")?))
             .send()
             .await?
             .error_for_status()?
@@ -115,8 +137,7 @@ impl MsmClient for ReqwestMsmClient {
 
     async fn list_packs(&self, user_id: &str) -> CliResult<Vec<StickerPack>> {
         Ok(self
-            .http
-            .get(self.endpoint("/api/v1/packs")?)
+            .authorize(self.http.get(self.endpoint("/api/v1/packs")?))
             .query(&[("userId", user_id)])
             .send()
             .await?
@@ -126,8 +147,7 @@ impl MsmClient for ReqwestMsmClient {
     }
 
     async fn import_pack(&self, payload: ImportPackPayload) -> CliResult<()> {
-        self.http
-            .post(self.endpoint("/api/v1/packs/import")?)
+        self.authorize(self.http.post(self.endpoint("/api/v1/packs/import")?))
             .json(&payload)
             .send()
             .await?
@@ -137,8 +157,10 @@ impl MsmClient for ReqwestMsmClient {
 
     async fn export_pack(&self, pack_id: &str) -> CliResult<StickerPack> {
         Ok(self
-            .http
-            .get(self.endpoint(&format!("/api/v1/packs/{pack_id}/stickerpack"))?)
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/packs/{pack_id}/stickerpack"))?),
+            )
             .send()
             .await?
             .error_for_status()?
@@ -151,8 +173,7 @@ impl MsmClient for ReqwestMsmClient {
         payload: CreatePersonalAccessTokenPayload,
     ) -> CliResult<CreatedPersonalAccessToken> {
         Ok(self
-            .http
-            .post(self.endpoint("/api/v1/pats")?)
+            .authorize(self.http.post(self.endpoint("/api/v1/pats")?))
             .json(&payload)
             .send()
             .await?
@@ -163,8 +184,7 @@ impl MsmClient for ReqwestMsmClient {
 
     async fn list_pats(&self, user_id: &str) -> CliResult<Vec<PersonalAccessToken>> {
         Ok(self
-            .http
-            .get(self.endpoint("/api/v1/pats")?)
+            .authorize(self.http.get(self.endpoint("/api/v1/pats")?))
             .query(&[("userId", user_id)])
             .send()
             .await?
@@ -174,11 +194,13 @@ impl MsmClient for ReqwestMsmClient {
     }
 
     async fn revoke_pat(&self, token_id: &str) -> CliResult<()> {
-        self.http
-            .delete(self.endpoint(&format!("/api/v1/pats/{token_id}"))?)
-            .send()
-            .await?
-            .error_for_status()?;
+        self.authorize(
+            self.http
+                .delete(self.endpoint(&format!("/api/v1/pats/{token_id}"))?),
+        )
+        .send()
+        .await?
+        .error_for_status()?;
         Ok(())
     }
 }
@@ -200,5 +222,16 @@ mod tests {
     #[test]
     fn rejects_invalid_base_url() {
         assert!(ReqwestMsmClient::new("not a url").is_err());
+    }
+
+    #[test]
+    fn reqwest_client_stores_configured_pat() {
+        let client = ReqwestMsmClient::new_with_pat(
+            "https://msm.example",
+            Some("msm_pat_cli1_secret".to_owned()),
+        )
+        .unwrap();
+
+        assert_eq!(client.bearer_token(), Some("msm_pat_cli1_secret"));
     }
 }
