@@ -20,6 +20,14 @@ pub struct UserRecord {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct LocalUserCredentialRecord {
+    pub user_id: String,
+    pub password_hash: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct StickerPackRecord {
     pub id: String,
     pub tenant_id: String,

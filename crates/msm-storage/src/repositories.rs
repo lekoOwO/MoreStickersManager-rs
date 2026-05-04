@@ -1,5 +1,9 @@
 use std::collections::BTreeSet;
 
+use argon2::{
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
 use chrono::{DateTime, Utc};
 use msm_domain::{Permission, StickerPack};
 use sha2::{Digest, Sha256};
@@ -7,7 +11,10 @@ use sqlx::{Row, SqlitePool};
 use subtle::ConstantTimeEq;
 
 use crate::{
-    models::{CreatedPersonalAccessToken, PackVisibility, PersonalAccessTokenRecord},
+    models::{
+        CreatedPersonalAccessToken, LocalUserCredentialRecord, PackVisibility,
+        PersonalAccessTokenRecord, UserRecord,
+    },
     DbPool, StorageError, StorageResult,
 };
 
@@ -60,6 +67,126 @@ impl StorageRepository {
         .execute(self.sqlite()?)
         .await?;
         Ok(())
+    }
+
+    /// Creates a local user profile and password credential.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when password hashing fails, the repository is not backed by `SQLite`, or
+    /// SQL fails.
+    pub async fn create_local_user_with_password(
+        &self,
+        id: &str,
+        email: &str,
+        display_name: &str,
+        password: &str,
+    ) -> StorageResult<UserRecord> {
+        let password_hash = hash_password(password)?;
+        let now = now();
+        let sqlite = self.sqlite()?;
+        let mut tx = sqlite.begin().await?;
+
+        sqlx::query(
+            "INSERT INTO users (id, email, display_name, is_disabled, created_at) VALUES (?, ?, ?, 0, ?)",
+        )
+        .bind(id)
+        .bind(email)
+        .bind(display_name)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO local_user_credentials (user_id, password_hash, created_at, updated_at)
+            VALUES (?, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(&password_hash)
+        .bind(&now)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(UserRecord {
+            id: id.to_owned(),
+            email: email.to_owned(),
+            display_name: display_name.to_owned(),
+            is_disabled: false,
+            created_at: parse_rfc3339(&now)?,
+        })
+    }
+
+    /// Finds the local credential for a user.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn local_credential_for_user(
+        &self,
+        user_id: &str,
+    ) -> StorageResult<Option<LocalUserCredentialRecord>> {
+        let row = sqlx::query(
+            "SELECT user_id, password_hash, created_at, updated_at
+            FROM local_user_credentials
+            WHERE user_id = ?",
+        )
+        .bind(user_id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        Ok(row.map(|row| LocalUserCredentialRecord {
+            user_id: row.get("user_id"),
+            password_hash: row.get("password_hash"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }))
+    }
+
+    /// Verifies a local user password by email.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored user
+    /// timestamps are invalid.
+    pub async fn verify_local_user_password(
+        &self,
+        email: &str,
+        password: &str,
+    ) -> StorageResult<Option<UserRecord>> {
+        let row = sqlx::query(
+            "SELECT users.id, users.email, users.display_name, users.is_disabled, users.created_at,
+                local_user_credentials.password_hash
+            FROM users
+            JOIN local_user_credentials ON local_user_credentials.user_id = users.id
+            WHERE users.email = ?",
+        )
+        .bind(email)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let password_hash: String = row.get("password_hash");
+        if !verify_password(password, &password_hash) {
+            return Ok(None);
+        }
+        let is_disabled: i64 = row.get("is_disabled");
+        if is_disabled != 0 {
+            return Ok(None);
+        }
+
+        let created_at: String = row.get("created_at");
+        Ok(Some(UserRecord {
+            id: row.get("id"),
+            email: row.get("email"),
+            display_name: row.get("display_name"),
+            is_disabled: false,
+            created_at: parse_rfc3339(&created_at)?,
+        }))
     }
 
     /// Adds a user to a tenant with a coarse role.
@@ -421,6 +548,40 @@ fn now() -> String {
     Utc::now().to_rfc3339()
 }
 
+fn parse_rfc3339(value: &str) -> StorageResult<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(value)
+        .map(|value| value.with_timezone(&Utc))
+        .map_err(|error| StorageError::InvalidTimestamp {
+            value: value.to_owned(),
+            message: error.to_string(),
+        })
+}
+
+fn hash_password(password: &str) -> StorageResult<String> {
+    let mut salt_bytes = [0_u8; 16];
+    getrandom::fill(&mut salt_bytes).map_err(|error| StorageError::Random {
+        message: error.to_string(),
+    })?;
+    let salt = SaltString::encode_b64(&salt_bytes).map_err(|error| StorageError::PasswordHash {
+        message: error.to_string(),
+    })?;
+    Argon2::default()
+        .hash_password(password.as_bytes(), &salt)
+        .map(|hash| hash.to_string())
+        .map_err(|error| StorageError::PasswordHash {
+            message: error.to_string(),
+        })
+}
+
+fn verify_password(password: &str, password_hash: &str) -> bool {
+    let Ok(parsed_hash) = PasswordHash::new(password_hash) else {
+        return false;
+    };
+    Argon2::default()
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .is_ok()
+}
+
 fn validate_pat_id(id: &str) -> StorageResult<()> {
     if id.is_empty() || id.contains('_') {
         return Err(StorageError::InvalidPersonalAccessToken {
@@ -612,6 +773,59 @@ mod tests {
             .expect_err("token IDs with underscores should be rejected");
 
         assert!(error.to_string().contains("token id"));
+    }
+
+    #[tokio::test]
+    async fn local_credentials_register_and_verify_passwords() {
+        let repo = test_repo().await;
+
+        let user = repo
+            .create_local_user_with_password(
+                "user_1",
+                "leko@example.com",
+                "Leko",
+                "correct horse battery staple",
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(user.id, "user_1");
+        let credential = repo
+            .local_credential_for_user("user_1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(credential.password_hash.starts_with("$argon2"));
+        assert!(!credential
+            .password_hash
+            .contains("correct horse battery staple"));
+
+        let verified = repo
+            .verify_local_user_password("leko@example.com", "correct horse battery staple")
+            .await
+            .unwrap()
+            .expect("password should verify");
+        assert_eq!(verified.id, "user_1");
+
+        assert!(repo
+            .verify_local_user_password("leko@example.com", "wrong password")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn local_credentials_reject_duplicate_user_credentials() {
+        let repo = test_repo().await;
+        repo.create_local_user_with_password("user_1", "leko@example.com", "Leko", "password")
+            .await
+            .unwrap();
+
+        let duplicate = repo
+            .create_local_user_with_password("user_1", "other@example.com", "Other", "password")
+            .await;
+
+        assert!(duplicate.is_err());
     }
 
     async fn test_repo() -> StorageRepository {

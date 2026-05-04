@@ -19,6 +19,12 @@ pub enum StorageError {
     #[error("invalid personal access token: {reason}")]
     InvalidPersonalAccessToken { reason: &'static str },
 
+    #[error("invalid timestamp `{value}`: {message}")]
+    InvalidTimestamp { value: String, message: String },
+
+    #[error("password hash error: {message}")]
+    PasswordHash { message: String },
+
     #[error("random generation error: {message}")]
     Random { message: String },
 

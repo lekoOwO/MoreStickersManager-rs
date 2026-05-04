@@ -6,16 +6,19 @@ use utoipa::OpenApi;
 use crate::{
     dto::{
         CreatePersonalAccessTokenRequest, CreatedPersonalAccessTokenResponse, HealthResponse,
-        ImportPackRequest, PersonalAccessTokenResponse,
+        ImportPackRequest, LocalUserResponse, LoginLocalUserRequest, PersonalAccessTokenResponse,
+        RegisterLocalUserRequest,
     },
     error::ApiErrorBody,
-    routes::{assets, health, packs, pats},
+    routes::{assets, auth, health, packs, pats},
 };
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         health::healthz,
+        auth::register_local_user,
+        auth::login_local_user,
         assets::read_asset,
         packs::import_pack,
         packs::list_packs,
@@ -28,6 +31,9 @@ use crate::{
         HealthResponse,
         ApiErrorBody,
         ImportPackRequest,
+        RegisterLocalUserRequest,
+        LoginLocalUserRequest,
+        LocalUserResponse,
         CreatePersonalAccessTokenRequest,
         CreatedPersonalAccessTokenResponse,
         PersonalAccessTokenResponse

@@ -29,6 +29,34 @@ pub struct ListPacksQuery {
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct RegisterLocalUserRequest {
+    pub id: String,
+    pub email: String,
+    pub display_name: String,
+    pub password: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalUserResponse {
+    pub id: String,
+    pub email: String,
+    pub display_name: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginLocalUserRequest {
+    pub email: String,
+    pub password: String,
+    pub token_id: String,
+    pub token_name: String,
+    pub scopes: Vec<String>,
+    pub expires_at: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct CreatePersonalAccessTokenRequest {
     pub id: String,
     pub user_id: String,
@@ -74,6 +102,16 @@ impl From<PackVisibilityDto> for msm_storage::models::PackVisibility {
         match value {
             PackVisibilityDto::Public => Self::Public,
             PackVisibilityDto::Private => Self::Private,
+        }
+    }
+}
+
+impl From<msm_storage::models::UserRecord> for LocalUserResponse {
+    fn from(record: msm_storage::models::UserRecord) -> Self {
+        Self {
+            id: record.id,
+            email: record.email,
+            display_name: record.display_name,
         }
     }
 }

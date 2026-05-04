@@ -17,6 +17,14 @@ pub fn build_router(state: ApiState) -> Router {
         .route("/healthz", get(routes::health::healthz))
         .route("/openapi.json", get(openapi::openapi_json))
         .route(
+            "/api/v1/auth/local/register",
+            axum::routing::post(routes::auth::register_local_user),
+        )
+        .route(
+            "/api/v1/auth/local/login",
+            axum::routing::post(routes::auth::login_local_user),
+        )
+        .route(
             "/assets/packs/{pack_public_id}/{filename}",
             get(routes::assets::read_asset),
         )
@@ -89,6 +97,7 @@ mod tests {
 
         assert!(json["paths"].get("/healthz").is_some());
         assert!(json["paths"].get("/api/v1/pats").is_some());
+        assert!(json["paths"].get("/api/v1/auth/local/login").is_some());
     }
 
     #[tokio::test]
@@ -448,6 +457,95 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn local_auth_registers_and_logs_in_with_pat() {
+        let state = test_state().await;
+        let register_body = serde_json::json!({
+            "id": "user_1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "password": "correct horse battery staple",
+        });
+
+        let register_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/register")
+                    .header("content-type", "application/json")
+                    .body(Body::from(register_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(register_response.status(), StatusCode::CREATED);
+
+        let login_body = serde_json::json!({
+            "email": "leko@example.com",
+            "password": "correct horse battery staple",
+            "tokenId": "webui",
+            "tokenName": "Web UI",
+            "scopes": ["pack.read", "pat.manage"],
+            "expiresAt": null,
+        });
+        let login_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(login_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(login_response.status(), StatusCode::OK);
+        let body = to_bytes(login_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let logged_in: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let token = logged_in["token"].as_str().unwrap();
+        assert!(token.starts_with("msm_pat_webui_"));
+        assert!(state
+            .repository()
+            .verify_personal_access_token(token)
+            .await
+            .unwrap()
+            .is_some());
+    }
+
+    #[tokio::test]
+    async fn local_auth_rejects_wrong_password() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_local_user_with_password("user_1", "leko@example.com", "Leko", "password")
+            .await
+            .unwrap();
+
+        let login_body = serde_json::json!({
+            "email": "leko@example.com",
+            "password": "wrong",
+            "tokenId": "webui",
+            "tokenName": "Web UI",
+            "scopes": ["pack.read"],
+            "expiresAt": null,
+        });
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(login_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
     async fn test_state() -> ApiState {
