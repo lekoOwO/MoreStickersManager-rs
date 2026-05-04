@@ -14,12 +14,53 @@ pub struct ImportPackPayload {
     pub pack: StickerPack,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatePersonalAccessTokenPayload {
+    pub id: String,
+    pub user_id: String,
+    pub name: String,
+    pub scopes: Vec<String>,
+    pub expires_at: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatedPersonalAccessToken {
+    pub id: String,
+    pub user_id: String,
+    pub name: String,
+    pub token: String,
+    pub scopes: Vec<String>,
+    pub expires_at: Option<String>,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonalAccessToken {
+    pub id: String,
+    pub user_id: String,
+    pub name: String,
+    pub scopes: Vec<String>,
+    pub expires_at: Option<String>,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+}
+
 #[async_trait]
 pub trait MsmClient {
     async fn health(&self) -> CliResult<HealthResponse>;
     async fn list_packs(&self, user_id: &str) -> CliResult<Vec<StickerPack>>;
     async fn import_pack(&self, payload: ImportPackPayload) -> CliResult<()>;
     async fn export_pack(&self, pack_id: &str) -> CliResult<StickerPack>;
+    async fn create_pat(
+        &self,
+        payload: CreatePersonalAccessTokenPayload,
+    ) -> CliResult<CreatedPersonalAccessToken>;
+    async fn list_pats(&self, user_id: &str) -> CliResult<Vec<PersonalAccessToken>>;
+    async fn revoke_pat(&self, token_id: &str) -> CliResult<()>;
 }
 
 #[derive(Clone)]
@@ -103,6 +144,42 @@ impl MsmClient for ReqwestMsmClient {
             .error_for_status()?
             .json()
             .await?)
+    }
+
+    async fn create_pat(
+        &self,
+        payload: CreatePersonalAccessTokenPayload,
+    ) -> CliResult<CreatedPersonalAccessToken> {
+        Ok(self
+            .http
+            .post(self.endpoint("/api/v1/pats")?)
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_pats(&self, user_id: &str) -> CliResult<Vec<PersonalAccessToken>> {
+        Ok(self
+            .http
+            .get(self.endpoint("/api/v1/pats")?)
+            .query(&[("userId", user_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn revoke_pat(&self, token_id: &str) -> CliResult<()> {
+        self.http
+            .delete(self.endpoint(&format!("/api/v1/pats/{token_id}"))?)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
     }
 }
 

@@ -4,8 +4,11 @@ use clap::{Parser, Subcommand, ValueEnum};
 use msm_domain::StickerPack;
 
 use crate::{
-    client::{ImportPackPayload, MsmClient, ReqwestMsmClient},
-    output::{format_export, format_health, format_import, format_pack_list},
+    client::{CreatePersonalAccessTokenPayload, ImportPackPayload, MsmClient, ReqwestMsmClient},
+    output::{
+        format_export, format_health, format_import, format_pack_list, format_pat_create,
+        format_pat_list, format_pat_revoke,
+    },
     CliError, CliResult,
 };
 
@@ -28,6 +31,10 @@ pub enum Command {
     Packs {
         #[command(subcommand)]
         command: PackCommand,
+    },
+    Pats {
+        #[command(subcommand)]
+        command: PatCommand,
     },
 }
 
@@ -54,6 +61,30 @@ pub enum PackCommand {
         pack_id: String,
         #[arg(long)]
         output: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum PatCommand {
+    Create {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        user_id: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long = "scope")]
+        scopes: Vec<String>,
+        #[arg(long)]
+        expires_at: Option<String>,
+    },
+    List {
+        #[arg(long)]
+        user_id: String,
+    },
+    Revoke {
+        #[arg(long)]
+        token_id: String,
     },
 }
 
@@ -124,6 +155,34 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                 }
             }
         },
+        Command::Pats { command } => match command {
+            PatCommand::Create {
+                id,
+                user_id,
+                name,
+                scopes,
+                expires_at,
+            } => {
+                let response = client
+                    .create_pat(CreatePersonalAccessTokenPayload {
+                        id,
+                        user_id,
+                        name,
+                        scopes,
+                        expires_at,
+                    })
+                    .await?;
+                format_pat_create(cli.output_format, &response)
+            }
+            PatCommand::List { user_id } => {
+                let tokens = client.list_pats(&user_id).await?;
+                format_pat_list(cli.output_format, &tokens)
+            }
+            PatCommand::Revoke { token_id } => {
+                client.revoke_pat(&token_id).await?;
+                format_pat_revoke(cli.output_format, &token_id)
+            }
+        },
     }
 }
 
@@ -164,8 +223,14 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::{
-        client::{ImportPackPayload, MsmClient},
-        command::{execute_with_client, Cli, Command, OutputFormat, PackCommand, PackVisibility},
+        client::{
+            CreatePersonalAccessTokenPayload, CreatedPersonalAccessToken, ImportPackPayload,
+            MsmClient, PersonalAccessToken,
+        },
+        command::{
+            execute_with_client, Cli, Command, OutputFormat, PackCommand, PackVisibility,
+            PatCommand,
+        },
         output::HealthResponse,
         CliResult,
     };
@@ -242,6 +307,68 @@ mod tests {
                     ref output,
                 }
             } if pack_id == "pack_1" && output == "-"
+        ));
+    }
+
+    #[test]
+    fn parses_pats_create_command() {
+        let cli = Cli::parse_from([
+            "msm",
+            "pats",
+            "create",
+            "--id",
+            "cli1",
+            "--user-id",
+            "user_1",
+            "--name",
+            "CLI",
+            "--scope",
+            "pack.read",
+            "--scope",
+            "asset.read",
+            "--expires-at",
+            "2026-05-05T00:00:00Z",
+        ]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Pats {
+                command: PatCommand::Create {
+                    ref id,
+                    ref user_id,
+                    ref name,
+                    ref scopes,
+                    ref expires_at,
+                }
+            } if id == "cli1"
+                && user_id == "user_1"
+                && name == "CLI"
+                && scopes == &["pack.read".to_owned(), "asset.read".to_owned()]
+                && expires_at.as_deref() == Some("2026-05-05T00:00:00Z")
+        ));
+    }
+
+    #[test]
+    fn parses_pats_list_command() {
+        let cli = Cli::parse_from(["msm", "pats", "list", "--user-id", "user_1"]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Pats {
+                command: PatCommand::List { ref user_id }
+            } if user_id == "user_1"
+        ));
+    }
+
+    #[test]
+    fn parses_pats_revoke_command() {
+        let cli = Cli::parse_from(["msm", "pats", "revoke", "--token-id", "cli1"]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Pats {
+                command: PatCommand::Revoke { ref token_id }
+            } if token_id == "cli1"
         ));
     }
 
@@ -349,9 +476,68 @@ mod tests {
         assert!(error.to_string().contains("missing.stickerpack"));
     }
 
+    #[tokio::test]
+    async fn executes_pats_create_command() {
+        let client = FakeClient::default();
+        let output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "pats",
+                "create",
+                "--id",
+                "cli1",
+                "--user-id",
+                "user_1",
+                "--name",
+                "CLI",
+                "--scope",
+                "pack.read",
+                "--scope",
+                "asset.read",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "created cli1\nmsm_pat_cli1_secret");
+        assert_eq!(
+            client.created_pat.lock().unwrap().as_ref().unwrap().scopes,
+            vec!["pack.read".to_owned(), "asset.read".to_owned()]
+        );
+    }
+
+    #[tokio::test]
+    async fn executes_pats_list_command() {
+        let output = execute_with_client(
+            Cli::parse_from(["msm", "pats", "list", "--user-id", "user_1"]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "cli1\tCLI\tpack.read,asset.read");
+    }
+
+    #[tokio::test]
+    async fn executes_pats_revoke_command() {
+        let client = FakeClient::default();
+        let output = execute_with_client(
+            Cli::parse_from(["msm", "pats", "revoke", "--token-id", "cli1"]),
+            &client,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "revoked cli1");
+        assert_eq!(client.revoked_pat.lock().unwrap().as_deref(), Some("cli1"));
+    }
+
     #[derive(Default)]
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
+        created_pat: Mutex<Option<CreatePersonalAccessTokenPayload>>,
+        revoked_pat: Mutex<Option<String>>,
     }
 
     #[async_trait]
@@ -373,6 +559,40 @@ mod tests {
 
         async fn export_pack(&self, _pack_id: &str) -> CliResult<msm_domain::StickerPack> {
             Ok(sample_pack())
+        }
+
+        async fn create_pat(
+            &self,
+            payload: CreatePersonalAccessTokenPayload,
+        ) -> CliResult<CreatedPersonalAccessToken> {
+            *self.created_pat.lock().unwrap() = Some(payload);
+            Ok(CreatedPersonalAccessToken {
+                id: "cli1".to_owned(),
+                user_id: "user_1".to_owned(),
+                name: "CLI".to_owned(),
+                scopes: vec!["pack.read".to_owned(), "asset.read".to_owned()],
+                token: "msm_pat_cli1_secret".to_owned(),
+                created_at: "2026-05-04T00:00:00Z".to_owned(),
+                expires_at: None,
+                revoked_at: None,
+            })
+        }
+
+        async fn list_pats(&self, _user_id: &str) -> CliResult<Vec<PersonalAccessToken>> {
+            Ok(vec![PersonalAccessToken {
+                id: "cli1".to_owned(),
+                user_id: "user_1".to_owned(),
+                name: "CLI".to_owned(),
+                scopes: vec!["pack.read".to_owned(), "asset.read".to_owned()],
+                created_at: "2026-05-04T00:00:00Z".to_owned(),
+                expires_at: None,
+                revoked_at: None,
+            }])
+        }
+
+        async fn revoke_pat(&self, token_id: &str) -> CliResult<()> {
+            *self.revoked_pat.lock().unwrap() = Some(token_id.to_owned());
+            Ok(())
         }
     }
 

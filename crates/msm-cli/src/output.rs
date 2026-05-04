@@ -1,6 +1,10 @@
 use msm_domain::StickerPack;
 
-use crate::{command::OutputFormat, CliResult};
+use crate::{
+    client::{CreatedPersonalAccessToken, PersonalAccessToken},
+    command::OutputFormat,
+    CliResult,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct HealthResponse {
@@ -12,6 +16,13 @@ pub struct HealthResponse {
 pub struct ImportResponse {
     pub status: &'static str,
     pub pack_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevokePatResponse {
+    pub status: &'static str,
+    pub token_id: String,
 }
 
 /// Formats a health response.
@@ -64,4 +75,50 @@ pub fn format_import(format: OutputFormat, pack_id: &str) -> CliResult<String> {
 /// Returns an error when JSON serialization fails.
 pub fn format_export(pack: &StickerPack) -> CliResult<String> {
     Ok(serde_json::to_string_pretty(pack)?)
+}
+
+/// Formats a PAT create response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_pat_create(
+    format: OutputFormat,
+    response: &CreatedPersonalAccessToken,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("created {}\n{}", response.id, response.token)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(response)?),
+    }
+}
+
+/// Formats PAT list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_pat_list(format: OutputFormat, tokens: &[PersonalAccessToken]) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(tokens
+            .iter()
+            .map(|token| format!("{}\t{}\t{}", token.id, token.name, token.scopes.join(",")))
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(tokens)?),
+    }
+}
+
+/// Formats a PAT revoke response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_pat_revoke(format: OutputFormat, token_id: &str) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("revoked {token_id}")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(&RevokePatResponse {
+            status: "revoked",
+            token_id: token_id.to_owned(),
+        })?),
+    }
 }
