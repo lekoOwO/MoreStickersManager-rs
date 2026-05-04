@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P17 GitHub Actions release and Docker workflows.
+Phase: P18 local auth bootstrap.
 
 Last completed:
-- P17 release and Docker workflow design, implementation plan, CI expansion, GHCR Docker workflow, prerelease/release binary workflows, Dockerfile, and local workflow-equivalent verification.
+- P18 local auth bootstrap design, implementation plan, Argon2 local credential storage, local register/login API routes, PAT issuance on login, and full Rust/Web verification.
 
 Current task:
-- P17 is verified except for local Docker image build, because Docker CLI is not installed in this environment. Continue with login/admin bootstrap or pack CRUD UI.
+- P18 is verified. Continue with Web login UI, admin bootstrap policy, or pack CRUD UI.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -15,10 +15,9 @@ Last verification:
 - `npm run web:typecheck`
 - `npm run web:test`
 - `npm run web:build`
-- `cargo build --locked -p msm-app`
 
 Next step:
-- Start login/admin bootstrap or pack CRUD UI.
+- Start Web login UI, admin bootstrap policy, or pack CRUD UI.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

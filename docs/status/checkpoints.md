@@ -146,3 +146,13 @@
 - Added main-branch prerelease and tag release workflows with binary artifact matrices.
 - Added Dockerfile and `.dockerignore` for the all-in-one `msm-app` service image.
 - Verified local Rust/Web/service build equivalents; Docker CLI was unavailable locally.
+
+## 2026-05-04 P18 Local Auth Bootstrap
+
+- Added P18 local auth bootstrap design and implementation plan.
+- Added Argon2-backed local password credential storage.
+- Added `local_user_credentials` migration.
+- Added local user registration and password verification repository methods.
+- Added local register/login API endpoints.
+- Login now issues a PAT using the existing PAT response shape.
+- Verified focused storage/API tests plus full Rust/Web verification.

@@ -104,3 +104,11 @@ PAT enforcement status:
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
   login and admin model is implemented.
 - asset privacy enforcement is not wired yet.
+
+Local auth bootstrap endpoints:
+
+- `POST /api/v1/auth/local/register`
+- `POST /api/v1/auth/local/login`
+
+Register creates a local user and Argon2 password credential. Login verifies
+the password and returns a raw PAT once.

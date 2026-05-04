@@ -171,6 +171,14 @@ API `healthz`, OpenAPI, PAT lifecycle endpoints, MCP `initialize`, MCP `ping`,
 and MCP `tools/list` remain public in this bootstrap slice. Asset privacy and
 OIDC/local-login backed admin enforcement are later phases.
 
+P18 adds local password bootstrap APIs:
+
+- `POST /api/v1/auth/local/register`
+- `POST /api/v1/auth/local/login`
+
+Passwords are stored as Argon2 PHC hashes. Login returns a newly created PAT
+using the same response shape as PAT creation.
+
 ## Project Docs
 
 - `docs/dev/architecture.md`: architecture and crate boundaries.

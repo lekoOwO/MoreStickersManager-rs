@@ -329,3 +329,23 @@ These tests prove:
 - workflow and Docker files have no whitespace errors;
 - CI commands match the local Rust and Web verification baseline;
 - `msm-app` can build after Web dist generation for embedded Web assets.
+
+## P18 Local Auth Bootstrap Tests
+
+Run:
+
+```powershell
+cargo test -p msm-storage local_credentials
+cargo test -p msm-api local_auth
+cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- local password credentials are stored as Argon2 PHC hashes;
+- correct passwords verify to active user records;
+- wrong passwords fail verification;
+- local register returns `201 Created`;
+- local login returns a raw PAT once;
+- wrong login passwords return `401 Unauthorized`;
+- OpenAPI includes the local auth login path.
