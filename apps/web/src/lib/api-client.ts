@@ -68,6 +68,33 @@ export interface PatClient {
   revokePersonalAccessToken(tokenId: string): Promise<void>;
 }
 
+export interface RegisterLocalUserRequest {
+  id: string;
+  email: string;
+  displayName: string;
+  password: string;
+}
+
+export interface LocalUserResponse {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
+export interface LoginLocalUserRequest {
+  email: string;
+  password: string;
+  tokenId: string;
+  tokenName: string;
+  scopes: string[];
+  expiresAt: string | null;
+}
+
+export interface LocalAuthClient {
+  registerLocalUser(request: RegisterLocalUserRequest): Promise<LocalUserResponse>;
+  loginLocalUser(request: LoginLocalUserRequest): Promise<CreatedPersonalAccessTokenResponse>;
+}
+
 export function createPackClient(options: PackClientOptions = {}): PackClient {
   const baseUrl = options.baseUrl?.trim();
   if (!baseUrl) {
@@ -129,6 +156,42 @@ export function createPatClient(options: PackClientOptions = {}): PatClient {
       if (!response.ok) {
         throw new Error(`Failed to revoke PAT: HTTP ${response.status}`);
       }
+    },
+  };
+}
+
+export function createLocalAuthClient(options: PackClientOptions = {}): LocalAuthClient {
+  const baseUrl = options.baseUrl?.trim();
+  if (!baseUrl) {
+    throw new Error("Local auth API client requires a base URL");
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  return {
+    async registerLocalUser(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/auth/local/register`, {
+        method: "POST",
+        headers: jsonHeaders(undefined),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to register local user: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as LocalUserResponse;
+    },
+    async loginLocalUser(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/auth/local/login`, {
+        method: "POST",
+        headers: jsonHeaders(undefined),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to login local user: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as CreatedPersonalAccessTokenResponse;
     },
   };
 }

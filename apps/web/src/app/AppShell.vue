@@ -6,7 +6,12 @@ import PackDashboard from "@/app/PackDashboard.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createPatClient, type CreatedPersonalAccessTokenResponse, type PersonalAccessTokenResponse } from "@/lib/api-client";
+import {
+  createLocalAuthClient,
+  createPatClient,
+  type CreatedPersonalAccessTokenResponse,
+  type PersonalAccessTokenResponse,
+} from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
 import type { ThemePreference } from "@/lib/theme";
 
@@ -24,6 +29,14 @@ const emit = defineEmits<{
 
 const mobileNavOpen = ref(false);
 const tokenDraft = ref(props.patToken);
+const authUserId = ref(import.meta.env.VITE_MSM_USER_ID || "user_1");
+const authDisplayName = ref("Leko");
+const authEmail = ref("");
+const authPassword = ref("");
+const authTokenId = ref("webui");
+const authScopes = ref("pack.read import.run pat.manage");
+const authResult = ref<CreatedPersonalAccessTokenResponse | null>(null);
+const authError = ref("");
 const tokenId = ref("webui");
 const tokenName = ref("Web UI");
 const tokenScopes = ref("pack.read import.run pat.manage");
@@ -40,6 +53,10 @@ const navigationItems = computed(() => [
 const patClient = computed(() => {
   const baseUrl = import.meta.env.VITE_MSM_API_BASE_URL;
   return baseUrl ? createPatClient({ baseUrl, authToken: props.patToken }) : null;
+});
+const localAuthClient = computed(() => {
+  const baseUrl = import.meta.env.VITE_MSM_API_BASE_URL;
+  return baseUrl ? createLocalAuthClient({ baseUrl }) : null;
 });
 const patUserId = computed(() => import.meta.env.VITE_MSM_USER_ID || "demo");
 
@@ -58,6 +75,46 @@ function clearToken() {
   tokenDraft.value = "";
   createdToken.value = null;
   emit("updatePatToken", "");
+}
+
+async function registerLocalUser() {
+  authError.value = "";
+  try {
+    await requireLocalAuthClient().registerLocalUser({
+      id: authUserId.value.trim(),
+      email: authEmail.value.trim(),
+      displayName: authDisplayName.value.trim() || authUserId.value.trim(),
+      password: authPassword.value,
+    });
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function loginLocalUser() {
+  authError.value = "";
+  authResult.value = null;
+  try {
+    authResult.value = await requireLocalAuthClient().loginLocalUser({
+      email: authEmail.value.trim(),
+      password: authPassword.value,
+      tokenId: authTokenId.value.trim(),
+      tokenName: "Web UI",
+      scopes: authScopes.value.split(/[,\s]+/).filter(Boolean),
+      expiresAt: null,
+    });
+    emit("updatePatToken", authResult.value.token);
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+function requireLocalAuthClient() {
+  if (!localAuthClient.value) {
+    throw new Error("VITE_MSM_API_BASE_URL is not configured");
+  }
+
+  return localAuthClient.value;
 }
 
 async function listTokens() {
@@ -174,6 +231,50 @@ function requirePatClient() {
             <h1 class="mt-2 text-3xl font-black tracking-tight md:text-5xl">{{ labels.dashboardTitle }}</h1>
             <p class="mt-3 text-base text-muted-foreground md:text-lg">{{ labels.dashboardSubtitle }}</p>
           </section>
+          <Card class="mb-6">
+            <CardHeader>
+              <CardTitle>{{ labels.localLogin }}</CardTitle>
+              <CardDescription>{{ labels.localLoginHelp }}</CardDescription>
+            </CardHeader>
+            <CardContent class="flex flex-col gap-4">
+              <div class="grid gap-3 md:grid-cols-2">
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.userId }}
+                  <input v-model="authUserId" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.displayName }}
+                  <input v-model="authDisplayName" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.email }}
+                  <input v-model="authEmail" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" type="email" />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.password }}
+                  <input v-model="authPassword" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" type="password" />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.tokenId }}
+                  <input v-model="authTokenId" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.tokenScopes }}
+                  <input v-model="authScopes" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" @click="registerLocalUser">{{ labels.registerLocalUser }}</Button>
+                <Button type="button" @click="loginLocalUser">{{ labels.loginLocalUser }}</Button>
+              </div>
+              <p v-if="authResult" class="rounded-lg border bg-background/70 p-3 text-sm">
+                {{ labels.loginTokenStored }} <code class="font-mono">{{ authResult.token }}</code>
+              </p>
+              <p v-if="authError" class="rounded-lg border bg-background/70 p-3 text-sm text-muted-foreground">
+                {{ authError }}
+              </p>
+            </CardContent>
+          </Card>
           <Card class="mb-6">
             <CardHeader>
               <CardTitle>{{ labels.personalAccessTokens }}</CardTitle>

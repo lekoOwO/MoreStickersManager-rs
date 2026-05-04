@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createPackClient,
+  createLocalAuthClient,
   createPatClient,
   mapApiPackRecord,
   packListUrl,
@@ -193,5 +194,92 @@ describe("PAT API client", () => {
         Authorization: "Bearer msm_pat_admin_secret",
       },
     });
+  });
+});
+
+describe("local auth API client", () => {
+  it("registers a local user", async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          id: "user_1",
+          email: "leko@example.com",
+          displayName: "Leko",
+        }),
+        { status: 201 },
+      );
+    });
+    const client = createLocalAuthClient({
+      baseUrl: "https://msm.example.test",
+      fetchImpl,
+    });
+
+    const user = await client.registerLocalUser({
+      id: "user_1",
+      email: "leko@example.com",
+      displayName: "Leko",
+      password: "password",
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/auth/local/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: "user_1",
+        email: "leko@example.com",
+        displayName: "Leko",
+        password: "password",
+      }),
+    });
+    expect(user.id).toBe("user_1");
+  });
+
+  it("logs in and returns a raw PAT", async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          id: "webui",
+          userId: "user_1",
+          name: "Web UI",
+          token: "msm_pat_webui_secret",
+          scopes: ["pack.read"],
+          expiresAt: null,
+          revokedAt: null,
+          createdAt: "2026-05-04T00:00:00Z",
+        }),
+        { status: 200 },
+      );
+    });
+    const client = createLocalAuthClient({
+      baseUrl: "https://msm.example.test/",
+      fetchImpl,
+    });
+
+    const login = await client.loginLocalUser({
+      email: "leko@example.com",
+      password: "password",
+      tokenId: "webui",
+      tokenName: "Web UI",
+      scopes: ["pack.read"],
+      expiresAt: null,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/auth/local/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "leko@example.com",
+        password: "password",
+        tokenId: "webui",
+        tokenName: "Web UI",
+        scopes: ["pack.read"],
+        expiresAt: null,
+      }),
+    });
+    expect(login.token).toBe("msm_pat_webui_secret");
   });
 });
