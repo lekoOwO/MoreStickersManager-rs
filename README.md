@@ -183,6 +183,10 @@ P18 adds local password bootstrap APIs:
 Passwords are stored as Argon2 PHC hashes. Login returns a newly created PAT
 using the same response shape as PAT creation.
 
+P20 lets local registration optionally bootstrap a tenant admin by passing
+`tenantId`, optional `tenantName`, and optional `tenantRole` fields. The role
+defaults to `admin`.
+
 ## Project Docs
 
 - `docs/dev/architecture.md`: architecture and crate boundaries.

@@ -164,3 +164,10 @@
 - Added Web local register/login panel.
 - Successful Web login now stores the returned PAT through the existing browser-local token flow.
 - Verified Web typecheck, tests, build, and full Rust workspace checks.
+
+## 2026-05-04 P20 Admin Bootstrap Policy
+
+- Added P20 admin bootstrap policy design and implementation plan.
+- Extended local registration with optional `tenantId`, `tenantName`, and `tenantRole`.
+- Local registration can now create an initial tenant and add the new user as an admin member.
+- Verified admin bootstrap API behavior plus full Rust/Web verification.

@@ -115,3 +115,17 @@ the password and returns a raw PAT once.
 
 The Web UI can call these endpoints when `VITE_MSM_API_BASE_URL` is configured.
 Successful Web login stores the returned PAT in browser localStorage.
+
+Local register can also bootstrap a tenant admin:
+
+```json
+{
+  "id": "user_1",
+  "email": "leko@example.com",
+  "displayName": "Leko",
+  "password": "password",
+  "tenantId": "tenant_1",
+  "tenantName": "Tenant",
+  "tenantRole": "admin"
+}
+```

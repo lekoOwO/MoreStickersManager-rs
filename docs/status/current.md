@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P19 Web local login.
+Phase: P20 admin bootstrap policy.
 
 Last completed:
-- P19 Web local login design, implementation plan, Web local auth client, local register/login UI, login-issued PAT storage, and full Rust/Web verification.
+- P20 admin bootstrap policy design, implementation plan, optional tenant/admin local registration fields, admin membership bootstrap behavior, and full Rust/Web verification.
 
 Current task:
-- P19 is verified. Continue with admin bootstrap policy or pack CRUD UI.
+- P20 is verified. Continue with pack CRUD UI or tenant member management.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start admin bootstrap policy or pack CRUD UI.
+- Start pack CRUD UI or tenant member management.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
