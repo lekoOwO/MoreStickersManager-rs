@@ -156,3 +156,11 @@
 - Added local register/login API endpoints.
 - Login now issues a PAT using the existing PAT response shape.
 - Verified focused storage/API tests plus full Rust/Web verification.
+
+## 2026-05-04 P19 Web Local Login
+
+- Added P19 Web local login design and implementation plan.
+- Added Web local auth API client for register/login endpoints.
+- Added Web local register/login panel.
+- Successful Web login now stores the returned PAT through the existing browser-local token flow.
+- Verified Web typecheck, tests, build, and full Rust workspace checks.

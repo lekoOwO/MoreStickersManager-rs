@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P18 local auth bootstrap.
+Phase: P19 Web local login.
 
 Last completed:
-- P18 local auth bootstrap design, implementation plan, Argon2 local credential storage, local register/login API routes, PAT issuance on login, and full Rust/Web verification.
+- P19 Web local login design, implementation plan, Web local auth client, local register/login UI, login-issued PAT storage, and full Rust/Web verification.
 
 Current task:
-- P18 is verified. Continue with Web login UI, admin bootstrap policy, or pack CRUD UI.
+- P19 is verified. Continue with admin bootstrap policy or pack CRUD UI.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start Web login UI, admin bootstrap policy, or pack CRUD UI.
+- Start admin bootstrap policy or pack CRUD UI.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -112,3 +112,6 @@ Local auth bootstrap endpoints:
 
 Register creates a local user and Argon2 password credential. Login verifies
 the password and returns a raw PAT once.
+
+The Web UI can call these endpoints when `VITE_MSM_API_BASE_URL` is configured.
+Successful Web login stores the returned PAT in browser localStorage.

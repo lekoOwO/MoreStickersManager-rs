@@ -349,3 +349,19 @@ These tests prove:
 - local login returns a raw PAT once;
 - wrong login passwords return `401 Unauthorized`;
 - OpenAPI includes the local auth login path.
+
+## P19 Web Local Login Tests
+
+Run:
+
+```powershell
+npm run web:typecheck
+npm run web:test
+npm run web:build
+```
+
+These tests prove:
+
+- Web local auth client calls local register and login endpoints;
+- Web local login client returns the raw PAT from login responses;
+- the Web UI still typechecks, tests, and builds after adding the local login panel.

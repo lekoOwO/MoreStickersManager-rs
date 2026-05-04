@@ -94,6 +94,10 @@ Bearer forwarding, and a basic PAT create/list/revoke panel. The token is stored
 in localStorage key `msm.pat`; this is a bootstrap UX, not a replacement for
 future login/session storage.
 
+P19 adds Web local register/login controls backed by
+`/api/v1/auth/local/register` and `/api/v1/auth/local/login`. Successful login
+stores the returned PAT through the same `msm.pat` browser-local path.
+
 ## Service Binary
 
 Run the current all-in-one service:
