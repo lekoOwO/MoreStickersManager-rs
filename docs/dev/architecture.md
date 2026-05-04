@@ -20,6 +20,9 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 
 Authorization policies stay in `msm-domain` so API, CLI, MCP, and Web UI assumptions can share the same rules.
 
+`msm-domain::Permission` also owns stable PAT scope keys such as `pack.read`,
+`asset.read`, and `pat.manage`.
+
 ## Provider Boundary
 
 `msm-providers` converts provider-specific payloads into `msm-domain::StickerPack`.
@@ -55,3 +58,11 @@ execution for the current pack operations. It reuses `msm-api::ApiState` so the
 service binary can mount `/mcp` next to the HTTP API. P11 intentionally supports
 JSON `POST` request/response only; Streamable HTTP SSE, session management, and
 PAT/RBAC enforcement belong to later auth and transport hardening phases.
+
+## PAT Boundary
+
+P12 implements PAT lifecycle persistence in `msm-storage`. Raw tokens are only
+returned at creation time. The database stores token IDs, SHA-256 token secret
+hashes, scope keys, expiry timestamps, and revocation timestamps. API/CLI/MCP
+middleware must use the repository verification method rather than reading token
+hashes directly.

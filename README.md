@@ -105,6 +105,18 @@ disk override for development.
 This first MCP slice returns `application/json` responses and does not yet
 implement SSE streams, session management, or PAT/RBAC enforcement.
 
+## PAT Foundation
+
+P12 adds Personal Access Token storage lifecycle support. Tokens use:
+
+```text
+msm_pat_<token_id>_<random_secret>
+```
+
+Only `sha256(random_secret)` is stored. Permission scopes use stable keys such
+as `pack.read`, `asset.read`, and `pat.manage`. API/CLI/MCP enforcement is a
+later auth integration phase.
+
 ## Project Docs
 
 - `docs/dev/architecture.md`: architecture and crate boundaries.

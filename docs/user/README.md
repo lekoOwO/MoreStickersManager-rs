@@ -58,3 +58,10 @@ POST /mcp
 Supported methods are `initialize`, `ping`, `tools/list`, and `tools/call`.
 Current tools are `msm.list_sticker_packs`, `msm.export_sticker_pack`, and
 `msm.import_sticker_pack`.
+
+PAT foundation status:
+
+- token format is `msm_pat_<token_id>_<random_secret>`;
+- only the secret hash is stored;
+- scope keys include values such as `pack.read`, `asset.read`, and `pat.manage`;
+- API/CLI/MCP authentication enforcement is not wired yet.

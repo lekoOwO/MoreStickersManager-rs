@@ -91,3 +91,11 @@
 - Added `/mcp` route and mounted it in `msm-app`.
 - Added MCP route tests for initialize, tools/list, tools/call, and unknown methods.
 - Verified focused MCP and app integration tests during implementation.
+
+## 2026-05-04 P12 PAT Foundation
+
+- Added P12 PAT foundation design and implementation plan.
+- Added stable `msm-domain::Permission` scope keys and roundtrip tests.
+- Added PAT creation, listing, verification, expiry rejection, and revocation in `msm-storage`.
+- Added random token secret generation and SHA-256 secret hashing.
+- Verified focused domain and storage tests plus storage clippy during implementation.

@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P11 MCP endpoint.
+Phase: P12 PAT foundation.
 
 Last completed:
-- P11 MCP endpoint design, implementation plan, `msm-mcp` crate, JSON-RPC protocol types, MCP tool registry, pack list/export/import tool execution, `/mcp` route, and app integration.
+- P12 PAT foundation design, implementation plan, stable permission scope keys, PAT token generation, hashing, listing, verification, expiry handling, and revocation in storage.
 
 Current task:
-- P11 is verified. Continue with auth/PAT foundation.
+- P12 is verified. Continue with API/MCP PAT enforcement.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start P12 auth/PAT foundation.
+- Start P13 API/MCP PAT enforcement.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

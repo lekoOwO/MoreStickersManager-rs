@@ -191,3 +191,21 @@ These tests prove:
 - `tools/call` can list, export, and import sticker packs through storage;
 - unknown JSON-RPC methods return `-32601`;
 - the service binary still mounts MCP alongside API and Web UI fallback.
+
+## P12 PAT Foundation Tests
+
+Run:
+
+```powershell
+cargo test -p msm-domain permission_keys
+cargo test -p msm-storage personal_access_tokens
+cargo clippy -p msm-storage --all-targets -- -D warnings
+```
+
+These tests prove:
+
+- every domain permission has a stable scope key and can roundtrip from that key;
+- unknown scope keys are rejected;
+- PAT creation returns the raw token once and stores only a hash;
+- valid tokens verify to active records;
+- invalid, revoked, and expired tokens fail verification.
