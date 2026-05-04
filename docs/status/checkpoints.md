@@ -108,3 +108,12 @@
 - Added OpenAPI coverage for PAT endpoints.
 - Added API tests for create/list/revoke and unknown scope rejection.
 - Verified API tests and clippy during implementation.
+
+## 2026-05-04 P14 CLI PAT Commands
+
+- Added P14 CLI PAT command design and implementation plan.
+- Added `msm pats create`, `msm pats list`, and `msm pats revoke`.
+- Added PAT request/response DTOs to the CLI client boundary.
+- Added reqwest calls for `POST /api/v1/pats`, `GET /api/v1/pats?userId=...`, and `DELETE /api/v1/pats/{token_id}`.
+- Added human and JSON output formatting for PAT operations.
+- Verified CLI PAT parser and fake-client execution tests during implementation.

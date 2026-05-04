@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P13 PAT management API.
+Phase: P14 CLI PAT commands.
 
 Last completed:
-- P13 PAT management API design, implementation plan, PAT create/list/revoke DTOs and routes, OpenAPI coverage, hash-free response mapping, and API tests.
+- P14 CLI PAT command design, implementation plan, CLI PAT create/list/revoke commands, PAT HTTP client methods, human/JSON output formatting, and CLI tests.
 
 Current task:
-- P13 is verified. Continue with CLI PAT commands or API/MCP PAT enforcement.
+- P14 is verified. Continue with P15 API/MCP PAT enforcement or Web UI PAT management.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start P14 CLI PAT commands.
+- Start P15 API/MCP PAT enforcement.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

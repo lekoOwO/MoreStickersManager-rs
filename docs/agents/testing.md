@@ -226,3 +226,20 @@ These tests prove:
 - PAT list responses omit raw tokens and token hashes;
 - PAT revoke invalidates storage verification;
 - unknown PAT scopes return `400 Bad Request`.
+
+## P14 CLI PAT Command Tests
+
+Run:
+
+```powershell
+cargo test -p msm-cli pats
+cargo clippy -p msm-cli --all-targets -- -D warnings
+```
+
+These tests prove:
+
+- CLI arguments parse for PAT create, list, and revoke commands;
+- repeated `--scope` arguments are preserved in create requests;
+- command execution calls the PAT client methods through the `MsmClient` trait;
+- human output prints the raw token only for create;
+- human list output omits token secrets and token hashes.

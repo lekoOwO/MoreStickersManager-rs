@@ -13,6 +13,9 @@ Current CLI examples:
 cargo run -p msm-cli -- health
 cargo run -p msm-cli -- packs list --user-id user_1
 cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
+cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
+cargo run -p msm-cli -- pats list --user-id user_1
+cargo run -p msm-cli -- pats revoke --token-id cli1
 ```
 
 Current Web UI examples:
@@ -71,3 +74,12 @@ PAT API endpoints:
 - `POST /api/v1/pats`
 - `GET /api/v1/pats?userId=...`
 - `DELETE /api/v1/pats/{token_id}`
+
+PAT CLI commands:
+
+- `msm pats create --id <token_id> --user-id <user_id> --name <name> --scope <scope>`
+- `msm pats list --user-id <user_id>`
+- `msm pats revoke --token-id <token_id>`
+
+`msm pats create` prints the raw token once. Store it immediately outside MSM if
+you need to use it later.

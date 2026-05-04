@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P11 MCP endpoint.
+Current phase: P14 CLI PAT commands.
 
 ## Compatibility Target
 
@@ -26,13 +26,16 @@ git status --short
 
 ## CLI Slice
 
-The current CLI is an HTTP client for the P4 API slice:
+The current CLI is an HTTP client for the API slice:
 
 ```powershell
 cargo run -p msm-cli -- health
 cargo run -p msm-cli -- packs list --user-id user_1
 cargo run -p msm-cli -- packs import --tenant-id tenant_1 --owner-user-id user_1 --pack-id pack_1 --visibility private --file pack.stickerpack
 cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
+cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
+cargo run -p msm-cli -- pats list --user-id user_1
+cargo run -p msm-cli -- pats revoke --token-id cli1
 ```
 
 ## Provider Slice
@@ -125,6 +128,11 @@ P13 exposes PAT lifecycle APIs:
 
 Create responses include the raw token. List responses intentionally omit raw
 tokens and token hashes.
+
+P14 exposes those PAT lifecycle operations through the CLI. CLI create prints
+the raw token once; list responses never include token hashes. PAT/RBAC
+enforcement on existing API, CLI, and MCP operations remains a later integration
+phase.
 
 ## Project Docs
 
