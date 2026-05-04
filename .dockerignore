@@ -1,0 +1,10 @@
+target/
+node_modules/
+**/node_modules/
+apps/web/dist/
+data/
+coverage/
+*.log
+.git/
+.github/
+tmp/
