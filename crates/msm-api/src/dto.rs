@@ -34,6 +34,9 @@ pub struct RegisterLocalUserRequest {
     pub email: String,
     pub display_name: String,
     pub password: String,
+    pub tenant_id: Option<String>,
+    pub tenant_name: Option<String>,
+    pub tenant_role: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]

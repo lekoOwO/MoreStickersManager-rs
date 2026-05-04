@@ -548,6 +548,68 @@ mod tests {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
+    #[tokio::test]
+    async fn admin_bootstrap_registers_tenant_admin() {
+        let state = test_state().await;
+        let register_body = serde_json::json!({
+            "id": "user_1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "password": "password",
+            "tenantId": "tenant_1",
+            "tenantName": "Tenant",
+            "tenantRole": "admin",
+        });
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/register")
+                    .header("content-type", "application/json")
+                    .body(Body::from(register_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let token = state
+            .repository()
+            .create_personal_access_token(
+                "patimport",
+                "user_1",
+                "Import",
+                &BTreeSet::from([Permission::ImportRun]),
+                None,
+            )
+            .await
+            .unwrap()
+            .token;
+        let import_body = serde_json::json!({
+            "tenantId": "tenant_1",
+            "ownerUserId": "user_1",
+            "packId": "pack_1",
+            "visibility": "private",
+            "pack": sample_pack(),
+        });
+        let import_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/packs/import")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(import_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(import_response.status(), StatusCode::CREATED);
+    }
+
     async fn test_state() -> ApiState {
         let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
         let pool = DbPool::connect(&config).await.unwrap();

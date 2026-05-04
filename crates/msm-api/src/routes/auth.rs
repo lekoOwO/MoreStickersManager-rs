@@ -39,6 +39,22 @@ pub async fn register_local_user(
             &request.password,
         )
         .await?;
+    if let Some(tenant_id) = request
+        .tenant_id
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    {
+        let tenant_name = request.tenant_name.as_deref().unwrap_or(tenant_id);
+        let tenant_role = request.tenant_role.as_deref().unwrap_or("admin");
+        state
+            .repository()
+            .create_tenant(tenant_id, tenant_name)
+            .await?;
+        state
+            .repository()
+            .add_tenant_member(tenant_id, &user.id, tenant_role)
+            .await?;
+    }
 
     Ok((StatusCode::CREATED, Json(LocalUserResponse::from(user))))
 }
