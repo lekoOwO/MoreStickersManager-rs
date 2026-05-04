@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P21 pack CRUD foundation.
+Phase: P22 Web pack CRUD controls.
 
 Last completed:
-- P21 pack CRUD foundation implementation: owned pack rename/visibility update and delete across storage, API, CLI, and MCP.
+- P22 Web pack CRUD controls: dashboard rename, visibility update, and delete controls backed by the P21 pack API client.
 
 Current task:
-- P21 is verified. Commit P21, then continue with Web UI pack CRUD controls or folder/tag/subscription-group management.
+- P22 is verified. Commit P22, then continue with create/import UI or folder/tag/subscription-group backend.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -15,13 +15,9 @@ Last verification:
 - `npm run web:typecheck`
 - `npm run web:test`
 - `npm run web:build`
-- `cargo test -p msm-storage --locked`
-- `cargo test -p msm-api --locked`
-- `cargo test -p msm-cli --locked`
-- `cargo test -p msm-mcp --locked`
 
 Next step:
-- Commit P21 with author `Leko <leko@leko.moe>`.
+- Commit P22 with author `Leko <leko@leko.moe>`.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

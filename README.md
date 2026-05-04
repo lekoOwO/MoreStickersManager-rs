@@ -79,7 +79,9 @@ npm run web:build
 ```
 
 The Web UI includes dashboard, PAT, and local register/login bootstrap slices.
-Full pack CRUD controls are still a follow-up phase.
+The dashboard can rename packs, change public/private visibility, and delete
+packs when `VITE_MSM_API_BASE_URL` is configured and the stored PAT has the
+required scopes.
 
 To connect the dashboard to the current P4 API list route, set:
 

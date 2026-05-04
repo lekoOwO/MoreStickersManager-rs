@@ -182,3 +182,11 @@
 - Added CLI `msm packs rename` and `msm packs delete`.
 - Added MCP `msm.update_sticker_pack` and `msm.delete_sticker_pack` tools.
 - Verified focused storage, API, CLI, and MCP tests during implementation.
+
+## 2026-05-04 P22 Web Pack CRUD Controls
+
+- Added P22 Web pack CRUD controls implementation plan.
+- Extended the Web pack API client with update and delete methods.
+- Added per-pack dashboard controls for title, visibility, save, and delete.
+- Added injected-client dashboard tests for rename/delete behavior.
+- Verified Web tests, typecheck, and production build during implementation.

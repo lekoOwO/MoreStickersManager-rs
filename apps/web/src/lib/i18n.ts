@@ -50,6 +50,10 @@ const messages = {
     displayName: "顯示名稱",
     email: "Email",
     password: "密碼",
+    packTitle: "Pack title",
+    packVisibility: "Pack visibility",
+    savePackChanges: "Save pack changes",
+    deletePack: "Delete pack",
   },
   en: {
     appName: "MoreStickersManager",
@@ -98,6 +102,10 @@ const messages = {
     displayName: "Display name",
     email: "Email",
     password: "Password",
+    packTitle: "Pack title",
+    packVisibility: "Pack visibility",
+    savePackChanges: "Save pack changes",
+    deletePack: "Delete pack",
   },
 } as const;
 

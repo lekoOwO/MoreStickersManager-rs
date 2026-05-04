@@ -86,6 +86,41 @@ describe("pack API client", () => {
     });
   });
 
+  it("updates and deletes sticker packs with bearer auth", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ id: "pack_1" }), { status: 200 }));
+    const client = createPackClient({
+      baseUrl: "https://msm.example.test/",
+      userId: "user_1",
+      authToken: "msm_pat_cli1_secret",
+      fetchImpl,
+    });
+
+    await client.updateStickerPack({
+      packId: "pack_1",
+      title: "Renamed Pack",
+      visibility: "public",
+    });
+    await client.deleteStickerPack("pack_1");
+
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/packs/pack_1", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_cli1_secret",
+      },
+      body: JSON.stringify({
+        title: "Renamed Pack",
+        visibility: "public",
+      }),
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/packs/pack_1", {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer msm_pat_cli1_secret",
+      },
+    });
+  });
+
   it("infers LINE emoji provider and private visibility from API record", () => {
     const summary = mapApiPackRecord({
       id: "pack_2",

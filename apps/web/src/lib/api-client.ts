@@ -1,5 +1,7 @@
 import { listMockStickerPacks, type PackVisibility, type StickerPackSummary } from "./sticker-packs";
 
+export type WritablePackVisibility = Extract<PackVisibility, "public" | "private">;
+
 export interface ApiStickerPack {
   id: string;
   title: string;
@@ -22,6 +24,14 @@ export interface ApiStickerPackRecord {
 
 export interface PackClient {
   listStickerPacks(): Promise<StickerPackSummary[]>;
+  updateStickerPack(request: UpdateStickerPackRequest): Promise<void>;
+  deleteStickerPack(packId: string): Promise<void>;
+}
+
+export interface UpdateStickerPackRequest {
+  packId: string;
+  title: string;
+  visibility: WritablePackVisibility;
 }
 
 export interface PackClientOptions {
@@ -100,6 +110,12 @@ export function createPackClient(options: PackClientOptions = {}): PackClient {
   if (!baseUrl) {
     return {
       listStickerPacks: listMockStickerPacks,
+      async updateStickerPack() {
+        throw new Error("Pack update requires VITE_MSM_API_BASE_URL");
+      },
+      async deleteStickerPack() {
+        throw new Error("Pack delete requires VITE_MSM_API_BASE_URL");
+      },
     };
   }
 
@@ -115,6 +131,28 @@ export function createPackClient(options: PackClientOptions = {}): PackClient {
 
       const records = (await response.json()) as ApiStickerPackRecord[];
       return records.map(mapApiPackRecord);
+    },
+    async updateStickerPack(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/packs/${encodeURIComponent(request.packId)}`, {
+        method: "PATCH",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify({
+          title: request.title,
+          visibility: request.visibility,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to update sticker pack: HTTP ${response.status}`);
+      }
+    },
+    async deleteStickerPack(packId) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/packs/${encodeURIComponent(packId)}`, {
+        method: "DELETE",
+        ...authInit(options.authToken),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to delete sticker pack: HTTP ${response.status}`);
+      }
     },
   };
 }

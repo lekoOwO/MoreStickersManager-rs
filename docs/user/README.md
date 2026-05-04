@@ -53,6 +53,9 @@ When it is configured, the Web UI can store a PAT in browser localStorage and
 send it to protected pack API calls. `VITE_MSM_PAT` can seed the token during
 development.
 
+The dashboard can rename packs, change public/private visibility, and delete
+packs when the stored PAT has `pack.update` and `pack.delete`.
+
 Current service binary example:
 
 ```powershell

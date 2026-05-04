@@ -2,18 +2,22 @@
 import { computed, onMounted, ref, watch } from "vue";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createPackClient } from "@/lib/api-client";
+import { createPackClient, type PackClient, type WritablePackVisibility } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
 import { type PackVisibility, type StickerPackSummary } from "@/lib/sticker-packs";
 
 const props = defineProps<{
   locale: Locale;
   patToken?: string;
+  packClient?: PackClient;
 }>();
 
 const packs = ref<StickerPackSummary[]>([]);
 const loadError = ref("");
+const actionError = ref("");
+const drafts = ref<Record<string, { title: string; visibility: WritablePackVisibility }>>({});
 
 const labels = computed(() => allMessages()[props.locale]);
 const totalStickers = computed(() => packs.value.reduce((sum, pack) => sum + pack.stickerCount, 0));
@@ -28,19 +32,69 @@ const providerCounts = computed(() => {
 
 onMounted(loadPacks);
 watch(() => props.patToken, loadPacks);
+watch(() => props.packClient, loadPacks);
 
 async function loadPacks() {
   loadError.value = "";
   try {
-    packs.value = await createPackClient({
+    packs.value = await packClient().listStickerPacks();
+    drafts.value = Object.fromEntries(
+      packs.value.map((pack) => [
+        pack.id,
+        {
+          title: pack.title,
+          visibility: writableVisibility(pack.visibility),
+        },
+      ]),
+    );
+  } catch (error) {
+    packs.value = [];
+    drafts.value = {};
+    loadError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function updatePack(pack: StickerPackSummary) {
+  actionError.value = "";
+  try {
+    const draft = drafts.value[pack.id] ?? {
+      title: pack.title,
+      visibility: writableVisibility(pack.visibility),
+    };
+    await packClient().updateStickerPack({
+      packId: pack.id,
+      title: draft.title.trim() || pack.title,
+      visibility: draft.visibility,
+    });
+    await loadPacks();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function deletePack(pack: StickerPackSummary) {
+  actionError.value = "";
+  try {
+    await packClient().deleteStickerPack(pack.id);
+    await loadPacks();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+function packClient() {
+  return (
+    props.packClient ??
+    createPackClient({
       baseUrl: import.meta.env.VITE_MSM_API_BASE_URL,
       userId: import.meta.env.VITE_MSM_USER_ID,
       authToken: props.patToken,
-    }).listStickerPacks();
-  } catch (error) {
-    packs.value = [];
-    loadError.value = error instanceof Error ? error.message : String(error);
-  }
+    })
+  );
+}
+
+function writableVisibility(visibility: PackVisibility): WritablePackVisibility {
+  return visibility === "public" ? "public" : "private";
 }
 
 function visibilityLabel(visibility: PackVisibility) {
@@ -116,10 +170,13 @@ function visibilityVariant(visibility: PackVisibility) {
           <p v-if="loadError" class="rounded-lg border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
             {{ loadError }}
           </p>
+          <p v-if="actionError" class="rounded-lg border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+            {{ actionError }}
+          </p>
           <article
             v-for="pack in packs"
             :key="pack.id"
-            class="grid gap-3 rounded-xl border bg-background/80 p-4 md:grid-cols-[1fr_auto] md:items-center"
+            class="grid gap-4 rounded-xl border bg-background/80 p-4 xl:grid-cols-[1fr_18rem] xl:items-start"
           >
             <div class="flex min-w-0 flex-col gap-2">
               <div class="flex flex-wrap items-center gap-2">
@@ -132,10 +189,45 @@ function visibilityVariant(visibility: PackVisibility) {
               <p class="text-sm text-muted-foreground">
                 {{ pack.stickerCount }} {{ labels.totalStickers }} · {{ labels.updated }} {{ pack.updatedAt }}
               </p>
+              <Badge class="w-fit" :variant="pack.subscriptionReady ? 'accent' : 'muted'">
+                {{ labels.subscriptionReady }}
+              </Badge>
             </div>
-            <Badge :variant="pack.subscriptionReady ? 'accent' : 'muted'">
-              {{ labels.subscriptionReady }}
-            </Badge>
+            <form class="grid gap-3 rounded-lg border bg-card/60 p-3" @submit.prevent>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.packTitle }}
+                <input
+                  v-model="drafts[pack.id].title"
+                  class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.packTitle"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.packVisibility }}
+                <select
+                  v-model="drafts[pack.id].visibility"
+                  class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.packVisibility"
+                >
+                  <option value="public">{{ labels.public }}</option>
+                  <option value="private">{{ labels.private }}</option>
+                </select>
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <Button type="button" size="sm" :aria-label="labels.savePackChanges" @click="updatePack(pack)">
+                  {{ labels.savePackChanges }}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  :aria-label="labels.deletePack"
+                  @click="deletePack(pack)"
+                >
+                  {{ labels.deletePack }}
+                </Button>
+              </div>
+            </form>
           </article>
         </CardContent>
       </Card>
