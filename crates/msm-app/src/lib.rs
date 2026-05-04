@@ -101,9 +101,11 @@ pub async fn initialize_state(config: &AppConfig) -> AppResult<ApiState> {
 
 pub fn build_app_router(state: ApiState, web_dist_dir: impl Into<PathBuf>) -> Router {
     let assets = WebAssets::new(web_dist_dir.into());
-    build_router(state).fallback(get(move |OriginalUri(uri): OriginalUri| {
-        serve_web_asset(uri, assets.clone())
-    }))
+    build_router(state.clone())
+        .merge(msm_mcp::build_router(state))
+        .fallback(get(move |OriginalUri(uri): OriginalUri| {
+            serve_web_asset(uri, assets.clone())
+        }))
 }
 
 #[derive(Clone, Debug)]

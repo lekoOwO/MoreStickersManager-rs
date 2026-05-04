@@ -11,6 +11,7 @@ bytes = "1"
 include_dir = "0.7"
 mime_guess = "2"
 msm-api = { path = "../msm-api" }
+msm-mcp = { path = "../msm-mcp" }
 msm-storage = { path = "../msm-storage" }
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
