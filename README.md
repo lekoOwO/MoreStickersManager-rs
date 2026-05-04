@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P16 Web PAT management.
+Current phase: P21 pack CRUD foundation.
 
 ## Compatibility Target
 
@@ -40,6 +40,8 @@ cargo run -p msm-cli -- health
 cargo run -p msm-cli -- packs list --user-id user_1
 cargo run -p msm-cli -- packs import --tenant-id tenant_1 --owner-user-id user_1 --pack-id pack_1 --visibility private --file pack.stickerpack
 cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
+cargo run -p msm-cli -- packs rename --pack-id pack_1 --title "Renamed Pack" --visibility public
+cargo run -p msm-cli -- packs delete --pack-id pack_1
 cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
@@ -76,8 +78,8 @@ npm run web:test
 npm run web:build
 ```
 
-P7 uses mock sticker-pack data only. Backend API integration, authentication,
-CRUD, and binary embedding are later phases.
+The Web UI includes dashboard, PAT, and local register/login bootstrap slices.
+Full pack CRUD controls are still a follow-up phase.
 
 To connect the dashboard to the current P4 API list route, set:
 
@@ -138,9 +140,12 @@ The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
 - `msm.list_sticker_packs`
 - `msm.export_sticker_pack`
 - `msm.import_sticker_pack`
+- `msm.update_sticker_pack`
+- `msm.delete_sticker_pack`
 
 This first MCP slice returns `application/json` responses and does not yet
-implement SSE streams, session management, or PAT/RBAC enforcement.
+implement SSE streams or session management. MCP `tools/call` pack operations
+use Bearer PAT enforcement.
 
 ## PAT Foundation
 
@@ -170,6 +175,8 @@ P15 enforces Bearer PAT scopes on pack API routes and MCP `tools/call`:
 
 - `pack.read`: list/export sticker packs.
 - `import.run`: import sticker packs.
+- `pack.update`: rename sticker packs and update visibility.
+- `pack.delete`: delete sticker packs.
 
 API `healthz`, OpenAPI, PAT lifecycle endpoints, MCP `initialize`, MCP `ping`,
 and MCP `tools/list` remain public in this bootstrap slice. Asset privacy and

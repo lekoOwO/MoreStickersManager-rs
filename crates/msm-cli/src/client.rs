@@ -16,6 +16,14 @@ pub struct ImportPackPayload {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdatePackPayload {
+    pub pack_id: String,
+    pub title: String,
+    pub visibility: PackVisibility,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreatePersonalAccessTokenPayload {
     pub id: String,
     pub user_id: String,
@@ -55,6 +63,8 @@ pub trait MsmClient {
     async fn list_packs(&self, user_id: &str) -> CliResult<Vec<StickerPack>>;
     async fn import_pack(&self, payload: ImportPackPayload) -> CliResult<()>;
     async fn export_pack(&self, pack_id: &str) -> CliResult<StickerPack>;
+    async fn update_pack(&self, payload: UpdatePackPayload) -> CliResult<()>;
+    async fn delete_pack(&self, pack_id: &str) -> CliResult<()>;
     async fn create_pat(
         &self,
         payload: CreatePersonalAccessTokenPayload,
@@ -166,6 +176,29 @@ impl MsmClient for ReqwestMsmClient {
             .error_for_status()?
             .json()
             .await?)
+    }
+
+    async fn update_pack(&self, payload: UpdatePackPayload) -> CliResult<()> {
+        self.authorize(
+            self.http
+                .patch(self.endpoint(&format!("/api/v1/packs/{}", payload.pack_id))?),
+        )
+        .json(&payload)
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
+    }
+
+    async fn delete_pack(&self, pack_id: &str) -> CliResult<()> {
+        self.authorize(
+            self.http
+                .delete(self.endpoint(&format!("/api/v1/packs/{pack_id}"))?),
+        )
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
     }
 
     async fn create_pat(

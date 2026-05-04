@@ -13,6 +13,8 @@ Current CLI examples:
 cargo run -p msm-cli -- health
 cargo run -p msm-cli -- packs list --user-id user_1
 cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
+cargo run -p msm-cli -- packs rename --pack-id pack_1 --title "Renamed Pack" --visibility public
+cargo run -p msm-cli -- packs delete --pack-id pack_1
 cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
@@ -71,15 +73,16 @@ POST /mcp
 ```
 
 Supported methods are `initialize`, `ping`, `tools/list`, and `tools/call`.
-Current tools are `msm.list_sticker_packs`, `msm.export_sticker_pack`, and
-`msm.import_sticker_pack`.
+Current tools are `msm.list_sticker_packs`, `msm.export_sticker_pack`,
+`msm.import_sticker_pack`, `msm.update_sticker_pack`, and
+`msm.delete_sticker_pack`.
 
 PAT foundation status:
 
 - token format is `msm_pat_<token_id>_<random_secret>`;
 - only the secret hash is stored;
 - scope keys include values such as `pack.read`, `asset.read`, and `pat.manage`;
-- API/CLI/MCP authentication enforcement is not wired yet.
+- API/CLI/MCP pack operations use Bearer PAT enforcement.
 
 PAT API endpoints:
 
@@ -99,8 +102,12 @@ you need to use it later.
 PAT enforcement status:
 
 - `pack.read` is required for pack list/export API routes and MCP tools.
+- `pack.update` is required for pack rename/visibility update API routes and
+  MCP tools.
+- `pack.delete` is required for pack delete API routes and MCP tools.
 - `import.run` is required for pack import API routes and MCP tools.
-- user-scoped list/import operations reject PATs belonging to another user.
+- user-scoped list/import/update/delete operations reject PATs belonging to
+  another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
   login and admin model is implemented.
 - asset privacy enforcement is not wired yet.

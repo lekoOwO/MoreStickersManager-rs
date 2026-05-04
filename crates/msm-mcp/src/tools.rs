@@ -7,11 +7,19 @@ use crate::protocol::{
 pub const LIST_STICKER_PACKS: &str = "msm.list_sticker_packs";
 pub const EXPORT_STICKER_PACK: &str = "msm.export_sticker_pack";
 pub const IMPORT_STICKER_PACK: &str = "msm.import_sticker_pack";
+pub const UPDATE_STICKER_PACK: &str = "msm.update_sticker_pack";
+pub const DELETE_STICKER_PACK: &str = "msm.delete_sticker_pack";
 
 #[must_use]
 pub fn list_tools_result() -> ListToolsResult {
     ListToolsResult {
-        tools: vec![list_tool(), export_tool(), import_tool()],
+        tools: vec![
+            list_tool(),
+            export_tool(),
+            import_tool(),
+            update_tool(),
+            delete_tool(),
+        ],
     }
 }
 
@@ -93,6 +101,48 @@ fn import_tool() -> ToolDefinition {
     }
 }
 
+fn update_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: UPDATE_STICKER_PACK,
+        title: "Update sticker pack",
+        description: "Rename an owned MSM sticker pack and update its visibility.",
+        input_schema: object_schema(
+            &json!({
+                "packId": { "type": "string" },
+                "title": { "type": "string" },
+                "visibility": { "type": "string", "enum": ["public", "private"] }
+            }),
+            &["packId", "title", "visibility"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn delete_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: DELETE_STICKER_PACK,
+        title: "Delete sticker pack",
+        description: "Delete an owned MSM sticker pack.",
+        input_schema: object_schema(
+            &json!({
+                "packId": { "type": "string" }
+            }),
+            &["packId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: true,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
 fn object_schema(properties: &Value, required: &[&'static str]) -> Value {
     json!({
         "type": "object",
@@ -114,7 +164,8 @@ fn read_only_annotations() -> ToolAnnotations {
 #[cfg(test)]
 mod tests {
     use crate::tools::{
-        list_tools_result, EXPORT_STICKER_PACK, IMPORT_STICKER_PACK, LIST_STICKER_PACKS,
+        list_tools_result, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, IMPORT_STICKER_PACK,
+        LIST_STICKER_PACKS, UPDATE_STICKER_PACK,
     };
 
     #[test]
@@ -124,7 +175,13 @@ mod tests {
 
         assert_eq!(
             names,
-            vec![LIST_STICKER_PACKS, EXPORT_STICKER_PACK, IMPORT_STICKER_PACK]
+            vec![
+                LIST_STICKER_PACKS,
+                EXPORT_STICKER_PACK,
+                IMPORT_STICKER_PACK,
+                UPDATE_STICKER_PACK,
+                DELETE_STICKER_PACK,
+            ]
         );
     }
 }

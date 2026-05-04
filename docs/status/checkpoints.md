@@ -171,3 +171,14 @@
 - Extended local registration with optional `tenantId`, `tenantName`, and `tenantRole`.
 - Local registration can now create an initial tenant and add the new user as an admin member.
 - Verified admin bootstrap API behavior plus full Rust/Web verification.
+
+## 2026-05-04 P21 Pack CRUD Foundation
+
+- Added P21 pack CRUD foundation implementation plan.
+- Added owned sticker pack metadata update in storage, synchronizing the indexed title and embedded MoreStickers-compatible JSON title.
+- Added owned sticker pack deletion in storage.
+- Added `PATCH /api/v1/packs/{pack_id}` with `pack.update` PAT enforcement.
+- Added `DELETE /api/v1/packs/{pack_id}` with `pack.delete` PAT enforcement.
+- Added CLI `msm packs rename` and `msm packs delete`.
+- Added MCP `msm.update_sticker_pack` and `msm.delete_sticker_pack` tools.
+- Verified focused storage, API, CLI, and MCP tests during implementation.

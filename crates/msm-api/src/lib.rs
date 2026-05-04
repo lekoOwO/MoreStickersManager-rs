@@ -30,6 +30,10 @@ pub fn build_router(state: ApiState) -> Router {
         )
         .route("/api/v1/packs", get(routes::packs::list_packs))
         .route(
+            "/api/v1/packs/{pack_id}",
+            axum::routing::patch(routes::packs::update_pack).delete(routes::packs::delete_pack),
+        )
+        .route(
             "/api/v1/packs/import",
             axum::routing::post(routes::packs::import_pack),
         )
@@ -358,6 +362,83 @@ mod tests {
             .unwrap();
 
         assert_eq!(ok.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn updates_pack_title_and_visibility_with_pack_update_scope() {
+        let state = seeded_state().await;
+        let update_token =
+            create_pat(&state, "patupdate", "user_1", [Permission::PackUpdate]).await;
+        let read_token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+        let update_body = serde_json::json!({
+            "title": "Renamed Pack",
+            "visibility": "public",
+        });
+
+        let update_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/v1/packs/pack_1")
+                    .header("authorization", format!("Bearer {update_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(update_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(update_response.status(), StatusCode::OK);
+
+        let export_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs/pack_1/stickerpack")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(export_response.status(), StatusCode::OK);
+        let body = to_bytes(export_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let exported: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(exported["title"], "Renamed Pack");
+    }
+
+    #[tokio::test]
+    async fn deletes_pack_with_pack_delete_scope() {
+        let state = seeded_state().await;
+        let delete_token =
+            create_pat(&state, "patdelete", "user_1", [Permission::PackDelete]).await;
+        let read_token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+
+        let delete_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/packs/pack_1")
+                    .header("authorization", format!("Bearer {delete_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
+
+        let export_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs/pack_1/stickerpack")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(export_response.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]

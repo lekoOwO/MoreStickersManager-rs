@@ -8,6 +8,13 @@ pub struct ImportPackRequest {
     pub pack: serde_json::Value,
 }
 
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePackRequest {
+    pub title: String,
+    pub visibility: PackVisibilityDto,
+}
+
 #[derive(Clone, Copy, Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum PackVisibilityDto {

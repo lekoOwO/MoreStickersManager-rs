@@ -15,8 +15,8 @@ use serde_json::{json, Value};
 use crate::{
     protocol::{initialize_result, CallToolResult, JsonRpcRequest, JsonRpcResponse},
     tools::{
-        execution_error_result, list_tools_result, success_result, EXPORT_STICKER_PACK,
-        IMPORT_STICKER_PACK, LIST_STICKER_PACKS,
+        execution_error_result, list_tools_result, success_result, DELETE_STICKER_PACK,
+        EXPORT_STICKER_PACK, IMPORT_STICKER_PACK, LIST_STICKER_PACKS, UPDATE_STICKER_PACK,
     },
 };
 
@@ -68,6 +68,8 @@ async fn call_tool(
         LIST_STICKER_PACKS => list_sticker_packs(&state, headers, arguments).await,
         EXPORT_STICKER_PACK => export_sticker_pack(&state, headers, arguments).await,
         IMPORT_STICKER_PACK => import_sticker_pack(&state, headers, arguments).await,
+        UPDATE_STICKER_PACK => update_sticker_pack(&state, headers, arguments).await,
+        DELETE_STICKER_PACK => delete_sticker_pack(&state, headers, arguments).await,
         _ => Err("Unknown tool".to_owned()),
     };
 
@@ -155,6 +157,53 @@ async fn import_sticker_pack(
     ))
 }
 
+async fn update_sticker_pack(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<UpdateStickerPackArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let visibility = parse_visibility(&args.visibility)?;
+
+    let updated = state
+        .repository()
+        .update_sticker_pack_metadata(&args.pack_id, &pat.user_id, &args.title, visibility)
+        .await
+        .map_err(|error| error.to_string())?;
+    if !updated {
+        return Err(format!("Sticker pack `{}` was not found.", args.pack_id));
+    }
+
+    Ok(success_result(
+        format!("Updated sticker pack `{}`.", args.pack_id),
+        json!({ "updated": true, "packId": args.pack_id }),
+    ))
+}
+
+async fn delete_sticker_pack(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<DeleteStickerPackArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackDelete).await?;
+
+    let deleted = state
+        .repository()
+        .delete_sticker_pack(&args.pack_id, &pat.user_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    if !deleted {
+        return Err(format!("Sticker pack `{}` was not found.", args.pack_id));
+    }
+
+    Ok(success_result(
+        format!("Deleted sticker pack `{}`.", args.pack_id),
+        json!({ "deleted": true, "packId": args.pack_id }),
+    ))
+}
+
 async fn require_tool_pat(
     state: &ApiState,
     headers: &HeaderMap,
@@ -191,6 +240,14 @@ fn parse_arguments<T: for<'de> Deserialize<'de>>(arguments: Value) -> Result<T, 
     serde_json::from_value(arguments).map_err(|error| error.to_string())
 }
 
+fn parse_visibility(value: &str) -> Result<PackVisibility, String> {
+    match value {
+        "public" => Ok(PackVisibility::Public),
+        "private" => Ok(PackVisibility::Private),
+        _ => Err("visibility must be `public` or `private`".to_owned()),
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CallToolParams {
@@ -219,6 +276,20 @@ struct ImportStickerPackArgs {
     pack_id: String,
     visibility: String,
     pack: Value,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateStickerPackArgs {
+    pack_id: String,
+    title: String,
+    visibility: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteStickerPackArgs {
+    pack_id: String,
 }
 
 struct ErrorTemplate(i64, String);

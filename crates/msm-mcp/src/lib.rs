@@ -64,7 +64,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 3);
+        assert_eq!(tools.len(), 5);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
     }
 
@@ -147,6 +147,72 @@ mod tests {
 
         assert_eq!(response["result"]["isError"], false);
         assert_eq!(response["result"]["structuredContent"]["imported"], true);
+    }
+
+    #[tokio::test]
+    async fn tools_call_updates_sticker_pack() {
+        let state = seeded_state().await;
+        let token = create_pat(&state, "patupdate", "user_1", [Permission::PackUpdate]).await;
+        let response = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.update_sticker_pack",
+                    "arguments": {
+                        "packId": "pack_1",
+                        "title": "Renamed Pack",
+                        "visibility": "public"
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(response["result"]["structuredContent"]["updated"], true);
+        assert_eq!(
+            state
+                .repository()
+                .find_sticker_pack("pack_1")
+                .await
+                .unwrap()
+                .unwrap()
+                .title,
+            "Renamed Pack"
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_deletes_sticker_pack() {
+        let state = seeded_state().await;
+        let token = create_pat(&state, "patdelete", "user_1", [Permission::PackDelete]).await;
+        let response = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.delete_sticker_pack",
+                    "arguments": { "packId": "pack_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(response["result"]["structuredContent"]["deleted"], true);
+        assert!(state
+            .repository()
+            .find_sticker_pack("pack_1")
+            .await
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]

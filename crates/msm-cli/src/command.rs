@@ -4,10 +4,13 @@ use clap::{Parser, Subcommand, ValueEnum};
 use msm_domain::StickerPack;
 
 use crate::{
-    client::{CreatePersonalAccessTokenPayload, ImportPackPayload, MsmClient, ReqwestMsmClient},
+    client::{
+        CreatePersonalAccessTokenPayload, ImportPackPayload, MsmClient, ReqwestMsmClient,
+        UpdatePackPayload,
+    },
     output::{
-        format_export, format_health, format_import, format_pack_list, format_pat_create,
-        format_pat_list, format_pat_revoke,
+        format_export, format_health, format_import, format_pack_delete, format_pack_list,
+        format_pack_rename, format_pat_create, format_pat_list, format_pat_revoke,
     },
     CliError, CliResult,
 };
@@ -64,6 +67,18 @@ pub enum PackCommand {
         pack_id: String,
         #[arg(long)]
         output: String,
+    },
+    Rename {
+        #[arg(long)]
+        pack_id: String,
+        #[arg(long)]
+        title: String,
+        #[arg(long, value_enum)]
+        visibility: PackVisibility,
+    },
+    Delete {
+        #[arg(long)]
+        pack_id: String,
     },
 }
 
@@ -156,6 +171,24 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                     write_file(&PathBuf::from(&output), &json)?;
                     Ok(format!("exported {pack_id} to {output}"))
                 }
+            }
+            PackCommand::Rename {
+                pack_id,
+                title,
+                visibility,
+            } => {
+                client
+                    .update_pack(UpdatePackPayload {
+                        pack_id: pack_id.clone(),
+                        title,
+                        visibility,
+                    })
+                    .await?;
+                format_pack_rename(cli.output_format, &pack_id)
+            }
+            PackCommand::Delete { pack_id } => {
+                client.delete_pack(&pack_id).await?;
+                format_pack_delete(cli.output_format, &pack_id)
             }
         },
         Command::Pats { command } => match command {
@@ -326,6 +359,44 @@ mod tests {
     }
 
     #[test]
+    fn parses_pack_rename_command() {
+        let cli = Cli::parse_from([
+            "msm",
+            "packs",
+            "rename",
+            "--pack-id",
+            "pack_1",
+            "--title",
+            "Renamed Pack",
+            "--visibility",
+            "public",
+        ]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Packs {
+                command: PackCommand::Rename {
+                    ref pack_id,
+                    ref title,
+                    visibility: PackVisibility::Public,
+                }
+            } if pack_id == "pack_1" && title == "Renamed Pack"
+        ));
+    }
+
+    #[test]
+    fn parses_pack_delete_command() {
+        let cli = Cli::parse_from(["msm", "packs", "delete", "--pack-id", "pack_1"]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Packs {
+                command: PackCommand::Delete { ref pack_id }
+            } if pack_id == "pack_1"
+        ));
+    }
+
+    #[test]
     fn parses_pats_create_command() {
         let cli = Cli::parse_from([
             "msm",
@@ -466,6 +537,51 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn executes_pack_rename_command() {
+        let client = FakeClient::default();
+        let output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "packs",
+                "rename",
+                "--pack-id",
+                "pack_1",
+                "--title",
+                "Renamed Pack",
+                "--visibility",
+                "public",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "renamed pack_1");
+        let renamed = client.renamed_pack.lock().unwrap();
+        let renamed = renamed.as_ref().unwrap();
+        assert_eq!(renamed.pack_id, "pack_1");
+        assert_eq!(renamed.title, "Renamed Pack");
+        assert_eq!(renamed.visibility, PackVisibility::Public);
+    }
+
+    #[tokio::test]
+    async fn executes_pack_delete_command() {
+        let client = FakeClient::default();
+        let output = execute_with_client(
+            Cli::parse_from(["msm", "packs", "delete", "--pack-id", "pack_1"]),
+            &client,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "deleted pack_1");
+        assert_eq!(
+            client.deleted_pack.lock().unwrap().as_deref(),
+            Some("pack_1")
+        );
+    }
+
+    #[tokio::test]
     async fn import_missing_file_returns_error() {
         let error = execute_with_client(
             Cli::parse_from([
@@ -551,6 +667,8 @@ mod tests {
     #[derive(Default)]
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
+        renamed_pack: Mutex<Option<crate::client::UpdatePackPayload>>,
+        deleted_pack: Mutex<Option<String>>,
         created_pat: Mutex<Option<CreatePersonalAccessTokenPayload>>,
         revoked_pat: Mutex<Option<String>>,
     }
@@ -574,6 +692,16 @@ mod tests {
 
         async fn export_pack(&self, _pack_id: &str) -> CliResult<msm_domain::StickerPack> {
             Ok(sample_pack())
+        }
+
+        async fn update_pack(&self, payload: crate::client::UpdatePackPayload) -> CliResult<()> {
+            *self.renamed_pack.lock().unwrap() = Some(payload);
+            Ok(())
+        }
+
+        async fn delete_pack(&self, pack_id: &str) -> CliResult<()> {
+            *self.deleted_pack.lock().unwrap() = Some(pack_id.to_owned());
+            Ok(())
         }
 
         async fn create_pat(

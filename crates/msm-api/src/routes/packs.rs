@@ -8,7 +8,7 @@ use msm_domain::StickerPack;
 
 use crate::{
     auth::require_pat,
-    dto::{ImportPackRequest, ListPacksQuery},
+    dto::{ImportPackRequest, ListPacksQuery, UpdatePackRequest},
     ApiError, ApiResult, ApiState,
 };
 
@@ -82,6 +82,86 @@ pub async fn list_packs(
         .collect::<Result<Vec<_>, _>>()
         .map(Json)
         .map_err(|error| ApiError::Internal(error.to_string()))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/v1/packs/{pack_id}",
+    tag = "packs",
+    params(("pack_id" = String, Path, description = "Internal pack ID")),
+    request_body = UpdatePackRequest,
+    responses(
+        (status = 200, description = "Sticker pack updated", body = serde_json::Value),
+        (status = 403, description = "PAT cannot update this pack", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Pack not found", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Updates basic metadata for one owned sticker pack.
+///
+/// # Errors
+///
+/// Returns an error when authorization fails, the pack does not exist, or storage fails.
+pub async fn update_pack(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(pack_id): Path<String>,
+    Json(request): Json<UpdatePackRequest>,
+) -> ApiResult<Json<serde_json::Value>> {
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let updated = state
+        .repository()
+        .update_sticker_pack_metadata(
+            &pack_id,
+            &pat.user_id,
+            &request.title,
+            request.visibility.into(),
+        )
+        .await?;
+    if !updated {
+        return Err(ApiError::NotFound("Pack not found".to_owned()));
+    }
+
+    let pack = state
+        .repository()
+        .find_sticker_pack(&pack_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound("Pack not found".to_owned()))?;
+    serde_json::to_value(pack)
+        .map(Json)
+        .map_err(|error| ApiError::Internal(error.to_string()))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/packs/{pack_id}",
+    tag = "packs",
+    params(("pack_id" = String, Path, description = "Internal pack ID")),
+    responses(
+        (status = 204, description = "Sticker pack deleted"),
+        (status = 403, description = "PAT cannot delete this pack", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Pack not found", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Deletes one owned sticker pack.
+///
+/// # Errors
+///
+/// Returns an error when authorization fails, the pack does not exist, or storage fails.
+pub async fn delete_pack(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(pack_id): Path<String>,
+) -> ApiResult<StatusCode> {
+    let pat = require_pat(&headers, &state, Permission::PackDelete).await?;
+    let deleted = state
+        .repository()
+        .delete_sticker_pack(&pack_id, &pat.user_id)
+        .await?;
+    if deleted {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiError::NotFound("Pack not found".to_owned()))
+    }
 }
 
 #[utoipa::path(

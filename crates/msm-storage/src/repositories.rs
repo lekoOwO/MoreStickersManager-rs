@@ -357,6 +357,68 @@ impl StorageRepository {
         .transpose()
     }
 
+    /// Updates owned sticker pack metadata without changing sticker contents.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization fails, the repository is not backed by `SQLite`, or SQL fails.
+    pub async fn update_sticker_pack_metadata(
+        &self,
+        id: &str,
+        owner_user_id: &str,
+        title: &str,
+        visibility: PackVisibility,
+    ) -> StorageResult<bool> {
+        let sqlite = self.sqlite()?;
+        let row = sqlx::query(
+            "SELECT sticker_pack_json FROM sticker_packs WHERE id = ? AND owner_user_id = ?",
+        )
+        .bind(id)
+        .bind(owner_user_id)
+        .fetch_optional(sqlite)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(false);
+        };
+
+        let json: String = row.get("sticker_pack_json");
+        let mut pack = StickerPack::from_json_str(&json)?;
+        pack.title = title.to_owned();
+        let pack_json = serde_json::to_string(&pack)?;
+
+        let result = sqlx::query(
+            "UPDATE sticker_packs
+            SET title = ?, visibility = ?, sticker_pack_json = ?, updated_at = ?
+            WHERE id = ? AND owner_user_id = ?",
+        )
+        .bind(title)
+        .bind(visibility.as_str())
+        .bind(pack_json)
+        .bind(now())
+        .bind(id)
+        .bind(owner_user_id)
+        .execute(sqlite)
+        .await?;
+
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Deletes an owned sticker pack.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn delete_sticker_pack(&self, id: &str, owner_user_id: &str) -> StorageResult<bool> {
+        let result = sqlx::query("DELETE FROM sticker_packs WHERE id = ? AND owner_user_id = ?")
+            .bind(id)
+            .bind(owner_user_id)
+            .execute(self.sqlite()?)
+            .await?;
+
+        Ok(result.rows_affected() == 1)
+    }
+
     /// Lists sticker packs owned by a user.
     ///
     /// # Errors
@@ -828,11 +890,90 @@ mod tests {
         assert!(duplicate.is_err());
     }
 
+    #[tokio::test]
+    async fn updates_owned_sticker_pack_metadata() {
+        let repo = seeded_pack_repo().await;
+
+        let updated = repo
+            .update_sticker_pack_metadata(
+                "pack_1",
+                "user_1",
+                "Renamed Pack",
+                PackVisibility::Public,
+            )
+            .await
+            .unwrap();
+
+        assert!(updated);
+        let pack = repo
+            .find_sticker_pack("pack_1")
+            .await
+            .unwrap()
+            .expect("pack should exist");
+        assert_eq!(pack.title, "Renamed Pack");
+        let listed = repo.list_user_sticker_packs("user_1").await.unwrap();
+        assert_eq!(listed[0].title, "Renamed Pack");
+    }
+
+    #[tokio::test]
+    async fn update_sticker_pack_metadata_rejects_non_owner() {
+        let repo = seeded_pack_repo().await;
+
+        let updated = repo
+            .update_sticker_pack_metadata("pack_1", "user_2", "Nope", PackVisibility::Public)
+            .await
+            .unwrap();
+
+        assert!(!updated);
+        assert_eq!(
+            repo.find_sticker_pack("pack_1")
+                .await
+                .unwrap()
+                .unwrap()
+                .title,
+            "Sample"
+        );
+    }
+
+    #[tokio::test]
+    async fn deletes_owned_sticker_pack() {
+        let repo = seeded_pack_repo().await;
+
+        let deleted = repo.delete_sticker_pack("pack_1", "user_1").await.unwrap();
+
+        assert!(deleted);
+        assert!(repo.find_sticker_pack("pack_1").await.unwrap().is_none());
+        assert!(repo
+            .list_user_sticker_packs("user_1")
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
     async fn test_repo() -> StorageRepository {
         let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
         let pool = DbPool::connect(&config).await.unwrap();
         pool.run_migrations().await.unwrap();
         StorageRepository::new(pool)
+    }
+
+    async fn seeded_pack_repo() -> StorageRepository {
+        let repo = test_repo().await;
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+        repo.create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+        repo.upsert_sticker_pack(
+            "pack_1",
+            "tenant_1",
+            "user_1",
+            PackVisibility::Private,
+            Some("telegram"),
+            &sample_pack(),
+        )
+        .await
+        .unwrap();
+        repo
     }
 
     pub(crate) fn sample_pack() -> msm_domain::StickerPack {

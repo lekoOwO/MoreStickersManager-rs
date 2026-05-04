@@ -25,6 +25,13 @@ pub struct RevokePatResponse {
     pub token_id: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackMutationResponse {
+    pub status: &'static str,
+    pub pack_id: String,
+}
+
 /// Formats a health response.
 ///
 /// # Errors
@@ -63,6 +70,36 @@ pub fn format_import(format: OutputFormat, pack_id: &str) -> CliResult<String> {
         OutputFormat::Human => Ok(format!("imported {pack_id}")),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(&ImportResponse {
             status: "imported",
+            pack_id: pack_id.to_owned(),
+        })?),
+    }
+}
+
+/// Formats a pack rename response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_pack_rename(format: OutputFormat, pack_id: &str) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("renamed {pack_id}")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(&PackMutationResponse {
+            status: "renamed",
+            pack_id: pack_id.to_owned(),
+        })?),
+    }
+}
+
+/// Formats a pack delete response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_pack_delete(format: OutputFormat, pack_id: &str) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("deleted {pack_id}")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(&PackMutationResponse {
+            status: "deleted",
             pack_id: pack_id.to_owned(),
         })?),
     }

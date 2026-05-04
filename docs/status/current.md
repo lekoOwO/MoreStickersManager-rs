@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P20 admin bootstrap policy.
+Phase: P21 pack CRUD foundation.
 
 Last completed:
-- P20 admin bootstrap policy design, implementation plan, optional tenant/admin local registration fields, admin membership bootstrap behavior, and full Rust/Web verification.
+- P21 pack CRUD foundation implementation: owned pack rename/visibility update and delete across storage, API, CLI, and MCP.
 
 Current task:
-- P20 is verified. Continue with pack CRUD UI or tenant member management.
+- P21 is verified. Commit P21, then continue with Web UI pack CRUD controls or folder/tag/subscription-group management.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -15,9 +15,13 @@ Last verification:
 - `npm run web:typecheck`
 - `npm run web:test`
 - `npm run web:build`
+- `cargo test -p msm-storage --locked`
+- `cargo test -p msm-api --locked`
+- `cargo test -p msm-cli --locked`
+- `cargo test -p msm-mcp --locked`
 
 Next step:
-- Start pack CRUD UI or tenant member management.
+- Commit P21 with author `Leko <leko@leko.moe>`.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
