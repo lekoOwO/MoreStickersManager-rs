@@ -12,11 +12,17 @@ const props = defineProps<{
   locale: Locale;
   patToken?: string;
   packClient?: PackClient;
+  tenantId?: string;
+  ownerUserId?: string;
 }>();
 
 const packs = ref<StickerPackSummary[]>([]);
 const loadError = ref("");
 const actionError = ref("");
+const importError = ref("");
+const importPackId = ref("");
+const importVisibility = ref<WritablePackVisibility>("private");
+const importJson = ref("");
 const drafts = ref<Record<string, { title: string; visibility: WritablePackVisibility }>>({});
 
 const labels = computed(() => allMessages()[props.locale]);
@@ -69,6 +75,24 @@ async function updatePack(pack: StickerPackSummary) {
     await loadPacks();
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function importPack() {
+  importError.value = "";
+  try {
+    const pack = JSON.parse(importJson.value) as unknown;
+    await packClient().importStickerPack({
+      tenantId: props.tenantId ?? import.meta.env.VITE_MSM_TENANT_ID ?? "tenant_1",
+      ownerUserId: props.ownerUserId ?? import.meta.env.VITE_MSM_USER_ID ?? "user_1",
+      packId: importPackId.value.trim(),
+      visibility: importVisibility.value,
+      pack,
+    });
+    importJson.value = "";
+    await loadPacks();
+  } catch (error) {
+    importError.value = error instanceof Error ? error.message : String(error);
   }
 }
 
@@ -142,6 +166,50 @@ function visibilityVariant(visibility: PackVisibility) {
         </CardHeader>
       </Card>
     </section>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>{{ labels.importStickerPack }}</CardTitle>
+        <CardDescription>{{ labels.importStickerPackHelp }}</CardDescription>
+      </CardHeader>
+      <CardContent class="grid gap-4">
+        <div class="grid gap-3 md:grid-cols-[1fr_12rem]">
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.importPackId }}
+            <input
+              v-model="importPackId"
+              class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.importPackId"
+            />
+          </label>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.importVisibility }}
+            <select
+              v-model="importVisibility"
+              class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.importVisibility"
+            >
+              <option value="public">{{ labels.public }}</option>
+              <option value="private">{{ labels.private }}</option>
+            </select>
+          </label>
+        </div>
+        <label class="flex flex-col gap-2 text-sm font-medium">
+          {{ labels.importPackJson }}
+          <textarea
+            v-model="importJson"
+            class="min-h-40 rounded-md border bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring"
+            :aria-label="labels.importPackJson"
+          />
+        </label>
+        <div class="flex flex-wrap items-center gap-3">
+          <Button type="button" :aria-label="labels.importStickerPack" @click="importPack">
+            {{ labels.importStickerPack }}
+          </Button>
+          <p v-if="importError" class="text-sm text-muted-foreground">{{ importError }}</p>
+        </div>
+      </CardContent>
+    </Card>
 
     <section class="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
       <Card>

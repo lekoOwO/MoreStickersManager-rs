@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P22 Web pack CRUD controls.
+Phase: P23 Web pack import.
 
 Last completed:
-- P22 Web pack CRUD controls: dashboard rename, visibility update, and delete controls backed by the P21 pack API client.
+- P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
 
 Current task:
-- P22 is verified. Commit P22, then continue with create/import UI or folder/tag/subscription-group backend.
+- P23 is verified. Commit P23, then continue with folder/tag/subscription-group backend or import file picker.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Commit P22 with author `Leko <leko@leko.moe>`.
+- Commit P23 with author `Leko <leko@leko.moe>`.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

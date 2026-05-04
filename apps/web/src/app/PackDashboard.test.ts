@@ -37,6 +37,7 @@ describe("PackDashboard", () => {
           updatedAt: "2026-05-04",
         },
       ]),
+      importStickerPack: vi.fn(async () => {}),
       updateStickerPack: vi.fn(async () => {}),
       deleteStickerPack: vi.fn(async () => {}),
     };
@@ -63,5 +64,48 @@ describe("PackDashboard", () => {
     });
     expect(client.deleteStickerPack).toHaveBeenCalledWith("pack_1");
     expect(client.listStickerPacks).toHaveBeenCalledTimes(3);
+  });
+
+  it("imports sticker packs through the injected client", async () => {
+    const client: PackClient = {
+      listStickerPacks: vi.fn(async () => []),
+      importStickerPack: vi.fn(async () => {}),
+      updateStickerPack: vi.fn(async () => {}),
+      deleteStickerPack: vi.fn(async () => {}),
+    };
+    const pack = {
+      id: "MoreStickers:Telegram:Pack:cats",
+      title: "Cats",
+      logo: {
+        id: "sticker_1",
+        title: "cat",
+        image: "https://msm.example/cat.webp",
+        sticker_pack_id: "MoreStickers:Telegram:Pack:cats",
+      },
+      stickers: [],
+    };
+    const wrapper = mount(PackDashboard, {
+      props: {
+        locale: "en",
+        packClient: client,
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+      },
+    });
+
+    await flushPromises();
+    await wrapper.get('[aria-label="Import pack ID"]').setValue("pack_1");
+    await wrapper.get('[aria-label="Import pack JSON"]').setValue(JSON.stringify(pack));
+    await wrapper.get('[aria-label="Import sticker pack"]').trigger("click");
+    await flushPromises();
+
+    expect(client.importStickerPack).toHaveBeenCalledWith({
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      packId: "pack_1",
+      visibility: "private",
+      pack,
+    });
+    expect(client.listStickerPacks).toHaveBeenCalledTimes(2);
   });
 });

@@ -121,6 +121,50 @@ describe("pack API client", () => {
     });
   });
 
+  it("imports sticker packs with bearer auth", async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 201 }));
+    const client = createPackClient({
+      baseUrl: "https://msm.example.test/",
+      userId: "user_1",
+      authToken: "msm_pat_cli1_secret",
+      fetchImpl,
+    });
+    const pack = {
+      id: "MoreStickers:Telegram:Pack:cats",
+      title: "Cats",
+      logo: {
+        id: "sticker_1",
+        title: "cat",
+        image: "https://msm.example/cat.webp",
+        sticker_pack_id: "MoreStickers:Telegram:Pack:cats",
+      },
+      stickers: [],
+    };
+
+    await client.importStickerPack({
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      packId: "pack_1",
+      visibility: "private",
+      pack,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/packs/import", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_cli1_secret",
+      },
+      body: JSON.stringify({
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        packId: "pack_1",
+        visibility: "private",
+        pack,
+      }),
+    });
+  });
+
   it("infers LINE emoji provider and private visibility from API record", () => {
     const summary = mapApiPackRecord({
       id: "pack_2",

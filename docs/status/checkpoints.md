@@ -190,3 +190,11 @@
 - Added per-pack dashboard controls for title, visibility, save, and delete.
 - Added injected-client dashboard tests for rename/delete behavior.
 - Verified Web tests, typecheck, and production build during implementation.
+
+## 2026-05-04 P23 Web Pack Import
+
+- Added P23 Web pack import implementation plan.
+- Extended the Web pack API client with `importStickerPack`.
+- Added a dashboard import form for internal pack ID, visibility, and pasted `.stickerpack` JSON.
+- Added API client and injected-client dashboard tests for Web import behavior.
+- Verified Web tests, typecheck, and production build during implementation.

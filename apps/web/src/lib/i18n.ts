@@ -54,6 +54,11 @@ const messages = {
     packVisibility: "Pack visibility",
     savePackChanges: "Save pack changes",
     deletePack: "Delete pack",
+    importStickerPack: "Import sticker pack",
+    importStickerPackHelp: "Paste a MoreStickers .stickerpack JSON export and import it into MSM.",
+    importPackId: "Import pack ID",
+    importVisibility: "Import visibility",
+    importPackJson: "Import pack JSON",
   },
   en: {
     appName: "MoreStickersManager",
@@ -106,6 +111,11 @@ const messages = {
     packVisibility: "Pack visibility",
     savePackChanges: "Save pack changes",
     deletePack: "Delete pack",
+    importStickerPack: "Import sticker pack",
+    importStickerPackHelp: "Paste a MoreStickers .stickerpack JSON export and import it into MSM.",
+    importPackId: "Import pack ID",
+    importVisibility: "Import visibility",
+    importPackJson: "Import pack JSON",
   },
 } as const;
 

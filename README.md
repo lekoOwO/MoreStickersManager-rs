@@ -81,7 +81,8 @@ npm run web:build
 The Web UI includes dashboard, PAT, and local register/login bootstrap slices.
 The dashboard can rename packs, change public/private visibility, and delete
 packs when `VITE_MSM_API_BASE_URL` is configured and the stored PAT has the
-required scopes.
+required scopes. It can also import a pasted MoreStickers `.stickerpack` JSON
+export when the stored PAT has `import.run`.
 
 To connect the dashboard to the current P4 API list route, set:
 

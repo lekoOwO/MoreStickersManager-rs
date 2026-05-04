@@ -24,8 +24,17 @@ export interface ApiStickerPackRecord {
 
 export interface PackClient {
   listStickerPacks(): Promise<StickerPackSummary[]>;
+  importStickerPack(request: ImportStickerPackRequest): Promise<void>;
   updateStickerPack(request: UpdateStickerPackRequest): Promise<void>;
   deleteStickerPack(packId: string): Promise<void>;
+}
+
+export interface ImportStickerPackRequest {
+  tenantId: string;
+  ownerUserId: string;
+  packId: string;
+  visibility: WritablePackVisibility;
+  pack: unknown;
 }
 
 export interface UpdateStickerPackRequest {
@@ -110,6 +119,9 @@ export function createPackClient(options: PackClientOptions = {}): PackClient {
   if (!baseUrl) {
     return {
       listStickerPacks: listMockStickerPacks,
+      async importStickerPack() {
+        throw new Error("Pack import requires VITE_MSM_API_BASE_URL");
+      },
       async updateStickerPack() {
         throw new Error("Pack update requires VITE_MSM_API_BASE_URL");
       },
@@ -131,6 +143,16 @@ export function createPackClient(options: PackClientOptions = {}): PackClient {
 
       const records = (await response.json()) as ApiStickerPackRecord[];
       return records.map(mapApiPackRecord);
+    },
+    async importStickerPack(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/packs/import`, {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to import sticker pack: HTTP ${response.status}`);
+      }
     },
     async updateStickerPack(request) {
       const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/packs/${encodeURIComponent(request.packId)}`, {

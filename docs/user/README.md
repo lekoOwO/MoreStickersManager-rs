@@ -55,6 +55,8 @@ development.
 
 The dashboard can rename packs, change public/private visibility, and delete
 packs when the stored PAT has `pack.update` and `pack.delete`.
+It can also import a pasted MoreStickers `.stickerpack` JSON export when the
+stored PAT has `import.run`.
 
 Current service binary example:
 
