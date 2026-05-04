@@ -48,3 +48,13 @@ By default the service listens on `127.0.0.1:3000`, uses
 UI from `apps/web/dist` when present. The binary also embeds Web assets at
 compile time; run `npm run web:build` before `cargo build -p msm-app` to embed
 the full UI instead of the placeholder.
+
+Current MCP endpoint:
+
+```text
+POST /mcp
+```
+
+Supported methods are `initialize`, `ping`, `tools/list`, and `tools/call`.
+Current tools are `msm.list_sticker_packs`, `msm.export_sticker_pack`, and
+`msm.import_sticker_pack`.

@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P7 Web UI foundation.
+Current phase: P11 MCP endpoint.
 
 ## Compatibility Target
 
@@ -92,6 +92,18 @@ When `apps/web/dist` exists before `cargo build -p msm-app`, P10 embeds that
 dist into the binary. If dist is missing, the binary embeds a small placeholder
 page so clean Rust builds still work. At runtime `MSM_WEB_DIST_DIR` remains a
 disk override for development.
+
+## MCP Slice
+
+`msm-app` exposes the initial MCP endpoint at `/mcp`. P11 supports JSON-RPC
+`initialize`, `ping`, `tools/list`, and `tools/call` with these tools:
+
+- `msm.list_sticker_packs`
+- `msm.export_sticker_pack`
+- `msm.import_sticker_pack`
+
+This first MCP slice returns `application/json` responses and does not yet
+implement SSE streams, session management, or PAT/RBAC enforcement.
 
 ## Project Docs
 

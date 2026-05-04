@@ -173,3 +173,21 @@ These tests prove:
 - unsafe Web fallback paths reject traversal attempts;
 - embedded `index.html` exists even when the real frontend dist was not built;
 - the service crate still compiles with embedded asset support.
+
+## P11 MCP Endpoint Tests
+
+Run:
+
+```powershell
+cargo test -p msm-mcp
+cargo clippy -p msm-mcp --all-targets -- -D warnings
+cargo test -p msm-app
+```
+
+These tests prove:
+
+- `/mcp` handles `initialize` and declares tool capability;
+- `tools/list` exposes the pack list/export/import tools;
+- `tools/call` can list, export, and import sticker packs through storage;
+- unknown JSON-RPC methods return `-32601`;
+- the service binary still mounts MCP alongside API and Web UI fallback.

@@ -9,7 +9,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-storage`: database repositories and asset storage, added in P2.
 - `msm-api`: HTTP API and OpenAPI, added in P4.
 - `msm-cli`: command-line client, added in P5.
-- `msm-mcp`: MCP endpoint, added in P9.
+- `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
 - `msm-app`: runnable service composition binary, added in P9.
 - `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7.
@@ -47,3 +47,11 @@ P10 embeds Web assets into the binary through an `msm-app` build script. If
 `apps/web/dist/index.html` exists during compilation, that real dist is embedded.
 Otherwise a committed placeholder is embedded so clean Rust-only builds remain
 valid. Runtime serving is disk-first (`MSM_WEB_DIST_DIR`) and embedded-second.
+
+## MCP Boundary
+
+`msm-mcp` owns MCP JSON-RPC request/response shapes, tool metadata, and tool
+execution for the current pack operations. It reuses `msm-api::ApiState` so the
+service binary can mount `/mcp` next to the HTTP API. P11 intentionally supports
+JSON `POST` request/response only; Streamable HTTP SSE, session management, and
+PAT/RBAC enforcement belong to later auth and transport hardening phases.

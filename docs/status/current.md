@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P10 embedded Web assets.
+Phase: P11 MCP endpoint.
 
 Last completed:
-- P10 embedded Web asset design, implementation plan, `msm-app` build script, placeholder Web dist, disk-first embedded-second Web fallback handler, safe path normalization, and embedded asset tests.
+- P11 MCP endpoint design, implementation plan, `msm-mcp` crate, JSON-RPC protocol types, MCP tool registry, pack list/export/import tool execution, `/mcp` route, and app integration.
 
 Current task:
-- P10 is verified. Continue with authenticated Web API flows or MCP endpoint.
+- P11 is verified. Continue with auth/PAT foundation.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start the next planned slice: MCP endpoint or auth/PAT foundation.
+- Start P12 auth/PAT foundation.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -82,3 +82,12 @@
 - Replaced disk-only Web fallback with a disk-first and embedded-second fallback handler.
 - Added safe Web path normalization and embedded index tests.
 - Verified `msm-app` format, clippy, and tests during implementation.
+
+## 2026-05-04 P11 MCP Endpoint
+
+- Added P11 MCP endpoint design and implementation plan.
+- Added `msm-mcp` crate with JSON-RPC and MCP tool response shapes.
+- Added MCP tool definitions for pack list, pack export, and pack import.
+- Added `/mcp` route and mounted it in `msm-app`.
+- Added MCP route tests for initialize, tools/list, tools/call, and unknown methods.
+- Verified focused MCP and app integration tests during implementation.
