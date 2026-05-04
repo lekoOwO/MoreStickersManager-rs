@@ -16,6 +16,12 @@ pub enum StorageError {
         reason: &'static str,
     },
 
+    #[error("invalid personal access token: {reason}")]
+    InvalidPersonalAccessToken { reason: &'static str },
+
+    #[error("random generation error: {message}")]
+    Random { message: String },
+
     #[error("asset not found: {path}")]
     AssetNotFound { path: PathBuf },
 

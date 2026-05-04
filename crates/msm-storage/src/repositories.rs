@@ -1,8 +1,15 @@
-use chrono::Utc;
-use msm_domain::StickerPack;
-use sqlx::{Row, SqlitePool};
+use std::collections::BTreeSet;
 
-use crate::{models::PackVisibility, DbPool, StorageError, StorageResult};
+use chrono::{DateTime, Utc};
+use msm_domain::{Permission, StickerPack};
+use sha2::{Digest, Sha256};
+use sqlx::{Row, SqlitePool};
+use subtle::ConstantTimeEq;
+
+use crate::{
+    models::{CreatedPersonalAccessToken, PackVisibility, PersonalAccessTokenRecord},
+    DbPool, StorageError, StorageResult,
+};
 
 #[derive(Clone)]
 pub struct StorageRepository {
@@ -244,6 +251,142 @@ impl StorageRepository {
             .collect()
     }
 
+    /// Creates a Personal Access Token and returns the raw token once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the token ID is invalid, random generation fails, scope serialization
+    /// fails, the repository is not backed by `SQLite`, or SQL fails.
+    pub async fn create_personal_access_token(
+        &self,
+        id: &str,
+        user_id: &str,
+        name: &str,
+        scopes: &BTreeSet<Permission>,
+        expires_at: Option<&str>,
+    ) -> StorageResult<CreatedPersonalAccessToken> {
+        validate_pat_id(id)?;
+        let secret = generate_pat_secret()?;
+        let token = format!("msm_pat_{id}_{secret}");
+        let token_hash = hash_pat_secret(&secret);
+        let scopes_json = serde_json::to_string(
+            &scopes
+                .iter()
+                .map(|permission| permission.as_key())
+                .collect::<Vec<_>>(),
+        )?;
+        let now = now();
+
+        sqlx::query(
+            "INSERT INTO personal_access_tokens (
+                id, user_id, name, token_hash, scopes_json, expires_at, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(user_id)
+        .bind(name)
+        .bind(&token_hash)
+        .bind(scopes_json)
+        .bind(expires_at)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        let record = PersonalAccessTokenRecord {
+            id: id.to_owned(),
+            user_id: user_id.to_owned(),
+            name: name.to_owned(),
+            token_hash,
+            scopes: scopes.clone(),
+            expires_at: expires_at.map(ToOwned::to_owned),
+            revoked_at: None,
+            created_at: now,
+        };
+
+        Ok(CreatedPersonalAccessToken { record, token })
+    }
+
+    /// Lists Personal Access Tokens for a user without exposing raw token secrets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored scope
+    /// key is invalid.
+    pub async fn list_personal_access_tokens(
+        &self,
+        user_id: &str,
+    ) -> StorageResult<Vec<PersonalAccessTokenRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
+            FROM personal_access_tokens
+            WHERE user_id = ?
+            ORDER BY created_at DESC, id",
+        )
+        .bind(user_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.iter().map(pat_record_from_row).collect()
+    }
+
+    /// Verifies a Personal Access Token and returns the active record when valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored scope
+    /// key is invalid.
+    pub async fn verify_personal_access_token(
+        &self,
+        token: &str,
+    ) -> StorageResult<Option<PersonalAccessTokenRecord>> {
+        let Some((id, secret)) = parse_pat_token(token) else {
+            return Ok(None);
+        };
+
+        let row = sqlx::query(
+            "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
+            FROM personal_access_tokens
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let record = pat_record_from_row(&row)?;
+
+        if record.revoked_at.is_some() || is_expired(record.expires_at.as_deref()) {
+            return Ok(None);
+        }
+
+        let presented_hash = hash_pat_secret(secret);
+        if presented_hash
+            .as_bytes()
+            .ct_eq(record.token_hash.as_bytes())
+            .into()
+        {
+            Ok(Some(record))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Revokes a Personal Access Token by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn revoke_personal_access_token(&self, id: &str) -> StorageResult<()> {
+        sqlx::query("UPDATE personal_access_tokens SET revoked_at = ? WHERE id = ?")
+            .bind(now())
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?;
+        Ok(())
+    }
+
     /// Lists pack IDs in a subscription group.
     ///
     /// # Errors
@@ -278,8 +421,71 @@ fn now() -> String {
     Utc::now().to_rfc3339()
 }
 
+fn validate_pat_id(id: &str) -> StorageResult<()> {
+    if id.is_empty() || id.contains('_') {
+        return Err(StorageError::InvalidPersonalAccessToken {
+            reason: "token id must not be empty or contain '_'",
+        });
+    }
+    Ok(())
+}
+
+fn generate_pat_secret() -> StorageResult<String> {
+    let mut bytes = [0_u8; 32];
+    getrandom::fill(&mut bytes).map_err(|error| StorageError::Random {
+        message: error.to_string(),
+    })?;
+    Ok(hex::encode(bytes))
+}
+
+fn hash_pat_secret(secret: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(secret.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
+fn parse_pat_token(token: &str) -> Option<(&str, &str)> {
+    token.strip_prefix("msm_pat_")?.split_once('_')
+}
+
+fn is_expired(expires_at: Option<&str>) -> bool {
+    let Some(expires_at) = expires_at else {
+        return false;
+    };
+    DateTime::parse_from_rfc3339(expires_at).map_or(true, |expires_at| {
+        expires_at.with_timezone(&Utc) <= Utc::now()
+    })
+}
+
+fn pat_record_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<PersonalAccessTokenRecord> {
+    let scopes_json: String = row.get("scopes_json");
+    let scope_keys: Vec<String> = serde_json::from_str(&scopes_json)?;
+    let scopes = scope_keys
+        .into_iter()
+        .map(|scope| {
+            Permission::from_key(&scope).ok_or(StorageError::InvalidPersonalAccessToken {
+                reason: "unknown scope key",
+            })
+        })
+        .collect::<StorageResult<BTreeSet<_>>>()?;
+
+    Ok(PersonalAccessTokenRecord {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        name: row.get("name"),
+        token_hash: row.get("token_hash"),
+        scopes,
+        expires_at: row.get("expires_at"),
+        revoked_at: row.get("revoked_at"),
+        created_at: row.get("created_at"),
+    })
+}
+
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
+    use chrono::{Duration, Utc};
     use msm_domain::Sticker;
 
     use crate::{
@@ -331,6 +537,88 @@ mod tests {
             repo.list_subscription_pack_ids("sub_1").await.unwrap(),
             vec!["pack_1".to_owned()]
         );
+    }
+
+    #[tokio::test]
+    async fn personal_access_tokens_verify_and_revoke() {
+        let repo = test_repo().await;
+        repo.create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from([msm_domain::Permission::PackRead]);
+
+        let created = repo
+            .create_personal_access_token("pat1", "user_1", "CLI", &scopes, None)
+            .await
+            .unwrap();
+
+        assert!(created.token.starts_with("msm_pat_pat1_"));
+        assert_ne!(created.record.token_hash, created.token);
+        let listed = repo.list_personal_access_tokens("user_1").await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].scopes, scopes);
+
+        let verified = repo
+            .verify_personal_access_token(&created.token)
+            .await
+            .unwrap()
+            .expect("token should verify");
+        assert_eq!(verified.id, "pat1");
+
+        let invalid = created.token.replace('a', "b");
+        assert!(repo
+            .verify_personal_access_token(&invalid)
+            .await
+            .unwrap()
+            .is_none());
+
+        repo.revoke_personal_access_token("pat1").await.unwrap();
+        assert!(repo
+            .verify_personal_access_token(&created.token)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn personal_access_tokens_reject_expired_tokens() {
+        let repo = test_repo().await;
+        repo.create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from([msm_domain::Permission::PackRead]);
+        let expires_at = (Utc::now() - Duration::days(1)).to_rfc3339();
+
+        let created = repo
+            .create_personal_access_token("pat1", "user_1", "Expired", &scopes, Some(&expires_at))
+            .await
+            .unwrap();
+
+        assert!(repo
+            .verify_personal_access_token(&created.token)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn personal_access_tokens_reject_invalid_token_ids() {
+        let repo = test_repo().await;
+        let scopes = BTreeSet::from([msm_domain::Permission::PackRead]);
+
+        let error = repo
+            .create_personal_access_token("pat_1", "user_1", "Invalid", &scopes, None)
+            .await
+            .expect_err("token IDs with underscores should be rejected");
+
+        assert!(error.to_string().contains("token id"));
+    }
+
+    async fn test_repo() -> StorageRepository {
+        let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
+        let pool = DbPool::connect(&config).await.unwrap();
+        pool.run_migrations().await.unwrap();
+        StorageRepository::new(pool)
     }
 
     pub(crate) fn sample_pack() -> msm_domain::StickerPack {

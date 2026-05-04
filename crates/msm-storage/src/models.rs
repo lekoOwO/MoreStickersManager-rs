@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
-use msm_domain::StickerPack;
+use msm_domain::{Permission, StickerPack};
+use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct TenantRecord {
@@ -52,6 +53,24 @@ pub struct SubscriptionGroupRecord {
     pub title: String,
     pub visibility: PackVisibility,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct PersonalAccessTokenRecord {
+    pub id: String,
+    pub user_id: String,
+    pub name: String,
+    pub token_hash: String,
+    pub scopes: BTreeSet<Permission>,
+    pub expires_at: Option<String>,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CreatedPersonalAccessToken {
+    pub record: PersonalAccessTokenRecord,
+    pub token: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
