@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P14 CLI PAT commands.
+Current phase: P15 API/MCP PAT enforcement.
 
 ## Compatibility Target
 
@@ -36,6 +36,14 @@ cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
 cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
+```
+
+Protected API commands can send a PAT with either:
+
+```powershell
+cargo run -p msm-cli -- --pat msm_pat_cli1_secret packs list --user-id user_1
+$env:MSM_PAT="msm_pat_cli1_secret"
+cargo run -p msm-cli -- packs list --user-id user_1
 ```
 
 ## Provider Slice
@@ -130,9 +138,16 @@ Create responses include the raw token. List responses intentionally omit raw
 tokens and token hashes.
 
 P14 exposes those PAT lifecycle operations through the CLI. CLI create prints
-the raw token once; list responses never include token hashes. PAT/RBAC
-enforcement on existing API, CLI, and MCP operations remains a later integration
-phase.
+the raw token once; list responses never include token hashes.
+
+P15 enforces Bearer PAT scopes on pack API routes and MCP `tools/call`:
+
+- `pack.read`: list/export sticker packs.
+- `import.run`: import sticker packs.
+
+API `healthz`, OpenAPI, PAT lifecycle endpoints, MCP `initialize`, MCP `ping`,
+and MCP `tools/list` remain public in this bootstrap slice. Asset privacy and
+OIDC/local-login backed admin enforcement are later phases.
 
 ## Project Docs
 

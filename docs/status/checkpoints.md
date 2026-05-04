@@ -117,3 +117,13 @@
 - Added reqwest calls for `POST /api/v1/pats`, `GET /api/v1/pats?userId=...`, and `DELETE /api/v1/pats/{token_id}`.
 - Added human and JSON output formatting for PAT operations.
 - Verified CLI PAT parser and fake-client execution tests during implementation.
+
+## 2026-05-04 P15 API/MCP PAT Enforcement
+
+- Added P15 API/MCP PAT enforcement design and implementation plan.
+- Added API Bearer PAT verification helper with `401 Unauthorized` and `403 Forbidden` responses.
+- Protected pack list/export with `pack.read` and pack import with `import.run`.
+- Added user ownership guards for user-scoped pack list/import operations.
+- Added MCP `tools/call` PAT enforcement while keeping initialize, ping, and tools/list public.
+- Added CLI `--pat` and `MSM_PAT` forwarding to reqwest Bearer auth.
+- Verified focused API, MCP, and CLI enforcement tests plus clippy during implementation.

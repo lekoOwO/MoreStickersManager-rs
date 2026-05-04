@@ -18,6 +18,14 @@ cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
 ```
 
+Protected API-backed CLI commands accept a PAT through `--pat` or `MSM_PAT`:
+
+```powershell
+cargo run -p msm-cli -- --pat msm_pat_cli1_secret packs list --user-id user_1
+$env:MSM_PAT="msm_pat_cli1_secret"
+cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
+```
+
 Current Web UI examples:
 
 ```powershell
@@ -83,3 +91,12 @@ PAT CLI commands:
 
 `msm pats create` prints the raw token once. Store it immediately outside MSM if
 you need to use it later.
+
+PAT enforcement status:
+
+- `pack.read` is required for pack list/export API routes and MCP tools.
+- `import.run` is required for pack import API routes and MCP tools.
+- user-scoped list/import operations reject PATs belonging to another user.
+- PAT lifecycle endpoints are still bootstrap/admin placeholders until the
+  login and admin model is implemented.
+- asset privacy enforcement is not wired yet.

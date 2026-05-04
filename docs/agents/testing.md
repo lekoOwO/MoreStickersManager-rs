@@ -243,3 +243,23 @@ These tests prove:
 - command execution calls the PAT client methods through the `MsmClient` trait;
 - human output prints the raw token only for create;
 - human list output omits token secrets and token hashes.
+
+## P15 API/MCP PAT Enforcement Tests
+
+Run:
+
+```powershell
+cargo test -p msm-api pat_enforcement
+cargo test -p msm-mcp pat_enforcement
+cargo test -p msm-cli pat
+cargo clippy -p msm-api -p msm-mcp -p msm-cli --all-targets -- -D warnings
+```
+
+These tests prove:
+
+- protected pack API routes reject missing PATs with `401 Unauthorized`;
+- protected pack API routes reject missing scopes or user mismatch with `403 Forbidden`;
+- valid `pack.read` PATs can list/export packs;
+- valid `import.run` PATs can import packs for their own user;
+- MCP `tools/call` returns tool errors for missing PATs, missing scopes, and user mismatch;
+- CLI can pass PATs through global `--pat` and configured reqwest Bearer auth.
