@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +9,11 @@ import { type PackVisibility, type StickerPackSummary } from "@/lib/sticker-pack
 
 const props = defineProps<{
   locale: Locale;
+  patToken?: string;
 }>();
 
-const packClient = createPackClient({
-  baseUrl: import.meta.env.VITE_MSM_API_BASE_URL,
-  userId: import.meta.env.VITE_MSM_USER_ID,
-});
 const packs = ref<StickerPackSummary[]>([]);
+const loadError = ref("");
 
 const labels = computed(() => allMessages()[props.locale]);
 const totalStickers = computed(() => packs.value.reduce((sum, pack) => sum + pack.stickerCount, 0));
@@ -28,9 +26,22 @@ const providerCounts = computed(() => {
   }, {});
 });
 
-onMounted(async () => {
-  packs.value = await packClient.listStickerPacks();
-});
+onMounted(loadPacks);
+watch(() => props.patToken, loadPacks);
+
+async function loadPacks() {
+  loadError.value = "";
+  try {
+    packs.value = await createPackClient({
+      baseUrl: import.meta.env.VITE_MSM_API_BASE_URL,
+      userId: import.meta.env.VITE_MSM_USER_ID,
+      authToken: props.patToken,
+    }).listStickerPacks();
+  } catch (error) {
+    packs.value = [];
+    loadError.value = error instanceof Error ? error.message : String(error);
+  }
+}
 
 function visibilityLabel(visibility: PackVisibility) {
   return labels.value[visibility];
@@ -102,6 +113,9 @@ function visibilityVariant(visibility: PackVisibility) {
           <CardDescription>{{ labels.dashboardSubtitle }}</CardDescription>
         </CardHeader>
         <CardContent class="flex flex-col gap-3">
+          <p v-if="loadError" class="rounded-lg border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
+            {{ loadError }}
+          </p>
           <article
             v-for="pack in packs"
             :key="pack.id"

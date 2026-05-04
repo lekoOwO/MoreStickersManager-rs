@@ -1,23 +1,35 @@
 <script setup lang="ts">
 import { MenuIcon, MoonIcon, SunIcon } from "lucide-vue-next";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 import PackDashboard from "@/app/PackDashboard.vue";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createPatClient, type CreatedPersonalAccessTokenResponse, type PersonalAccessTokenResponse } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
 import type { ThemePreference } from "@/lib/theme";
 
 const props = defineProps<{
   locale: Locale;
+  patToken: string;
   theme: ThemePreference;
 }>();
 
 const emit = defineEmits<{
   toggleLocale: [];
   toggleTheme: [];
+  updatePatToken: [token: string];
 }>();
 
 const mobileNavOpen = ref(false);
+const tokenDraft = ref(props.patToken);
+const tokenId = ref("webui");
+const tokenName = ref("Web UI");
+const tokenScopes = ref("pack.read import.run pat.manage");
+const tokens = ref<PersonalAccessTokenResponse[]>([]);
+const createdToken = ref<CreatedPersonalAccessTokenResponse | null>(null);
+const patError = ref("");
 const labels = computed(() => allMessages()[props.locale]);
 const navigationItems = computed(() => [
   labels.value.overview,
@@ -25,6 +37,72 @@ const navigationItems = computed(() => [
   labels.value.providers,
   labels.value.settings,
 ]);
+const patClient = computed(() => {
+  const baseUrl = import.meta.env.VITE_MSM_API_BASE_URL;
+  return baseUrl ? createPatClient({ baseUrl, authToken: props.patToken }) : null;
+});
+const patUserId = computed(() => import.meta.env.VITE_MSM_USER_ID || "demo");
+
+watch(
+  () => props.patToken,
+  (nextToken) => {
+    tokenDraft.value = nextToken;
+  },
+);
+
+function saveToken() {
+  emit("updatePatToken", tokenDraft.value);
+}
+
+function clearToken() {
+  tokenDraft.value = "";
+  createdToken.value = null;
+  emit("updatePatToken", "");
+}
+
+async function listTokens() {
+  patError.value = "";
+  try {
+    tokens.value = await requirePatClient().listPersonalAccessTokens(patUserId.value);
+  } catch (error) {
+    patError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function createToken() {
+  patError.value = "";
+  createdToken.value = null;
+  try {
+    createdToken.value = await requirePatClient().createPersonalAccessToken({
+      id: tokenId.value.trim(),
+      userId: patUserId.value,
+      name: tokenName.value.trim() || "Web UI",
+      scopes: tokenScopes.value.split(/[,\s]+/).filter(Boolean),
+      expiresAt: null,
+    });
+    await listTokens();
+  } catch (error) {
+    patError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function revokeToken(tokenId: string) {
+  patError.value = "";
+  try {
+    await requirePatClient().revokePersonalAccessToken(tokenId);
+    await listTokens();
+  } catch (error) {
+    patError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+function requirePatClient() {
+  if (!patClient.value) {
+    throw new Error("VITE_MSM_API_BASE_URL is not configured");
+  }
+
+  return patClient.value;
+}
 </script>
 
 <template>
@@ -96,7 +174,66 @@ const navigationItems = computed(() => [
             <h1 class="mt-2 text-3xl font-black tracking-tight md:text-5xl">{{ labels.dashboardTitle }}</h1>
             <p class="mt-3 text-base text-muted-foreground md:text-lg">{{ labels.dashboardSubtitle }}</p>
           </section>
-          <PackDashboard :locale="locale" />
+          <Card class="mb-6">
+            <CardHeader>
+              <CardTitle>{{ labels.personalAccessTokens }}</CardTitle>
+              <CardDescription>{{ labels.patTokenHelp }}</CardDescription>
+            </CardHeader>
+            <CardContent class="flex flex-col gap-4">
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.currentPat }}
+                <input
+                  v-model="tokenDraft"
+                  class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :placeholder="labels.patPlaceholder"
+                  type="password"
+                />
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <Button type="button" @click="saveToken">{{ labels.savePatToken }}</Button>
+                <Button type="button" variant="outline" @click="clearToken">{{ labels.clearPatToken }}</Button>
+                <Button type="button" variant="secondary" @click="listTokens">{{ labels.refreshTokens }}</Button>
+              </div>
+              <div class="grid gap-3 md:grid-cols-3">
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.tokenId }}
+                  <input v-model="tokenId" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.tokenName }}
+                  <input v-model="tokenName" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.tokenScopes }}
+                  <input v-model="tokenScopes" class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+              </div>
+              <Button type="button" class="w-fit" @click="createToken">{{ labels.createPatToken }}</Button>
+              <p v-if="createdToken" class="rounded-lg border bg-background/70 p-3 text-sm">
+                {{ labels.createdTokenOnce }} <code class="font-mono">{{ createdToken.token }}</code>
+              </p>
+              <p v-if="patError" class="rounded-lg border bg-background/70 p-3 text-sm text-muted-foreground">
+                {{ patError }}
+              </p>
+              <article
+                v-for="token in tokens"
+                :key="token.id"
+                class="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background/70 p-3"
+              >
+                <div class="min-w-0">
+                  <p class="font-semibold">{{ token.name }}</p>
+                  <p class="text-sm text-muted-foreground">{{ token.id }} · {{ token.scopes.join(", ") }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Badge variant="secondary">{{ token.createdAt.split("T")[0] }}</Badge>
+                  <Button type="button" variant="outline" size="sm" @click="revokeToken(token.id)">
+                    {{ labels.revokePatToken }}
+                  </Button>
+                </div>
+              </article>
+            </CardContent>
+          </Card>
+          <PackDashboard :locale="locale" :pat-token="patToken" />
         </main>
       </div>
     </div>

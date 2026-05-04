@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createPackClient, mapApiPackRecord, packListUrl, type ApiStickerPackRecord } from "./api-client";
+import {
+  createPackClient,
+  createPatClient,
+  mapApiPackRecord,
+  packListUrl,
+  type ApiStickerPackRecord,
+} from "./api-client";
 
 describe("pack API client", () => {
   it("uses mock packs when no API base URL is configured", async () => {
@@ -61,6 +67,24 @@ describe("pack API client", () => {
     ]);
   });
 
+  it("sends bearer auth when listing packs with a configured PAT", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    const client = createPackClient({
+      baseUrl: "https://msm.example.test",
+      userId: "user_1",
+      authToken: "msm_pat_cli1_secret",
+      fetchImpl,
+    });
+
+    await client.listStickerPacks();
+
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/packs?userId=user_1", {
+      headers: {
+        Authorization: "Bearer msm_pat_cli1_secret",
+      },
+    });
+  });
+
   it("infers LINE emoji provider and private visibility from API record", () => {
     const summary = mapApiPackRecord({
       id: "pack_2",
@@ -76,5 +100,98 @@ describe("pack API client", () => {
     expect(summary.provider).toBe("LINE Emojis");
     expect(summary.visibility).toBe("private");
     expect(summary.stickerCount).toBe(1);
+  });
+});
+
+describe("PAT API client", () => {
+  it("creates a PAT and returns the raw token from the create response", async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          id: "cli1",
+          userId: "user_1",
+          name: "CLI",
+          token: "msm_pat_cli1_secret",
+          scopes: ["pack.read"],
+          expiresAt: null,
+          revokedAt: null,
+          createdAt: "2026-05-04T00:00:00Z",
+        }),
+        { status: 201 },
+      );
+    });
+    const client = createPatClient({
+      baseUrl: "https://msm.example.test",
+      authToken: "msm_pat_admin_secret",
+      fetchImpl,
+    });
+
+    const created = await client.createPersonalAccessToken({
+      id: "cli1",
+      userId: "user_1",
+      name: "CLI",
+      scopes: ["pack.read"],
+      expiresAt: null,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/pats", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_admin_secret",
+      },
+      body: JSON.stringify({
+        id: "cli1",
+        userId: "user_1",
+        name: "CLI",
+        scopes: ["pack.read"],
+        expiresAt: null,
+      }),
+    });
+    expect(created.token).toBe("msm_pat_cli1_secret");
+  });
+
+  it("lists and revokes PATs", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+
+      return new Response(
+        JSON.stringify([
+          {
+            id: "cli1",
+            userId: "user_1",
+            name: "CLI",
+            scopes: ["pack.read"],
+            expiresAt: null,
+            revokedAt: null,
+            createdAt: "2026-05-04T00:00:00Z",
+          },
+        ]),
+        { status: 200 },
+      );
+    });
+    const client = createPatClient({
+      baseUrl: "https://msm.example.test/",
+      authToken: "msm_pat_admin_secret",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const tokens = await client.listPersonalAccessTokens("user_1");
+    await client.revokePersonalAccessToken("cli1");
+
+    expect(tokens[0]?.id).toBe("cli1");
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/pats?userId=user_1", {
+      headers: {
+        Authorization: "Bearer msm_pat_admin_secret",
+      },
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/pats/cli1", {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer msm_pat_admin_secret",
+      },
+    });
   });
 });

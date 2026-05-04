@@ -6,16 +6,16 @@ const messages = {
   "zh-TW": {
     appName: "MoreStickersManager",
     dashboardTitle: "貼圖包管理",
-    dashboardSubtitle: "集中管理可匯出到 moreStickers 的貼圖包、Provider 與訂閱狀態。",
+    dashboardSubtitle: "管理 moreStickers 匯出的貼圖包、Provider 與訂閱狀態。",
     totalPacks: "貼圖包",
     totalStickers: "貼圖",
     publicPacks: "公開貼圖包",
-    privatePacks: "私有貼圖包",
+    privatePacks: "私人貼圖包",
     providerCoverage: "Provider 覆蓋",
     recentPacks: "近期貼圖包",
-    managedStickers: "受管理貼圖",
-    subscriptionReady: "訂閱準備",
-    updated: "更新",
+    managedStickers: "已管理貼圖",
+    subscriptionReady: "訂閱就緒",
+    updated: "更新於",
     theme: "主題",
     language: "語言",
     navigation: "導覽",
@@ -26,8 +26,21 @@ const messages = {
     light: "亮色",
     dark: "暗色",
     public: "公開",
-    private: "私有",
-    member: "成員可用",
+    private: "私人",
+    member: "成員",
+    personalAccessTokens: "Personal Access Tokens",
+    patTokenHelp: "在瀏覽器本機儲存 PAT，用於受保護的 API 操作。",
+    currentPat: "目前 PAT",
+    patPlaceholder: "msm_pat_...",
+    savePatToken: "儲存 token",
+    clearPatToken: "清除 token",
+    refreshTokens: "重新整理 token",
+    createPatToken: "建立 PAT",
+    revokePatToken: "撤銷",
+    createdTokenOnce: "已建立 token，僅顯示一次：",
+    tokenId: "Token ID",
+    tokenName: "Token 名稱",
+    tokenScopes: "Scopes",
   },
   en: {
     appName: "MoreStickersManager",
@@ -54,6 +67,19 @@ const messages = {
     public: "Public",
     private: "Private",
     member: "Members",
+    personalAccessTokens: "Personal Access Tokens",
+    patTokenHelp: "Store a browser-local PAT for protected API operations.",
+    currentPat: "Current PAT",
+    patPlaceholder: "msm_pat_...",
+    savePatToken: "Save token",
+    clearPatToken: "Clear token",
+    refreshTokens: "Refresh tokens",
+    createPatToken: "Create PAT",
+    revokePatToken: "Revoke",
+    createdTokenOnce: "Created token, shown once:",
+    tokenId: "Token ID",
+    tokenName: "Token name",
+    tokenScopes: "Scopes",
   },
 } as const;
 
@@ -70,9 +96,7 @@ export interface LocaleStorage {
   setItem(key: string, value: string): void;
 }
 
-export function createI18nController(
-  storage: LocaleStorage = window.localStorage,
-): I18nController {
+export function createI18nController(storage: LocaleStorage = window.localStorage): I18nController {
   let locale = readLocale(storage);
 
   return {

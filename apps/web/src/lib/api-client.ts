@@ -27,7 +27,45 @@ export interface PackClient {
 export interface PackClientOptions {
   baseUrl?: string;
   userId?: string;
+  authToken?: string;
   fetchImpl?: typeof fetch;
+}
+
+export interface CreatePersonalAccessTokenRequest {
+  id: string;
+  userId: string;
+  name: string;
+  scopes: string[];
+  expiresAt: string | null;
+}
+
+export interface CreatedPersonalAccessTokenResponse {
+  id: string;
+  userId: string;
+  name: string;
+  token: string;
+  scopes: string[];
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface PersonalAccessTokenResponse {
+  id: string;
+  userId: string;
+  name: string;
+  scopes: string[];
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface PatClient {
+  createPersonalAccessToken(
+    request: CreatePersonalAccessTokenRequest,
+  ): Promise<CreatedPersonalAccessTokenResponse>;
+  listPersonalAccessTokens(userId: string): Promise<PersonalAccessTokenResponse[]>;
+  revokePersonalAccessToken(tokenId: string): Promise<void>;
 }
 
 export function createPackClient(options: PackClientOptions = {}): PackClient {
@@ -43,13 +81,54 @@ export function createPackClient(options: PackClientOptions = {}): PackClient {
 
   return {
     async listStickerPacks() {
-      const response = await fetchImpl(packListUrl(baseUrl, userId));
+      const response = await fetchOptional(fetchImpl, packListUrl(baseUrl, userId), authInit(options.authToken));
       if (!response.ok) {
         throw new Error(`Failed to list sticker packs: HTTP ${response.status}`);
       }
 
       const records = (await response.json()) as ApiStickerPackRecord[];
       return records.map(mapApiPackRecord);
+    },
+  };
+}
+
+export function createPatClient(options: PackClientOptions = {}): PatClient {
+  const baseUrl = options.baseUrl?.trim();
+  if (!baseUrl) {
+    throw new Error("PAT API client requires a base URL");
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  return {
+    async createPersonalAccessToken(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/pats`, {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to create PAT: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as CreatedPersonalAccessTokenResponse;
+    },
+    async listPersonalAccessTokens(userId) {
+      const response = await fetchOptional(fetchImpl, patListUrl(baseUrl, userId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list PATs: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as PersonalAccessTokenResponse[];
+    },
+    async revokePersonalAccessToken(tokenId) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/pats/${encodeURIComponent(tokenId)}`, {
+        method: "DELETE",
+        ...authInit(options.authToken),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to revoke PAT: HTTP ${response.status}`);
+      }
     },
   };
 }
@@ -71,10 +150,43 @@ export function mapApiPackRecord(record: ApiStickerPackRecord): StickerPackSumma
 }
 
 export function packListUrl(baseUrl: string, userId: string) {
-  const trimmedBase = baseUrl.trim().replace(/\/+$/, "");
-  const path = `${trimmedBase}/api/v1/packs`;
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/packs`;
   const query = new URLSearchParams({ userId });
   return `${path}?${query.toString()}`;
+}
+
+export function patListUrl(baseUrl: string, userId: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/pats`;
+  const query = new URLSearchParams({ userId });
+  return `${path}?${query.toString()}`;
+}
+
+function trimBaseUrl(baseUrl: string) {
+  return baseUrl.trim().replace(/\/+$/, "");
+}
+
+function fetchOptional(fetchImpl: typeof fetch, url: string, init: RequestInit | undefined) {
+  return init ? fetchImpl(url, init) : fetchImpl(url);
+}
+
+function authInit(authToken: string | undefined): RequestInit | undefined {
+  const token = authToken?.trim();
+  if (!token) {
+    return undefined;
+  }
+
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+}
+
+function jsonHeaders(authToken: string | undefined): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    ...(authInit(authToken)?.headers as Record<string, string> | undefined),
+  };
 }
 
 function inferProvider(
