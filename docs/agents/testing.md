@@ -263,3 +263,21 @@ These tests prove:
 - valid `import.run` PATs can import packs for their own user;
 - MCP `tools/call` returns tool errors for missing PATs, missing scopes, and user mismatch;
 - CLI can pass PATs through global `--pat` and configured reqwest Bearer auth.
+
+## P16 Web PAT Management Tests
+
+Run:
+
+```powershell
+npm run web:typecheck
+npm run web:test
+npm run web:build
+```
+
+These tests prove:
+
+- pack API client calls can include Bearer PAT headers;
+- Web PAT client create/list/revoke methods call the P13 endpoints;
+- PAT create responses expose the raw token returned by the API;
+- the dashboard still renders pack metrics and provider labels;
+- Traditional Chinese and English i18n messages remain available.

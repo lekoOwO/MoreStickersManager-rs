@@ -1,12 +1,12 @@
 # Current Status
 
-Phase: P15 API/MCP PAT enforcement.
+Phase: P16 Web PAT management.
 
 Last completed:
-- P15 API/MCP PAT enforcement design, implementation plan, API Bearer PAT verification, pack API route scope gates, MCP tools/call scope gates, CLI `--pat` and `MSM_PAT` forwarding, and focused enforcement tests.
+- P16 Web PAT management design, implementation plan, Web API Bearer forwarding, Web PAT create/list/revoke client, browser-local PAT storage, PAT management panel, and readable i18n labels.
 
 Current task:
-- P15 is verified. Continue with Web UI PAT management or login/admin bootstrap.
+- P16 is verified. Continue with login/admin bootstrap or pack CRUD UI.
 
 Last verification:
 - `cargo fmt --all -- --check`
@@ -17,7 +17,7 @@ Last verification:
 - `npm run web:build`
 
 Next step:
-- Start Web UI PAT management or login/admin bootstrap.
+- Start login/admin bootstrap or pack CRUD UI.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

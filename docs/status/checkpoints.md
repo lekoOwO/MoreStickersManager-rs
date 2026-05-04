@@ -127,3 +127,13 @@
 - Added MCP `tools/call` PAT enforcement while keeping initialize, ping, and tools/list public.
 - Added CLI `--pat` and `MSM_PAT` forwarding to reqwest Bearer auth.
 - Verified focused API, MCP, and CLI enforcement tests plus clippy during implementation.
+
+## 2026-05-04 P16 Web PAT Management
+
+- Added P16 Web PAT management design and implementation plan.
+- Added Web API client Bearer PAT forwarding for protected pack API calls.
+- Added typed Web PAT create/list/revoke client methods.
+- Added browser-local PAT storage seeded by `VITE_MSM_PAT`.
+- Added a responsive PAT panel for storing, creating, listing, and revoking tokens.
+- Replaced mojibake i18n strings with readable Traditional Chinese and English labels.
+- Verified Web typecheck, tests, and production build during implementation.

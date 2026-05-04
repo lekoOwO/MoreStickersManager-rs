@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P15 API/MCP PAT enforcement.
+Current phase: P16 Web PAT management.
 
 ## Compatibility Target
 
@@ -77,11 +77,15 @@ To connect the dashboard to the current P4 API list route, set:
 ```powershell
 $env:VITE_MSM_API_BASE_URL="http://localhost:3000"
 $env:VITE_MSM_USER_ID="user_1"
+$env:VITE_MSM_PAT="msm_pat_cli1_secret"
 npm run web:dev
 ```
 
 If `VITE_MSM_API_BASE_URL` is not set, the dashboard uses deterministic mock
-data for local preview and tests.
+data for local preview and tests. P16 adds browser-local PAT storage, pack API
+Bearer forwarding, and a basic PAT create/list/revoke panel. The token is stored
+in localStorage key `msm.pat`; this is a bootstrap UX, not a replacement for
+future login/session storage.
 
 ## Service Binary
 

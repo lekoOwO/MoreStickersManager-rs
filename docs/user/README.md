@@ -42,10 +42,14 @@ To point the dashboard at the current pack-list API:
 ```powershell
 $env:VITE_MSM_API_BASE_URL="http://localhost:3000"
 $env:VITE_MSM_USER_ID="user_1"
+$env:VITE_MSM_PAT="msm_pat_cli1_secret"
 npm run web:dev
 ```
 
 When `VITE_MSM_API_BASE_URL` is omitted, the dashboard falls back to mock data.
+When it is configured, the Web UI can store a PAT in browser localStorage and
+send it to protected pack API calls. `VITE_MSM_PAT` can seed the token during
+development.
 
 Current service binary example:
 
