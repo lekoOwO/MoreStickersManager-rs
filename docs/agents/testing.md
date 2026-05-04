@@ -26,6 +26,33 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+## GitHub Actions Coverage
+
+Workflows:
+
+- `.github/workflows/ci.yml` runs Rust fmt/clippy/tests, Web typecheck/tests/build, and cross-platform `msm-app` build checks.
+- `.github/workflows/docker.yml` builds and publishes GHCR images for `main` and `v*` tags.
+- `.github/workflows/prerelease.yml` publishes a moving `prerelease` release from `main`.
+- `.github/workflows/release.yml` publishes binary artifacts for `v*` tags.
+
+Local equivalents:
+
+```powershell
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+npm run web:typecheck
+npm run web:test
+npm run web:build
+cargo build --locked -p msm-app
+```
+
+Docker image verification requires Docker:
+
+```powershell
+docker build -t morestickersmanager-rs .
+```
+
 ## P2 Storage Tests
 
 Run:
@@ -281,3 +308,24 @@ These tests prove:
 - PAT create responses expose the raw token returned by the API;
 - the dashboard still renders pack metrics and provider labels;
 - Traditional Chinese and English i18n messages remain available.
+
+## P17 Workflow Tests
+
+Run:
+
+```powershell
+git diff --check -- .github/workflows Dockerfile .dockerignore
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+npm run web:typecheck
+npm run web:test
+npm run web:build
+cargo build --locked -p msm-app
+```
+
+These tests prove:
+
+- workflow and Docker files have no whitespace errors;
+- CI commands match the local Rust and Web verification baseline;
+- `msm-app` can build after Web dist generation for embedded Web assets.

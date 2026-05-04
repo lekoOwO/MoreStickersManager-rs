@@ -18,6 +18,13 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+GitHub Actions mirrors this baseline and the Web checks:
+
+- `.github/workflows/ci.yml`: Rust, Web, and cross-platform service build checks.
+- `.github/workflows/docker.yml`: publishes a multi-arch image to GHCR on `main` and `v*` tags.
+- `.github/workflows/prerelease.yml`: publishes a moving `prerelease` release from `main`.
+- `.github/workflows/release.yml`: publishes release binaries for `v*` tags.
+
 Before the Rust workspace exists, use:
 
 ```powershell
@@ -107,6 +114,17 @@ When `apps/web/dist` exists before `cargo build -p msm-app`, P10 embeds that
 dist into the binary. If dist is missing, the binary embeds a small placeholder
 page so clean Rust builds still work. At runtime `MSM_WEB_DIST_DIR` remains a
 disk override for development.
+
+## Docker
+
+Build the container image from the repository root:
+
+```powershell
+docker build -t morestickersmanager-rs .
+```
+
+The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
+`/data` by default.
 
 ## MCP Slice
 

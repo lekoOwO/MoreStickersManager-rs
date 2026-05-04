@@ -137,3 +137,12 @@
 - Added a responsive PAT panel for storing, creating, listing, and revoking tokens.
 - Replaced mojibake i18n strings with readable Traditional Chinese and English labels.
 - Verified Web typecheck, tests, and production build during implementation.
+
+## 2026-05-04 P17 GitHub Actions Release And Docker
+
+- Added P17 release and Docker workflow design and implementation plan.
+- Expanded CI to Rust, Web, and cross-platform service build jobs.
+- Added GHCR multi-arch Docker publishing workflow.
+- Added main-branch prerelease and tag release workflows with binary artifact matrices.
+- Added Dockerfile and `.dockerignore` for the all-in-one `msm-app` service image.
+- Verified local Rust/Web/service build equivalents; Docker CLI was unavailable locally.
