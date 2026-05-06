@@ -6,6 +6,7 @@ members = [
     "crates/msm-cli",
     "crates/msm-providers",
     "crates/msm-media",
+    "crates/msm-exporters",
     "crates/msm-app",
     "crates/msm-mcp",
 ]

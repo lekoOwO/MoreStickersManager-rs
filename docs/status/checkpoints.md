@@ -233,3 +233,10 @@
 - Added storage models and repository methods for creating export targets/jobs, updating job status, appending ordered job events, and upserting prepared media cache records.
 - Added integration tests for target/job/event roundtrip, success/failure status payloads, and prepared media upsert behavior.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Exporter Registry
+
+- Added `crates/msm-exporters` to the Rust workspace.
+- Added `ExportTargetKind`, `ExportCapabilities`, `ExportRequest`, `ExportPlan`, `ExportResult`, and `ExportTarget`.
+- Added an in-memory `ExportRegistry` with duplicate target kind rejection and stable capability ordering.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-exporters --locked`, `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.

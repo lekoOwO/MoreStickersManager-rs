@@ -77,11 +77,11 @@
 - Create: `crates/msm-exporters/tests/registry_tests.rs`
 - Modify: `Cargo.toml`
 
-- [ ] Add `ExportTarget`, `ExportTargetKind`, `ExportCapabilities`, `ExportRequest`, `ExportPlan`, and `ExportResult` types.
-- [ ] Add an in-memory registry that rejects duplicate target kinds and returns stable capability metadata.
-- [ ] Test registry lookup, duplicate rejection, and serializable capability output.
-- [ ] Run `cargo test -p msm-exporters --locked`.
-- [ ] Commit with message `feat: add exporter registry`.
+- [x] Add `ExportTarget`, `ExportTargetKind`, `ExportCapabilities`, `ExportRequest`, `ExportPlan`, and `ExportResult` types.
+- [x] Add an in-memory registry that rejects duplicate target kinds and returns stable capability metadata.
+- [x] Test registry lookup, duplicate rejection, and serializable capability output.
+- [x] Run `cargo test -p msm-exporters --locked`.
+- [x] Commit with message `feat: add exporter registry`.
 
 ## Task 5: MoreStickers Export Adapter
 

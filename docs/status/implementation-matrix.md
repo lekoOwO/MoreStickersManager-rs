@@ -36,7 +36,7 @@ only designed or planned.
 | Area | Planned entrypoint | Notes |
 | --- | --- | --- |
 | Media conversion pipeline | P25 | Partially implemented: `msm-media` now has source media kinds, Telegram static/video/thumbnail profiles, prepared output specs, conversion plan selection, and shell-free ffmpeg command planning. Probing, converter execution, and cache persistence are not implemented. |
-| Export target registry | P27 | `msm-exporters` crate for MoreStickers, Telegram, and future output targets. |
+| Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, and duplicate-safe registry. Concrete MoreStickers/Telegram targets are not implemented. |
 | Telegram Bot API client | P28 | `msm-telegram` crate for token-redacted Bot API calls and mocked HTTP tests. |
 | Telegram sticker set export | P29-P32 | Convert MSM assets, create Telegram sticker sets with a bot, expose job workflow in API/Web/CLI/MCP. |
 | Export jobs | P29-P30 | Partially implemented: storage tables and repository methods exist for targets, jobs, events, prepared media assets, and Telegram publications. API routes, worker execution, retries, and Web/CLI/MCP surfaces are not implemented. |

@@ -12,7 +12,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
 - `msm-media`: media profile and command planning foundation added in P25; media probing, converter execution, and prepared output caching remain planned.
-- `msm-exporters`: planned export target registry, MoreStickers export adapter, Telegram export planning, and future output targets.
+- `msm-exporters`: export target trait and registry added in Task 4; MoreStickers export adapter, Telegram export planning, and future output targets remain planned.
 - `msm-telegram`: planned Telegram Bot API client and DTO boundary for sticker set publication.
 - `msm-app`: runnable service composition binary, added in P9.
 - `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7.

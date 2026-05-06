@@ -9,9 +9,10 @@ Last completed:
 - P25 Task 1 media profile foundation: added `msm-media` with source media kinds, Telegram static/video target profiles, prepared media specs, conversion plan selection, and profile tests.
 - P25 Task 2 converter command planning: added shell-free ffmpeg command plans for Telegram static image, video sticker, and thumbnail outputs.
 - Task 3 export job persistence: added SQLite tables and repository methods for export targets, export jobs, ordered job events, prepared media assets, and Telegram publication records.
+- Task 4 exporter registry: added `msm-exporters` with target kind keys, capability metadata, export request/plan types, target trait, and duplicate-safe registry.
 
 Current task:
-- Continue Task 4 exporter trait and registry from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
+- Continue Task 5 MoreStickers export adapter from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -19,9 +20,10 @@ Last verification:
 - P25 Task 1: `cargo test -p msm-media --locked`.
 - P25 Task 2: `cargo fmt --all -- --check`; `cargo test -p msm-media --locked`; `cargo clippy -p msm-media --all-targets --locked -- -D warnings`; `git diff --check`.
 - Task 3: `cargo fmt --all -- --check`; `cargo test -p msm-storage --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`; `git diff --check`.
+- Task 4: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- Task 4: create `msm-exporters` with export target traits, capability metadata, and registry tests.
+- Task 5: wrap existing `.stickerpack` serialization as the first `morestickers` export target.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

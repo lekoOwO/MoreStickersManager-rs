@@ -76,7 +76,8 @@ remote publication:
   ffmpeg command planning. Media probing, converter execution, and prepared
   output caching remain planned.
 - `msm-exporters`: planned target registry for MoreStickers, Telegram, and
-  future output targets.
+  future output targets. The base trait, capability metadata, request/plan
+  types, and duplicate-safe registry are implemented.
 - `msm-telegram`: planned Telegram Bot API client for sticker set publication.
 
 Telegram sticker set creation is not implemented yet. The next slice is export

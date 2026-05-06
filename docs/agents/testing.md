@@ -463,3 +463,18 @@ These tests prove:
 - export target, job, and event storage roundtrips work;
 - export job success/failure payload updates are persisted;
 - prepared media cache records upsert by source asset hash and profile key.
+
+## Exporter Registry Tests
+
+Run:
+
+```powershell
+cargo test -p msm-exporters --locked
+cargo clippy -p msm-exporters --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- duplicate export target kinds are rejected;
+- target lookup and capability listing are stable;
+- capability metadata serializes to camelCase JSON for API and Web surfaces.
