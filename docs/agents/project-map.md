@@ -8,7 +8,7 @@
 - `crates/msm-api`: Axum API routes and utoipa OpenAPI generation.
 - `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete and PAT lifecycle commands.
 - `crates/msm-providers`: provider registry plus Telegram and LINE fixture normalizers.
-- `crates/msm-exporters`: export target trait, target kind keys, capability metadata, request/plan types, and duplicate-safe registry.
+- `crates/msm-exporters`: export target trait, target kind keys, capability metadata, request/plan types, duplicate-safe registry, and concrete `morestickers` export target.
 - `crates/msm-app`: runnable Axum service binary composing storage, API, assets, and Web UI static serving.
 - `crates/msm-mcp`: MCP `/mcp` JSON-RPC endpoint with pack list/import/export/update/delete tools.
 - `crates/msm-media`: media profile foundation with source media kinds, Telegram static/video/thumbnail target profiles, prepared media specs, conversion plan selection, and shell-free ffmpeg command planning.
@@ -25,7 +25,7 @@
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.
 - Media probing, converter execution, and prepared media cache persistence.
-- Concrete MoreStickers/Telegram export targets, API routes, worker execution, and remote publication jobs.
+- Concrete Telegram export target, API routes, worker execution, and remote publication jobs.
 - Telegram Bot API sticker set creation and Web-managed export workflow.
 
 Do not add cross-layer dependencies to `msm-domain`.

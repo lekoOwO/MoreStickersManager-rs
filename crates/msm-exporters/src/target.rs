@@ -95,4 +95,13 @@ pub enum ExportError {
         /// Human-readable failure message.
         message: String,
     },
+
+    /// Target serialization failure.
+    #[error("export serialization failed for {target_kind}: {message}")]
+    Serialization {
+        /// Target kind that failed.
+        target_kind: ExportTargetKind,
+        /// Human-readable failure message.
+        message: String,
+    },
 }

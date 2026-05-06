@@ -1199,6 +1199,7 @@ dependencies = [
 name = "msm-exporters"
 version = "0.1.0"
 dependencies = [
+ "msm-domain",
  "serde",
  "serde_json",
  "thiserror",

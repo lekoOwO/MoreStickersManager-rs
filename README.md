@@ -77,7 +77,8 @@ remote publication:
   output caching remain planned.
 - `msm-exporters`: planned target registry for MoreStickers, Telegram, and
   future output targets. The base trait, capability metadata, request/plan
-  types, and duplicate-safe registry are implemented.
+  types, duplicate-safe registry, and concrete MoreStickers export target are
+  implemented.
 - `msm-telegram`: planned Telegram Bot API client for sticker set publication.
 
 Telegram sticker set creation is not implemented yet. The next slice is export

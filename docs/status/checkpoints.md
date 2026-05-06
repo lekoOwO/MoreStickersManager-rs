@@ -240,3 +240,11 @@
 - Added `ExportTargetKind`, `ExportCapabilities`, `ExportRequest`, `ExportPlan`, `ExportResult`, and `ExportTarget`.
 - Added an in-memory `ExportRegistry` with duplicate target kind rejection and stable capability ordering.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-exporters --locked`, `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 MoreStickers Export Target
+
+- Added `MoreStickersExportTarget` as the first concrete `msm-exporters` target.
+- Wrapped existing `StickerPack::to_pretty_json()` output without changing `.stickerpack` compatibility.
+- Added artifact metadata for suggested file name, MIME type, and serialized bytes.
+- Verified byte-for-byte equality with the domain serialization helper.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-exporters --locked`, `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.

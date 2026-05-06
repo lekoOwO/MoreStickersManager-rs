@@ -478,3 +478,18 @@ These tests prove:
 - duplicate export target kinds are rejected;
 - target lookup and capability listing are stable;
 - capability metadata serializes to camelCase JSON for API and Web surfaces.
+
+## MoreStickers Export Target Tests
+
+Run:
+
+```powershell
+cargo test -p msm-exporters --locked
+cargo clippy -p msm-exporters --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- `MoreStickersExportTarget` emits bytes matching `StickerPack::to_pretty_json()`;
+- target capabilities describe local serialization without credentials or media conversion;
+- target planning returns the expected `.stickerpack` serialization step.

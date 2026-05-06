@@ -90,10 +90,10 @@
 - Create: `crates/msm-exporters/tests/morestickers_export_tests.rs`
 - Modify: `crates/msm-exporters/src/lib.rs`
 
-- [ ] Wrap existing `.stickerpack` serialization as an `ExportTarget` named `morestickers`.
-- [ ] Test output byte-for-byte equality with the current domain export helper.
-- [ ] Run `cargo test -p msm-exporters --locked`.
-- [ ] Commit with message `feat: add MoreStickers export target`.
+- [x] Wrap existing `.stickerpack` serialization as an `ExportTarget` named `morestickers`.
+- [x] Test output byte-for-byte equality with the current domain export helper.
+- [x] Run `cargo test -p msm-exporters --locked`.
+- [x] Commit with message `feat: add MoreStickers export target`.
 
 ## Task 6: Telegram Bot API Client
 
