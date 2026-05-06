@@ -33,11 +33,11 @@
 - Create: `crates/msm-media/tests/profile_tests.rs`
 - Modify: `Cargo.toml`
 
-- [ ] Add `msm-media` to the workspace.
-- [ ] Define `MediaKind`, `StickerTargetProfile`, `PreparedMediaSpec`, and `ConversionPlan`.
-- [ ] Add tests proving static images map to Telegram static profiles, videos map to Telegram video profiles, unsupported inputs return typed errors, and profile keys are stable.
-- [ ] Run `cargo test -p msm-media --locked`.
-- [ ] Commit with message `feat: add media profile foundation`.
+- [x] Add `msm-media` to the workspace.
+- [x] Define `MediaKind`, `StickerTargetProfile`, `PreparedMediaSpec`, and `ConversionPlan`.
+- [x] Add tests proving static images map to Telegram static profiles, videos map to Telegram video profiles, unsupported inputs return typed errors, and profile keys are stable.
+- [x] Run `cargo test -p msm-media --locked`.
+- [x] Commit with message `feat: add media profile foundation`.
 
 ## Task 2: Converter Command Planning
 

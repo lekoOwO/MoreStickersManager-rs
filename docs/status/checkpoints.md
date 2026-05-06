@@ -211,3 +211,11 @@
 - Added `docs/status/implementation-matrix.md` as the concise implemented-versus-planned feature map.
 - Updated handoff docs to point new workers at the implementation matrix immediately after current status.
 - Updated README and user docs so they no longer imply the project is still at P21 or Web foundation only.
+
+## 2026-05-07 P25 Media Profile Foundation
+
+- Added `crates/msm-media` to the Rust workspace.
+- Added `MediaKind`, `StickerTargetProfile`, `PreparedMediaSpec`, and `ConversionPlan`.
+- Added Telegram regular sticker profile planning for static image and video/animated sources.
+- Added typed unsupported-source errors and profile-key stability tests.
+- Verified with `cargo test -p msm-media --locked`.

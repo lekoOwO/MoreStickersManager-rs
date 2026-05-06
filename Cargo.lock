@@ -1213,6 +1213,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "msm-media"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "msm-providers"
 version = "0.1.0"
 dependencies = [

@@ -68,6 +68,11 @@ future export pipeline that will convert pack assets into target-specific media,
 use a Telegram bot to create sticker sets, and expose the workflow through Web,
 API, CLI, and MCP surfaces.
 
+P25 has started the backend media foundation. MSM can select Telegram
+static/video target profiles for known source media kinds, but it cannot yet run
+ffmpeg, create Telegram sticker sets, or expose export jobs through user-facing
+surfaces.
+
 Current service binary example:
 
 ```powershell
