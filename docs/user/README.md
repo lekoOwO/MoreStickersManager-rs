@@ -1,7 +1,8 @@
 # MSM User Documentation
 
 MSM currently has foundation, storage, authorization, API, CLI, provider
-normalization, and Web UI foundation slices.
+normalization, local auth bootstrap, PAT enforcement, MCP pack operations, and
+Web UI pack management slices.
 
 Current usable contract: `.stickerpack` compatibility is documented in `../dev/compatibility.md`.
 
@@ -35,9 +36,10 @@ npm run web:dev
 npm run web:build
 ```
 
-The P7 Web UI uses mock data. It demonstrates the app shell, responsive layout,
-theme toggle, language toggle, and sticker-pack dashboard before backend API
-integration is wired in.
+The Web UI can run against mock data or the current API. It demonstrates the app
+shell, responsive layout, theme toggle, language toggle, PAT management, local
+login/register, pack list, pack rename, visibility edit, delete, and pasted
+`.stickerpack` import.
 
 To point the dashboard at the current pack-list API:
 
@@ -57,6 +59,11 @@ The dashboard can rename packs, change public/private visibility, and delete
 packs when the stored PAT has `pack.update` and `pack.delete`.
 It can also import a pasted MoreStickers `.stickerpack` JSON export when the
 stored PAT has `import.run`.
+
+Telegram sticker set export is planned but not implemented yet. P24 documents a
+future export pipeline that will convert pack assets into target-specific media,
+use a Telegram bot to create sticker sets, and expose the workflow through Web,
+API, CLI, and MCP surfaces.
 
 Current service binary example:
 

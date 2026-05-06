@@ -198,3 +198,10 @@
 - Added a dashboard import form for internal pack ID, visibility, and pasted `.stickerpack` JSON.
 - Added API client and injected-client dashboard tests for Web import behavior.
 - Verified Web tests, typecheck, and production build during implementation.
+
+## 2026-05-06 P24 Telegram Export Pipeline Planning
+
+- Analyzed moe-sticker-bot-style capabilities for arbitrary sticker media conversion, Telegram bot sticker set creation, and Web-managed sticker workflows.
+- Added a design that separates provider imports from export targets.
+- Planned `msm-media`, `msm-exporters`, and `msm-telegram` boundaries for future MoreStickers, Telegram, and additional output targets.
+- Added a phased implementation plan covering media conversion, export jobs, Telegram Bot API, Web, API, CLI, MCP, security, and testing.

@@ -11,6 +11,9 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-cli`: command-line client, added in P5.
 - `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
+- `msm-media`: planned media probing, conversion planning, converter execution, and prepared output caching.
+- `msm-exporters`: planned export target registry, MoreStickers export adapter, Telegram export planning, and future output targets.
+- `msm-telegram`: planned Telegram Bot API client and DTO boundary for sticker set publication.
 - `msm-app`: runnable service composition binary, added in P9.
 - `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7.
 
@@ -30,6 +33,27 @@ It must keep output IDs and `.stickerpack` field names compatible with upstream
 moreStickers conventions. Network fetching and asset downloading are not part of
 the P6 provider boundary; they should be added behind explicit provider
 capabilities so API, CLI, MCP, and Web UI can expose the same feature set.
+
+Providers are input adapters only. Telegram can be both an input provider and an
+output destination, but those roles must stay separate: Telegram import belongs
+to `msm-providers`, while Telegram sticker set creation belongs to the exporter
+pipeline.
+
+## Export Target Boundary
+
+Export targets publish or serialize a canonical MSM sticker pack. The existing
+MoreStickers `.stickerpack` output is an export target, and Telegram sticker set
+creation is the first planned remote publication target.
+
+Planned exporter work is split into:
+
+- `msm-media`: target-neutral media probing and conversion plans.
+- `msm-exporters`: target traits, capability metadata, export plans, and target registry.
+- `msm-telegram`: Telegram Bot API requests such as sticker upload, set creation, and set append.
+
+No export target may mutate MoreStickers-compatible pack JSON as a side effect of
+publishing. Target-specific prepared media should be cached separately from the
+canonical pack.
 
 ## Frontend Boundary
 
