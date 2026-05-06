@@ -219,3 +219,10 @@
 - Added Telegram regular sticker profile planning for static image and video/animated sources.
 - Added typed unsupported-source errors and profile-key stability tests.
 - Verified with `cargo test -p msm-media --locked`.
+
+## 2026-05-07 P25 Converter Command Planning
+
+- Added shell-free `ConversionCommand` and `ConverterToolchain` types.
+- Added ffmpeg argument planning for Telegram static image, video sticker, and thumbnail outputs.
+- Kept command planning execution-free so tests do not require ffmpeg.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-media --locked`, `cargo clippy -p msm-media --all-targets --locked -- -D warnings`, and `git diff --check`.

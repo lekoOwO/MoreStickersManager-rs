@@ -69,9 +69,9 @@ use a Telegram bot to create sticker sets, and expose the workflow through Web,
 API, CLI, and MCP surfaces.
 
 P25 has started the backend media foundation. MSM can select Telegram
-static/video target profiles for known source media kinds, but it cannot yet run
-ffmpeg, create Telegram sticker sets, or expose export jobs through user-facing
-surfaces.
+static/video target profiles and build ffmpeg command arguments for static,
+video, and thumbnail outputs, but it cannot yet run ffmpeg, create Telegram
+sticker sets, or expose export jobs through user-facing surfaces.
 
 Current service binary example:
 

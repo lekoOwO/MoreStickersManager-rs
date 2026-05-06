@@ -7,17 +7,19 @@ Last completed:
 - P24 Telegram export pipeline analysis: documented moe-sticker-bot-inspired media conversion, export target, Telegram Bot API, job, Web/API/CLI/MCP parity, and phased implementation plan.
 - P24 status/documentation cleanup: added `docs/status/implementation-matrix.md` as the implemented-versus-planned source of truth.
 - P25 Task 1 media profile foundation: added `msm-media` with source media kinds, Telegram static/video target profiles, prepared media specs, conversion plan selection, and profile tests.
+- P25 Task 2 converter command planning: added shell-free ffmpeg command plans for Telegram static image, video sticker, and thumbnail outputs.
 
 Current task:
-- Continue P25 Task 2 converter command planning from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
+- Continue P26/P25 storage preparation from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 3.
 
 Last verification:
 - P23 full verification passed before P24 docs.
 - P24 docs-only verification: `git diff --check`.
 - P25 Task 1: `cargo test -p msm-media --locked`.
+- P25 Task 2: `cargo fmt --all -- --check`; `cargo test -p msm-media --locked`; `cargo clippy -p msm-media --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- P25 Task 2: add shell-free ffmpeg command planning for Telegram static image, video sticker, and thumbnail outputs.
+- Task 3: add export target/job/prepared media persistence tables and repository methods.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

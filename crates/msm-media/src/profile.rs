@@ -46,6 +46,18 @@ impl StickerTargetProfile {
         }
     }
 
+    /// Returns the first Telegram thumbnail profile supported by MSM.
+    #[must_use]
+    pub const fn telegram_thumbnail() -> Self {
+        Self {
+            profile_key: "telegram.thumbnail.static.v1",
+            label: "Telegram thumbnail",
+            max_file_size_bytes: 32 * 1024,
+            canvas_size_px: 100,
+            max_duration_ms: None,
+        }
+    }
+
     /// Stable profile key used for cache entries and API capability output.
     #[must_use]
     pub const fn profile_key(&self) -> &'static str {

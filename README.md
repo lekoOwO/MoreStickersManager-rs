@@ -71,15 +71,16 @@ Remote provider fetch and asset download are intentionally separate future tasks
 P24 documents the planned export pipeline for target-specific conversion and
 remote publication:
 
-- `msm-media`: partially implemented media kinds, Telegram static/video profiles,
-  prepared output specs, and conversion plan selection. Media probing, converter
-  execution, and prepared output caching remain planned.
+- `msm-media`: partially implemented media kinds, Telegram static/video/thumbnail
+  profiles, prepared output specs, conversion plan selection, and shell-free
+  ffmpeg command planning. Media probing, converter execution, and prepared
+  output caching remain planned.
 - `msm-exporters`: planned target registry for MoreStickers, Telegram, and
   future output targets.
 - `msm-telegram`: planned Telegram Bot API client for sticker set publication.
 
-Telegram sticker set creation is not implemented yet. The next slice is
-shell-free converter command planning in
+Telegram sticker set creation is not implemented yet. The next slice is export
+job and prepared media persistence in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice

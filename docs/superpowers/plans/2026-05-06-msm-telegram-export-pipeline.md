@@ -47,11 +47,11 @@
 - Create: `crates/msm-media/tests/command_tests.rs`
 - Modify: `crates/msm-media/src/lib.rs`
 
-- [ ] Add a shell-free command builder that returns executable path, argument vector, input path, output path, timeout, and expected MIME type.
-- [ ] Test Telegram static image, video sticker, and thumbnail command plans without running ffmpeg.
-- [ ] Ensure arguments are vectors, not interpolated strings.
-- [ ] Run `cargo test -p msm-media --locked`.
-- [ ] Commit with message `feat: plan media conversion commands`.
+- [x] Add a shell-free command builder that returns executable path, argument vector, input path, output path, timeout, and expected MIME type.
+- [x] Test Telegram static image, video sticker, and thumbnail command plans without running ffmpeg.
+- [x] Ensure arguments are vectors, not interpolated strings.
+- [x] Run `cargo test -p msm-media --locked`.
+- [x] Commit with message `feat: plan media conversion commands`.
 
 ## Task 3: Prepared Media Cache Storage
 
