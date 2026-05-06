@@ -205,3 +205,9 @@
 - Added a design that separates provider imports from export targets.
 - Planned `msm-media`, `msm-exporters`, and `msm-telegram` boundaries for future MoreStickers, Telegram, and additional output targets.
 - Added a phased implementation plan covering media conversion, export jobs, Telegram Bot API, Web, API, CLI, MCP, security, and testing.
+
+## 2026-05-06 P24 Status Documentation Cleanup
+
+- Added `docs/status/implementation-matrix.md` as the concise implemented-versus-planned feature map.
+- Updated handoff docs to point new workers at the implementation matrix immediately after current status.
+- Updated README and user docs so they no longer imply the project is still at P21 or Web foundation only.

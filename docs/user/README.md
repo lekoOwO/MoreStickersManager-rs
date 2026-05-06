@@ -8,6 +8,9 @@ Current usable contract: `.stickerpack` compatibility is documented in `../dev/c
 
 Provider normalization status is documented in `../dev/providers.md`.
 
+Implemented-versus-planned feature status is documented in
+`../status/implementation-matrix.md`.
+
 Current CLI examples:
 
 ```powershell

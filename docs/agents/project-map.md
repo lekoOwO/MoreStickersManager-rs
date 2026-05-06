@@ -13,6 +13,7 @@
 - `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, protected API client, PAT panel, pack CRUD controls, and pack import UI.
 - `components.json`: Shadcn Vue configuration for the Web UI workspace.
 - `docs/status`: current state and development log.
+- `docs/status/implementation-matrix.md`: implemented-versus-planned feature truth source.
 - `docs/dev`: human developer references.
 - `docs/agents`: progressive disclosure handoff docs.
 
@@ -26,3 +27,5 @@
 - Telegram Bot API sticker set creation and Web-managed export workflow.
 
 Do not add cross-layer dependencies to `msm-domain`.
+For feature completion status, prefer `../status/implementation-matrix.md` over
+inferring from old phase names.

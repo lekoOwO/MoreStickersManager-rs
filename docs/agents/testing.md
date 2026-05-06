@@ -365,3 +365,82 @@ These tests prove:
 - Web local auth client calls local register and login endpoints;
 - Web local login client returns the raw PAT from login responses;
 - the Web UI still typechecks, tests, and builds after adding the local login panel.
+
+## P20 Admin Bootstrap Tests
+
+Run:
+
+```powershell
+cargo test -p msm-api local_auth
+cargo test -p msm-storage local_credentials
+cargo clippy -p msm-api -p msm-storage --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- local registration accepts optional tenant bootstrap fields;
+- the first tenant registration can create an admin membership;
+- local login still returns a PAT after bootstrap registration.
+
+## P21 Pack CRUD Foundation Tests
+
+Run:
+
+```powershell
+cargo test -p msm-storage pack
+cargo test -p msm-api pack
+cargo test -p msm-cli packs
+cargo test -p msm-mcp pack
+```
+
+These tests prove:
+
+- owned pack metadata updates synchronize indexed titles and embedded `.stickerpack` titles;
+- owned pack deletion removes the pack through storage;
+- API routes enforce `pack.update` and `pack.delete`;
+- CLI and MCP expose rename/update and delete operations.
+
+## P22 Web Pack CRUD Tests
+
+Run:
+
+```powershell
+npm run web:typecheck
+npm run web:test
+npm run web:build
+```
+
+These tests prove:
+
+- the Web pack API client can update and delete packs;
+- the dashboard exposes per-pack title, visibility, save, and delete controls;
+- injected-client tests cover rename and delete behavior without network access.
+
+## P23 Web Pack Import Tests
+
+Run:
+
+```powershell
+npm run web:typecheck
+npm run web:test
+npm run web:build
+```
+
+These tests prove:
+
+- the Web pack API client can call protected pack import;
+- the dashboard can import pasted `.stickerpack` JSON with internal pack ID and visibility;
+- API-client and injected-client tests cover successful import behavior.
+
+## P24 Telegram Export Pipeline Planning Checks
+
+Run:
+
+```powershell
+git diff --check
+```
+
+These checks prove:
+
+- the P24 design and implementation plan have no whitespace errors;
+- current status, handoff docs, and user docs point to the same planned next phase.

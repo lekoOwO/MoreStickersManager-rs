@@ -5,6 +5,7 @@ Phase: P24 Telegram export pipeline planning.
 Last completed:
 - P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
 - P24 Telegram export pipeline analysis: documented moe-sticker-bot-inspired media conversion, export target, Telegram Bot API, job, Web/API/CLI/MCP parity, and phased implementation plan.
+- P24 status/documentation cleanup: added `docs/status/implementation-matrix.md` as the implemented-versus-planned source of truth.
 
 Current task:
 - Begin P25 media conversion foundation from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.

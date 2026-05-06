@@ -2,7 +2,10 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P21 pack CRUD foundation.
+Current phase: P24 Telegram export pipeline planning.
+
+For a concise implemented-versus-planned feature map, see
+`docs/status/implementation-matrix.md`.
 
 ## Compatibility Target
 
@@ -14,8 +17,11 @@ Run the current baseline checks:
 
 ```powershell
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+npm run web:typecheck
+npm run web:test
+npm run web:build
 ```
 
 GitHub Actions mirrors this baseline and the Web checks:
@@ -24,12 +30,6 @@ GitHub Actions mirrors this baseline and the Web checks:
 - `.github/workflows/docker.yml`: publishes a multi-arch image to GHCR on `main` and `v*` tags.
 - `.github/workflows/prerelease.yml`: publishes a moving `prerelease` release from `main`.
 - `.github/workflows/release.yml`: publishes release binaries for `v*` tags.
-
-Before the Rust workspace exists, use:
-
-```powershell
-git status --short
-```
 
 ## CLI Slice
 
@@ -65,6 +65,20 @@ MoreStickers-compatible packs:
 - LINE emoji packs preserve `MoreStickers:Line:Emoji-Pack:*` and `MoreStickers:Line-Emoji:*` IDs.
 
 Remote provider fetch and asset download are intentionally separate future tasks.
+
+## Export Pipeline Planning
+
+P24 documents the planned export pipeline for target-specific conversion and
+remote publication:
+
+- `msm-media`: planned media probing, conversion planning, converter execution,
+  and prepared output caching.
+- `msm-exporters`: planned target registry for MoreStickers, Telegram, and
+  future output targets.
+- `msm-telegram`: planned Telegram Bot API client for sticker set publication.
+
+Telegram sticker set creation is not implemented yet. The implementation plan is
+`docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice
 
@@ -202,6 +216,7 @@ defaults to `admin`.
 - `docs/dev/architecture.md`: architecture and crate boundaries.
 - `docs/dev/compatibility.md`: sticker pack format compatibility.
 - `docs/dev/providers.md`: provider normalization status.
+- `docs/status/implementation-matrix.md`: implemented-versus-planned feature status.
 - `docs/user/README.md`: user-facing documentation index.
 - `docs/agents/README.md`: agent handoff entrypoint.
 - `docs/status/current.md`: current development state.
