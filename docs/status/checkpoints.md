@@ -226,3 +226,10 @@
 - Added ffmpeg argument planning for Telegram static image, video sticker, and thumbnail outputs.
 - Kept command planning execution-free so tests do not require ffmpeg.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-media --locked`, `cargo clippy -p msm-media --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Export Job Persistence
+
+- Added `0003_export_pipeline.sql` migration with `export_targets`, `export_jobs`, `export_job_events`, `prepared_media_assets`, and `telegram_publications`.
+- Added storage models and repository methods for creating export targets/jobs, updating job status, appending ordered job events, and upserting prepared media cache records.
+- Added integration tests for target/job/event roundtrip, success/failure status payloads, and prepared media upsert behavior.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.

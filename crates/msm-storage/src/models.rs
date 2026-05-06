@@ -82,6 +82,134 @@ pub struct CreatedPersonalAccessToken {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct ExportTargetRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub kind: String,
+    pub name: String,
+    pub config_json: String,
+    pub is_enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewExportTarget<'a> {
+    pub id: &'a str,
+    pub tenant_id: &'a str,
+    pub kind: &'a str,
+    pub name: &'a str,
+    pub config_json: &'a str,
+    pub is_enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct ExportJobRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub source_pack_id: String,
+    pub target_id: String,
+    pub status: ExportJobStatus,
+    pub request_json: String,
+    pub result_json: Option<String>,
+    pub error_summary: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewExportJob<'a> {
+    pub id: &'a str,
+    pub tenant_id: &'a str,
+    pub owner_user_id: &'a str,
+    pub source_pack_id: &'a str,
+    pub target_id: &'a str,
+    pub request_json: &'a str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct ExportJobEventRecord {
+    pub job_id: String,
+    pub sequence: i64,
+    pub level: String,
+    pub stage: String,
+    pub message: String,
+    pub metadata_json: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewExportJobEvent<'a> {
+    pub job_id: &'a str,
+    pub sequence: i64,
+    pub level: &'a str,
+    pub stage: &'a str,
+    pub message: &'a str,
+    pub metadata_json: &'a str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct PreparedMediaAssetRecord {
+    pub source_asset_hash: String,
+    pub profile_key: String,
+    pub output_asset_key: String,
+    pub mime_type: String,
+    pub width_px: i64,
+    pub height_px: i64,
+    pub duration_ms: Option<i64>,
+    pub file_size_bytes: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewPreparedMediaAsset<'a> {
+    pub source_asset_hash: &'a str,
+    pub profile_key: &'a str,
+    pub output_asset_key: &'a str,
+    pub mime_type: &'a str,
+    pub width_px: i64,
+    pub height_px: i64,
+    pub duration_ms: Option<i64>,
+    pub file_size_bytes: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum ExportJobStatus {
+    Queued,
+    Running,
+    Succeeded,
+    Failed,
+    Cancelled,
+}
+
+impl ExportJobStatus {
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Running => "running",
+            Self::Succeeded => "succeeded",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+        }
+    }
+
+    #[must_use]
+    pub fn from_storage(value: &str) -> Option<Self> {
+        match value {
+            "queued" => Some(Self::Queued),
+            "running" => Some(Self::Running),
+            "succeeded" => Some(Self::Succeeded),
+            "failed" => Some(Self::Failed),
+            "cancelled" => Some(Self::Cancelled),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum PackVisibility {
     Public,
     Private,

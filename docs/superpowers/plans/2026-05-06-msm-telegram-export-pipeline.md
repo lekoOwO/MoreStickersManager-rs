@@ -56,16 +56,16 @@
 ## Task 3: Prepared Media Cache Storage
 
 **Files:**
-- Create: `crates/msm-storage/migrations/sqlite/0008_export_pipeline.sql`
+- Create: `crates/msm-storage/migrations/0003_export_pipeline.sql`
 - Create: `crates/msm-storage/src/export_jobs.rs`
 - Create: `crates/msm-storage/tests/export_job_repository_tests.rs`
 - Modify: `crates/msm-storage/src/lib.rs`
 
-- [ ] Add tables for `export_targets`, `export_jobs`, `export_job_events`, `prepared_media_assets`, and `telegram_publications`.
-- [ ] Add repository methods to create targets, create jobs, append events, update status, and upsert prepared assets by source hash plus profile key.
-- [ ] Test queued/running/succeeded/failed transitions and ordered event reads.
-- [ ] Run `cargo test -p msm-storage --locked`.
-- [ ] Commit with message `feat: persist export jobs`.
+- [x] Add tables for `export_targets`, `export_jobs`, `export_job_events`, `prepared_media_assets`, and `telegram_publications`.
+- [x] Add repository methods to create targets, create jobs, append events, update status, and upsert prepared assets by source hash plus profile key.
+- [x] Test queued/running/succeeded/failed transitions and ordered event reads.
+- [x] Run `cargo test -p msm-storage --locked`.
+- [x] Commit with message `feat: persist export jobs`.
 
 ## Task 4: Exporter Trait And Registry
 

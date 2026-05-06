@@ -12,7 +12,7 @@ only designed or planned.
 | Repository hygiene | Implemented | `.gitignore`, workspace layout, documentation structure, CI baseline, release workflows, Dockerfile, and `.dockerignore` exist. |
 | MoreStickers compatibility | Implemented | `msm-domain` preserves `.stickerpack` JSON shape and upstream-compatible IDs. |
 | Domain authorization | Implemented | Pure RBAC/PAT policy primitives and pack/subscription access evaluators exist in `msm-domain::authz`. |
-| Storage foundation | Implemented | SQLite storage primitives, migrations, local asset storage, pack/sticker records, PAT storage, local credentials, and portable user export/import exist. |
+| Storage foundation | Implemented | SQLite storage primitives, migrations, local asset storage, pack/sticker records, PAT storage, local credentials, export target/job tables, prepared media cache records, and portable user export/import exist. |
 | PostgreSQL support | Not implemented | SQLx is used, but current migrations/repositories are SQLite-focused. |
 | API/OpenAPI | Implemented | Axum API has health, OpenAPI, asset read, pack import/list/export/update/delete, PAT lifecycle, and local auth bootstrap routes. |
 | CLI | Implemented | `msm-cli` supports health, pack list/import/export/rename/delete, PAT create/list/revoke, and Bearer PAT forwarding. |
@@ -39,7 +39,7 @@ only designed or planned.
 | Export target registry | P27 | `msm-exporters` crate for MoreStickers, Telegram, and future output targets. |
 | Telegram Bot API client | P28 | `msm-telegram` crate for token-redacted Bot API calls and mocked HTTP tests. |
 | Telegram sticker set export | P29-P32 | Convert MSM assets, create Telegram sticker sets with a bot, expose job workflow in API/Web/CLI/MCP. |
-| Export jobs | P29-P30 | Durable export targets, jobs, job events, result metadata, retries, and worker execution. |
+| Export jobs | P29-P30 | Partially implemented: storage tables and repository methods exist for targets, jobs, events, prepared media assets, and Telegram publications. API routes, worker execution, retries, and Web/CLI/MCP surfaces are not implemented. |
 | Folder/tag management | Future phase | User-managed pack folders and tags are not implemented. |
 | Subscription groups | Future phase | Pack/group subscription links and moreStickers auto-update integration are not implemented. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |

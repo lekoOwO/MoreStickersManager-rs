@@ -19,6 +19,9 @@ pub enum StorageError {
     #[error("invalid personal access token: {reason}")]
     InvalidPersonalAccessToken { reason: &'static str },
 
+    #[error("invalid export job status: {status}")]
+    InvalidExportJobStatus { status: String },
+
     #[error("invalid timestamp `{value}`: {message}")]
     InvalidTimestamp { value: String, message: String },
 

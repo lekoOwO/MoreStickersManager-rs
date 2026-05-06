@@ -4,6 +4,7 @@ pub mod asset;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod export_jobs;
 pub mod models;
 pub mod portability;
 pub mod repositories;

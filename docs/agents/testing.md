@@ -444,3 +444,22 @@ These checks prove:
 
 - the P24 design and implementation plan have no whitespace errors;
 - current status, handoff docs, and user docs point to the same planned next phase.
+
+## P25 Media And Export Persistence Tests
+
+Run:
+
+```powershell
+cargo test -p msm-media --locked
+cargo clippy -p msm-media --all-targets --locked -- -D warnings
+cargo test -p msm-storage --locked
+cargo clippy -p msm-storage --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- Telegram static/video/thumbnail media profiles and command plans are stable;
+- media command plans return executable path plus argument vectors without shell interpolation;
+- export target, job, and event storage roundtrips work;
+- export job success/failure payload updates are persisted;
+- prepared media cache records upsert by source asset hash and profile key.

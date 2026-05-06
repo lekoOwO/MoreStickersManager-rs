@@ -73,6 +73,9 @@ static/video target profiles and build ffmpeg command arguments for static,
 video, and thumbnail outputs, but it cannot yet run ffmpeg, create Telegram
 sticker sets, or expose export jobs through user-facing surfaces.
 
+Export target/job tables now exist in storage for later API and worker phases,
+but there are no user-facing export job endpoints yet.
+
 Current service binary example:
 
 ```powershell

@@ -80,7 +80,7 @@ remote publication:
 - `msm-telegram`: planned Telegram Bot API client for sticker set publication.
 
 Telegram sticker set creation is not implemented yet. The next slice is export
-job and prepared media persistence in
+target traits and registry setup in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice

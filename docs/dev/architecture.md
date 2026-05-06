@@ -6,7 +6,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 
 - `msm-domain`: compatibility models, pure ID helpers, pure URL resolution, and import/export helpers.
 - `msm-domain::authz`: pure authorization policy evaluation for pack and subscription access.
-- `msm-storage`: database repositories and asset storage, added in P2.
+- `msm-storage`: database repositories, asset storage, and export job persistence, added across P2/P12/P18/P21/Task 3.
 - `msm-api`: HTTP API and OpenAPI, added in P4.
 - `msm-cli`: command-line client, added in P5.
 - `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11.
