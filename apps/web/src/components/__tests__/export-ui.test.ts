@@ -147,6 +147,46 @@ describe("export UI", () => {
     expect(wrapper.text()).toContain("job queued");
   });
 
+  it("renders Telegram publication links from completed export jobs", async () => {
+    const publishedJob = sampleTelegramPublishedJob();
+    const packs: StickerPackSummary[] = [
+      {
+        id: "pack_1",
+        title: "Cats",
+        provider: "Telegram",
+        visibility: "private",
+        stickerCount: 2,
+        subscriptionReady: true,
+        updatedAt: "2026-05-07",
+      },
+    ];
+    const client: ExportClient = {
+      listExportTargetKinds: vi.fn(),
+      listExportTargets: vi.fn(async () => [sampleTarget()]),
+      createExportTarget: vi.fn(),
+      updateExportTarget: vi.fn(),
+      deleteExportTarget: vi.fn(),
+      createExportJob: vi.fn(async () => publishedJob),
+      getExportJob: vi.fn(async () => publishedJob),
+      listExportJobEvents: vi.fn(async () => []),
+    };
+    const wrapper = mount(PackExportWizard, {
+      props: {
+        locale: "en",
+        tenantId: "tenant_1",
+        packs,
+        exportClient: client,
+      },
+    });
+
+    await flushPromises();
+    await wrapper.get('[aria-label="Queue export job"]').trigger("click");
+    await flushPromises();
+
+    const link = wrapper.get('a[href="https://t.me/addstickers/sample_pack_by_msm_bot"]');
+    expect(link.text()).toContain("https://t.me/addstickers/sample_pack_by_msm_bot");
+  });
+
   it("renders export job conflict errors", async () => {
     const packs: StickerPackSummary[] = [
       {
@@ -209,6 +249,19 @@ describe("export UI", () => {
     expect(wrapper.text()).toContain("queued");
     expect(wrapper.text()).toContain("job queued");
   });
+
+  it("renders Telegram publication links in export job timelines", () => {
+    const wrapper = mount(ExportJobTimeline, {
+      props: {
+        locale: "en",
+        job: sampleTelegramPublishedJob(),
+        events: [],
+      },
+    });
+
+    const link = wrapper.get('a[href="https://t.me/addstickers/sample_pack_by_msm_bot"]');
+    expect(link.text()).toContain("https://t.me/addstickers/sample_pack_by_msm_bot");
+  });
 });
 
 function sampleTarget(): ExportTarget {
@@ -237,5 +290,20 @@ function sampleJob(): ExportJob {
     errorSummary: null,
     createdAt: "2026-05-07T00:00:00Z",
     updatedAt: "2026-05-07T00:00:00Z",
+  };
+}
+
+function sampleTelegramPublishedJob(): ExportJob {
+  return {
+    ...sampleJob(),
+    status: "succeeded",
+    result: {
+      kind: "telegramPublished",
+      targetKind: "telegram",
+      stickerSetName: "sample_pack_by_msm_bot",
+      stickerSetUrl: "https://t.me/addstickers/sample_pack_by_msm_bot",
+      stickerCount: 1,
+      dryRun: false,
+    },
   };
 }

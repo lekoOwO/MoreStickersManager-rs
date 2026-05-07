@@ -73,11 +73,11 @@
 - Modify: `apps/web/src/components/__tests__/export-ui.test.ts`
 - Modify: `docs/user/README.md`
 
-- [ ] Update Web result-link extraction to recognize `telegramUrl`, `stickerSetUrl`, and `result.kind === "telegramPublished"`.
-- [ ] Add a test where a completed job result renders the Telegram sticker set URL.
-- [ ] Document that current remote publication requires `"dryRun": false` and a configured Telegram target token.
-- [ ] Run `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
-- [ ] Commit with message `feat: surface Telegram publication results`.
+- [x] Update Web result-link extraction to recognize `telegramUrl`, `stickerSetUrl`, and `result.kind === "telegramPublished"`.
+- [x] Add a test where a completed job result renders the Telegram sticker set URL.
+- [x] Document that current remote publication requires `"dryRun": false` and a configured Telegram target token.
+- [x] Run `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
+- [x] Commit with message `feat: surface Telegram publication results`.
 
 ## Task 5: Documentation And Verification
 

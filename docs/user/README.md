@@ -88,8 +88,8 @@ It can write prepared media cache records through its media executor boundary
 and then use those prepared files for teloxide sticker uploads. MSM has a
 process-backed ffmpeg executor for prepared media conversion. The CLI can manage
 export targets and queue/read export jobs through the API. The Web UI can
-configure export targets, queue jobs, and show job status/events. Web result URL
-surfacing for completed Telegram publication jobs is the next slice.
+configure export targets, queue jobs, show job status/events, and surface
+completed Telegram sticker set URLs.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant

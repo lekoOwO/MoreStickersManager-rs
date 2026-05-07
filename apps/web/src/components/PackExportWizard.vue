@@ -10,6 +10,7 @@ import {
   type ExportJob,
   type ExportJobEvent,
   type ExportTarget,
+  exportJobResultLink,
 } from "@/lib/exportApi";
 import { allMessages, type Locale } from "@/lib/i18n";
 import type { StickerPackSummary } from "@/lib/sticker-packs";
@@ -35,9 +36,7 @@ const labels = computed(() => allMessages()[props.locale]);
 const selectedPack = computed(() => props.packs.find((pack) => pack.id === selectedPackId.value) ?? null);
 const selectedTarget = computed(() => targets.value.find((target) => target.id === selectedTargetId.value) ?? null);
 const resultLink = computed(() => {
-  const result = activeJob.value?.result;
-  const link = result?.telegramUrl ?? result?.stickerSetUrl ?? result?.url;
-  return typeof link === "string" ? link : "";
+  return exportJobResultLink(activeJob.value?.result);
 });
 
 onMounted(loadTargets);

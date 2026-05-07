@@ -1,12 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createExportClient, exportTargetListUrl, type ExportTarget } from "./exportApi";
+import { createExportClient, exportJobResultLink, exportTargetListUrl, type ExportTarget } from "./exportApi";
 
 describe("export API client", () => {
   it("constructs target list URLs with encoded tenant IDs", () => {
     expect(exportTargetListUrl("https://msm.example.test/", "tenant 1")).toBe(
       "https://msm.example.test/api/v1/export-targets?tenantId=tenant+1",
     );
+  });
+
+  it("extracts Telegram publication result links", () => {
+    expect(
+      exportJobResultLink({
+        kind: "telegramPublished",
+        stickerSetUrl: "https://t.me/addstickers/sample",
+      }),
+    ).toBe("https://t.me/addstickers/sample");
+    expect(
+      exportJobResultLink({
+        kind: "telegramPublished",
+        url: "https://t.me/addstickers/fallback",
+      }),
+    ).toBe("https://t.me/addstickers/fallback");
   });
 
   it("lists export target kinds and sends bearer auth", async () => {

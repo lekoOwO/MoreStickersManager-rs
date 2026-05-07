@@ -369,3 +369,11 @@
 - Persisted successful remote jobs as `telegramPublished` result JSON with sticker set URL, count, sticker type, dry-run flag, and prepared media summaries.
 - Added failure handling so publisher errors mark the job failed and store an error summary.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --locked`, and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+
+## 2026-05-07 Web Telegram Publication Results
+
+- Added shared Web result-link extraction for `telegramUrl`, `stickerSetUrl`, `url`, and `kind: "telegramPublished"` fallback results.
+- Updated the pack export wizard to use the shared result-link helper.
+- Updated the export job timeline to show completed Telegram sticker set links.
+- Added Web tests for wizard and timeline Telegram publication URL rendering.
+- Verified with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.

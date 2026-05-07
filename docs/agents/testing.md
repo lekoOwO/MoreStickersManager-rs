@@ -616,10 +616,12 @@ npm run web:build
 These tests prove:
 
 - the Web export API client builds target/job URLs and forwards Bearer PATs;
+- export result-link extraction recognizes completed Telegram publication URLs;
 - export target CRUD client methods call the expected API endpoints;
 - the export target panel validates Telegram bot token shape before target creation;
 - redacted export target config values remain redacted in the UI;
 - the pack export wizard queues jobs, renders job events, and surfaces conflict errors;
+- the pack export wizard and job timeline render completed Telegram sticker set URLs;
 - the Web app still typechecks and builds after wiring export workflow components into the dashboard.
 
 ## Telegram Publish Boundary Tests

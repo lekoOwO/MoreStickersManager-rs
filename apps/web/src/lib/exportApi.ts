@@ -65,6 +65,28 @@ export interface ExportJobEvent {
   createdAt: string;
 }
 
+export function exportJobResultLink(result: Record<string, unknown> | null | undefined) {
+  if (!result) {
+    return "";
+  }
+
+  const telegramUrl = readString(result.telegramUrl);
+  if (telegramUrl) {
+    return telegramUrl;
+  }
+
+  const stickerSetUrl = readString(result.stickerSetUrl);
+  if (stickerSetUrl) {
+    return stickerSetUrl;
+  }
+
+  if (result.kind === "telegramPublished") {
+    return readString(result.url);
+  }
+
+  return readString(result.url);
+}
+
 export interface ExportClient {
   listExportTargetKinds(): Promise<ExportTargetKind[]>;
   listExportTargets(tenantId: string): Promise<ExportTarget[]>;
@@ -74,6 +96,10 @@ export interface ExportClient {
   createExportJob(request: CreateExportJobRequest): Promise<ExportJob>;
   getExportJob(jobId: string): Promise<ExportJob>;
   listExportJobEvents(jobId: string): Promise<ExportJobEvent[]>;
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 export interface ExportClientOptions {

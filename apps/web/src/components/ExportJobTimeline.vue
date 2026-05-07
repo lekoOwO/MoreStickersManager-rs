@@ -3,7 +3,7 @@ import { computed } from "vue";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ExportJob, ExportJobEvent } from "@/lib/exportApi";
+import { exportJobResultLink, type ExportJob, type ExportJobEvent } from "@/lib/exportApi";
 import { allMessages, type Locale } from "@/lib/i18n";
 
 const props = defineProps<{
@@ -13,6 +13,7 @@ const props = defineProps<{
 }>();
 
 const labels = computed(() => allMessages()[props.locale]);
+const resultLink = computed(() => exportJobResultLink(props.job?.result));
 </script>
 
 <template>
@@ -30,6 +31,15 @@ const labels = computed(() => allMessages()[props.locale]);
         <p class="font-semibold">{{ job.id }}</p>
         <p class="text-muted-foreground">{{ job.sourcePackId }} → {{ job.targetId }}</p>
       </article>
+      <a
+        v-if="resultLink"
+        class="rounded-lg border bg-background/70 p-3 text-sm font-medium text-primary"
+        :href="resultLink"
+        rel="noreferrer"
+        target="_blank"
+      >
+        {{ labels.finalExportLink }}: {{ resultLink }}
+      </a>
       <p v-if="events.length === 0" class="rounded-lg border bg-background/70 p-3 text-sm text-muted-foreground">
         {{ labels.noExportEvents }}
       </p>

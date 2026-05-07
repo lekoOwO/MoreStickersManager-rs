@@ -25,9 +25,10 @@ Last completed:
 - Telegram publication Task 1: added a mockable `msm-telegram` publish boundary with create-then-append orchestration, publication result metadata, and no-network tests.
 - Telegram publication Task 2: added the `teloxide::Bot` sticker set API adapter, typed owner ID validation, teloxide request error normalization, public re-export, and a no-network adapter construction test.
 - Telegram publication Task 3: added worker-level Telegram publication executor injection, kept `dryRun` defaulting to true, wired `dryRun:false` jobs to prepared media file paths and teloxide publication, persisted `telegramPublished` results, and covered publisher failure handling.
+- Telegram publication Task 4: added shared Web export result-link extraction and rendered completed Telegram sticker set URLs in both the export wizard and job timeline.
 
 Current task:
-- Continue `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 4: surface Telegram publication result URLs in the Web export workflow.
+- Continue `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 5: complete Telegram publication documentation and full verification.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -51,9 +52,10 @@ Last verification:
 - Telegram publication Task 1: `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
 - Telegram publication Task 2: `cargo fmt --all -- --check`; `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
 - Telegram publication Task 3: `cargo fmt --all -- --check`; `cargo test -p msm-app --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+- Telegram publication Task 4: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 
 Next step:
-- Update Web result-link extraction and timeline tests for `telegramPublished` job results while preserving existing dry-run and MoreStickers behavior.
+- Update architecture/provider/user/agent docs for the completed Telegram publication path, then run full Rust/Web verification.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
