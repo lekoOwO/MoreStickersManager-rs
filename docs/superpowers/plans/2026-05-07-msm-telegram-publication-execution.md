@@ -91,15 +91,15 @@
 - Modify: `README.md`
 - Modify: `docs/user/README.md`
 
-- [ ] Document `dryRun` behavior, Telegram bot token handling, prepared media dependency, and no-network test strategy.
-- [ ] Update progressive disclosure docs so the next worker can resume from publication result/status accurately.
-- [ ] Run `cargo fmt --all -- --check`.
-- [ ] Run `cargo clippy --workspace --all-targets --locked -- -D warnings`.
-- [ ] Run `cargo test --workspace --locked`.
-- [ ] Run `npm run web:typecheck`.
-- [ ] Run `npm run web:test`.
-- [ ] Run `npm run web:build`.
-- [ ] Commit with message `docs: document Telegram publication`.
+- [x] Document `dryRun` behavior, Telegram bot token handling, prepared media dependency, and no-network test strategy.
+- [x] Update progressive disclosure docs so the next worker can resume from publication result/status accurately.
+- [x] Run `cargo fmt --all -- --check`.
+- [x] Run `cargo clippy --workspace --all-targets --locked -- -D warnings`.
+- [x] Run `cargo test --workspace --locked`.
+- [x] Run `npm run web:typecheck`.
+- [x] Run `npm run web:test`.
+- [x] Run `npm run web:build`.
+- [x] Commit with message `docs: document Telegram publication`.
 
 ## Self-Review
 

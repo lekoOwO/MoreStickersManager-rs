@@ -106,6 +106,11 @@ export jobs, and show job status/events; dedicated Telegram publication URL
 surfacing is tracked in
 `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md`.
 
+Telegram jobs are dry-run by default. To create a Telegram sticker set, queue an
+export job with options containing `"dryRun": false` and use a Telegram target
+config with `botToken`, `botUsername`, and `ownerUserId`. Tests use injected
+publishers and do not contact Telegram.
+
 ## Web UI Slice
 
 The current Web UI is a Vue/Vite frontend foundation with Shadcn Vue-compatible

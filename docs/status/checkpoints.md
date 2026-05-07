@@ -377,3 +377,11 @@
 - Updated the export job timeline to show completed Telegram sticker set links.
 - Added Web tests for wizard and timeline Telegram publication URL rendering.
 - Verified with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
+
+## 2026-05-07 Telegram Publication Documentation And Full Verification
+
+- Updated architecture docs for the completed Telegram publication boundaries.
+- Updated provider docs to clarify Telegram provider input normalization versus Telegram export target publication.
+- Updated progressive disclosure docs to reflect the dry-run default, `dryRun:false` publication path, target token requirements, prepared media dependency, and no-network test strategy.
+- Confirmed remaining gaps are reconciliation/update/delete policy, publication-table repository APIs, and broader product features tracked in the implementation matrix.
+- Verified with `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked`, `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.

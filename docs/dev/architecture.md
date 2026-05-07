@@ -11,11 +11,11 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-cli`: command-line client, added in P5 and extended with export target/job commands in Task 10.
 - `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11 and extended with export target/job tools in Task 10.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
-- `msm-media`: media profile and command planning foundation added in P25; media probing, converter execution, and prepared output caching remain planned.
-- `msm-exporters`: export target trait, registry, MoreStickers export adapter, and Telegram export planner added in Tasks 4-7; remote execution and future output targets remain planned.
-- `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling and Bot API URL configuration.
-- `msm-app`: runnable service composition binary, added in P9 and extended with export worker foundation in Task 9.
-- `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7 and extended with export target/job workflow controls in Task 11.
+- `msm-media`: media profile and command planning foundation added in P25; media probing remains planned.
+- `msm-exporters`: export target trait, registry, MoreStickers export adapter, and Telegram export planner added in Tasks 4-7; future output targets remain planned.
+- `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling, Bot API URL configuration, and mockable sticker set create/append execution.
+- `msm-app`: runnable service composition binary, added in P9 and extended with export worker execution, prepared media conversion, and Telegram publication.
+- `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7 and extended with export target/job workflow controls and Telegram publication result display.
 
 ## Dependency Rule
 
@@ -49,21 +49,29 @@ Planned exporter work is split into:
 
 - `msm-media`: target-neutral media kinds, output profiles, conversion plans, shell-free converter command plans, and planned probing/converter execution.
 - `msm-exporters`: target traits, capability metadata, export plans, target registry, MoreStickers serialization target, and Telegram sticker set planner.
-- `msm-telegram`: `teloxide::Bot` construction and configuration; sticker upload, set creation, and set append should use teloxide requester methods in later worker/exporter phases.
+- `msm-telegram`: `teloxide::Bot` construction/configuration plus sticker set create/append methods behind a mockable trait.
 
 Task 8 exposes export target and queued job records through protected API routes.
 Those routes do not execute conversions or remote publication; Task 9 worker
 execution owns that state transition.
 
-Task 9 currently has a worker foundation that can run MoreStickers serialization
-jobs and Telegram dry-run planning jobs from queued storage records. It can write
+The worker can run MoreStickers serialization jobs, Telegram dry-run planning
+jobs, and Telegram publication jobs from queued storage records. It writes
 prepared media cache records through an injected media executor and can be
-started as an optional polling loop. It also has a process-backed prepared media
-executor that runs shell-free ffmpeg command plans and returns output metadata.
+started as an optional polling loop. The process-backed prepared media executor
+runs shell-free ffmpeg command plans and returns output metadata. Telegram
+publication remains opt-in: job options default to `"dryRun": true`, and remote
+publication only runs when options explicitly set `"dryRun": false` and the
+target config includes `botToken`, `botUsername`, and `ownerUserId`.
+
 Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
 Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds
-Web export target settings, Telegram token validation, export job queueing, and
-job event display. Telegram remote publication remains planned.
+Web export target settings, Telegram token validation, export job queueing, job
+event display, and completed sticker set URL display.
+
+Worker tests keep Telegram network access behind injected fake publishers. Local
+and CI verification must not call Telegram; live publication requires an
+operator-created target and an explicitly non-dry-run queued job.
 
 No export target may mutate MoreStickers-compatible pack JSON as a side effect of
 publishing. Target-specific prepared media should be cached separately from the

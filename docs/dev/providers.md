@@ -53,11 +53,10 @@ Implemented export target foundations:
   preserving the existing MoreStickers compatibility contract.
 - `telegram`: has target capability metadata, Telegram set planning, media
   profile selection, `teloxide` bot construction, Web/API/CLI/MCP target/job
-  management, and worker dry-run planning.
+  management, worker dry-run planning, opt-in worker publication for
+  `"dryRun": false`, and Web result URL display.
 
 Not implemented yet:
 
-- Telegram media upload and sticker set create/append execution through
-  `teloxide` requester methods.
 - Provider-side remote fetch/download orchestration.
 - Reconciliation policies for updating or deleting remote Telegram sticker sets.
