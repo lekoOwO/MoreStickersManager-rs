@@ -13,7 +13,7 @@ use subtle::ConstantTimeEq;
 use crate::{
     models::{
         CreatedPersonalAccessToken, LocalUserCredentialRecord, PackVisibility,
-        PersonalAccessTokenRecord, UserRecord,
+        PersonalAccessTokenRecord, StickerPackRecord, UserRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -353,6 +353,51 @@ impl StorageRepository {
         row.map(|row| {
             let json: String = row.get("sticker_pack_json");
             StickerPack::from_json_str(&json).map_err(Into::into)
+        })
+        .transpose()
+    }
+
+    /// Finds a sticker pack record by internal pack ID, including owner and tenant metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, JSON parsing
+    /// fails, or timestamps are invalid.
+    pub async fn find_sticker_pack_record(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<StickerPackRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, compatibility_id, title, visibility,
+                source_provider, sticker_pack_json, created_at, updated_at
+            FROM sticker_packs
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.map(|row| {
+            let visibility: String = row.get("visibility");
+            let Some(visibility) = PackVisibility::from_storage(&visibility) else {
+                return Err(StorageError::InvalidVisibility { visibility });
+            };
+            let sticker_pack_json: String = row.get("sticker_pack_json");
+            let created_at: String = row.get("created_at");
+            let updated_at: String = row.get("updated_at");
+
+            Ok(StickerPackRecord {
+                id: row.get("id"),
+                tenant_id: row.get("tenant_id"),
+                owner_user_id: row.get("owner_user_id"),
+                compatibility_id: row.get("compatibility_id"),
+                title: row.get("title"),
+                visibility,
+                source_provider: row.get("source_provider"),
+                sticker_pack: StickerPack::from_json_str(&sticker_pack_json)?,
+                created_at: parse_rfc3339(&created_at)?,
+                updated_at: parse_rfc3339(&updated_at)?,
+            })
         })
         .transpose()
     }

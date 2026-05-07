@@ -264,3 +264,11 @@
 - Added regular/custom emoji sticker count limits, create/append batching, default emoji validation, and create-only existing-set conflict errors.
 - Mapped static and animated MSM stickers through `msm-media` target profiles into teloxide `StickerFormat` and `InputSticker` data.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-exporters --locked`, `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Export API And OpenAPI
+
+- Added `export.read`, `export.run`, and `export.target.manage` permission keys.
+- Added protected export target kind, export target CRUD, queued export job creation, job status, and job event routes.
+- Added OpenAPI schemas for target capabilities, target config responses with token redaction, export job requests, job responses, and job events.
+- Added API tests for PAT scope enforcement, token redaction, source pack ownership checks, queued job creation, event reads, and OpenAPI route presence.
+- Verified with `cargo test -p msm-api --locked`, `cargo clippy -p msm-api -p msm-storage -p msm-domain --all-targets --locked -- -D warnings`, and `git diff --check`.

@@ -42,6 +42,31 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::packs::export_pack),
         )
         .route(
+            "/api/v1/export-target-kinds",
+            get(routes::exports::list_target_kinds),
+        )
+        .route(
+            "/api/v1/export-targets",
+            get(routes::exports::list_targets).post(routes::exports::create_target),
+        )
+        .route(
+            "/api/v1/export-targets/{target_id}",
+            axum::routing::patch(routes::exports::update_target)
+                .delete(routes::exports::delete_target),
+        )
+        .route(
+            "/api/v1/export-jobs",
+            axum::routing::post(routes::exports::create_job),
+        )
+        .route(
+            "/api/v1/export-jobs/{job_id}",
+            get(routes::exports::get_job),
+        )
+        .route(
+            "/api/v1/export-jobs/{job_id}/events",
+            get(routes::exports::list_job_events),
+        )
+        .route(
             "/api/v1/pats",
             get(routes::pats::list_pats).post(routes::pats::create_pat),
         )
@@ -61,7 +86,10 @@ mod tests {
     use std::collections::BTreeSet;
 
     use msm_domain::{Permission, Sticker};
-    use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
+    use msm_storage::{
+        models::{NewExportJobEvent, NewExportTarget},
+        DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
+    };
     use tower::ServiceExt;
 
     use crate::{build_router, ApiState};
@@ -102,6 +130,9 @@ mod tests {
         assert!(json["paths"].get("/healthz").is_some());
         assert!(json["paths"].get("/api/v1/pats").is_some());
         assert!(json["paths"].get("/api/v1/auth/local/login").is_some());
+        assert!(json["paths"].get("/api/v1/export-target-kinds").is_some());
+        assert!(json["paths"].get("/api/v1/export-targets").is_some());
+        assert!(json["paths"].get("/api/v1/export-jobs").is_some());
     }
 
     #[tokio::test]
@@ -442,6 +473,263 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn export_target_routes_redact_tokens_and_require_scopes() {
+        let state = empty_state_with_owner().await;
+        let read_token = create_pat(&state, "exportread", "user_1", [Permission::ExportRead]).await;
+        let manage_token = create_pat(
+            &state,
+            "exportmanage",
+            "user_1",
+            [Permission::ExportTargetManage],
+        )
+        .await;
+
+        let kinds_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/export-target-kinds")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(kinds_response.status(), StatusCode::OK);
+        let kinds_body = to_bytes(kinds_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let kinds: serde_json::Value = serde_json::from_slice(&kinds_body).unwrap();
+        assert!(kinds
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|kind| kind["kind"] == "telegram"));
+
+        let create_body = serde_json::json!({
+            "id": "target_telegram",
+            "tenantId": "tenant_1",
+            "kind": "telegram",
+            "name": "Telegram",
+            "config": {
+                "botUsername": "msm_bot",
+                "botToken": "123456:secret"
+            },
+            "isEnabled": true
+        });
+
+        let forbidden_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-targets")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(forbidden_response.status(), StatusCode::FORBIDDEN);
+
+        let create_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-targets")
+                    .header("authorization", format!("Bearer {manage_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+        let create_body = to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let created: serde_json::Value = serde_json::from_slice(&create_body).unwrap();
+        assert_eq!(created["config"]["botToken"], "<redacted>");
+        assert!(!contains_bytes(&create_body, b"123456:secret"));
+
+        let list_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/export-targets?tenantId=tenant_1")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_response.status(), StatusCode::OK);
+        let list_body = to_bytes(list_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert!(!contains_bytes(&list_body, b"123456:secret"));
+
+        let update_body = serde_json::json!({
+            "name": "Telegram Updated",
+            "config": {
+                "botUsername": "msm_bot",
+                "botToken": "456:rotated"
+            },
+            "isEnabled": false
+        });
+        let update_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/v1/export-targets/target_telegram")
+                    .header("authorization", format!("Bearer {manage_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(update_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(update_response.status(), StatusCode::OK);
+
+        let delete_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/export-targets/target_telegram")
+                    .header("authorization", format!("Bearer {manage_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn export_job_routes_require_export_run_and_pack_owner() {
+        let state = seeded_state().await;
+        state
+            .repository()
+            .create_export_target(NewExportTarget {
+                id: "target_telegram",
+                tenant_id: "tenant_1",
+                kind: "telegram",
+                name: "Telegram",
+                config_json: r#"{"botUsername":"msm_bot","botToken":"123456:secret"}"#,
+                is_enabled: true,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_2", "other@example.com", "Other")
+            .await
+            .unwrap();
+        let read_token = create_pat(&state, "exportread", "user_1", [Permission::ExportRead]).await;
+        let run_token = create_pat(&state, "exportrun", "user_1", [Permission::ExportRun]).await;
+        let other_run_token =
+            create_pat(&state, "otherrun", "user_2", [Permission::ExportRun]).await;
+        let create_body = serde_json::json!({
+            "id": "job_1",
+            "tenantId": "tenant_1",
+            "sourcePackId": "pack_1",
+            "targetId": "target_telegram",
+            "options": { "setNameSlug": "sample" }
+        });
+
+        let missing_scope = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-jobs")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing_scope.status(), StatusCode::FORBIDDEN);
+
+        let owner_mismatch = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-jobs")
+                    .header("authorization", format!("Bearer {other_run_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(owner_mismatch.status(), StatusCode::FORBIDDEN);
+
+        let created_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-jobs")
+                    .header("authorization", format!("Bearer {run_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(created_response.status(), StatusCode::CREATED);
+        let job_response_bytes = to_bytes(created_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let created: serde_json::Value = serde_json::from_slice(&job_response_bytes).unwrap();
+        assert_eq!(created["status"], "queued");
+        assert_eq!(created["ownerUserId"], "user_1");
+
+        state
+            .repository()
+            .append_export_job_event(NewExportJobEvent {
+                job_id: "job_1",
+                sequence: 1,
+                level: "info",
+                stage: "queued",
+                message: "job queued",
+                metadata_json: r#"{"target":"telegram"}"#,
+            })
+            .await
+            .unwrap();
+
+        let get_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/export-jobs/job_1")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(get_response.status(), StatusCode::OK);
+
+        let events_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/export-jobs/job_1/events")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(events_response.status(), StatusCode::OK);
+        let events_body = to_bytes(events_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let events: serde_json::Value = serde_json::from_slice(&events_body).unwrap();
+        assert_eq!(events[0]["message"], "job queued");
+        assert_eq!(events[0]["metadata"]["target"], "telegram");
+    }
+
+    #[tokio::test]
     async fn creates_lists_and_revokes_personal_access_token() {
         let state = test_state().await;
         state
@@ -749,6 +1037,12 @@ mod tests {
             .await
             .unwrap()
             .token
+    }
+
+    fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+        haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
     }
 
     fn sample_pack() -> msm_domain::StickerPack {

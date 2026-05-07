@@ -7,7 +7,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-domain`: compatibility models, pure ID helpers, pure URL resolution, and import/export helpers.
 - `msm-domain::authz`: pure authorization policy evaluation for pack and subscription access.
 - `msm-storage`: database repositories, asset storage, and export job persistence, added across P2/P12/P18/P21/Task 3.
-- `msm-api`: HTTP API and OpenAPI, added in P4.
+- `msm-api`: HTTP API and OpenAPI, added in P4 and extended with export target/job routes in Task 8.
 - `msm-cli`: command-line client, added in P5.
 - `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
@@ -50,6 +50,10 @@ Planned exporter work is split into:
 - `msm-media`: target-neutral media kinds, output profiles, conversion plans, shell-free converter command plans, and planned probing/converter execution.
 - `msm-exporters`: target traits, capability metadata, export plans, target registry, MoreStickers serialization target, and Telegram sticker set planner.
 - `msm-telegram`: `teloxide::Bot` construction and configuration; sticker upload, set creation, and set append should use teloxide requester methods in later worker/exporter phases.
+
+Task 8 exposes export target and queued job records through protected API routes.
+Those routes do not execute conversions or remote publication; Task 9 worker
+execution owns that state transition.
 
 No export target may mutate MoreStickers-compatible pack JSON as a side effect of
 publishing. Target-specific prepared media should be cached separately from the

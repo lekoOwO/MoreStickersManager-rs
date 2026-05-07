@@ -5,12 +5,14 @@ use utoipa::OpenApi;
 
 use crate::{
     dto::{
-        CreatePersonalAccessTokenRequest, CreatedPersonalAccessTokenResponse, HealthResponse,
-        ImportPackRequest, LocalUserResponse, LoginLocalUserRequest, PersonalAccessTokenResponse,
-        RegisterLocalUserRequest, UpdatePackRequest,
+        CreateExportJobRequest, CreateExportTargetRequest, CreatePersonalAccessTokenRequest,
+        CreatedPersonalAccessTokenResponse, ExportJobEventResponse, ExportJobResponse,
+        ExportTargetKindResponse, ExportTargetResponse, HealthResponse, ImportPackRequest,
+        LocalUserResponse, LoginLocalUserRequest, PersonalAccessTokenResponse,
+        RegisterLocalUserRequest, UpdateExportTargetRequest, UpdatePackRequest,
     },
     error::ApiErrorBody,
-    routes::{assets, auth, health, packs, pats},
+    routes::{assets, auth, exports, health, packs, pats},
 };
 
 #[derive(OpenApi)]
@@ -25,6 +27,14 @@ use crate::{
         packs::update_pack,
         packs::delete_pack,
         packs::export_pack,
+        exports::list_target_kinds,
+        exports::list_targets,
+        exports::create_target,
+        exports::update_target,
+        exports::delete_target,
+        exports::create_job,
+        exports::get_job,
+        exports::list_job_events,
         pats::create_pat,
         pats::list_pats,
         pats::revoke_pat
@@ -37,6 +47,13 @@ use crate::{
         RegisterLocalUserRequest,
         LoginLocalUserRequest,
         LocalUserResponse,
+        ExportTargetKindResponse,
+        CreateExportTargetRequest,
+        UpdateExportTargetRequest,
+        ExportTargetResponse,
+        CreateExportJobRequest,
+        ExportJobResponse,
+        ExportJobEventResponse,
         CreatePersonalAccessTokenRequest,
         CreatedPersonalAccessTokenResponse,
         PersonalAccessTokenResponse

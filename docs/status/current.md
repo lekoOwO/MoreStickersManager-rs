@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: P25 Telegram export planner.
+Phase: P25 export API and OpenAPI.
 
 Last completed:
 - P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
@@ -13,9 +13,10 @@ Last completed:
 - Task 5 MoreStickers export target: wrapped existing `.stickerpack` serialization as a concrete `morestickers` export target with byte-for-byte compatibility tests.
 - Task 6 Telegram bot framework boundary: added `msm-telegram` using `teloxide`, with redacted token/config handling, configurable Bot API URL, and `teloxide::Bot` construction tests.
 - Task 7 Telegram export planner: added Telegram set name normalization, size checks, initial/append batching, create-only conflict handling, media profile mapping, and teloxide `InputSticker` conversion planning.
+- Task 8 export API and OpenAPI: added export permissions, target kind/target CRUD routes, queued job creation, job status/event reads, token-redacted target responses, and OpenAPI schemas.
 
 Current task:
-- Continue Task 8 Export API and OpenAPI from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
+- Continue Task 9 Worker Execution from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -27,9 +28,10 @@ Last verification:
 - Task 5: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
 - Task 6: `cargo fmt --all -- --check`; `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`; `git diff --check`.
 - Task 7: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
+- Task 8: `cargo test -p msm-api --locked`; `cargo clippy -p msm-api -p msm-storage -p msm-domain --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- Task 8: add protected export target/job APIs and utoipa OpenAPI schemas for export capabilities, Telegram target configuration, job creation, job status, and job events.
+- Task 9: add export worker configuration and mocked job execution for MoreStickers and Telegram export jobs without real Telegram network access.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

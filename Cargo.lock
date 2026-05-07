@@ -1334,6 +1334,7 @@ dependencies = [
  "http-body-util",
  "mime_guess",
  "msm-domain",
+ "msm-exporters",
  "msm-storage",
  "serde",
  "serde_json",

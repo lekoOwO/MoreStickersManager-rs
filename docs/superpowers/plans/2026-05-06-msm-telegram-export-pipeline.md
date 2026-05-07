@@ -133,12 +133,12 @@
 - Modify: `crates/msm-api/src/openapi.rs`
 - Modify: `crates/msm-domain/src/authz.rs`
 
-- [ ] Add `export.read`, `export.run`, and `export.target.manage` permission keys.
-- [ ] Add routes for target kinds, target CRUD, job creation, job status, and job event reads.
-- [ ] Add OpenAPI schemas for target capabilities, Telegram config with redacted token responses, export job requests, and job results.
-- [ ] Test PAT/RBAC enforcement, token redaction, pack ownership checks, and OpenAPI route presence.
-- [ ] Run `cargo test -p msm-api --locked`.
-- [ ] Commit with message `feat: add export API`.
+- [x] Add `export.read`, `export.run`, and `export.target.manage` permission keys.
+- [x] Add routes for target kinds, target CRUD, job creation, job status, and job event reads.
+- [x] Add OpenAPI schemas for target capabilities, Telegram config with redacted token responses, export job requests, and job results.
+- [x] Test PAT/RBAC enforcement, token redaction, pack ownership checks, and OpenAPI route presence.
+- [x] Run `cargo test -p msm-api --locked`.
+- [x] Commit with message `feat: add export API`.
 
 ## Task 9: Worker Execution
 

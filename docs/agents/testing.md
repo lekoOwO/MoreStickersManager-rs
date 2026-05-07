@@ -528,3 +528,20 @@ These tests prove:
 - regular sets cap at 120 stickers and custom emoji sets allow 200;
 - static and animated MSM stickers map to static/video teloxide sticker formats;
 - planned stickers can be converted to teloxide `InputSticker` values using prepared media files.
+
+## Export API Tests
+
+Run:
+
+```powershell
+cargo test -p msm-api --locked
+cargo clippy -p msm-api -p msm-storage -p msm-domain --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- OpenAPI exposes export target and export job paths;
+- `export.read`, `export.run`, and `export.target.manage` PAT scopes are enforced;
+- Telegram target config responses redact token-like fields;
+- queued export job creation rejects PAT users that do not own the source pack;
+- export job status and ordered event reads work through protected routes.

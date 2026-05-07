@@ -5,7 +5,7 @@
 - `crates/msm-domain`: MoreStickers-compatible domain models and pure helpers.
 - `crates/msm-domain/src/authz.rs`: pure authorization policy primitives and evaluators.
 - `crates/msm-storage`: SQL storage primitives, local asset storage, portable export/import, PAT/local credential storage, and export target/job/prepared media persistence.
-- `crates/msm-api`: Axum API routes and utoipa OpenAPI generation.
+- `crates/msm-api`: Axum API routes and utoipa OpenAPI generation, including export target/job routes.
 - `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete and PAT lifecycle commands.
 - `crates/msm-providers`: provider registry plus Telegram and LINE fixture normalizers.
 - `crates/msm-exporters`: export target trait, target kind keys, capability metadata, request/plan types, duplicate-safe registry, concrete `morestickers` export target, and Telegram sticker set planner.
@@ -26,7 +26,7 @@
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.
 - Media probing, converter execution, and prepared media cache persistence.
-- Telegram export API routes, worker execution, and remote publication jobs.
+- Telegram export worker execution and remote publication jobs.
 - Telegram Bot API sticker set creation and Web-managed export workflow.
 
 Do not add cross-layer dependencies to `msm-domain`.

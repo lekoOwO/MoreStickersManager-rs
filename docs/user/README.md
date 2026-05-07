@@ -68,12 +68,14 @@ user-facing yet. P24/P25 document an export pipeline that will convert pack
 assets into target-specific media, use a Telegram bot to create sticker sets,
 and expose the workflow through Web, API, CLI, and MCP surfaces.
 
-P25 has started the backend media and export planning foundation. MSM can select
-Telegram static/video target profiles, build ffmpeg command arguments for
-static, video, and thumbnail outputs, normalize Telegram sticker set names,
-split create/append batches, enforce Telegram set size limits, and prepare
-teloxide `InputSticker` data. It cannot yet run ffmpeg, upload stickers, create
-Telegram sticker sets, or expose export jobs through user-facing surfaces.
+P25 has started the backend media, export planning, and export API foundation.
+MSM can select Telegram static/video target profiles, build ffmpeg command
+arguments for static, video, and thumbnail outputs, normalize Telegram sticker
+set names, split create/append batches, enforce Telegram set size limits, and
+prepare teloxide `InputSticker` data. Protected API routes can manage export
+targets, queue export jobs, and read job status/events. MSM cannot yet run
+ffmpeg, upload stickers, create Telegram sticker sets, or expose export jobs in
+Web/CLI/MCP surfaces.
 
 Export target/job tables now exist in storage for later API and worker phases,
 but there are no user-facing export job endpoints yet.
@@ -81,6 +83,20 @@ but there are no user-facing export job endpoints yet.
 Telegram bot integration now uses `teloxide` internally. The current slice only
 builds a configured bot safely and prepares sticker inputs; it does not yet
 execute Telegram sticker export actions for users.
+
+Export API endpoints currently available:
+
+- `GET /api/v1/export-target-kinds`
+- `GET /api/v1/export-targets?tenantId=...`
+- `POST /api/v1/export-targets`
+- `PATCH /api/v1/export-targets/{target_id}`
+- `DELETE /api/v1/export-targets/{target_id}`
+- `POST /api/v1/export-jobs`
+- `GET /api/v1/export-jobs/{job_id}`
+- `GET /api/v1/export-jobs/{job_id}/events`
+
+Required PAT scopes are `export.read`, `export.run`, and
+`export.target.manage`.
 
 Current service binary example:
 

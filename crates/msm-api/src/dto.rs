@@ -107,6 +107,93 @@ pub struct ListPersonalAccessTokensQuery {
     pub user_id: String,
 }
 
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
+pub struct ListExportTargetsQuery {
+    pub tenant_id: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportTargetKindResponse {
+    pub kind: String,
+    pub display_name: String,
+    pub supports_remote_publication: bool,
+    pub supports_media_conversion: bool,
+    pub requires_credentials: bool,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateExportTargetRequest {
+    pub id: String,
+    pub tenant_id: String,
+    pub kind: String,
+    pub name: String,
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateExportTargetRequest {
+    pub name: String,
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportTargetResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub kind: String,
+    pub name: String,
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateExportJobRequest {
+    pub id: String,
+    pub tenant_id: String,
+    pub source_pack_id: String,
+    pub target_id: String,
+    pub options: serde_json::Value,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportJobResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub source_pack_id: String,
+    pub target_id: String,
+    pub status: String,
+    pub request: serde_json::Value,
+    pub result: Option<serde_json::Value>,
+    pub error_summary: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportJobEventResponse {
+    pub job_id: String,
+    pub sequence: i64,
+    pub level: String,
+    pub stage: String,
+    pub message: String,
+    pub metadata: serde_json::Value,
+    pub created_at: String,
+}
+
 impl From<PackVisibilityDto> for msm_storage::models::PackVisibility {
     fn from(value: PackVisibilityDto) -> Self {
         match value {

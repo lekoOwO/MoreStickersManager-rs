@@ -22,6 +22,9 @@ pub enum StorageError {
     #[error("invalid export job status: {status}")]
     InvalidExportJobStatus { status: String },
 
+    #[error("invalid pack visibility: {visibility}")]
+    InvalidVisibility { visibility: String },
+
     #[error("invalid timestamp `{value}`: {message}")]
     InvalidTimestamp { value: String, message: String },
 

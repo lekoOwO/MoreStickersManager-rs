@@ -223,6 +223,15 @@ impl PackVisibility {
             Self::Private => "private",
         }
     }
+
+    #[must_use]
+    pub fn from_storage(value: &str) -> Option<Self> {
+        match value {
+            "public" => Some(Self::Public),
+            "private" => Some(Self::Private),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
