@@ -185,13 +185,13 @@
 - Modify: `apps/web/src/App.vue`
 - Modify: `apps/web/src/i18n.ts`
 
-- [ ] Add typed Web client functions for target capabilities, target CRUD, job creation, and job polling.
-- [ ] Add a target settings panel with Telegram token validation and redacted display.
-- [ ] Add a pack-level export wizard with target selection, privacy notice, conversion summary, create button, progress timeline, and final Telegram link.
-- [ ] Add Traditional Chinese and English labels for all new UI strings.
-- [ ] Test wizard success, conflict error, token redaction, and job progress rendering with injected clients.
-- [ ] Run `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
-- [ ] Commit with message `feat: add Web export workflow`.
+- [x] Add typed Web client functions for target capabilities, target CRUD, job creation, and job polling.
+- [x] Add a target settings panel with Telegram token validation and redacted display.
+- [x] Add a pack-level export wizard with target selection, privacy notice, conversion summary, create button, progress timeline, and final Telegram link.
+- [x] Add Traditional Chinese and English labels for all new UI strings.
+- [x] Test wizard success, conflict error, token redaction, and job progress rendering with injected clients.
+- [x] Run `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
+- [x] Commit with message `feat: add Web export workflow`.
 
 ## Task 12: Documentation And Full Verification
 

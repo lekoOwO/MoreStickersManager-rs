@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 
+import ExportTargetPanel from "@/components/ExportTargetPanel.vue";
+import PackExportWizard from "@/components/PackExportWizard.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPackClient, type PackClient, type WritablePackVisibility } from "@/lib/api-client";
+import type { ExportClient } from "@/lib/exportApi";
 import { allMessages, type Locale } from "@/lib/i18n";
 import { type PackVisibility, type StickerPackSummary } from "@/lib/sticker-packs";
 
@@ -12,6 +15,7 @@ const props = defineProps<{
   locale: Locale;
   patToken?: string;
   packClient?: PackClient;
+  exportClient?: ExportClient;
   tenantId?: string;
   ownerUserId?: string;
 }>();
@@ -26,6 +30,7 @@ const importJson = ref("");
 const drafts = ref<Record<string, { title: string; visibility: WritablePackVisibility }>>({});
 
 const labels = computed(() => allMessages()[props.locale]);
+const tenantId = computed(() => props.tenantId ?? import.meta.env.VITE_MSM_TENANT_ID ?? "tenant_1");
 const totalStickers = computed(() => packs.value.reduce((sum, pack) => sum + pack.stickerCount, 0));
 const publicPackCount = computed(() => packs.value.filter((pack) => pack.visibility === "public").length);
 const privatePackCount = computed(() => packs.value.filter((pack) => pack.visibility === "private").length);
@@ -83,7 +88,7 @@ async function importPack() {
   try {
     const pack = JSON.parse(importJson.value) as unknown;
     await packClient().importStickerPack({
-      tenantId: props.tenantId ?? import.meta.env.VITE_MSM_TENANT_ID ?? "tenant_1",
+      tenantId: tenantId.value,
       ownerUserId: props.ownerUserId ?? import.meta.env.VITE_MSM_USER_ID ?? "user_1",
       packId: importPackId.value.trim(),
       visibility: importVisibility.value,
@@ -210,6 +215,22 @@ function visibilityVariant(visibility: PackVisibility) {
         </div>
       </CardContent>
     </Card>
+
+    <section class="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+      <ExportTargetPanel
+        :export-client="exportClient"
+        :locale="locale"
+        :pat-token="patToken"
+        :tenant-id="tenantId"
+      />
+      <PackExportWizard
+        :export-client="exportClient"
+        :locale="locale"
+        :packs="packs"
+        :pat-token="patToken"
+        :tenant-id="tenantId"
+      />
+    </section>
 
     <section class="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
       <Card>

@@ -322,3 +322,14 @@
 - Reused pack owner and target tenant checks before queueing export jobs.
 - Redacted token-like and secret-like config fields in MCP export target responses.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-cli -p msm-mcp --locked`, and `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`.
+
+## 2026-05-07 Web Export Workflow
+
+- Added typed Web export API client methods for target kinds, target CRUD, export job creation, job reads, and job event reads.
+- Added `ExportTargetPanel` for target kind discovery, target creation, Telegram bot token validation, and redacted config display.
+- Added `PackExportWizard` with pack/target selection, options JSON, conversion summary, privacy notice, job queueing, refresh, and result link rendering.
+- Added `ExportJobTimeline` for current job status and ordered event display.
+- Wired the export workflow into the existing dashboard using the stored browser-local PAT.
+- Added Traditional Chinese and English labels for new export UI strings.
+- Added injected-client tests for wizard success, conflict errors, token redaction, Telegram token validation, and progress rendering.
+- Verified with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.

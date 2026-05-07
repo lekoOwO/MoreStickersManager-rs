@@ -23,9 +23,9 @@ only designed or planned.
 | Service binary | Implemented | `msm-app` composes storage migrations, API routes, local asset store, MCP route, Web static serving, and export worker foundation types. |
 | Embedded Web dist | Implemented | `msm-app` embeds `apps/web/dist` when present and a placeholder when absent; runtime disk override remains available. |
 | Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, RWD dashboard shell, theme toggle, and i18n exist. |
-| Web API integration | Implemented | Web pack API client can use mock fallback or API-backed pack operations with stored PAT. |
+| Web API integration | Implemented | Web pack and export API clients can use API-backed pack/export operations with stored PAT; pack list still has mock fallback for local preview. |
 | Web auth/PAT UI | Implemented | Local register/login panel and PAT create/list/revoke panel exist. |
-| Web pack management | Implemented | Dashboard supports pack list, rename, visibility edit, delete, and pasted `.stickerpack` import. |
+| Web pack management | Implemented | Dashboard supports pack list, rename, visibility edit, delete, pasted `.stickerpack` import, export target setup, and export job queue/status views. |
 | Local auth bootstrap | Implemented | Register/login APIs store Argon2 password credentials and login returns a PAT. Registration can bootstrap a tenant admin. |
 | Multi-tenant model | Partially implemented | Tenant/user records and bootstrap admin path exist. Full tenant administration UI and complete RBAC management are not implemented. |
 | PAT support | Implemented | Raw token is returned once, only the secret hash is stored, and protected pack API/MCP operations enforce scopes. |
@@ -38,8 +38,8 @@ only designed or planned.
 | Media conversion pipeline | P25 | Partially implemented: `msm-media` now has source media kinds, Telegram static/video/thumbnail profiles, prepared output specs, conversion plan selection, and shell-free ffmpeg command planning. Probing, converter execution, and cache persistence are not implemented. |
 | Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, a concrete `morestickers` target, and Telegram sticker set planning. Remote execution is not wired. |
 | Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, and builds `teloxide::Bot`. Sticker set execution through teloxide requester methods is not wired yet. |
-| Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, and builds teloxide `InputSticker` data. Uploads, set creation, job execution, and UI/API surfaces are not implemented. |
-| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, CLI commands, MCP tools, prepared media cache writes, process-backed ffmpeg executor, target bootstrap config, and an optional app worker loop exist for targets, queued jobs, job status, and job events. Telegram publication, retries, and Web surfaces are not implemented. |
+| Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, builds teloxide `InputSticker` data, and exposes Web/API/CLI/MCP job surfaces. Uploads and set creation are not implemented. |
+| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, CLI commands, MCP tools, Web target/job views, prepared media cache writes, process-backed ffmpeg executor, target bootstrap config, and an optional app worker loop exist for targets, queued jobs, job status, and job events. Telegram publication and retries are not implemented. |
 | Folder/tag management | Future phase | User-managed pack folders and tags are not implemented. |
 | Subscription groups | Future phase | Pack/group subscription links and moreStickers auto-update integration are not implemented. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |
@@ -53,4 +53,4 @@ only designed or planned.
 
 ## Current Next Phase
 
-P25 should continue from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 11 and add the Web export target settings and export wizard.
+P25 should continue from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 12 and complete documentation plus full verification.

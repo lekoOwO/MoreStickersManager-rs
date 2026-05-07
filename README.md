@@ -99,7 +99,8 @@ records through the media executor boundary. Process-backed ffmpeg execution is
 available through shell-free command plans. The CLI can list target kinds,
 create/list export targets, create export jobs, and read job status/events.
 MCP tools can list target kinds, list/create export targets, create export jobs,
-and read job status/events. Telegram upload/set creation and Web export surfaces are still planned in
+and read job status/events. The Web dashboard can configure export targets,
+queue export jobs, and show job status/events. Telegram upload/set creation is still planned in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice
@@ -118,7 +119,9 @@ The Web UI includes dashboard, PAT, and local register/login bootstrap slices.
 The dashboard can rename packs, change public/private visibility, and delete
 packs when `VITE_MSM_API_BASE_URL` is configured and the stored PAT has the
 required scopes. It can also import a pasted MoreStickers `.stickerpack` JSON
-export when the stored PAT has `import.run`.
+export when the stored PAT has `import.run`. The dashboard now includes export
+target settings and a pack export wizard for queuing export jobs and reading
+job progress.
 
 To connect the dashboard to the current P4 API list route, set:
 

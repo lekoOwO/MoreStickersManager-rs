@@ -48,7 +48,9 @@ npm run web:build
 The Web UI can run against mock data or the current API. It demonstrates the app
 shell, responsive layout, theme toggle, language toggle, PAT management, local
 login/register, pack list, pack rename, visibility edit, delete, and pasted
-`.stickerpack` import.
+`.stickerpack` import. It also exposes export target settings, Telegram target
+token validation, pack export job creation, job refresh, and ordered job event
+display when the export API is available.
 
 To point the dashboard at the current pack-list API:
 
@@ -83,16 +85,17 @@ targets, queue export jobs, and read job status/events. The app worker can run
 queued MoreStickers serialization jobs and Telegram dry-run planning jobs, and
 can write prepared media cache records through its media executor boundary. MSM
 has a process-backed ffmpeg executor for prepared media conversion. The CLI can
-manage export targets and queue/read export jobs through the API. MSM cannot yet
-upload stickers, create Telegram sticker sets, or expose export jobs in Web
-surfaces.
+manage export targets and queue/read export jobs through the API. The Web UI can
+configure export targets, queue jobs, and show job status/events. MSM cannot yet
+upload stickers or create Telegram sticker sets.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
 targets such as a Telegram bot target before Web target settings exist.
 
 Export target/job API endpoints and CLI commands now exist for queueing export
-jobs and reading their status/events.
+jobs and reading their status/events. MCP tools and Web UI controls are also
+available for export targets and jobs.
 
 Telegram bot integration now uses `teloxide` internally. The current slice only
 builds a configured bot safely and prepares sticker inputs; it does not yet

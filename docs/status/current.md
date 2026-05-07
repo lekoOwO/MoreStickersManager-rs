@@ -20,9 +20,10 @@ Last completed:
 - Task 9 target bootstrap config: added `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON` parsing and idempotent export target create/update during service initialization.
 - Task 10 CLI export commands: added `msm exports kinds`, export target list/create, export job create/get/events commands, API client calls, and human/JSON output.
 - Task 10 MCP export tools: added export target kind/list/create tools, export job create/get/events tools, PAT scope enforcement, owner checks, schema coverage, and token-redacted target responses.
+- Task 11 Web export workflow: added typed export API client functions, target settings panel, pack export wizard, job timeline, Traditional Chinese/English labels, Telegram token validation, redacted target display, and injected-client tests.
 
 Current task:
-- Continue Task 11 Web target settings and export wizard from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
+- Continue Task 12 documentation and full verification from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -41,9 +42,10 @@ Last verification:
 - Task 9 target bootstrap: `cargo test -p msm-app --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
 - Task 10 CLI export commands: `cargo fmt --all -- --check`; `cargo test -p msm-cli --locked`; `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`.
 - Task 10 CLI/MCP parity: `cargo fmt --all -- --check`; `cargo test -p msm-cli -p msm-mcp --locked`; `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`.
+- Task 11 Web export workflow: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 
 Next step:
-- Task 11: add Web API client functions, target settings UI, pack export wizard, job timeline, i18n labels, and frontend tests.
+- Task 12: document provider/export target boundaries, Telegram setup, ffmpeg requirements, Web/CLI/MCP workflows, then run full workspace verification.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
