@@ -462,7 +462,8 @@ These tests prove:
 - media command plans return executable path plus argument vectors without shell interpolation;
 - export target, job, and event storage roundtrips work;
 - export job success/failure payload updates are persisted;
-- prepared media cache records upsert by source asset hash and profile key.
+- prepared media cache records upsert by source asset hash and profile key;
+- Telegram publication records can be upserted, found by ID, found by target/set, and listed by pack.
 
 ## Exporter Registry Tests
 

@@ -385,3 +385,12 @@
 - Updated progressive disclosure docs to reflect the dry-run default, `dryRun:false` publication path, target token requirements, prepared media dependency, and no-network test strategy.
 - Confirmed remaining gaps are reconciliation/update/delete policy, publication-table repository APIs, and broader product features tracked in the implementation matrix.
 - Verified with `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked`, `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
+
+## 2026-05-07 Telegram Publication Repository
+
+- Added typed `TelegramPublicationRecord` and `NewTelegramPublication` storage models for the existing `telegram_publications` table.
+- Added `upsert_telegram_publication`, preserving the original ID while updating records by `(target_id, sticker_set_name)`.
+- Added `find_telegram_publication`, `find_telegram_publication_by_target_set`, and `list_telegram_publications_for_pack`.
+- Added repository tests for create/find/list behavior and upsert update behavior.
+- Documented that worker persistence into `telegram_publications` is still the next integration step.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.

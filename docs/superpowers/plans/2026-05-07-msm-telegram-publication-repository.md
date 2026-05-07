@@ -44,12 +44,12 @@
 - Modify: `docs/status/implementation-matrix.md`
 - Modify: `docs/agents/testing.md`
 
-- [ ] Document that `telegram_publications` now has repository APIs but worker persistence into that table remains a next integration step.
-- [ ] Run `cargo fmt --all -- --check`.
-- [ ] Run `cargo test -p msm-storage --locked`.
-- [ ] Run `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.
-- [ ] Run `git diff --check`.
-- [ ] Commit with message `docs: document Telegram publication repository`.
+- [x] Document that `telegram_publications` now has repository APIs but worker persistence into that table remains a next integration step.
+- [x] Run `cargo fmt --all -- --check`.
+- [x] Run `cargo test -p msm-storage --locked`.
+- [x] Run `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.
+- [x] Run `git diff --check`.
+- [x] Commit with message `docs: document Telegram publication repository`.
 
 ## Self-Review
 

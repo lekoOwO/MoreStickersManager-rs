@@ -12,7 +12,7 @@ only designed or planned.
 | Repository hygiene | Implemented | `.gitignore`, workspace layout, documentation structure, CI baseline, release workflows, Dockerfile, and `.dockerignore` exist. |
 | MoreStickers compatibility | Implemented | `msm-domain` preserves `.stickerpack` JSON shape and upstream-compatible IDs. |
 | Domain authorization | Implemented | Pure RBAC/PAT policy primitives and pack/subscription access evaluators exist in `msm-domain::authz`. |
-| Storage foundation | Implemented | SQLite storage primitives, migrations, local asset storage, pack/sticker records, PAT storage, local credentials, export target/job tables, prepared media cache records, and portable user export/import exist. |
+| Storage foundation | Implemented | SQLite storage primitives, migrations, local asset storage, pack/sticker records, PAT storage, local credentials, export target/job tables, prepared media cache records, Telegram publication records, and portable user export/import exist. |
 | PostgreSQL support | Not implemented | SQLx is used, but current migrations/repositories are SQLite-focused. |
 | API/OpenAPI | Implemented | Axum API has health, OpenAPI, asset read, pack import/list/export/update/delete, PAT lifecycle, local auth bootstrap, export target, and export job routes. |
 | CLI | Implemented | `msm-cli` supports health, pack list/import/export/rename/delete, PAT create/list/revoke, export target kinds, export target list/create, export job create/get/events, and Bearer PAT forwarding. |
@@ -39,7 +39,7 @@ only designed or planned.
 | Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, a concrete `morestickers` target, and Telegram sticker set planning. Remote execution is not wired. |
 | Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, builds `teloxide::Bot`, and exposes mockable sticker set create/append execution through teloxide requester methods. |
 | Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, builds teloxide `InputSticker` data, exposes Web/API/CLI/MCP job surfaces, the app worker can publish when job options explicitly set `"dryRun": false`, and the Web export wizard/timeline surface completed sticker set URLs. Remote reconciliation is not implemented. |
-| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, CLI commands, MCP tools, Web target/job views, prepared media cache writes, process-backed ffmpeg executor, target bootstrap config, optional app worker loop, Telegram dry-run jobs, and Telegram publication jobs exist. Retries and durable publication-table repository methods are not implemented. |
+| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, CLI commands, MCP tools, Web target/job views, prepared media cache writes, Telegram publication repository APIs, process-backed ffmpeg executor, target bootstrap config, optional app worker loop, Telegram dry-run jobs, and Telegram publication jobs exist. Retries and worker persistence into `telegram_publications` are not implemented. |
 | Folder/tag management | Future phase | User-managed pack folders and tags are not implemented. |
 | Subscription groups | Future phase | Pack/group subscription links and moreStickers auto-update integration are not implemented. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |
@@ -53,4 +53,4 @@ only designed or planned.
 
 ## Current Next Phase
 
-Continue from `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 5 and complete Telegram publication documentation plus full verification.
+Continue by wiring successful Telegram worker publications into the new `telegram_publications` repository APIs.
