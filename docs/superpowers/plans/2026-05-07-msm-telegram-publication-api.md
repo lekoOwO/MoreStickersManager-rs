@@ -47,12 +47,12 @@
 - Modify: `docs/status/implementation-matrix.md`
 - Modify: `docs/agents/testing.md`
 
-- [ ] Document new protected API routes and remaining CLI/MCP/Web exposure work.
-- [ ] Run `cargo fmt --all -- --check`.
-- [ ] Run `cargo test -p msm-api --locked`.
-- [ ] Run `cargo clippy -p msm-api --all-targets --locked -- -D warnings`.
-- [ ] Run `git diff --check`.
-- [ ] Commit with message `docs: document Telegram publication API`.
+- [x] Document new protected API routes and remaining CLI/MCP/Web exposure work.
+- [x] Run `cargo fmt --all -- --check`.
+- [x] Run `cargo test -p msm-api --locked`.
+- [x] Run `cargo clippy -p msm-api --all-targets --locked -- -D warnings`.
+- [x] Run `git diff --check`.
+- [x] Commit with message `docs: document Telegram publication API`.
 
 ## Self-Review
 

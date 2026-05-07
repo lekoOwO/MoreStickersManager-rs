@@ -116,6 +116,14 @@ Export target/job API endpoints and CLI commands now exist for queueing export
 jobs and reading their status/events. MCP tools and Web UI controls are also
 available for export targets and jobs.
 
+Telegram publication history API endpoints are available for completed
+non-dry-run publication records:
+
+- `GET /api/v1/telegram-publications?packId=...`
+- `GET /api/v1/telegram-publications/{publication_id}`
+
+Both require `export.read` and the PAT user must own the source pack.
+
 Telegram bot integration now uses `teloxide` internally. Worker tests inject a
 fake publisher, so local and CI verification do not call Telegram. Real
 publication is only attempted by the worker when dry-run is explicitly disabled.
@@ -130,6 +138,8 @@ Export API endpoints currently available:
 - `POST /api/v1/export-jobs`
 - `GET /api/v1/export-jobs/{job_id}`
 - `GET /api/v1/export-jobs/{job_id}/events`
+- `GET /api/v1/telegram-publications?packId=...`
+- `GET /api/v1/telegram-publications/{publication_id}`
 
 Required PAT scopes are `export.read`, `export.run`, and
 `export.target.manage`.

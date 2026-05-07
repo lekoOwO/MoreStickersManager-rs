@@ -29,9 +29,10 @@ Last completed:
 - Telegram publication Task 5: documented the completed dry-run/default publication path, target token requirements, prepared media dependency, no-network test strategy, and current remaining reconciliation work.
 - Telegram publication repository slice: added typed `telegram_publications` storage models plus upsert/find/list repository methods for future reconciliation and API exposure.
 - Telegram worker publication persistence slice: successful `dryRun:false` worker jobs now upsert durable Telegram publication records by target and sticker set name; dry-run jobs still do not create publication records.
+- Telegram publication API slice: added protected `GET /api/v1/telegram-publications?packId=...` and `GET /api/v1/telegram-publications/{publication_id}` routes with OpenAPI schemas, `export.read` enforcement, and pack ownership checks.
 
 Current task:
-- Continue from `docs/superpowers/plans/2026-05-07-msm-telegram-publication-worker-persistence.md`: worker persistence is complete; next step is exposing publication history through API/CLI/MCP/Web or designing remote update/delete reconciliation.
+- Continue from `docs/superpowers/plans/2026-05-07-msm-telegram-publication-api.md`: API exposure is complete; next step is wiring CLI/MCP/Web clients to the publication history endpoints.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -59,9 +60,10 @@ Last verification:
 - Telegram publication Task 5 full verification: `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo test --workspace --locked`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 - Telegram publication repository slice: `cargo fmt --all -- --check`; `cargo test -p msm-storage --test export_job_repository_tests --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.
 - Telegram worker publication persistence slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+- Telegram publication API slice: `cargo fmt --all -- --check`; `cargo test -p msm-api --locked`; `cargo clippy -p msm-api --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- Expose Telegram publication history through API/CLI/MCP/Web, or define the reconciliation policy for remote update/delete behavior.
+- Add CLI and MCP read commands/tools for Telegram publication history, then surface the same history in the Web export workflow.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

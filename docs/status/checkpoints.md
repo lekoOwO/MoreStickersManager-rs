@@ -403,3 +403,13 @@
 - Kept Telegram network calls behind injected fake publishers in tests.
 - Documented that API/CLI/MCP/Web publication-history exposure and remote reconciliation remain later slices.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Telegram Publication API
+
+- Added `TelegramPublicationResponse` and `ListTelegramPublicationsQuery`.
+- Added `GET /api/v1/telegram-publications?packId=...` for owned pack publication history.
+- Added `GET /api/v1/telegram-publications/{publication_id}` for reading one owned publication.
+- Enforced `export.read` PAT scope and source pack ownership on both routes.
+- Registered publication routes and schemas in OpenAPI.
+- Added API tests for missing scope, owner mismatch, list response shape, get response shape, and OpenAPI path registration.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.

@@ -545,6 +545,7 @@ These tests prove:
 - `export.read`, `export.run`, and `export.target.manage` PAT scopes are enforced;
 - Telegram target config responses redact token-like fields;
 - queued export job creation rejects PAT users that do not own the source pack;
+- Telegram publication history routes require `export.read` and source pack ownership;
 - export job status and ordered event reads work through protected routes.
 
 ## Export Worker Foundation Tests
