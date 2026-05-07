@@ -26,14 +26,14 @@
 - Modify: `crates/msm-telegram/src/lib.rs`
 - Create: `crates/msm-telegram/tests/publish_tests.rs`
 
-- [ ] Add `async-trait` to `crates/msm-telegram/Cargo.toml`.
-- [ ] Write failing tests for a mock `TelegramPublisher` receiving one create request and one append request from a `TelegramPublishRequest`.
-- [ ] Add `TelegramPublishRequest`, `TelegramPublishSticker`, `TelegramPublishedSet`, `TelegramPublishError`, and `TelegramPublisher`.
-- [ ] Implement `publish_sticker_set` orchestration that calls `create_new_sticker_set` for initial stickers and `add_sticker_to_set` for append stickers through a smaller `TelegramStickerSetApi` trait.
-- [ ] Test that append calls preserve order and use the same owner/set name as create.
-- [ ] Run `cargo test -p msm-telegram --locked`.
-- [ ] Run `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
-- [ ] Commit with message `feat: add Telegram publish boundary`.
+- [x] Add `async-trait` to `crates/msm-telegram/Cargo.toml`.
+- [x] Write failing tests for a mock `TelegramPublisher` receiving one create request and one append request from a `TelegramPublishRequest`.
+- [x] Add `TelegramPublishRequest`, `TelegramPublishSticker`, `TelegramPublishedSet`, `TelegramPublishError`, and `TelegramPublisher`.
+- [x] Implement `publish_sticker_set` orchestration that calls `create_new_sticker_set` for initial stickers and `add_sticker_to_set` for append stickers through a smaller `TelegramStickerSetApi` trait.
+- [x] Test that append calls preserve order and use the same owner/set name as create.
+- [x] Run `cargo test -p msm-telegram --locked`.
+- [x] Run `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
+- [x] Commit with message `feat: add Telegram publish boundary`.
 
 ## Task 2: Teloxide Requester Adapter
 

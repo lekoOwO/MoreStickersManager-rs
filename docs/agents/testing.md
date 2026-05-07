@@ -618,3 +618,19 @@ These tests prove:
 - redacted export target config values remain redacted in the UI;
 - the pack export wizard queues jobs, renders job events, and surfaces conflict errors;
 - the Web app still typechecks and builds after wiring export workflow components into the dashboard.
+
+## Telegram Publish Boundary Tests
+
+Run:
+
+```powershell
+cargo test -p msm-telegram --locked
+cargo clippy -p msm-telegram --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- Telegram bot token/config redaction still works;
+- the publish boundary creates a sticker set before appending stickers;
+- append calls preserve planned sticker order;
+- publication tests use recording fakes and do not call Telegram.

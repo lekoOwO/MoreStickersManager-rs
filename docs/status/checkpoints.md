@@ -341,3 +341,11 @@
 - Updated user docs with Telegram target setup, PAT scopes, ffmpeg/ffprobe configuration, export worker enablement, and current dry-run limitation.
 - Updated agent project map and testing docs for export workflow handoff.
 - Verified with `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked`, `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
+
+## 2026-05-07 Telegram Publish Boundary
+
+- Added a mockable `TelegramStickerSetApi` trait in `msm-telegram`.
+- Added `TelegramPublishRequest`, `TelegramPublishSticker`, `TelegramPublishedSet`, and `TelegramPublishError`.
+- Added `publish_sticker_set` orchestration that creates a sticker set with the initial batch and appends remaining stickers in order.
+- Added no-network tests using a recording fake API.
+- Verified with `cargo test -p msm-telegram --locked` and `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.

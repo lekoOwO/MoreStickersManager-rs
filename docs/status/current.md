@@ -22,9 +22,10 @@ Last completed:
 - Task 10 MCP export tools: added export target kind/list/create tools, export job create/get/events tools, PAT scope enforcement, owner checks, schema coverage, and token-redacted target responses.
 - Task 11 Web export workflow: added typed export API client functions, target settings panel, pack export wizard, job timeline, Traditional Chinese/English labels, Telegram token validation, redacted target display, and injected-client tests.
 - Task 12 documentation and full verification: updated architecture/provider/user/agent docs for export boundaries, Telegram setup, ffmpeg requirements, Web/CLI/MCP workflows, and ran full Rust/Web baseline verification.
+- Telegram publication Task 1: added a mockable `msm-telegram` publish boundary with create-then-append orchestration, publication result metadata, and no-network tests.
 
 Current task:
-- Continue the next export pipeline phase after Task 12, likely Telegram remote publication execution through `teloxide`.
+- Continue `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 2: add the teloxide requester adapter.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -45,9 +46,10 @@ Last verification:
 - Task 10 CLI/MCP parity: `cargo fmt --all -- --check`; `cargo test -p msm-cli -p msm-mcp --locked`; `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`.
 - Task 11 Web export workflow: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 - Task 12 full verification: `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo test --workspace --locked`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
+- Telegram publication Task 1: `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
 
 Next step:
-- Plan and implement Telegram remote publication execution using `teloxide` requester methods, without real network calls in tests.
+- Implement `TeloxideTelegramStickerSetApi` so publication execution can use `teloxide` requester methods behind the tested trait boundary.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
