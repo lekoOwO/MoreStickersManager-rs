@@ -281,3 +281,11 @@
 - Added Telegram dry-run job execution that uses the Telegram planner and records planned set name, create/append counts, and target media profiles without network calls.
 - Added app tests for mocked MoreStickers and Telegram export jobs.
 - Verified with `cargo test -p msm-app --locked` and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+
+## 2026-05-07 Export Worker Cache And Loop
+
+- Added a prepared media executor boundary for worker-controlled media preparation.
+- Added prepared media cache writes when a media executor returns prepared output metadata.
+- Added worker enabled and poll interval configuration through `MSM_EXPORT_WORKER_ENABLED` and `MSM_EXPORT_WORKER_POLL_INTERVAL_MS`.
+- Added optional service startup composition for the export worker polling loop.
+- Verified with `cargo test -p msm-app --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.

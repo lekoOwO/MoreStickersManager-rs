@@ -39,7 +39,7 @@ only designed or planned.
 | Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, a concrete `morestickers` target, and Telegram sticker set planning. Remote execution is not wired. |
 | Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, and builds `teloxide::Bot`. Sticker set execution through teloxide requester methods is not wired yet. |
 | Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, and builds teloxide `InputSticker` data. Uploads, set creation, job execution, and UI/API surfaces are not implemented. |
-| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, and an app worker foundation exist for targets, queued jobs, job status, and job events. Real converter execution, Telegram publication, retries, background loop composition, and Web/CLI/MCP surfaces are not implemented. |
+| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, prepared media cache writes, and an optional app worker loop exist for targets, queued jobs, job status, and job events. Real ffmpeg execution, Telegram publication, retries, target bootstrap config, and Web/CLI/MCP surfaces are not implemented. |
 | Folder/tag management | Future phase | User-managed pack folders and tags are not implemented. |
 | Subscription groups | Future phase | Pack/group subscription links and moreStickers auto-update integration are not implemented. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |
@@ -53,4 +53,4 @@ only designed or planned.
 
 ## Current Next Phase
 
-P25 should continue from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 9 and add real converter execution/cache writes plus background worker loop composition.
+P25 should continue from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 9 and add real ffmpeg converter execution plus target bootstrap config.

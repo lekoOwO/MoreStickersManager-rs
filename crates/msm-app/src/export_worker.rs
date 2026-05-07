@@ -1,23 +1,31 @@
-use std::path::PathBuf;
+use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc, time::Duration};
 
 use msm_exporters::{
-    MoreStickersExportTarget, TelegramExportOptions, TelegramExportPlanner, TelegramStickerSetType,
-    TelegramTargetConfig, TelegramTargetError,
+    MoreStickersExportTarget, PlannedTelegramSticker, TelegramExportOptions, TelegramExportPlanner,
+    TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
 };
 use msm_storage::{
-    models::{ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJobEvent},
+    models::{
+        ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJobEvent,
+        NewPreparedMediaAsset,
+    },
     StorageRepository,
 };
+use sha2::{Digest, Sha256};
 
 /// Export worker runtime configuration.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ExportWorkerConfig {
+    /// Whether the service should spawn a background worker loop.
+    pub enabled: bool,
     /// `ffmpeg` executable path used by later conversion execution.
     pub ffmpeg_path: PathBuf,
     /// `ffprobe` executable path used by later probing execution.
     pub ffprobe_path: PathBuf,
     /// Maximum jobs a future background loop may run concurrently.
     pub max_concurrent_jobs: usize,
+    /// Poll interval for the background worker loop.
+    pub poll_interval: Duration,
 }
 
 /// Export worker result type.
@@ -66,6 +74,109 @@ pub enum ExportWorkerError {
     /// Export job has too many events to assign an `i64` sequence.
     #[error("export job event sequence overflow")]
     EventSequenceOverflow,
+
+    /// Planned sticker references a source sticker that is missing from the source pack.
+    #[error("planned sticker source not found: {sticker_id}")]
+    StickerNotFound {
+        /// Missing sticker compatibility ID.
+        sticker_id: String,
+    },
+
+    /// Planned media profile is unknown to the worker.
+    #[error("unknown media profile key: {profile_key}")]
+    UnknownMediaProfile {
+        /// Unknown media profile key.
+        profile_key: String,
+    },
+}
+
+/// Request passed from the worker to a prepared media executor.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PreparedMediaRequest {
+    /// Source sticker compatibility ID.
+    pub sticker_id: String,
+    /// Source image URL or future local asset URI.
+    pub source_uri: String,
+    /// Stable hash of the source asset identity.
+    pub source_asset_hash: String,
+    /// Target media profile key.
+    pub profile_key: String,
+    /// Expected output MIME type.
+    pub mime_type: String,
+    /// Expected output file extension.
+    pub extension: String,
+    /// Expected output width.
+    pub width_px: i64,
+    /// Expected output height.
+    pub height_px: i64,
+    /// Expected output duration for animated/video outputs.
+    pub duration_ms: Option<i64>,
+}
+
+/// Prepared media executor output cached by the worker.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PreparedMediaOutput {
+    /// Stable hash of the source asset identity.
+    pub source_asset_hash: String,
+    /// Target media profile key.
+    pub profile_key: String,
+    /// Prepared output asset key.
+    pub output_asset_key: String,
+    /// Output MIME type.
+    pub mime_type: String,
+    /// Output width.
+    pub width_px: i64,
+    /// Output height.
+    pub height_px: i64,
+    /// Output duration for animated/video outputs.
+    pub duration_ms: Option<i64>,
+    /// Prepared output size.
+    pub file_size_bytes: i64,
+}
+
+/// Boundary for converting or preparing target-specific media.
+pub trait PreparedMediaExecutor: std::fmt::Debug + Send + Sync {
+    /// Prepares one media output.
+    fn prepare(
+        &self,
+        request: PreparedMediaRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<Option<PreparedMediaOutput>>> + Send + '_>>;
+}
+
+#[derive(Debug)]
+struct SkippingPreparedMediaExecutor;
+
+impl PreparedMediaExecutor for SkippingPreparedMediaExecutor {
+    fn prepare(
+        &self,
+        _request: PreparedMediaRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<Option<PreparedMediaOutput>>> + Send + '_>>
+    {
+        Box::pin(async { Ok(None) })
+    }
+}
+
+/// Spawns the export worker loop when enabled by configuration.
+#[must_use]
+pub fn spawn_export_worker_if_enabled(
+    repository: StorageRepository,
+    config: ExportWorkerConfig,
+) -> Option<tokio::task::JoinHandle<()>> {
+    if !config.enabled {
+        return None;
+    }
+
+    Some(tokio::spawn(async move {
+        let poll_interval = config.poll_interval;
+        let worker = ExportWorker::new(repository, config);
+        let mut interval = tokio::time::interval(poll_interval);
+        loop {
+            interval.tick().await;
+            if worker.run_next_queued().await.is_err() {
+                interval.tick().await;
+            }
+        }
+    }))
 }
 
 /// Single-job export worker.
@@ -73,13 +184,28 @@ pub enum ExportWorkerError {
 pub struct ExportWorker {
     repository: StorageRepository,
     config: ExportWorkerConfig,
+    media_executor: Arc<dyn PreparedMediaExecutor>,
 }
 
 impl ExportWorker {
     /// Creates a worker from storage and runtime configuration.
     #[must_use]
     pub fn new(repository: StorageRepository, config: ExportWorkerConfig) -> Self {
-        Self { repository, config }
+        Self::with_media_executor(repository, config, Arc::new(SkippingPreparedMediaExecutor))
+    }
+
+    /// Creates a worker with an explicit prepared media executor.
+    #[must_use]
+    pub fn with_media_executor(
+        repository: StorageRepository,
+        config: ExportWorkerConfig,
+        media_executor: Arc<dyn PreparedMediaExecutor>,
+    ) -> Self {
+        Self {
+            repository,
+            config,
+            media_executor,
+        }
     }
 
     /// Runs the oldest queued job if one exists.
@@ -180,14 +306,17 @@ impl ExportWorker {
                     byte_len: artifact.contents.len(),
                 })
             }
-            "telegram" => self.plan_telegram_job(job, &target, &pack.sticker_pack),
+            "telegram" => {
+                self.plan_telegram_job(job, &target, &pack.sticker_pack)
+                    .await
+            }
             kind => Err(ExportWorkerError::UnsupportedTargetKind {
                 kind: kind.to_owned(),
             }),
         }
     }
 
-    fn plan_telegram_job(
+    async fn plan_telegram_job(
         &self,
         job: &ExportJobRecord,
         target: &ExportTargetRecord,
@@ -215,6 +344,10 @@ impl ExportWorker {
             },
         )?;
 
+        let prepared_media = self
+            .prepare_telegram_media(pack, &plan.initial_stickers, &plan.append_stickers)
+            .await?;
+
         Ok(WorkerJobResult::TelegramDryRun {
             target_kind: target.kind.clone(),
             sticker_set_name: plan.sticker_set_name,
@@ -228,8 +361,67 @@ impl ExportWorker {
                 .collect(),
             ffmpeg_path: self.config.ffmpeg_path.display().to_string(),
             ffprobe_path: self.config.ffprobe_path.display().to_string(),
+            prepared_media,
             dry_run: true,
         })
+    }
+
+    async fn prepare_telegram_media(
+        &self,
+        pack: &msm_domain::StickerPack,
+        initial_stickers: &[PlannedTelegramSticker],
+        append_stickers: &[PlannedTelegramSticker],
+    ) -> ExportWorkerResult<Vec<CachedPreparedMediaSummary>> {
+        let mut prepared = Vec::new();
+        for planned in initial_stickers.iter().chain(append_stickers.iter()) {
+            let source = pack
+                .stickers
+                .iter()
+                .find(|sticker| sticker.id == planned.sticker_id)
+                .ok_or_else(|| ExportWorkerError::StickerNotFound {
+                    sticker_id: planned.sticker_id.clone(),
+                })?;
+            let profile = media_profile_for_key(&planned.target_profile_key)?;
+            let source_hash = source_asset_hash(&source.image);
+            let output = self
+                .media_executor
+                .prepare(PreparedMediaRequest {
+                    sticker_id: planned.sticker_id.clone(),
+                    source_uri: source.image.clone(),
+                    source_asset_hash: source_hash,
+                    profile_key: planned.target_profile_key.clone(),
+                    mime_type: profile.mime_type.to_owned(),
+                    extension: profile.extension.to_owned(),
+                    width_px: profile.width_px,
+                    height_px: profile.height_px,
+                    duration_ms: profile.duration_ms,
+                })
+                .await?;
+
+            if let Some(output) = output {
+                self.repository
+                    .upsert_prepared_media_asset(NewPreparedMediaAsset {
+                        source_asset_hash: &output.source_asset_hash,
+                        profile_key: &output.profile_key,
+                        output_asset_key: &output.output_asset_key,
+                        mime_type: &output.mime_type,
+                        width_px: output.width_px,
+                        height_px: output.height_px,
+                        duration_ms: output.duration_ms,
+                        file_size_bytes: output.file_size_bytes,
+                    })
+                    .await?;
+                prepared.push(CachedPreparedMediaSummary {
+                    source_asset_hash: output.source_asset_hash,
+                    profile_key: output.profile_key,
+                    output_asset_key: output.output_asset_key,
+                    mime_type: output.mime_type,
+                    file_size_bytes: output.file_size_bytes,
+                });
+            }
+        }
+
+        Ok(prepared)
     }
 
     async fn append_event(
@@ -280,6 +472,16 @@ struct WorkerTelegramOptions {
     existing_sticker_set_names: Vec<String>,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CachedPreparedMediaSummary {
+    source_asset_hash: String,
+    profile_key: String,
+    output_asset_key: String,
+    mime_type: String,
+    file_size_bytes: i64,
+}
+
 #[derive(Debug, serde::Serialize)]
 #[serde(
     rename_all = "camelCase",
@@ -301,6 +503,43 @@ enum WorkerJobResult {
         media_profile_keys: Vec<String>,
         ffmpeg_path: String,
         ffprobe_path: String,
+        prepared_media: Vec<CachedPreparedMediaSummary>,
         dry_run: bool,
     },
+}
+
+#[derive(Clone, Copy, Debug)]
+struct MediaProfileSummary {
+    mime_type: &'static str,
+    extension: &'static str,
+    width_px: i64,
+    height_px: i64,
+    duration_ms: Option<i64>,
+}
+
+fn media_profile_for_key(profile_key: &str) -> ExportWorkerResult<MediaProfileSummary> {
+    match profile_key {
+        "telegram.sticker.static.v1" => Ok(MediaProfileSummary {
+            mime_type: "image/png",
+            extension: "png",
+            width_px: 512,
+            height_px: 512,
+            duration_ms: None,
+        }),
+        "telegram.sticker.video.v1" => Ok(MediaProfileSummary {
+            mime_type: "video/webm",
+            extension: "webm",
+            width_px: 512,
+            height_px: 512,
+            duration_ms: Some(3_000),
+        }),
+        _ => Err(ExportWorkerError::UnknownMediaProfile {
+            profile_key: profile_key.to_owned(),
+        }),
+    }
+}
+
+fn source_asset_hash(source_uri: &str) -> String {
+    let digest = Sha256::digest(source_uri.as_bytes());
+    format!("sha256:{digest:x}")
 }

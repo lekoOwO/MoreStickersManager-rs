@@ -15,9 +15,10 @@ Last completed:
 - Task 7 Telegram export planner: added Telegram set name normalization, size checks, initial/append batching, create-only conflict handling, media profile mapping, and teloxide `InputSticker` conversion planning.
 - Task 8 export API and OpenAPI: added export permissions, target kind/target CRUD routes, queued job creation, job status/event reads, token-redacted target responses, and OpenAPI schemas.
 - Task 9 export worker foundation: added worker config, queued job pickup, running/succeeded/failed transitions, job events, MoreStickers artifact execution, and Telegram dry-run planning without network calls.
+- Task 9 worker cache/loop slice: added prepared media executor boundary, prepared media cache writes, worker enabled/poll interval config, and optional service worker loop spawning.
 
 Current task:
-- Continue Task 9 Worker Execution from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`, specifically real converter execution/cache writes and background loop composition.
+- Continue Task 9 Worker Execution from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`, specifically real ffmpeg process execution and target bootstrap config.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -31,9 +32,10 @@ Last verification:
 - Task 7: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
 - Task 8: `cargo test -p msm-api --locked`; `cargo clippy -p msm-api -p msm-storage -p msm-domain --all-targets --locked -- -D warnings`; `git diff --check`.
 - Task 9 foundation: `cargo test -p msm-app --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+- Task 9 cache/loop: `cargo test -p msm-app --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
 
 Next step:
-- Task 9 continuation: add converter execution/cache writes and decide how the service starts/stops the worker loop.
+- Task 9 continuation: add real ffmpeg converter execution using the prepared media executor boundary, then target bootstrap configuration.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -150,11 +150,14 @@
 
 - [x] Add worker config for ffmpeg path, ffprobe path, and max concurrent jobs.
 - [x] Implement queued job polling, running status transition, event recording, exporter execution foundation, success result recording, and failure recording.
-- [ ] Implement real converter execution and prepared media cache writes.
-- [ ] Implement target bootstrap config and background loop composition.
+- [x] Implement prepared media executor boundary and prepared media cache writes.
+- [ ] Implement real ffmpeg converter process execution.
+- [ ] Implement target bootstrap config.
+- [x] Implement background loop composition behind `MSM_EXPORT_WORKER_ENABLED`.
 - [x] Test a mocked MoreStickers export job and a mocked Telegram dry-run export job without real Telegram network access.
 - [x] Run `cargo test -p msm-app --locked`.
 - [x] Commit worker foundation with message `feat: add export worker foundation`.
+- [x] Commit worker cache/loop slice with message `feat: add export worker cache loop`.
 
 ## Task 10: CLI And MCP Parity
 

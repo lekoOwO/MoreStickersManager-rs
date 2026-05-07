@@ -74,7 +74,8 @@ arguments for static, video, and thumbnail outputs, normalize Telegram sticker
 set names, split create/append batches, enforce Telegram set size limits, and
 prepare teloxide `InputSticker` data. Protected API routes can manage export
 targets, queue export jobs, and read job status/events. The app worker can run
-queued MoreStickers serialization jobs and Telegram dry-run planning jobs. MSM
+queued MoreStickers serialization jobs and Telegram dry-run planning jobs, and
+can write prepared media cache records through its media executor boundary. MSM
 cannot yet run ffmpeg, upload stickers, create Telegram sticker sets, or expose
 export jobs in Web/CLI/MCP surfaces.
 

@@ -88,8 +88,9 @@ and teloxide `InputSticker` values without network calls. Protected API/OpenAPI
 routes can list export capabilities, manage export targets with redacted config
 responses, queue export jobs, and read job status/events. The app worker can run
 MoreStickers serialization jobs and Telegram dry-run planning jobs from queued
-records. Real ffmpeg execution, Telegram upload/set creation, and background
-worker loop composition are still planned in
+records, optionally poll in the service process, and write prepared media cache
+records through the media executor boundary. Real ffmpeg execution, Telegram
+upload/set creation, and target bootstrap config are still planned in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice
@@ -147,6 +148,8 @@ Environment variables:
 - `MSM_FFMPEG_PATH`: ffmpeg path for future export conversion execution, default `ffmpeg`.
 - `MSM_FFPROBE_PATH`: ffprobe path for future export probing execution, default `ffprobe`.
 - `MSM_EXPORT_MAX_CONCURRENT_JOBS`: future export worker concurrency, default `1`.
+- `MSM_EXPORT_WORKER_ENABLED`: set to `true` to spawn the export worker polling loop, default `false`.
+- `MSM_EXPORT_WORKER_POLL_INTERVAL_MS`: export worker poll interval, default `5000`.
 
 When `apps/web/dist` exists before `cargo build -p msm-app`, P10 embeds that
 dist into the binary. If dist is missing, the binary embeds a small placeholder

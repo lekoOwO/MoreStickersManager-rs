@@ -5,6 +5,7 @@ use std::{
     env,
     net::{AddrParseError, SocketAddr},
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use axum::{
@@ -21,7 +22,10 @@ use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 
 pub mod export_worker;
 
-pub use export_worker::{ExportWorker, ExportWorkerConfig, ExportWorkerError, ExportWorkerResult};
+pub use export_worker::{
+    spawn_export_worker_if_enabled, ExportWorker, ExportWorkerConfig, ExportWorkerError,
+    ExportWorkerResult, PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest,
+};
 
 static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");
 
@@ -62,6 +66,8 @@ impl AppConfig {
     pub const DEFAULT_FFMPEG_PATH: &'static str = "ffmpeg";
     pub const DEFAULT_FFPROBE_PATH: &'static str = "ffprobe";
     pub const DEFAULT_EXPORT_MAX_CONCURRENT_JOBS: usize = 1;
+    pub const DEFAULT_EXPORT_WORKER_ENABLED: bool = false;
+    pub const DEFAULT_EXPORT_WORKER_POLL_INTERVAL_MS: u64 = 5_000;
 
     /// Reads service configuration from process environment variables.
     ///
@@ -96,6 +102,11 @@ impl AppConfig {
             asset_dir: PathBuf::from(read(vars, "MSM_ASSET_DIR", Self::DEFAULT_ASSET_DIR)),
             web_dist_dir: PathBuf::from(read(vars, "MSM_WEB_DIST_DIR", Self::DEFAULT_WEB_DIST_DIR)),
             export_worker: ExportWorkerConfig {
+                enabled: read_bool(
+                    vars,
+                    "MSM_EXPORT_WORKER_ENABLED",
+                    Self::DEFAULT_EXPORT_WORKER_ENABLED,
+                )?,
                 ffmpeg_path: PathBuf::from(read(
                     vars,
                     "MSM_FFMPEG_PATH",
@@ -107,6 +118,11 @@ impl AppConfig {
                     Self::DEFAULT_FFPROBE_PATH,
                 )),
                 max_concurrent_jobs,
+                poll_interval: Duration::from_millis(read_u64(
+                    vars,
+                    "MSM_EXPORT_WORKER_POLL_INTERVAL_MS",
+                    Self::DEFAULT_EXPORT_WORKER_POLL_INTERVAL_MS,
+                )?),
             },
         })
     }
@@ -189,6 +205,38 @@ fn read_usize(vars: &BTreeMap<String, String>, key: &str, default: usize) -> App
     }
 }
 
+fn read_u64(vars: &BTreeMap<String, String>, key: &str, default: u64) -> AppResult<u64> {
+    let Some(value) = vars.get(key).filter(|value| !value.trim().is_empty()) else {
+        return Ok(default);
+    };
+    let parsed = value.parse::<u64>().map_err(|_| AppError::InvalidNumber {
+        key: key.to_owned(),
+        value: value.to_owned(),
+    })?;
+    if parsed == 0 {
+        Err(AppError::InvalidNumber {
+            key: key.to_owned(),
+            value: value.to_owned(),
+        })
+    } else {
+        Ok(parsed)
+    }
+}
+
+fn read_bool(vars: &BTreeMap<String, String>, key: &str, default: bool) -> AppResult<bool> {
+    let Some(value) = vars.get(key).filter(|value| !value.trim().is_empty()) else {
+        return Ok(default);
+    };
+    match value.to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        _ => Err(AppError::InvalidNumber {
+            key: key.to_owned(),
+            value: value.to_owned(),
+        }),
+    }
+}
+
 fn normalized_web_path(path: &str) -> Option<String> {
     let trimmed = path.trim_start_matches('/');
     let candidate = if trimmed.is_empty() || trimmed.ends_with('/') {
@@ -261,6 +309,11 @@ mod tests {
         assert_eq!(config.export_worker.ffmpeg_path, PathBuf::from("ffmpeg"));
         assert_eq!(config.export_worker.ffprobe_path, PathBuf::from("ffprobe"));
         assert_eq!(config.export_worker.max_concurrent_jobs, 1);
+        assert!(!config.export_worker.enabled);
+        assert_eq!(
+            config.export_worker.poll_interval,
+            std::time::Duration::from_secs(5)
+        );
     }
 
     #[test]
@@ -276,6 +329,11 @@ mod tests {
         vars.insert("MSM_FFMPEG_PATH".to_owned(), "bin/ffmpeg".to_owned());
         vars.insert("MSM_FFPROBE_PATH".to_owned(), "bin/ffprobe".to_owned());
         vars.insert("MSM_EXPORT_MAX_CONCURRENT_JOBS".to_owned(), "4".to_owned());
+        vars.insert("MSM_EXPORT_WORKER_ENABLED".to_owned(), "true".to_owned());
+        vars.insert(
+            "MSM_EXPORT_WORKER_POLL_INTERVAL_MS".to_owned(),
+            "250".to_owned(),
+        );
 
         let config = AppConfig::from_env_map(&vars).unwrap();
 
@@ -295,6 +353,11 @@ mod tests {
             PathBuf::from("bin/ffprobe")
         );
         assert_eq!(config.export_worker.max_concurrent_jobs, 4);
+        assert!(config.export_worker.enabled);
+        assert_eq!(
+            config.export_worker.poll_interval,
+            std::time::Duration::from_millis(250)
+        );
     }
 
     #[test]
@@ -315,6 +378,16 @@ mod tests {
         let error = AppConfig::from_env_map(&vars).expect_err("zero concurrency must fail");
 
         assert!(error.to_string().contains("MSM_EXPORT_MAX_CONCURRENT_JOBS"));
+    }
+
+    #[test]
+    fn config_rejects_invalid_export_worker_enabled_flag() {
+        let mut vars = BTreeMap::new();
+        vars.insert("MSM_EXPORT_WORKER_ENABLED".to_owned(), "maybe".to_owned());
+
+        let error = AppConfig::from_env_map(&vars).expect_err("invalid bool must fail");
+
+        assert!(error.to_string().contains("MSM_EXPORT_WORKER_ENABLED"));
     }
 
     #[test]

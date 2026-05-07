@@ -1,6 +1,9 @@
-use std::path::PathBuf;
+use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
-use msm_app::{ExportWorker, ExportWorkerConfig};
+use msm_app::{
+    ExportWorker, ExportWorkerConfig, ExportWorkerResult, PreparedMediaExecutor,
+    PreparedMediaOutput, PreparedMediaRequest,
+};
 use msm_domain::{Sticker, StickerPack};
 use msm_storage::{
     models::{ExportJobStatus, NewExportJob, NewExportTarget, PackVisibility},
@@ -68,7 +71,11 @@ async fn worker_plans_telegram_export_job_without_network_calls() {
     })
     .await
     .unwrap();
-    let worker = ExportWorker::new(repo, worker_config());
+    let worker = ExportWorker::with_media_executor(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+    );
 
     let completed = worker.run_job("job_telegram").await.unwrap();
 
@@ -81,6 +88,18 @@ async fn worker_plans_telegram_export_job_without_network_calls() {
     assert_eq!(result["appendStickerCount"], 0);
     assert_eq!(result["dryRun"], true);
     assert_eq!(result["mediaProfileKeys"][0], "telegram.sticker.static.v1");
+    let cached = repo
+        .find_prepared_media_asset(
+            result["preparedMedia"][0]["sourceAssetHash"]
+                .as_str()
+                .unwrap(),
+            "telegram.sticker.static.v1",
+        )
+        .await
+        .unwrap()
+        .expect("prepared media should be cached");
+    assert_eq!(cached.output_asset_key, "prepared/file.png");
+    assert_eq!(cached.mime_type, "image/png");
 }
 
 async fn seeded_repository() -> StorageRepository {
@@ -110,9 +129,11 @@ async fn seeded_repository() -> StorageRepository {
 
 fn worker_config() -> ExportWorkerConfig {
     ExportWorkerConfig {
+        enabled: false,
         ffmpeg_path: PathBuf::from("ffmpeg-test"),
         ffprobe_path: PathBuf::from("ffprobe-test"),
         max_concurrent_jobs: 1,
+        poll_interval: std::time::Duration::from_millis(100),
     }
 }
 
@@ -132,5 +153,29 @@ fn sample_pack() -> StickerPack {
         author: None,
         logo: sticker.clone(),
         stickers: vec![sticker],
+    }
+}
+
+#[derive(Debug)]
+struct FakePreparedMediaExecutor;
+
+impl PreparedMediaExecutor for FakePreparedMediaExecutor {
+    fn prepare(
+        &self,
+        request: PreparedMediaRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<Option<PreparedMediaOutput>>> + Send + '_>>
+    {
+        Box::pin(async move {
+            Ok(Some(PreparedMediaOutput {
+                source_asset_hash: request.source_asset_hash,
+                profile_key: request.profile_key,
+                output_asset_key: "prepared/file.png".to_owned(),
+                mime_type: request.mime_type,
+                width_px: request.width_px,
+                height_px: request.height_px,
+                duration_ms: request.duration_ms,
+                file_size_bytes: 512,
+            }))
+        })
     }
 }

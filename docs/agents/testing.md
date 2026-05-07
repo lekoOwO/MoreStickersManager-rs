@@ -561,4 +561,5 @@ These tests prove:
 - invalid worker concurrency is rejected;
 - the worker can pick and run a queued MoreStickers export job without remote calls;
 - the worker can plan a Telegram dry-run export job without network calls;
-- worker execution records running/succeeded states and ordered job events.
+- worker execution records running/succeeded states and ordered job events;
+- injected prepared media executors can write prepared media cache records for planned Telegram media.

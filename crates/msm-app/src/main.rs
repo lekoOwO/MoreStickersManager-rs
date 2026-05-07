@@ -5,6 +5,8 @@ use tokio::net::TcpListener;
 async fn main() -> AppResult<()> {
     let config = AppConfig::from_env()?;
     let state = initialize_state(&config).await?;
+    let _export_worker_handle =
+        msm_app::spawn_export_worker_if_enabled(state.repository().clone(), config.export_worker);
     let router = build_app_router(state, config.web_dist_dir);
     let listener = TcpListener::bind(config.bind_addr).await?;
     axum::serve(listener, router).await?;
