@@ -67,6 +67,14 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::exports::list_job_events),
         )
         .route(
+            "/api/v1/telegram-publications",
+            get(routes::exports::list_telegram_publications),
+        )
+        .route(
+            "/api/v1/telegram-publications/{publication_id}",
+            get(routes::exports::get_telegram_publication),
+        )
+        .route(
             "/api/v1/pats",
             get(routes::pats::list_pats).post(routes::pats::create_pat),
         )
@@ -87,7 +95,7 @@ mod tests {
 
     use msm_domain::{Permission, Sticker};
     use msm_storage::{
-        models::{NewExportJobEvent, NewExportTarget},
+        models::{NewExportJobEvent, NewExportTarget, NewTelegramPublication},
         DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
     };
     use tower::ServiceExt;
@@ -133,6 +141,10 @@ mod tests {
         assert!(json["paths"].get("/api/v1/export-target-kinds").is_some());
         assert!(json["paths"].get("/api/v1/export-targets").is_some());
         assert!(json["paths"].get("/api/v1/export-jobs").is_some());
+        assert!(json["paths"].get("/api/v1/telegram-publications").is_some());
+        assert!(json["paths"]
+            .get("/api/v1/telegram-publications/{publication_id}")
+            .is_some());
     }
 
     #[tokio::test]
@@ -730,6 +742,101 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn telegram_publication_routes_require_export_read_and_pack_owner() {
+        let state = seeded_state_with_publication().await;
+        state
+            .repository()
+            .create_user("user_2", "other@example.com", "Other")
+            .await
+            .unwrap();
+        let read_token = create_pat(&state, "pubread", "user_1", [Permission::ExportRead]).await;
+        let run_token = create_pat(&state, "pubrun", "user_1", [Permission::ExportRun]).await;
+        let other_read_token =
+            create_pat(&state, "otherpubread", "user_2", [Permission::ExportRead]).await;
+
+        let missing_scope = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/telegram-publications?packId=pack_1")
+                    .header("authorization", format!("Bearer {run_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing_scope.status(), StatusCode::FORBIDDEN);
+
+        let owner_mismatch = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/telegram-publications?packId=pack_1")
+                    .header("authorization", format!("Bearer {other_read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(owner_mismatch.status(), StatusCode::FORBIDDEN);
+
+        let list_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/telegram-publications?packId=pack_1")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_response.status(), StatusCode::OK);
+        let list_body = to_bytes(list_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let list: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
+        assert_eq!(list[0]["id"], "telegram_pub_1");
+        assert_eq!(list[0]["packId"], "pack_1");
+        assert_eq!(list[0]["targetId"], "target_telegram");
+        assert_eq!(list[0]["jobId"], "job_1");
+        assert_eq!(list[0]["stickerSetName"], "sample_by_msm_bot");
+        assert_eq!(
+            list[0]["stickerSetUrl"],
+            "https://t.me/addstickers/sample_by_msm_bot"
+        );
+        assert_eq!(list[0]["stickerCount"], 1);
+        assert_eq!(list[0]["stickerType"], "regular");
+
+        let get_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/telegram-publications/telegram_pub_1")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(get_response.status(), StatusCode::OK);
+        let get_body = to_bytes(get_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let publication: serde_json::Value = serde_json::from_slice(&get_body).unwrap();
+        assert_eq!(publication["id"], "telegram_pub_1");
+
+        let get_owner_mismatch = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/telegram-publications/telegram_pub_1")
+                    .header("authorization", format!("Bearer {other_read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(get_owner_mismatch.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
     async fn creates_lists_and_revokes_personal_access_token() {
         let state = test_state().await;
         state
@@ -1000,6 +1107,49 @@ mod tests {
                 Some("telegram"),
                 &sample_pack(),
             )
+            .await
+            .unwrap();
+        state
+    }
+
+    async fn seeded_state_with_publication() -> ApiState {
+        let state = seeded_state().await;
+        state
+            .repository()
+            .create_export_target(NewExportTarget {
+                id: "target_telegram",
+                tenant_id: "tenant_1",
+                kind: "telegram",
+                name: "Telegram",
+                config_json: r#"{"botUsername":"msm_bot","botToken":"123456:secret"}"#,
+                is_enabled: true,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_export_job(msm_storage::models::NewExportJob {
+                id: "job_1",
+                tenant_id: "tenant_1",
+                owner_user_id: "user_1",
+                source_pack_id: "pack_1",
+                target_id: "target_telegram",
+                request_json: r#"{"options":{"dryRun":false}}"#,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_telegram_publication(NewTelegramPublication {
+                id: "telegram_pub_1",
+                pack_id: "pack_1",
+                target_id: "target_telegram",
+                job_id: "job_1",
+                sticker_set_name: "sample_by_msm_bot",
+                sticker_set_url: "https://t.me/addstickers/sample_by_msm_bot",
+                sticker_count: 1,
+                sticker_type: "regular",
+            })
             .await
             .unwrap();
         state

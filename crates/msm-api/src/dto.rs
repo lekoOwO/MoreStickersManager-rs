@@ -114,6 +114,13 @@ pub struct ListExportTargetsQuery {
     pub tenant_id: String,
 }
 
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
+pub struct ListTelegramPublicationsQuery {
+    pub pack_id: String,
+}
+
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportTargetKindResponse {
@@ -192,6 +199,21 @@ pub struct ExportJobEventResponse {
     pub message: String,
     pub metadata: serde_json::Value,
     pub created_at: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TelegramPublicationResponse {
+    pub id: String,
+    pub pack_id: String,
+    pub target_id: String,
+    pub job_id: String,
+    pub sticker_set_name: String,
+    pub sticker_set_url: String,
+    pub sticker_count: i64,
+    pub sticker_type: String,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 impl From<PackVisibilityDto> for msm_storage::models::PackVisibility {

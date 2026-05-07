@@ -5,7 +5,9 @@ use axum::{
 };
 use msm_domain::Permission;
 use msm_exporters::{ExportCapabilities, ExportTarget, ExportTargetKind, MoreStickersExportTarget};
-use msm_storage::models::{ExportJobEventRecord, ExportJobRecord, ExportTargetRecord};
+use msm_storage::models::{
+    ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, TelegramPublicationRecord,
+};
 use msm_storage::models::{NewExportJob, NewExportTarget};
 
 use crate::{
@@ -13,7 +15,7 @@ use crate::{
     dto::{
         CreateExportJobRequest, CreateExportTargetRequest, ExportJobEventResponse,
         ExportJobResponse, ExportTargetKindResponse, ExportTargetResponse, ListExportTargetsQuery,
-        UpdateExportTargetRequest,
+        ListTelegramPublicationsQuery, TelegramPublicationResponse, UpdateExportTargetRequest,
     },
     ApiError, ApiResult, ApiState,
 };
@@ -338,6 +340,80 @@ pub async fn list_job_events(
         .map(Json)
 }
 
+/// Lists Telegram publications for one source pack.
+///
+/// # Errors
+///
+/// Returns an API error when the PAT lacks read scope, the pack does not exist, the PAT user does
+/// not own the pack, or storage fails.
+#[utoipa::path(
+    get,
+    path = "/api/v1/telegram-publications",
+    tag = "exports",
+    params(ListTelegramPublicationsQuery),
+    responses(
+        (status = 200, description = "Telegram publications for a pack", body = [TelegramPublicationResponse]),
+        (status = 401, description = "Missing or invalid PAT", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Missing export.read scope or pack ownership", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Pack not found", body = crate::error::ApiErrorBody)
+    )
+)]
+pub async fn list_telegram_publications(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Query(query): Query<ListTelegramPublicationsQuery>,
+) -> ApiResult<Json<Vec<TelegramPublicationResponse>>> {
+    let pat = require_pat(&headers, &state, Permission::ExportRead).await?;
+    let _pack = load_owned_pack(&state, &query.pack_id, &pat.user_id).await?;
+    let publications = state
+        .repository()
+        .list_telegram_publications_for_pack(&query.pack_id)
+        .await?;
+
+    Ok(Json(
+        publications
+            .into_iter()
+            .map(telegram_publication_response)
+            .collect(),
+    ))
+}
+
+/// Reads one Telegram publication by ID.
+///
+/// # Errors
+///
+/// Returns an API error when the PAT lacks read scope, the publication does not exist, the PAT user
+/// does not own the source pack, or storage fails.
+#[utoipa::path(
+    get,
+    path = "/api/v1/telegram-publications/{publication_id}",
+    tag = "exports",
+    params(("publication_id" = String, Path, description = "Telegram publication ID")),
+    responses(
+        (status = 200, description = "Telegram publication", body = TelegramPublicationResponse),
+        (status = 401, description = "Missing or invalid PAT", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Missing export.read scope or pack ownership", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Telegram publication not found", body = crate::error::ApiErrorBody)
+    )
+)]
+pub async fn get_telegram_publication(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+) -> ApiResult<Json<TelegramPublicationResponse>> {
+    let pat = require_pat(&headers, &state, Permission::ExportRead).await?;
+    let publication = state
+        .repository()
+        .find_telegram_publication(&publication_id)
+        .await?
+        .ok_or_else(|| {
+            ApiError::NotFound(format!("Telegram publication not found: {publication_id}"))
+        })?;
+    let _pack = load_owned_pack(&state, &publication.pack_id, &pat.user_id).await?;
+
+    Ok(Json(telegram_publication_response(publication)))
+}
+
 fn export_target_capabilities() -> Vec<ExportTargetKindResponse> {
     let mut capabilities = vec![
         MoreStickersExportTarget.capabilities(),
@@ -420,6 +496,21 @@ fn export_job_event_response(record: ExportJobEventRecord) -> ApiResult<ExportJo
     })
 }
 
+fn telegram_publication_response(record: TelegramPublicationRecord) -> TelegramPublicationResponse {
+    TelegramPublicationResponse {
+        id: record.id,
+        pack_id: record.pack_id,
+        target_id: record.target_id,
+        job_id: record.job_id,
+        sticker_set_name: record.sticker_set_name,
+        sticker_set_url: record.sticker_set_url,
+        sticker_count: record.sticker_count,
+        sticker_type: record.sticker_type,
+        created_at: record.created_at,
+        updated_at: record.updated_at,
+    }
+}
+
 async fn load_owned_job(
     state: &ApiState,
     job_id: &str,
@@ -435,6 +526,25 @@ async fn load_owned_job(
     } else {
         Err(ApiError::Forbidden(
             "PAT user does not own the export job".to_owned(),
+        ))
+    }
+}
+
+async fn load_owned_pack(
+    state: &ApiState,
+    pack_id: &str,
+    user_id: &str,
+) -> ApiResult<msm_storage::models::StickerPackRecord> {
+    let pack = state
+        .repository()
+        .find_sticker_pack_record(pack_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("sticker pack not found: {pack_id}")))?;
+    if pack.owner_user_id == user_id {
+        Ok(pack)
+    } else {
+        Err(ApiError::Forbidden(
+            "PAT user does not own the source pack".to_owned(),
         ))
     }
 }

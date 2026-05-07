@@ -9,7 +9,8 @@ use crate::{
         CreatedPersonalAccessTokenResponse, ExportJobEventResponse, ExportJobResponse,
         ExportTargetKindResponse, ExportTargetResponse, HealthResponse, ImportPackRequest,
         LocalUserResponse, LoginLocalUserRequest, PersonalAccessTokenResponse,
-        RegisterLocalUserRequest, UpdateExportTargetRequest, UpdatePackRequest,
+        RegisterLocalUserRequest, TelegramPublicationResponse, UpdateExportTargetRequest,
+        UpdatePackRequest,
     },
     error::ApiErrorBody,
     routes::{assets, auth, exports, health, packs, pats},
@@ -35,6 +36,8 @@ use crate::{
         exports::create_job,
         exports::get_job,
         exports::list_job_events,
+        exports::list_telegram_publications,
+        exports::get_telegram_publication,
         pats::create_pat,
         pats::list_pats,
         pats::revoke_pat
@@ -54,6 +57,7 @@ use crate::{
         CreateExportJobRequest,
         ExportJobResponse,
         ExportJobEventResponse,
+        TelegramPublicationResponse,
         CreatePersonalAccessTokenRequest,
         CreatedPersonalAccessTokenResponse,
         PersonalAccessTokenResponse
