@@ -203,16 +203,16 @@
 - Modify: `docs/status/current.md`
 - Modify: `docs/status/checkpoints.md`
 
-- [ ] Document provider versus export target boundaries.
-- [ ] Document Telegram export setup, ffmpeg dependency, privacy warning, CLI commands, MCP tools, and Web flow.
-- [ ] Update progressive disclosure docs with current implementation status and next phase.
-- [ ] Run `cargo fmt --all -- --check`.
-- [ ] Run `cargo clippy --workspace --all-targets --locked -- -D warnings`.
-- [ ] Run `cargo test --workspace --locked`.
-- [ ] Run `npm run web:typecheck`.
-- [ ] Run `npm run web:test`.
-- [ ] Run `npm run web:build`.
-- [ ] Commit with message `docs: document export pipeline`.
+- [x] Document provider versus export target boundaries.
+- [x] Document Telegram export setup, ffmpeg dependency, privacy warning, CLI commands, MCP tools, and Web flow.
+- [x] Update progressive disclosure docs with current implementation status and next phase.
+- [x] Run `cargo fmt --all -- --check`.
+- [x] Run `cargo clippy --workspace --all-targets --locked -- -D warnings`.
+- [x] Run `cargo test --workspace --locked`.
+- [x] Run `npm run web:typecheck`.
+- [x] Run `npm run web:test`.
+- [x] Run `npm run web:build`.
+- [x] Commit with message `docs: document export pipeline`.
 
 ## Self-Review
 

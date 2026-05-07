@@ -44,3 +44,20 @@ service appears on both sides.
 P24 plans a target-neutral export pipeline inspired by moe-sticker-bot. The
 pipeline should put format conversion in `msm-media`, target orchestration in
 `msm-exporters`, and Telegram Bot API calls in `msm-telegram`.
+
+## Export Target Status
+
+Implemented export target foundations:
+
+- `morestickers`: serializes canonical MSM packs as `.stickerpack` JSON while
+  preserving the existing MoreStickers compatibility contract.
+- `telegram`: has target capability metadata, Telegram set planning, media
+  profile selection, `teloxide` bot construction, Web/API/CLI/MCP target/job
+  management, and worker dry-run planning.
+
+Not implemented yet:
+
+- Telegram media upload and sticker set create/append execution through
+  `teloxide` requester methods.
+- Provider-side remote fetch/download orchestration.
+- Reconciliation policies for updating or deleting remote Telegram sticker sets.

@@ -333,3 +333,11 @@
 - Added Traditional Chinese and English labels for new export UI strings.
 - Added injected-client tests for wizard success, conflict errors, token redaction, Telegram token validation, and progress rendering.
 - Verified with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
+
+## 2026-05-07 Export Pipeline Documentation And Full Verification
+
+- Updated architecture docs with current CLI/MCP/Web export surfaces and worker boundaries.
+- Updated provider docs to clarify provider input adapters versus export targets and current Telegram export status.
+- Updated user docs with Telegram target setup, PAT scopes, ffmpeg/ffprobe configuration, export worker enablement, and current dry-run limitation.
+- Updated agent project map and testing docs for export workflow handoff.
+- Verified with `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked`, `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.

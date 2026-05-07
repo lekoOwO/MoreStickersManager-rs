@@ -6,13 +6,13 @@
 - `crates/msm-domain/src/authz.rs`: pure authorization policy primitives and evaluators.
 - `crates/msm-storage`: SQL storage primitives, local asset storage, portable export/import, PAT/local credential storage, and export target/job/prepared media persistence.
 - `crates/msm-api`: Axum API routes and utoipa OpenAPI generation, including export target/job routes.
-- `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete and PAT lifecycle commands.
+- `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete, PAT lifecycle commands, and export target/job commands.
 - `crates/msm-providers`: provider registry plus Telegram and LINE fixture normalizers.
 - `crates/msm-exporters`: export target trait, target kind keys, capability metadata, request/plan types, duplicate-safe registry, concrete `morestickers` export target, and Telegram sticker set planner.
 - `crates/msm-app`: runnable Axum service binary composing storage, API, assets, Web UI static serving, and export worker foundation.
-- `crates/msm-mcp`: MCP `/mcp` JSON-RPC endpoint with pack list/import/export/update/delete tools.
+- `crates/msm-mcp`: MCP `/mcp` JSON-RPC endpoint with pack list/import/export/update/delete tools and export target/job tools.
 - `crates/msm-media`: media profile foundation with source media kinds, Telegram static/video/thumbnail target profiles, prepared media specs, conversion plan selection, and shell-free ffmpeg command planning.
-- `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, protected API client, PAT panel, pack CRUD controls, and pack import UI.
+- `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, protected API clients, PAT panel, pack CRUD controls, pack import UI, export target panel, export wizard, and export job timeline.
 - `crates/msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling and Bot API URL configuration.
 - `components.json`: Shadcn Vue configuration for the Web UI workspace.
 - `docs/status`: current state and development log.
@@ -25,9 +25,9 @@
 - MCP auth/session/SSE hardening.
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.
-- Media probing, converter execution, and prepared media cache persistence.
-- Real converter execution, background export worker loop composition, and Telegram remote publication jobs.
-- Telegram Bot API sticker set creation and Web-managed export workflow.
+- Media probing through ffprobe.
+- Telegram remote publication jobs.
+- Telegram Bot API sticker upload and sticker set creation.
 
 Do not add cross-layer dependencies to `msm-domain`.
 For feature completion status, prefer `../status/implementation-matrix.md` over

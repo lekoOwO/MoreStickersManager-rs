@@ -8,14 +8,14 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-domain::authz`: pure authorization policy evaluation for pack and subscription access.
 - `msm-storage`: database repositories, asset storage, and export job persistence, added across P2/P12/P18/P21/Task 3.
 - `msm-api`: HTTP API and OpenAPI, added in P4 and extended with export target/job routes in Task 8.
-- `msm-cli`: command-line client, added in P5.
-- `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11.
+- `msm-cli`: command-line client, added in P5 and extended with export target/job commands in Task 10.
+- `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11 and extended with export target/job tools in Task 10.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
 - `msm-media`: media profile and command planning foundation added in P25; media probing, converter execution, and prepared output caching remain planned.
 - `msm-exporters`: export target trait, registry, MoreStickers export adapter, and Telegram export planner added in Tasks 4-7; remote execution and future output targets remain planned.
 - `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling and Bot API URL configuration.
 - `msm-app`: runnable service composition binary, added in P9 and extended with export worker foundation in Task 9.
-- `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7.
+- `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7 and extended with export target/job workflow controls in Task 11.
 
 ## Dependency Rule
 
@@ -61,7 +61,9 @@ prepared media cache records through an injected media executor and can be
 started as an optional polling loop. It also has a process-backed prepared media
 executor that runs shell-free ffmpeg command plans and returns output metadata.
 Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
-Telegram remote publication remains planned.
+Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds
+Web export target settings, Telegram token validation, export job queueing, and
+job event display. Telegram remote publication remains planned.
 
 No export target may mutate MoreStickers-compatible pack JSON as a side effect of
 publishing. Target-specific prepared media should be cached separately from the
@@ -75,6 +77,12 @@ The frontend must keep API access behind small client modules so later OpenAPI
 or handwritten HTTP clients can replace mock data without rewriting dashboard
 components. `apps/web/dist` is a build artifact and must remain ignored until a
 Rust embedding phase copies or embeds it intentionally.
+
+Export Web UI code follows the same boundary: `apps/web/src/lib/exportApi.ts`
+contains HTTP calls, while `ExportTargetPanel`, `PackExportWizard`, and
+`ExportJobTimeline` receive injectable clients for tests. The UI may queue and
+inspect jobs, but it must not duplicate worker conversion or Telegram publishing
+logic.
 
 ## Service Boundary
 
@@ -90,10 +98,11 @@ valid. Runtime serving is disk-first (`MSM_WEB_DIST_DIR`) and embedded-second.
 ## MCP Boundary
 
 `msm-mcp` owns MCP JSON-RPC request/response shapes, tool metadata, and tool
-execution for the current pack operations. It reuses `msm-api::ApiState` so the
+execution for pack and export operations. It reuses `msm-api::ApiState` so the
 service binary can mount `/mcp` next to the HTTP API. P11 intentionally supports
-JSON `POST` request/response only; Streamable HTTP SSE, session management, and
-PAT/RBAC enforcement belong to later auth and transport hardening phases.
+JSON `POST` request/response only; Streamable HTTP SSE and session management
+belong to later transport hardening phases. Pack and export tool calls currently
+enforce Bearer PAT scopes.
 
 ## PAT Boundary
 

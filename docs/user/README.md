@@ -93,6 +93,21 @@ Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
 targets such as a Telegram bot target before Web target settings exist.
 
+Telegram export setup today:
+
+- create or choose a Telegram bot and keep the bot token outside source control;
+- create a Telegram export target through the Web UI, CLI, MCP, API, or
+  `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`;
+- grant the PAT used by Web/CLI/MCP the `export.read`, `export.run`, and
+  `export.target.manage` scopes as needed;
+- install `ffmpeg` where `msm-app` can run it, or set `MSM_FFMPEG_PATH` and
+  `MSM_FFPROBE_PATH`;
+- set `MSM_EXPORT_WORKER_ENABLED=true` when you want the service process to poll
+  queued export jobs.
+
+The current Telegram worker path performs dry-run planning and media
+preparation. Actual Telegram upload and sticker set creation are still planned.
+
 Export target/job API endpoints and CLI commands now exist for queueing export
 jobs and reading their status/events. MCP tools and Web UI controls are also
 available for export targets and jobs.
