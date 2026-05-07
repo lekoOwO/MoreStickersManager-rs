@@ -562,4 +562,5 @@ These tests prove:
 - the worker can pick and run a queued MoreStickers export job without remote calls;
 - the worker can plan a Telegram dry-run export job without network calls;
 - worker execution records running/succeeded states and ordered job events;
-- injected prepared media executors can write prepared media cache records for planned Telegram media.
+- injected prepared media executors can write prepared media cache records for planned Telegram media;
+- process-backed prepared media execution uses shell-free conversion command plans and can be tested with an injected command runner instead of installed ffmpeg.

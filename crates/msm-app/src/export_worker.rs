@@ -1,9 +1,12 @@
-use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc, time::Duration};
+use std::{
+    future::Future, path::PathBuf, pin::Pin, process::ExitStatus, sync::Arc, time::Duration,
+};
 
 use msm_exporters::{
     MoreStickersExportTarget, PlannedTelegramSticker, TelegramExportOptions, TelegramExportPlanner,
     TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
 };
+use msm_media::{ConversionCommand, ConverterToolchain, PreparedMediaSpec, StickerTargetProfile};
 use msm_storage::{
     models::{
         ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJobEvent,
@@ -22,6 +25,8 @@ pub struct ExportWorkerConfig {
     pub ffmpeg_path: PathBuf,
     /// `ffprobe` executable path used by later probing execution.
     pub ffprobe_path: PathBuf,
+    /// Directory for prepared media outputs.
+    pub prepared_media_dir: PathBuf,
     /// Maximum jobs a future background loop may run concurrently.
     pub max_concurrent_jobs: usize,
     /// Poll interval for the background worker loop.
@@ -75,6 +80,17 @@ pub enum ExportWorkerError {
     #[error("export job event sequence overflow")]
     EventSequenceOverflow,
 
+    /// Converter process did not complete before its timeout.
+    #[error("converter timed out")]
+    ConverterTimeout,
+
+    /// Converter process exited unsuccessfully.
+    #[error("converter exited unsuccessfully: {status}")]
+    ConverterFailed {
+        /// Failed exit status.
+        status: ExitStatus,
+    },
+
     /// Planned sticker references a source sticker that is missing from the source pack.
     #[error("planned sticker source not found: {sticker_id}")]
     StickerNotFound {
@@ -88,6 +104,17 @@ pub enum ExportWorkerError {
         /// Unknown media profile key.
         profile_key: String,
     },
+
+    /// Prepared media output path does not have a parent directory.
+    #[error("prepared media output path has no parent: {path}")]
+    InvalidPreparedMediaPath {
+        /// Invalid output path.
+        path: PathBuf,
+    },
+
+    /// I/O operation failed.
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 /// Request passed from the worker to a prepared media executor.
@@ -143,16 +170,111 @@ pub trait PreparedMediaExecutor: std::fmt::Debug + Send + Sync {
     ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<Option<PreparedMediaOutput>>> + Send + '_>>;
 }
 
-#[derive(Debug)]
-struct SkippingPreparedMediaExecutor;
+/// Runs one planned converter command.
+pub trait ConversionCommandRunner: std::fmt::Debug + Send + Sync {
+    /// Executes one shell-free conversion command.
+    fn run(
+        &self,
+        command: ConversionCommand,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<()>> + Send + '_>>;
+}
 
-impl PreparedMediaExecutor for SkippingPreparedMediaExecutor {
+/// `tokio::process` command runner for real converter execution.
+#[derive(Debug)]
+pub struct TokioConversionCommandRunner;
+
+impl ConversionCommandRunner for TokioConversionCommandRunner {
+    fn run(
+        &self,
+        command: ConversionCommand,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<()>> + Send + '_>> {
+        Box::pin(async move {
+            let mut child = tokio::process::Command::new(command.executable())
+                .args(command.args())
+                .kill_on_drop(true)
+                .spawn()?;
+            let status = tokio::time::timeout(command.timeout(), child.wait())
+                .await
+                .map_err(|_| ExportWorkerError::ConverterTimeout)??;
+            if status.success() {
+                Ok(())
+            } else {
+                Err(ExportWorkerError::ConverterFailed { status })
+            }
+        })
+    }
+}
+
+/// Prepared media executor backed by a converter process.
+#[derive(Debug)]
+pub struct ProcessPreparedMediaExecutor {
+    ffmpeg_path: PathBuf,
+    output_dir: PathBuf,
+    runner: Arc<dyn ConversionCommandRunner>,
+}
+
+impl ProcessPreparedMediaExecutor {
+    /// Creates a process-backed media executor using `tokio::process`.
+    #[must_use]
+    pub fn new(ffmpeg_path: PathBuf, output_dir: PathBuf) -> Self {
+        Self::with_runner(
+            ffmpeg_path,
+            output_dir,
+            Arc::new(TokioConversionCommandRunner),
+        )
+    }
+
+    /// Creates a process-backed media executor with an injected command runner.
+    #[must_use]
+    pub fn with_runner(
+        ffmpeg_path: PathBuf,
+        output_dir: PathBuf,
+        runner: Arc<dyn ConversionCommandRunner>,
+    ) -> Self {
+        Self {
+            ffmpeg_path,
+            output_dir,
+            runner,
+        }
+    }
+}
+
+impl PreparedMediaExecutor for ProcessPreparedMediaExecutor {
     fn prepare(
         &self,
-        _request: PreparedMediaRequest,
+        request: PreparedMediaRequest,
     ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<Option<PreparedMediaOutput>>> + Send + '_>>
     {
-        Box::pin(async { Ok(None) })
+        Box::pin(async move {
+            let prepared_media = prepared_media_spec_for_key(&request.profile_key)?;
+            let output_asset_key = prepared_output_asset_key(&request);
+            let output_path = self.output_dir.join(&output_asset_key);
+            let Some(parent) = output_path.parent() else {
+                return Err(ExportWorkerError::InvalidPreparedMediaPath { path: output_path });
+            };
+            tokio::fs::create_dir_all(parent).await?;
+
+            let toolchain = ConverterToolchain::new(self.ffmpeg_path.clone());
+            let command = ConversionCommand::for_prepared_media(
+                &toolchain,
+                &prepared_media,
+                &PathBuf::from(&request.source_uri),
+                &output_path,
+            );
+            self.runner.run(command).await?;
+            let metadata = tokio::fs::metadata(&output_path).await?;
+
+            Ok(Some(PreparedMediaOutput {
+                source_asset_hash: request.source_asset_hash,
+                profile_key: request.profile_key,
+                output_asset_key,
+                mime_type: request.mime_type,
+                width_px: request.width_px,
+                height_px: request.height_px,
+                duration_ms: request.duration_ms,
+                file_size_bytes: i64::try_from(metadata.len()).unwrap_or(i64::MAX),
+            }))
+        })
     }
 }
 
@@ -191,7 +313,11 @@ impl ExportWorker {
     /// Creates a worker from storage and runtime configuration.
     #[must_use]
     pub fn new(repository: StorageRepository, config: ExportWorkerConfig) -> Self {
-        Self::with_media_executor(repository, config, Arc::new(SkippingPreparedMediaExecutor))
+        let media_executor = Arc::new(ProcessPreparedMediaExecutor::new(
+            config.ffmpeg_path.clone(),
+            config.prepared_media_dir.clone(),
+        ));
+        Self::with_media_executor(repository, config, media_executor)
     }
 
     /// Creates a worker with an explicit prepared media executor.
@@ -539,7 +665,30 @@ fn media_profile_for_key(profile_key: &str) -> ExportWorkerResult<MediaProfileSu
     }
 }
 
+fn prepared_media_spec_for_key(profile_key: &str) -> ExportWorkerResult<PreparedMediaSpec> {
+    match profile_key {
+        "telegram.sticker.static.v1" => Ok(PreparedMediaSpec::new(
+            StickerTargetProfile::telegram_static_sticker(),
+            "image/png",
+            "png",
+        )),
+        "telegram.sticker.video.v1" => Ok(PreparedMediaSpec::new(
+            StickerTargetProfile::telegram_video_sticker(),
+            "video/webm",
+            "webm",
+        )),
+        _ => Err(ExportWorkerError::UnknownMediaProfile {
+            profile_key: profile_key.to_owned(),
+        }),
+    }
+}
+
 fn source_asset_hash(source_uri: &str) -> String {
     let digest = Sha256::digest(source_uri.as_bytes());
     format!("sha256:{digest:x}")
+}
+
+fn prepared_output_asset_key(request: &PreparedMediaRequest) -> String {
+    let safe_hash = request.source_asset_hash.replace([':', '/'], "_");
+    format!("{}/{safe_hash}.{}", request.profile_key, request.extension)
 }

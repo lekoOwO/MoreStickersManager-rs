@@ -89,8 +89,9 @@ routes can list export capabilities, manage export targets with redacted config
 responses, queue export jobs, and read job status/events. The app worker can run
 MoreStickers serialization jobs and Telegram dry-run planning jobs from queued
 records, optionally poll in the service process, and write prepared media cache
-records through the media executor boundary. Real ffmpeg execution, Telegram
-upload/set creation, and target bootstrap config are still planned in
+records through the media executor boundary. Process-backed ffmpeg execution is
+available through shell-free command plans. Telegram upload/set creation and
+target bootstrap config are still planned in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice
@@ -147,6 +148,7 @@ Environment variables:
 - `MSM_WEB_DIST_DIR`: Web UI dist directory, default `apps/web/dist`.
 - `MSM_FFMPEG_PATH`: ffmpeg path for future export conversion execution, default `ffmpeg`.
 - `MSM_FFPROBE_PATH`: ffprobe path for future export probing execution, default `ffprobe`.
+- `MSM_PREPARED_MEDIA_DIR`: prepared media output directory, default `data/prepared-media`.
 - `MSM_EXPORT_MAX_CONCURRENT_JOBS`: future export worker concurrency, default `1`.
 - `MSM_EXPORT_WORKER_ENABLED`: set to `true` to spawn the export worker polling loop, default `false`.
 - `MSM_EXPORT_WORKER_POLL_INTERVAL_MS`: export worker poll interval, default `5000`.

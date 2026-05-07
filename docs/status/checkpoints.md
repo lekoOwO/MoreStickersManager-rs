@@ -289,3 +289,11 @@
 - Added worker enabled and poll interval configuration through `MSM_EXPORT_WORKER_ENABLED` and `MSM_EXPORT_WORKER_POLL_INTERVAL_MS`.
 - Added optional service startup composition for the export worker polling loop.
 - Verified with `cargo test -p msm-app --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Process Prepared Media Executor
+
+- Added a process-backed prepared media executor for ffmpeg-compatible conversion execution.
+- Reused `msm-media` shell-free conversion command planning from the app worker.
+- Added converter timeout handling, non-zero exit status errors, output directory creation, and prepared output metadata reads.
+- Added tests with an injected command runner so verification does not require ffmpeg to be installed.
+- Verified with `cargo test -p msm-app --locked` and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.

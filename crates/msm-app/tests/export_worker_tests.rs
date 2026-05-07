@@ -1,10 +1,11 @@
 use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
 use msm_app::{
-    ExportWorker, ExportWorkerConfig, ExportWorkerResult, PreparedMediaExecutor,
-    PreparedMediaOutput, PreparedMediaRequest,
+    ConversionCommandRunner, ExportWorker, ExportWorkerConfig, ExportWorkerResult,
+    PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest, ProcessPreparedMediaExecutor,
 };
 use msm_domain::{Sticker, StickerPack};
+use msm_media::ConversionCommand;
 use msm_storage::{
     models::{ExportJobStatus, NewExportJob, NewExportTarget, PackVisibility},
     DatabaseConfig, DbPool, StorageRepository,
@@ -102,6 +103,39 @@ async fn worker_plans_telegram_export_job_without_network_calls() {
     assert_eq!(cached.mime_type, "image/png");
 }
 
+#[tokio::test]
+async fn process_prepared_media_executor_runs_command_and_returns_output_metadata() {
+    let output_dir = tempfile::tempdir().unwrap();
+    let executor = ProcessPreparedMediaExecutor::with_runner(
+        PathBuf::from("ffmpeg-test"),
+        output_dir.path().to_path_buf(),
+        Arc::new(WritingCommandRunner),
+    );
+
+    let output = executor
+        .prepare(PreparedMediaRequest {
+            sticker_id: "sticker_1".to_owned(),
+            source_uri: "source.webp".to_owned(),
+            source_asset_hash: "sha256:source".to_owned(),
+            profile_key: "telegram.sticker.static.v1".to_owned(),
+            mime_type: "image/png".to_owned(),
+            extension: "png".to_owned(),
+            width_px: 512,
+            height_px: 512,
+            duration_ms: None,
+        })
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        output.output_asset_key,
+        "telegram.sticker.static.v1/sha256_source.png"
+    );
+    assert_eq!(output.mime_type, "image/png");
+    assert_eq!(output.file_size_bytes, 14);
+}
+
 async fn seeded_repository() -> StorageRepository {
     let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
     let pool = DbPool::connect(&config).await.unwrap();
@@ -132,6 +166,7 @@ fn worker_config() -> ExportWorkerConfig {
         enabled: false,
         ffmpeg_path: PathBuf::from("ffmpeg-test"),
         ffprobe_path: PathBuf::from("ffprobe-test"),
+        prepared_media_dir: PathBuf::from("prepared-test"),
         max_concurrent_jobs: 1,
         poll_interval: std::time::Duration::from_millis(100),
     }
@@ -176,6 +211,21 @@ impl PreparedMediaExecutor for FakePreparedMediaExecutor {
                 duration_ms: request.duration_ms,
                 file_size_bytes: 512,
             }))
+        })
+    }
+}
+
+#[derive(Debug)]
+struct WritingCommandRunner;
+
+impl ConversionCommandRunner for WritingCommandRunner {
+    fn run(
+        &self,
+        command: ConversionCommand,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<()>> + Send + '_>> {
+        Box::pin(async move {
+            tokio::fs::write(command.output_path(), b"prepared-bytes").await?;
+            Ok(())
         })
     }
 }

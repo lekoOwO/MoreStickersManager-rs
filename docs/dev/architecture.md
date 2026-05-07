@@ -58,8 +58,9 @@ execution owns that state transition.
 Task 9 currently has a worker foundation that can run MoreStickers serialization
 jobs and Telegram dry-run planning jobs from queued storage records. It can write
 prepared media cache records through an injected media executor and can be
-started as an optional polling loop. Real ffmpeg process execution, target
-bootstrap config, and Telegram remote publication remain planned.
+started as an optional polling loop. It also has a process-backed prepared media
+executor that runs shell-free ffmpeg command plans and returns output metadata.
+Target bootstrap config and Telegram remote publication remain planned.
 
 No export target may mutate MoreStickers-compatible pack JSON as a side effect of
 publishing. Target-specific prepared media should be cached separately from the

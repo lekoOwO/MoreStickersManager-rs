@@ -76,8 +76,9 @@ prepare teloxide `InputSticker` data. Protected API routes can manage export
 targets, queue export jobs, and read job status/events. The app worker can run
 queued MoreStickers serialization jobs and Telegram dry-run planning jobs, and
 can write prepared media cache records through its media executor boundary. MSM
-cannot yet run ffmpeg, upload stickers, create Telegram sticker sets, or expose
-export jobs in Web/CLI/MCP surfaces.
+has a process-backed ffmpeg executor for prepared media conversion, but cannot
+yet upload stickers, create Telegram sticker sets, or expose export jobs in
+Web/CLI/MCP surfaces.
 
 Export target/job tables now exist in storage for later API and worker phases,
 but there are no user-facing export job endpoints yet.

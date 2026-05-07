@@ -23,8 +23,9 @@ use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 pub mod export_worker;
 
 pub use export_worker::{
-    spawn_export_worker_if_enabled, ExportWorker, ExportWorkerConfig, ExportWorkerError,
-    ExportWorkerResult, PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest,
+    spawn_export_worker_if_enabled, ConversionCommandRunner, ExportWorker, ExportWorkerConfig,
+    ExportWorkerError, ExportWorkerResult, PreparedMediaExecutor, PreparedMediaOutput,
+    PreparedMediaRequest, ProcessPreparedMediaExecutor,
 };
 
 static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");
@@ -65,6 +66,7 @@ impl AppConfig {
     pub const DEFAULT_WEB_DIST_DIR: &'static str = "apps/web/dist";
     pub const DEFAULT_FFMPEG_PATH: &'static str = "ffmpeg";
     pub const DEFAULT_FFPROBE_PATH: &'static str = "ffprobe";
+    pub const DEFAULT_PREPARED_MEDIA_DIR: &'static str = "data/prepared-media";
     pub const DEFAULT_EXPORT_MAX_CONCURRENT_JOBS: usize = 1;
     pub const DEFAULT_EXPORT_WORKER_ENABLED: bool = false;
     pub const DEFAULT_EXPORT_WORKER_POLL_INTERVAL_MS: u64 = 5_000;
@@ -116,6 +118,11 @@ impl AppConfig {
                     vars,
                     "MSM_FFPROBE_PATH",
                     Self::DEFAULT_FFPROBE_PATH,
+                )),
+                prepared_media_dir: PathBuf::from(read(
+                    vars,
+                    "MSM_PREPARED_MEDIA_DIR",
+                    Self::DEFAULT_PREPARED_MEDIA_DIR,
                 )),
                 max_concurrent_jobs,
                 poll_interval: Duration::from_millis(read_u64(
@@ -308,6 +315,10 @@ mod tests {
         assert_eq!(config.web_dist_dir, PathBuf::from("apps/web/dist"));
         assert_eq!(config.export_worker.ffmpeg_path, PathBuf::from("ffmpeg"));
         assert_eq!(config.export_worker.ffprobe_path, PathBuf::from("ffprobe"));
+        assert_eq!(
+            config.export_worker.prepared_media_dir,
+            PathBuf::from("data/prepared-media")
+        );
         assert_eq!(config.export_worker.max_concurrent_jobs, 1);
         assert!(!config.export_worker.enabled);
         assert_eq!(
@@ -328,6 +339,10 @@ mod tests {
         vars.insert("MSM_WEB_DIST_DIR".to_owned(), "tmp/web".to_owned());
         vars.insert("MSM_FFMPEG_PATH".to_owned(), "bin/ffmpeg".to_owned());
         vars.insert("MSM_FFPROBE_PATH".to_owned(), "bin/ffprobe".to_owned());
+        vars.insert(
+            "MSM_PREPARED_MEDIA_DIR".to_owned(),
+            "tmp/prepared".to_owned(),
+        );
         vars.insert("MSM_EXPORT_MAX_CONCURRENT_JOBS".to_owned(), "4".to_owned());
         vars.insert("MSM_EXPORT_WORKER_ENABLED".to_owned(), "true".to_owned());
         vars.insert(
@@ -351,6 +366,10 @@ mod tests {
         assert_eq!(
             config.export_worker.ffprobe_path,
             PathBuf::from("bin/ffprobe")
+        );
+        assert_eq!(
+            config.export_worker.prepared_media_dir,
+            PathBuf::from("tmp/prepared")
         );
         assert_eq!(config.export_worker.max_concurrent_jobs, 4);
         assert!(config.export_worker.enabled);
