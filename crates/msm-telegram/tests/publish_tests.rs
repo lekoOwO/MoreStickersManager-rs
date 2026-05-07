@@ -2,8 +2,8 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use msm_telegram::{
-    publish_sticker_set, TelegramPublishRequest, TelegramPublishSticker, TelegramPublishedSet,
-    TelegramStickerSetApi,
+    publish_sticker_set, TelegramBotConfig, TelegramPublishRequest, TelegramPublishSticker,
+    TelegramPublishedSet, TelegramStickerSetApi, TeloxideTelegramStickerSetApi,
 };
 use teloxide::types::{InputFile, InputSticker, StickerFormat, StickerType};
 
@@ -41,6 +41,14 @@ async fn publish_sticker_set_creates_then_appends_in_order() {
             "append:42:cats_by_msm_bot:cat_3",
         ]
     );
+}
+
+#[test]
+fn teloxide_adapter_can_be_built_from_bot_config() {
+    let bot = TelegramBotConfig::new("123456:secret").unwrap().build_bot();
+    let adapter = TeloxideTelegramStickerSetApi::new(bot);
+
+    assert_api_trait(&adapter);
 }
 
 #[derive(Default)]
@@ -96,3 +104,5 @@ fn publish_sticker(id: &str) -> TelegramPublishSticker {
         },
     }
 }
+
+fn assert_api_trait<T: TelegramStickerSetApi>(_api: &T) {}

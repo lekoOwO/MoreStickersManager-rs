@@ -41,13 +41,13 @@
 - Modify: `crates/msm-telegram/src/publish.rs`
 - Modify: `crates/msm-telegram/tests/publish_tests.rs`
 
-- [ ] Add a `TeloxideTelegramStickerSetApi` wrapper around `teloxide::Bot`.
-- [ ] Implement create by calling `Requester::create_new_sticker_set(UserId(owner_user_id), name, title, stickers).sticker_type(sticker_type).await`.
-- [ ] Implement append by calling `Requester::add_sticker_to_set(UserId(owner_user_id), name, sticker).await`.
-- [ ] Keep adapter tests network-free by testing request payload construction through the orchestration trait with a recording fake; do not call Telegram.
-- [ ] Run `cargo test -p msm-telegram --locked`.
-- [ ] Run `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
-- [ ] Commit with message `feat: add teloxide sticker set adapter`.
+- [x] Add a `TeloxideTelegramStickerSetApi` wrapper around `teloxide::Bot`.
+- [x] Implement create by calling `Requester::create_new_sticker_set(UserId(owner_user_id), name, title, stickers).sticker_type(sticker_type).send().await`.
+- [x] Implement append by calling `Requester::add_sticker_to_set(UserId(owner_user_id), name, sticker).send().await`.
+- [x] Keep adapter tests network-free by testing request payload construction through the orchestration trait with a recording fake; do not call Telegram.
+- [x] Run `cargo test -p msm-telegram --locked`.
+- [x] Run `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
+- [x] Commit with message `feat: add teloxide sticker set adapter`.
 
 ## Task 3: Worker Publication Injection
 

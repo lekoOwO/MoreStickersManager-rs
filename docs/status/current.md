@@ -23,9 +23,10 @@ Last completed:
 - Task 11 Web export workflow: added typed export API client functions, target settings panel, pack export wizard, job timeline, Traditional Chinese/English labels, Telegram token validation, redacted target display, and injected-client tests.
 - Task 12 documentation and full verification: updated architecture/provider/user/agent docs for export boundaries, Telegram setup, ffmpeg requirements, Web/CLI/MCP workflows, and ran full Rust/Web baseline verification.
 - Telegram publication Task 1: added a mockable `msm-telegram` publish boundary with create-then-append orchestration, publication result metadata, and no-network tests.
+- Telegram publication Task 2: added the `teloxide::Bot` sticker set API adapter, typed owner ID validation, teloxide request error normalization, public re-export, and a no-network adapter construction test.
 
 Current task:
-- Continue `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 2: add the teloxide requester adapter.
+- Continue `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 3: inject Telegram publication into the export worker while keeping dry-run as the default.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -47,9 +48,10 @@ Last verification:
 - Task 11 Web export workflow: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 - Task 12 full verification: `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo test --workspace --locked`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 - Telegram publication Task 1: `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
+- Telegram publication Task 2: `cargo fmt --all -- --check`; `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
 
 Next step:
-- Implement `TeloxideTelegramStickerSetApi` so publication execution can use `teloxide` requester methods behind the tested trait boundary.
+- Add a worker-level Telegram publication executor trait, preserve `dryRun: true`, and call the injected publisher when export job options explicitly set `"dryRun": false`.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

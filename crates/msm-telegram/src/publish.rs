@@ -1,5 +1,10 @@
 use async_trait::async_trait;
-use teloxide::types::{InputSticker, StickerType};
+use teloxide::{
+    payloads::CreateNewStickerSetSetters,
+    requests::{Request, Requester},
+    types::{InputSticker, StickerType, UserId},
+    Bot,
+};
 
 /// One sticker prepared for Telegram publication.
 #[derive(Debug)]
@@ -69,12 +74,81 @@ pub enum TelegramPublishError {
     #[error("Telegram publication requires at least one initial sticker")]
     EmptyInitialStickers,
 
+    /// Telegram owner user ID cannot be represented by teloxide.
+    #[error("invalid Telegram owner user ID: {owner_user_id}")]
+    InvalidOwnerUserId {
+        /// Invalid user ID.
+        owner_user_id: i64,
+    },
+
     /// Telegram API request failed.
     #[error("Telegram API error: {message}")]
     Api {
         /// Failure detail.
         message: String,
     },
+}
+
+/// `teloxide` implementation of the Telegram sticker set API boundary.
+#[derive(Clone, Debug)]
+pub struct TeloxideTelegramStickerSetApi {
+    bot: Bot,
+}
+
+impl TeloxideTelegramStickerSetApi {
+    /// Creates a new adapter from a configured teloxide bot.
+    #[must_use]
+    pub const fn new(bot: Bot) -> Self {
+        Self { bot }
+    }
+}
+
+#[async_trait]
+impl TelegramStickerSetApi for TeloxideTelegramStickerSetApi {
+    async fn create_new_sticker_set(
+        &self,
+        owner_user_id: i64,
+        sticker_set_name: &str,
+        title: &str,
+        sticker_type: StickerType,
+        stickers: Vec<TelegramPublishSticker>,
+    ) -> Result<(), TelegramPublishError> {
+        let stickers = stickers.into_iter().map(|sticker| sticker.input);
+        self.bot
+            .create_new_sticker_set(
+                telegram_user_id(owner_user_id)?,
+                sticker_set_name.to_owned(),
+                title.to_owned(),
+                stickers,
+            )
+            .sticker_type(sticker_type)
+            .send()
+            .await
+            .map_err(|error| TelegramPublishError::Api {
+                message: error.to_string(),
+            })?;
+        Ok(())
+    }
+
+    async fn add_sticker_to_set(
+        &self,
+        owner_user_id: i64,
+        sticker_set_name: &str,
+        sticker: TelegramPublishSticker,
+    ) -> Result<(), TelegramPublishError> {
+        self.bot
+            .add_sticker_to_set(
+                telegram_user_id(owner_user_id)?,
+                sticker_set_name.to_owned(),
+                sticker.input,
+            )
+            .send()
+            .await
+            .map_err(|error| TelegramPublishError::Api {
+                message: error.to_string(),
+            })?;
+        Ok(())
+    }
 }
 
 /// Publishes a planned Telegram sticker set through a mockable API boundary.
@@ -112,4 +186,10 @@ pub async fn publish_sticker_set(
         title: request.title,
         sticker_count: initial_count + append_count,
     })
+}
+
+fn telegram_user_id(owner_user_id: i64) -> Result<UserId, TelegramPublishError> {
+    u64::try_from(owner_user_id)
+        .map(UserId)
+        .map_err(|_| TelegramPublishError::InvalidOwnerUserId { owner_user_id })
 }

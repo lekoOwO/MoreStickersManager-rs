@@ -349,3 +349,12 @@
 - Added `publish_sticker_set` orchestration that creates a sticker set with the initial batch and appends remaining stickers in order.
 - Added no-network tests using a recording fake API.
 - Verified with `cargo test -p msm-telegram --locked` and `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
+
+## 2026-05-07 Teloxide Sticker Set Adapter
+
+- Added `TeloxideTelegramStickerSetApi` as the `teloxide::Bot` implementation of the sticker set API boundary.
+- Wired create and append publication calls through teloxide requester methods with explicit `.send().await`.
+- Added typed validation for Telegram owner user IDs before constructing `teloxide::types::UserId`.
+- Normalized teloxide request errors into `TelegramPublishError::Api`.
+- Added a no-network construction test that proves the adapter implements the mockable publication trait.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-telegram --locked`, and `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
