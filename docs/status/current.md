@@ -24,9 +24,10 @@ Last completed:
 - Task 12 documentation and full verification: updated architecture/provider/user/agent docs for export boundaries, Telegram setup, ffmpeg requirements, Web/CLI/MCP workflows, and ran full Rust/Web baseline verification.
 - Telegram publication Task 1: added a mockable `msm-telegram` publish boundary with create-then-append orchestration, publication result metadata, and no-network tests.
 - Telegram publication Task 2: added the `teloxide::Bot` sticker set API adapter, typed owner ID validation, teloxide request error normalization, public re-export, and a no-network adapter construction test.
+- Telegram publication Task 3: added worker-level Telegram publication executor injection, kept `dryRun` defaulting to true, wired `dryRun:false` jobs to prepared media file paths and teloxide publication, persisted `telegramPublished` results, and covered publisher failure handling.
 
 Current task:
-- Continue `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 3: inject Telegram publication into the export worker while keeping dry-run as the default.
+- Continue `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 4: surface Telegram publication result URLs in the Web export workflow.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -49,9 +50,10 @@ Last verification:
 - Task 12 full verification: `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo test --workspace --locked`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 - Telegram publication Task 1: `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
 - Telegram publication Task 2: `cargo fmt --all -- --check`; `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
+- Telegram publication Task 3: `cargo fmt --all -- --check`; `cargo test -p msm-app --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
 
 Next step:
-- Add a worker-level Telegram publication executor trait, preserve `dryRun: true`, and call the injected publisher when export job options explicitly set `"dryRun": false`.
+- Update Web result-link extraction and timeline tests for `telegramPublished` job results while preserving existing dry-run and MoreStickers behavior.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

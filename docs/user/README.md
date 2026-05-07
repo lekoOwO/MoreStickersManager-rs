@@ -82,12 +82,14 @@ arguments for static, video, and thumbnail outputs, normalize Telegram sticker
 set names, split create/append batches, enforce Telegram set size limits, and
 prepare teloxide `InputSticker` data. Protected API routes can manage export
 targets, queue export jobs, and read job status/events. The app worker can run
-queued MoreStickers serialization jobs and Telegram dry-run planning jobs, and
-can write prepared media cache records through its media executor boundary. MSM
-has a process-backed ffmpeg executor for prepared media conversion. The CLI can
-manage export targets and queue/read export jobs through the API. The Web UI can
-configure export targets, queue jobs, and show job status/events. MSM cannot yet
-upload stickers or create Telegram sticker sets.
+queued MoreStickers serialization jobs, Telegram dry-run planning jobs, and
+Telegram publication jobs when job options explicitly set `"dryRun": false`.
+It can write prepared media cache records through its media executor boundary
+and then use those prepared files for teloxide sticker uploads. MSM has a
+process-backed ffmpeg executor for prepared media conversion. The CLI can manage
+export targets and queue/read export jobs through the API. The Web UI can
+configure export targets, queue jobs, and show job status/events. Web result URL
+surfacing for completed Telegram publication jobs is the next slice.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
@@ -105,16 +107,18 @@ Telegram export setup today:
 - set `MSM_EXPORT_WORKER_ENABLED=true` when you want the service process to poll
   queued export jobs.
 
-The current Telegram worker path performs dry-run planning and media
-preparation. Actual Telegram upload and sticker set creation are still planned.
+The current Telegram worker path defaults to dry-run planning and media
+preparation. To execute Telegram upload and sticker set creation, queue the job
+with options containing `"dryRun": false` and use a Telegram target config that
+contains `botToken`, `botUsername`, and `ownerUserId`.
 
 Export target/job API endpoints and CLI commands now exist for queueing export
 jobs and reading their status/events. MCP tools and Web UI controls are also
 available for export targets and jobs.
 
-Telegram bot integration now uses `teloxide` internally. The current slice only
-builds a configured bot safely and prepares sticker inputs; it does not yet
-execute Telegram sticker export actions for users.
+Telegram bot integration now uses `teloxide` internally. Worker tests inject a
+fake publisher, so local and CI verification do not call Telegram. Real
+publication is only attempted by the worker when dry-run is explicitly disabled.
 
 Export API endpoints currently available:
 

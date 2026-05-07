@@ -358,3 +358,14 @@
 - Normalized teloxide request errors into `TelegramPublishError::Api`.
 - Added a no-network construction test that proves the adapter implements the mockable publication trait.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-telegram --locked`, and `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`.
+
+## 2026-05-07 Telegram Worker Publication
+
+- Added `TelegramPublicationExecutor` and `TelegramPublicationRequest` to the worker layer.
+- Added the default `TeloxideTelegramPublicationExecutor`, which builds a configured teloxide bot and calls the `msm-telegram` publish orchestrator.
+- Added `ExportWorker::with_media_and_telegram_executors` so tests can inject both media preparation and Telegram publication dependencies.
+- Kept Telegram jobs in dry-run mode by default; only job options with `"dryRun": false` execute remote publication.
+- Converted prepared media cache outputs into `InputFile::file` paths under `prepared_media_dir` and then into teloxide `InputSticker` values.
+- Persisted successful remote jobs as `telegramPublished` result JSON with sticker set URL, count, sticker type, dry-run flag, and prepared media summaries.
+- Added failure handling so publisher errors mark the job failed and store an error summary.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --locked`, and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.

@@ -3,6 +3,7 @@ use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 use msm_app::{
     ConversionCommandRunner, ExportWorker, ExportWorkerConfig, ExportWorkerResult,
     PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest, ProcessPreparedMediaExecutor,
+    TelegramPublicationExecutor, TelegramPublicationRequest,
 };
 use msm_domain::{Sticker, StickerPack};
 use msm_media::ConversionCommand;
@@ -10,6 +11,7 @@ use msm_storage::{
     models::{ExportJobStatus, NewExportJob, NewExportTarget, PackVisibility},
     DatabaseConfig, DbPool, StorageRepository,
 };
+use msm_telegram::{TelegramPublishError, TelegramPublishedSet};
 
 #[tokio::test]
 async fn worker_runs_moresticker_export_job_without_remote_calls() {
@@ -104,6 +106,157 @@ async fn worker_plans_telegram_export_job_without_network_calls() {
 }
 
 #[tokio::test]
+async fn telegram_dry_run_does_not_call_publication_executor() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_dry_run",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok"}}"#,
+    })
+    .await
+    .unwrap();
+    let publisher = Arc::new(FakeTelegramPublicationExecutor::default());
+    let worker = ExportWorker::with_media_and_telegram_executors(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        publisher.clone(),
+    );
+
+    let completed = worker.run_job("job_telegram_dry_run").await.unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
+    assert_eq!(result["kind"], "telegramDryRun");
+    assert!(publisher.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn telegram_export_job_can_publish_through_injected_executor() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_publish",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false}}"#,
+    })
+    .await
+    .unwrap();
+    let publisher = Arc::new(FakeTelegramPublicationExecutor::default());
+    let worker = ExportWorker::with_media_and_telegram_executors(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        publisher.clone(),
+    );
+
+    let completed = worker.run_job("job_telegram_publish").await.unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
+    assert_eq!(result["kind"], "telegramPublished");
+    assert_eq!(result["targetKind"], "telegram");
+    assert_eq!(result["stickerSetName"], "sample_pack_by_msm_bot");
+    assert_eq!(
+        result["stickerSetUrl"],
+        "https://t.me/addstickers/sample_pack_by_msm_bot"
+    );
+    assert_eq!(result["stickerCount"], 1);
+    assert_eq!(result["dryRun"], false);
+
+    {
+        let calls = publisher.calls.lock().unwrap();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].bot_token, "123:secret");
+        assert_eq!(calls[0].sticker_set_name, "sample_pack_by_msm_bot");
+        assert_eq!(calls[0].initial_count, 1);
+        assert_eq!(calls[0].append_count, 0);
+    }
+
+    let stages = repo
+        .list_export_job_events("job_telegram_publish")
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|event| event.stage)
+        .collect::<Vec<_>>();
+    assert!(stages.contains(&"telegram.prepare".to_owned()));
+    assert!(stages.contains(&"telegram.publish.create".to_owned()));
+    assert!(stages.contains(&"telegram.publish.append".to_owned()));
+    assert!(stages.contains(&"succeeded".to_owned()));
+}
+
+#[tokio::test]
+async fn telegram_publication_failure_marks_job_failed() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_publish_failure",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false}}"#,
+    })
+    .await
+    .unwrap();
+    let worker = ExportWorker::with_media_and_telegram_executors(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        Arc::new(FakeTelegramPublicationExecutor::failing()),
+    );
+
+    let error = worker
+        .run_job("job_telegram_publish_failure")
+        .await
+        .expect_err("failed Telegram publication must fail the job");
+
+    assert!(error.to_string().contains("telegram api down"));
+    let stored = repo
+        .find_export_job("job_telegram_publish_failure")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.status, ExportJobStatus::Failed);
+    assert!(stored.error_summary.unwrap().contains("telegram api down"));
+}
+
+#[tokio::test]
 async fn process_prepared_media_executor_runs_command_and_returns_output_metadata() {
     let output_dir = tempfile::tempdir().unwrap();
     let executor = ProcessPreparedMediaExecutor::with_runner(
@@ -189,6 +342,65 @@ fn sample_pack() -> StickerPack {
         logo: sticker.clone(),
         stickers: vec![sticker],
     }
+}
+
+#[derive(Debug, Default)]
+struct FakeTelegramPublicationExecutor {
+    calls: std::sync::Mutex<Vec<RecordedTelegramPublication>>,
+    fail: bool,
+}
+
+impl FakeTelegramPublicationExecutor {
+    fn failing() -> Self {
+        Self {
+            calls: std::sync::Mutex::new(Vec::new()),
+            fail: true,
+        }
+    }
+}
+
+impl TelegramPublicationExecutor for FakeTelegramPublicationExecutor {
+    fn publish(
+        &self,
+        request: TelegramPublicationRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<TelegramPublishedSet>> + Send + '_>> {
+        Box::pin(async move {
+            self.calls
+                .lock()
+                .unwrap()
+                .push(RecordedTelegramPublication {
+                    bot_token: request.bot_token.clone(),
+                    sticker_set_name: request.publish_request.sticker_set_name.clone(),
+                    initial_count: request.publish_request.initial_stickers.len(),
+                    append_count: request.publish_request.append_stickers.len(),
+                });
+            if self.fail {
+                Err(TelegramPublishError::Api {
+                    message: "telegram api down".to_owned(),
+                }
+                .into())
+            } else {
+                Ok(TelegramPublishedSet {
+                    sticker_set_name: request.publish_request.sticker_set_name.clone(),
+                    title: request.publish_request.title.clone(),
+                    url: format!(
+                        "https://t.me/addstickers/{}",
+                        request.publish_request.sticker_set_name
+                    ),
+                    sticker_count: request.publish_request.initial_stickers.len()
+                        + request.publish_request.append_stickers.len(),
+                })
+            }
+        })
+    }
+}
+
+#[derive(Debug)]
+struct RecordedTelegramPublication {
+    bot_token: String,
+    sticker_set_name: String,
+    initial_count: usize,
+    append_count: usize,
 }
 
 #[derive(Debug)]

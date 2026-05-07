@@ -86,22 +86,25 @@ remote publication:
   duplicate-safe registry, concrete MoreStickers export target, and Telegram
   sticker set planner are implemented.
 - `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config
-  handling and Bot API URL configuration.
+  handling, Bot API URL configuration, and mockable sticker set create/append
+  execution.
 
-Telegram sticker set creation is not implemented yet. MSM can now plan Telegram
-sticker set names, size limits, create/append batches, media profile selection,
-and teloxide `InputSticker` values without network calls. Protected API/OpenAPI
-routes can list export capabilities, manage export targets with redacted config
-responses, queue export jobs, and read job status/events. The app worker can run
-MoreStickers serialization jobs and Telegram dry-run planning jobs from queued
-records, optionally poll in the service process, and write prepared media cache
-records through the media executor boundary. Process-backed ffmpeg execution is
+MSM can now plan Telegram sticker set names, size limits, create/append batches,
+media profile selection, and teloxide `InputSticker` values without network
+calls. Protected API/OpenAPI routes can list export capabilities, manage export
+targets with redacted config responses, queue export jobs, and read job
+status/events. The app worker can run MoreStickers serialization jobs, Telegram
+dry-run planning jobs, and Telegram publication jobs when options explicitly set
+`"dryRun": false`. It can optionally poll in the service process, write prepared
+media cache records through the media executor boundary, and publish prepared
+files through the teloxide executor. Process-backed ffmpeg execution is
 available through shell-free command plans. The CLI can list target kinds,
-create/list export targets, create export jobs, and read job status/events.
-MCP tools can list target kinds, list/create export targets, create export jobs,
-and read job status/events. The Web dashboard can configure export targets,
-queue export jobs, and show job status/events. Telegram upload/set creation is still planned in
-`docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
+create/list export targets, create export jobs, and read job status/events. MCP
+tools can list target kinds, list/create export targets, create export jobs, and
+read job status/events. The Web dashboard can configure export targets, queue
+export jobs, and show job status/events; dedicated Telegram publication URL
+surfacing is tracked in
+`docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md`.
 
 ## Web UI Slice
 

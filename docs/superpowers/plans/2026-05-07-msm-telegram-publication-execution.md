@@ -55,15 +55,15 @@
 - Modify: `crates/msm-app/src/export_worker.rs`
 - Modify: `crates/msm-app/tests/export_worker_tests.rs`
 
-- [ ] Add a `TelegramPublicationExecutor` trait to the worker layer that accepts the planned Telegram export plus prepared media outputs and returns `TelegramPublishedSet`.
-- [ ] Add `ExportWorker::with_media_and_telegram_executors` so tests can inject both media and publisher dependencies.
-- [ ] Parse `dryRun` from job options; default to `true` until remote publication is explicitly requested with `"dryRun": false`.
-- [ ] For `"dryRun": true`, preserve the current `TelegramDryRun` result and assert no publisher calls occur.
-- [ ] For `"dryRun": false`, convert prepared media output asset keys into local paths under `prepared_media_dir`, build `InputFile::file`, convert planned stickers to `InputSticker`, call the publisher, and persist a `TelegramPublished` result.
-- [ ] Append job events for `telegram.prepare`, `telegram.publish.create`, `telegram.publish.append`, and `succeeded` stages.
-- [ ] Run `cargo test -p msm-app --locked`.
-- [ ] Run `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
-- [ ] Commit with message `feat: publish Telegram export jobs`.
+- [x] Add a `TelegramPublicationExecutor` trait to the worker layer that accepts the planned Telegram export plus prepared media outputs and returns `TelegramPublishedSet`.
+- [x] Add `ExportWorker::with_media_and_telegram_executors` so tests can inject both media and publisher dependencies.
+- [x] Parse `dryRun` from job options; default to `true` until remote publication is explicitly requested with `"dryRun": false`.
+- [x] For `"dryRun": true`, preserve the current `TelegramDryRun` result and assert no publisher calls occur.
+- [x] For `"dryRun": false`, convert prepared media output asset keys into local paths under `prepared_media_dir`, build `InputFile::file`, convert planned stickers to `InputSticker`, call the publisher, and persist a `TelegramPublished` result.
+- [x] Append job events for `telegram.prepare`, `telegram.publish.create`, `telegram.publish.append`, and `succeeded` stages.
+- [x] Run `cargo test -p msm-app --locked`.
+- [x] Run `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+- [x] Commit with message `feat: publish Telegram export jobs`.
 
 ## Task 4: Publication Result API/UI Surface
 

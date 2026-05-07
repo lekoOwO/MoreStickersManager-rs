@@ -37,9 +37,9 @@ only designed or planned.
 | --- | --- | --- |
 | Media conversion pipeline | P25 | Partially implemented: `msm-media` now has source media kinds, Telegram static/video/thumbnail profiles, prepared output specs, conversion plan selection, and shell-free ffmpeg command planning. Probing, converter execution, and cache persistence are not implemented. |
 | Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, a concrete `morestickers` target, and Telegram sticker set planning. Remote execution is not wired. |
-| Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, and builds `teloxide::Bot`. Sticker set execution through teloxide requester methods is not wired yet. |
-| Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, builds teloxide `InputSticker` data, and exposes Web/API/CLI/MCP job surfaces. Uploads and set creation are not implemented. |
-| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, CLI commands, MCP tools, Web target/job views, prepared media cache writes, process-backed ffmpeg executor, target bootstrap config, and an optional app worker loop exist for targets, queued jobs, job status, and job events. Telegram publication and retries are not implemented. |
+| Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, builds `teloxide::Bot`, and exposes mockable sticker set create/append execution through teloxide requester methods. |
+| Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, builds teloxide `InputSticker` data, exposes Web/API/CLI/MCP job surfaces, and the app worker can publish when job options explicitly set `"dryRun": false`. Web result-link surfacing and remote reconciliation are not implemented. |
+| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, CLI commands, MCP tools, Web target/job views, prepared media cache writes, process-backed ffmpeg executor, target bootstrap config, optional app worker loop, Telegram dry-run jobs, and Telegram publication jobs exist. Retries and durable publication-table repository methods are not implemented. |
 | Folder/tag management | Future phase | User-managed pack folders and tags are not implemented. |
 | Subscription groups | Future phase | Pack/group subscription links and moreStickers auto-update integration are not implemented. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |
@@ -53,4 +53,4 @@ only designed or planned.
 
 ## Current Next Phase
 
-P25 should continue from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 12 and complete documentation plus full verification.
+Continue from `docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md` Task 4 and surface Telegram publication result URLs in the Web export workflow.

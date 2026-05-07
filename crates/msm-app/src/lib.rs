@@ -26,7 +26,8 @@ pub mod export_worker;
 pub use export_worker::{
     spawn_export_worker_if_enabled, ConversionCommandRunner, ExportWorker, ExportWorkerConfig,
     ExportWorkerError, ExportWorkerResult, PreparedMediaExecutor, PreparedMediaOutput,
-    PreparedMediaRequest, ProcessPreparedMediaExecutor,
+    PreparedMediaRequest, ProcessPreparedMediaExecutor, TelegramPublicationExecutor,
+    TelegramPublicationRequest, TeloxideTelegramPublicationExecutor,
 };
 
 static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");
