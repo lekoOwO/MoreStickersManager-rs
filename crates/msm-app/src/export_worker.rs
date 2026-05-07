@@ -3,14 +3,14 @@ use std::{
 };
 
 use msm_exporters::{
-    MoreStickersExportTarget, PlannedTelegramSticker, TelegramExportOptions, TelegramExportPlanner,
-    TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
+    MoreStickersExportTarget, PlannedTelegramSticker, TelegramExportOptions, TelegramExportPlan,
+    TelegramExportPlanner, TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
 };
 use msm_media::{ConversionCommand, ConverterToolchain, PreparedMediaSpec, StickerTargetProfile};
 use msm_storage::{
     models::{
         ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJobEvent,
-        NewPreparedMediaAsset,
+        NewPreparedMediaAsset, NewTelegramPublication,
     },
     StorageRepository,
 };
@@ -106,6 +106,10 @@ pub enum ExportWorkerError {
     /// Export job has too many events to assign an `i64` sequence.
     #[error("export job event sequence overflow")]
     EventSequenceOverflow,
+
+    /// Published sticker count does not fit storage.
+    #[error("published sticker count overflow")]
+    StickerCountOverflow,
 
     /// Converter process did not complete before its timeout.
     #[error("converter timed out")]
@@ -531,6 +535,11 @@ impl ExportWorker {
         pack: &msm_domain::StickerPack,
     ) -> ExportWorkerResult<WorkerJobResult> {
         let target_config: TelegramTargetConfigJson = serde_json::from_str(&target.config_json)?;
+        let TelegramTargetConfigJson {
+            bot_username,
+            owner_user_id,
+            bot_token,
+        } = target_config;
         let request: WorkerExportJobRequest = serde_json::from_str(&job.request_json)?;
         let options = request.options;
         let dry_run = options.dry_run.unwrap_or(true);
@@ -542,8 +551,8 @@ impl ExportWorker {
             pack,
             TelegramExportOptions {
                 target: TelegramTargetConfig {
-                    bot_username: target_config.bot_username,
-                    owner_user_id: target_config.owner_user_id,
+                    bot_username,
+                    owner_user_id,
                 },
                 set_name_slug: options.set_name_slug.unwrap_or_else(|| pack.title.clone()),
                 set_title: options.set_title.unwrap_or_else(|| pack.title.clone()),
@@ -565,52 +574,9 @@ impl ExportWorker {
             .await?;
 
         if !dry_run {
-            let bot_token = target_config
-                .bot_token
-                .ok_or(ExportWorkerError::MissingTelegramBotToken)?;
-            let sticker_type = sticker_type_for_plan(set_type);
-            let initial_stickers =
-                self.telegram_publish_stickers(&plan.initial_stickers, &prepared_media)?;
-            let append_stickers =
-                self.telegram_publish_stickers(&plan.append_stickers, &prepared_media)?;
-            self.append_event(
-                &job.id,
-                "info",
-                "telegram.publish.create",
-                "creating Telegram sticker set",
-            )
-            .await?;
-            self.append_event(
-                &job.id,
-                "info",
-                "telegram.publish.append",
-                "appending Telegram stickers",
-            )
-            .await?;
-            let published = self
-                .telegram_publication_executor
-                .publish(TelegramPublicationRequest {
-                    bot_token,
-                    publish_request: TelegramPublishRequest {
-                        owner_user_id: plan.owner_user_id,
-                        sticker_set_name: plan.sticker_set_name,
-                        title: plan.title,
-                        sticker_type,
-                        initial_stickers,
-                        append_stickers,
-                    },
-                })
-                .await?;
-
-            return Ok(WorkerJobResult::TelegramPublished {
-                target_kind: target.kind.clone(),
-                sticker_set_name: published.sticker_set_name,
-                sticker_set_url: published.url,
-                sticker_count: published.sticker_count,
-                sticker_type: sticker_type_label(set_type).to_owned(),
-                prepared_media,
-                dry_run: false,
-            });
+            return self
+                .publish_telegram_job(job, target, bot_token, set_type, plan, prepared_media)
+                .await;
         }
 
         Ok(WorkerJobResult::TelegramDryRun {
@@ -628,6 +594,78 @@ impl ExportWorker {
             ffprobe_path: self.config.ffprobe_path.display().to_string(),
             prepared_media,
             dry_run: true,
+        })
+    }
+
+    async fn publish_telegram_job(
+        &self,
+        job: &ExportJobRecord,
+        target: &ExportTargetRecord,
+        bot_token: Option<String>,
+        set_type: TelegramStickerSetType,
+        plan: TelegramExportPlan,
+        prepared_media: Vec<CachedPreparedMediaSummary>,
+    ) -> ExportWorkerResult<WorkerJobResult> {
+        let bot_token = bot_token.ok_or(ExportWorkerError::MissingTelegramBotToken)?;
+        let sticker_type = sticker_type_for_plan(set_type);
+        let initial_stickers =
+            self.telegram_publish_stickers(&plan.initial_stickers, &prepared_media)?;
+        let append_stickers =
+            self.telegram_publish_stickers(&plan.append_stickers, &prepared_media)?;
+        self.append_event(
+            &job.id,
+            "info",
+            "telegram.publish.create",
+            "creating Telegram sticker set",
+        )
+        .await?;
+        self.append_event(
+            &job.id,
+            "info",
+            "telegram.publish.append",
+            "appending Telegram stickers",
+        )
+        .await?;
+        let published = self
+            .telegram_publication_executor
+            .publish(TelegramPublicationRequest {
+                bot_token,
+                publish_request: TelegramPublishRequest {
+                    owner_user_id: plan.owner_user_id,
+                    sticker_set_name: plan.sticker_set_name,
+                    title: plan.title,
+                    sticker_type,
+                    initial_stickers,
+                    append_stickers,
+                },
+            })
+            .await?;
+
+        let publication_id = telegram_publication_id(&target.id, &published.sticker_set_name);
+        let sticker_count = i64::try_from(published.sticker_count)
+            .map_err(|_| ExportWorkerError::StickerCountOverflow)?;
+        let sticker_type = sticker_type_label(set_type).to_owned();
+        self.repository
+            .upsert_telegram_publication(NewTelegramPublication {
+                id: &publication_id,
+                pack_id: &job.source_pack_id,
+                target_id: &target.id,
+                job_id: &job.id,
+                sticker_set_name: &published.sticker_set_name,
+                sticker_set_url: &published.url,
+                sticker_count,
+                sticker_type: &sticker_type,
+            })
+            .await?;
+
+        Ok(WorkerJobResult::TelegramPublished {
+            target_kind: target.kind.clone(),
+            sticker_set_name: published.sticker_set_name,
+            sticker_set_url: published.url,
+            sticker_count: published.sticker_count,
+            sticker_type,
+            prepared_media,
+            dry_run: false,
         })
     }
 
@@ -874,6 +912,10 @@ fn source_asset_hash(source_uri: &str) -> String {
 fn prepared_output_asset_key(request: &PreparedMediaRequest) -> String {
     let safe_hash = request.source_asset_hash.replace([':', '/'], "_");
     format!("{}/{safe_hash}.{}", request.profile_key, request.extension)
+}
+
+fn telegram_publication_id(target_id: &str, sticker_set_name: &str) -> String {
+    format!("telegram:{target_id}:{sticker_set_name}")
 }
 
 const fn sticker_type_for_plan(set_type: TelegramStickerSetType) -> StickerType {

@@ -142,6 +142,11 @@ async fn telegram_dry_run_does_not_call_publication_executor() {
     let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
     assert_eq!(result["kind"], "telegramDryRun");
     assert!(publisher.calls.lock().unwrap().is_empty());
+    assert!(repo
+        .list_telegram_publications_for_pack("pack_1")
+        .await
+        .unwrap()
+        .is_empty());
 }
 
 #[tokio::test]
@@ -188,6 +193,21 @@ async fn telegram_export_job_can_publish_through_injected_executor() {
     );
     assert_eq!(result["stickerCount"], 1);
     assert_eq!(result["dryRun"], false);
+
+    let publication = repo
+        .find_telegram_publication_by_target_set("target_telegram", "sample_pack_by_msm_bot")
+        .await
+        .unwrap()
+        .expect("successful publication should be persisted");
+    assert_eq!(publication.pack_id, "pack_1");
+    assert_eq!(publication.target_id, "target_telegram");
+    assert_eq!(publication.job_id, "job_telegram_publish");
+    assert_eq!(publication.sticker_count, 1);
+    assert_eq!(publication.sticker_type, "regular");
+    assert_eq!(
+        publication.sticker_set_url,
+        "https://t.me/addstickers/sample_pack_by_msm_bot"
+    );
 
     {
         let calls = publisher.calls.lock().unwrap();
