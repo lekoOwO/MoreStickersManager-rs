@@ -1412,6 +1412,7 @@ dependencies = [
  "http-body-util",
  "msm-api",
  "msm-domain",
+ "msm-exporters",
  "msm-storage",
  "serde",
  "serde_json",

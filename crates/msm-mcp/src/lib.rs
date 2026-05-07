@@ -24,7 +24,10 @@ mod tests {
     use std::collections::BTreeSet;
 
     use msm_domain::{Permission, Sticker};
-    use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
+    use msm_storage::{
+        models::{NewExportJobEvent, NewExportTarget},
+        DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
+    };
     use serde_json::{json, Value};
     use tower::ServiceExt;
 
@@ -52,7 +55,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn tools_list_returns_pack_tools() {
+    async fn tools_list_returns_pack_and_export_tools() {
         let response = post_mcp(
             test_state().await,
             json!({
@@ -64,8 +67,12 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 5);
+        assert_eq!(tools.len(), 11);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.create_export_job"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 5));
     }
 
     #[tokio::test]
@@ -213,6 +220,175 @@ mod tests {
             .await
             .unwrap()
             .is_none());
+    }
+
+    #[tokio::test]
+    async fn tools_call_lists_export_target_kinds() {
+        let state = seeded_state().await;
+        let token = create_pat(&state, "exportread", "user_1", [Permission::ExportRead]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_export_target_kinds",
+                    "arguments": {}
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(
+            response["result"]["structuredContent"]["targetKinds"][0]["kind"],
+            "morestickers"
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_creates_export_target_with_redacted_response() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(
+            &state,
+            "targetmanage",
+            "user_1",
+            [Permission::ExportTargetManage],
+        )
+        .await;
+        let response = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.create_export_target",
+                    "arguments": {
+                        "id": "target_telegram",
+                        "tenantId": "tenant_1",
+                        "kind": "telegram",
+                        "name": "Telegram",
+                        "config": { "botToken": "123:secret" },
+                        "isEnabled": true
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(
+            response["result"]["structuredContent"]["target"]["config"]["botToken"],
+            "<redacted>"
+        );
+        assert_eq!(
+            state
+                .repository()
+                .find_export_target("target_telegram")
+                .await
+                .unwrap()
+                .unwrap()
+                .kind,
+            "telegram"
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_creates_export_job() {
+        let state = seeded_state_with_export_target().await;
+        let token = create_pat(&state, "exportrun", "user_1", [Permission::ExportRun]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.create_export_job",
+                    "arguments": {
+                        "id": "job_1",
+                        "tenantId": "tenant_1",
+                        "sourcePackId": "pack_1",
+                        "targetId": "target_morestickers",
+                        "options": { "format": "stickerpack" }
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(
+            response["result"]["structuredContent"]["job"]["status"],
+            "queued"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["job"]["request"]["options"]["format"],
+            "stickerpack"
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_reads_export_job_events() {
+        let state = seeded_state_with_export_job().await;
+        let token = create_pat(&state, "exportread", "user_1", [Permission::ExportRead]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_export_job_events",
+                    "arguments": { "jobId": "job_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(
+            response["result"]["structuredContent"]["events"][0]["message"],
+            "job queued"
+        );
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_export_job_requires_export_run() {
+        let state = seeded_state_with_export_target().await;
+        let token = create_pat(&state, "exportread", "user_1", [Permission::ExportRead]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.create_export_job",
+                    "arguments": {
+                        "id": "job_1",
+                        "tenantId": "tenant_1",
+                        "sourcePackId": "pack_1",
+                        "targetId": "target_morestickers",
+                        "options": {}
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], true);
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("export.run"));
     }
 
     #[tokio::test]
@@ -386,6 +562,52 @@ mod tests {
                 Some("telegram"),
                 &sample_pack(),
             )
+            .await
+            .unwrap();
+        state
+    }
+
+    async fn seeded_state_with_export_target() -> msm_api::ApiState {
+        let state = seeded_state().await;
+        state
+            .repository()
+            .create_export_target(NewExportTarget {
+                id: "target_morestickers",
+                tenant_id: "tenant_1",
+                kind: "morestickers",
+                name: "MoreStickers",
+                config_json: "{}",
+                is_enabled: true,
+            })
+            .await
+            .unwrap();
+        state
+    }
+
+    async fn seeded_state_with_export_job() -> msm_api::ApiState {
+        let state = seeded_state_with_export_target().await;
+        state
+            .repository()
+            .create_export_job(msm_storage::models::NewExportJob {
+                id: "job_1",
+                tenant_id: "tenant_1",
+                owner_user_id: "user_1",
+                source_pack_id: "pack_1",
+                target_id: "target_morestickers",
+                request_json: r#"{"id":"job_1","tenantId":"tenant_1","sourcePackId":"pack_1","targetId":"target_morestickers","options":{}}"#,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .append_export_job_event(NewExportJobEvent {
+                job_id: "job_1",
+                sequence: 1,
+                level: "info",
+                stage: "queued",
+                message: "job queued",
+                metadata_json: "{}",
+            })
             .await
             .unwrap();
         state

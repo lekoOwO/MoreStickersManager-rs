@@ -582,3 +582,20 @@ These tests prove:
 - target creation preserves JSON config and enabled/disabled state;
 - export job creation supports JSON output;
 - export job event reads render ordered event information.
+
+## Export MCP Tests
+
+Run:
+
+```powershell
+cargo test -p msm-mcp --locked
+cargo clippy -p msm-mcp --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- `tools/list` exposes pack tools plus export target/job tools;
+- export target kind listing requires `export.read`;
+- export target creation requires `export.target.manage` and redacts token-like response config fields;
+- export job creation requires `export.run`, validates source pack ownership, and stores queued job requests;
+- export job event reads require `export.read` and return ordered event metadata.

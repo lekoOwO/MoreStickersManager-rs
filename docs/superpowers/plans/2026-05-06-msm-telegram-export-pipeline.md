@@ -169,10 +169,10 @@
 - Modify: `crates/msm-mcp/tests/mcp_tests.rs`
 
 - [x] Add CLI commands to list target kinds, list/create targets, start exports, and read job status/events.
-- [ ] Add MCP tools for the same target/job operations.
-- [ ] Test human and JSON CLI output plus MCP tool schemas and PAT forwarding.
-- [ ] Run `cargo test -p msm-cli -p msm-mcp --locked`.
-- [ ] Commit with message `feat: expose export jobs in CLI and MCP`.
+- [x] Add MCP tools for the same target/job operations.
+- [x] Test human and JSON CLI output plus MCP tool schemas and PAT forwarding.
+- [x] Run `cargo test -p msm-cli -p msm-mcp --locked`.
+- [x] Commit CLI slice with message `feat: add export CLI commands` and MCP slice with message `feat: add export MCP tools`.
 
 ## Task 11: Web Target Settings And Export Wizard
 

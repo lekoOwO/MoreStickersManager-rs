@@ -9,6 +9,12 @@ pub const EXPORT_STICKER_PACK: &str = "msm.export_sticker_pack";
 pub const IMPORT_STICKER_PACK: &str = "msm.import_sticker_pack";
 pub const UPDATE_STICKER_PACK: &str = "msm.update_sticker_pack";
 pub const DELETE_STICKER_PACK: &str = "msm.delete_sticker_pack";
+pub const LIST_EXPORT_TARGET_KINDS: &str = "msm.list_export_target_kinds";
+pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
+pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
+pub const CREATE_EXPORT_JOB: &str = "msm.create_export_job";
+pub const GET_EXPORT_JOB: &str = "msm.get_export_job";
+pub const LIST_EXPORT_JOB_EVENTS: &str = "msm.list_export_job_events";
 
 #[must_use]
 pub fn list_tools_result() -> ListToolsResult {
@@ -19,6 +25,12 @@ pub fn list_tools_result() -> ListToolsResult {
             import_tool(),
             update_tool(),
             delete_tool(),
+            list_export_target_kinds_tool(),
+            list_export_targets_tool(),
+            create_export_target_tool(),
+            create_export_job_tool(),
+            get_export_job_tool(),
+            list_export_job_events_tool(),
         ],
     }
 }
@@ -143,6 +155,110 @@ fn delete_tool() -> ToolDefinition {
     }
 }
 
+fn list_export_target_kinds_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_EXPORT_TARGET_KINDS,
+        title: "List export target kinds",
+        description: "List supported MSM export target kinds and capability metadata.",
+        input_schema: object_schema(&json!({}), &[]),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn list_export_targets_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_EXPORT_TARGETS,
+        title: "List export targets",
+        description: "List configured export targets for one MSM tenant.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" }
+            }),
+            &["tenantId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn create_export_target_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: CREATE_EXPORT_TARGET,
+        title: "Create export target",
+        description: "Create a configured MSM export target.",
+        input_schema: object_schema(
+            &json!({
+                "id": { "type": "string" },
+                "tenantId": { "type": "string" },
+                "kind": { "type": "string" },
+                "name": { "type": "string" },
+                "config": { "type": "object" },
+                "isEnabled": { "type": "boolean" }
+            }),
+            &["id", "tenantId", "kind", "name", "config", "isEnabled"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn create_export_job_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: CREATE_EXPORT_JOB,
+        title: "Create export job",
+        description: "Queue an MSM export job for a source sticker pack and export target.",
+        input_schema: object_schema(
+            &json!({
+                "id": { "type": "string" },
+                "tenantId": { "type": "string" },
+                "sourcePackId": { "type": "string" },
+                "targetId": { "type": "string" },
+                "options": { "type": "object" }
+            }),
+            &["id", "tenantId", "sourcePackId", "targetId", "options"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn get_export_job_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: GET_EXPORT_JOB,
+        title: "Get export job",
+        description: "Read one MSM export job by ID.",
+        input_schema: object_schema(
+            &json!({
+                "jobId": { "type": "string" }
+            }),
+            &["jobId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn list_export_job_events_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_EXPORT_JOB_EVENTS,
+        title: "List export job events",
+        description: "Read ordered events for one MSM export job.",
+        input_schema: object_schema(
+            &json!({
+                "jobId": { "type": "string" }
+            }),
+            &["jobId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
 fn object_schema(properties: &Value, required: &[&'static str]) -> Value {
     json!({
         "type": "object",
@@ -164,8 +280,9 @@ fn read_only_annotations() -> ToolAnnotations {
 #[cfg(test)]
 mod tests {
     use crate::tools::{
-        list_tools_result, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, IMPORT_STICKER_PACK,
-        LIST_STICKER_PACKS, UPDATE_STICKER_PACK,
+        list_tools_result, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, DELETE_STICKER_PACK,
+        EXPORT_STICKER_PACK, GET_EXPORT_JOB, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
+        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_STICKER_PACKS, UPDATE_STICKER_PACK,
     };
 
     #[test]
@@ -181,6 +298,12 @@ mod tests {
                 IMPORT_STICKER_PACK,
                 UPDATE_STICKER_PACK,
                 DELETE_STICKER_PACK,
+                LIST_EXPORT_TARGET_KINDS,
+                LIST_EXPORT_TARGETS,
+                CREATE_EXPORT_TARGET,
+                CREATE_EXPORT_JOB,
+                GET_EXPORT_JOB,
+                LIST_EXPORT_JOB_EVENTS,
             ]
         );
     }

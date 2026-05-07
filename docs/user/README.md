@@ -84,7 +84,7 @@ queued MoreStickers serialization jobs and Telegram dry-run planning jobs, and
 can write prepared media cache records through its media executor boundary. MSM
 has a process-backed ffmpeg executor for prepared media conversion. The CLI can
 manage export targets and queue/read export jobs through the API. MSM cannot yet
-upload stickers, create Telegram sticker sets, or expose export jobs in Web/MCP
+upload stickers, create Telegram sticker sets, or expose export jobs in Web
 surfaces.
 
 Service startup can bootstrap configured export targets with
@@ -136,6 +136,15 @@ Current tools are `msm.list_sticker_packs`, `msm.export_sticker_pack`,
 `msm.import_sticker_pack`, `msm.update_sticker_pack`, and
 `msm.delete_sticker_pack`.
 
+Export MCP tools:
+
+- `msm.list_export_target_kinds`
+- `msm.list_export_targets`
+- `msm.create_export_target`
+- `msm.create_export_job`
+- `msm.get_export_job`
+- `msm.list_export_job_events`
+
 PAT foundation status:
 
 - token format is `msm_pat_<token_id>_<random_secret>`;
@@ -174,6 +183,10 @@ PAT enforcement status:
   MCP tools.
 - `pack.delete` is required for pack delete API routes and MCP tools.
 - `import.run` is required for pack import API routes and MCP tools.
+- `export.read` is required for export target/job read API routes and MCP tools.
+- `export.run` is required for export job creation API routes and MCP tools.
+- `export.target.manage` is required for export target management API routes and
+  MCP tools.
 - user-scoped list/import/update/delete operations reject PATs belonging to
   another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the

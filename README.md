@@ -98,7 +98,8 @@ records, optionally poll in the service process, and write prepared media cache
 records through the media executor boundary. Process-backed ffmpeg execution is
 available through shell-free command plans. The CLI can list target kinds,
 create/list export targets, create export jobs, and read job status/events.
-Telegram upload/set creation and MCP/Web export surfaces are still planned in
+MCP tools can list target kinds, list/create export targets, create export jobs,
+and read job status/events. Telegram upload/set creation and Web export surfaces are still planned in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice
@@ -187,10 +188,16 @@ The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
 - `msm.import_sticker_pack`
 - `msm.update_sticker_pack`
 - `msm.delete_sticker_pack`
+- `msm.list_export_target_kinds`
+- `msm.list_export_targets`
+- `msm.create_export_target`
+- `msm.create_export_job`
+- `msm.get_export_job`
+- `msm.list_export_job_events`
 
 This first MCP slice returns `application/json` responses and does not yet
-implement SSE streams or session management. MCP `tools/call` pack operations
-use Bearer PAT enforcement.
+implement SSE streams or session management. MCP `tools/call` pack and export
+operations use Bearer PAT enforcement.
 
 ## PAT Foundation
 
@@ -222,6 +229,9 @@ P15 enforces Bearer PAT scopes on pack API routes and MCP `tools/call`:
 - `import.run`: import sticker packs.
 - `pack.update`: rename sticker packs and update visibility.
 - `pack.delete`: delete sticker packs.
+- `export.read`: list/read export target kinds, targets, jobs, and job events.
+- `export.run`: create export jobs.
+- `export.target.manage`: create export targets.
 
 API `healthz`, OpenAPI, PAT lifecycle endpoints, MCP `initialize`, MCP `ping`,
 and MCP `tools/list` remain public in this bootstrap slice. Asset privacy and

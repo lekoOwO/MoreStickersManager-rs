@@ -313,3 +313,12 @@
 - Added export target/job DTOs and API calls to the CLI client boundary.
 - Added human and JSON output formatting for export targets, jobs, and events.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, and `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`.
+
+## 2026-05-07 Export MCP Tools
+
+- Added MCP tools for export target kind list, export target list/create, export job create/get, and export job event reads.
+- Added export target/job tool schemas to `tools/list`.
+- Enforced `export.read`, `export.run`, and `export.target.manage` PAT scopes on export tools.
+- Reused pack owner and target tenant checks before queueing export jobs.
+- Redacted token-like and secret-like config fields in MCP export target responses.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-cli -p msm-mcp --locked`, and `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`.
