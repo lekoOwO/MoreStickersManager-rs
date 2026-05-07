@@ -1,6 +1,6 @@
 # Implementation Matrix
 
-Last updated: 2026-05-06.
+Last updated: 2026-05-07.
 
 This file is the quick truth source for what MSM can do today versus what is
 only designed or planned.
@@ -36,9 +36,9 @@ only designed or planned.
 | Area | Planned entrypoint | Notes |
 | --- | --- | --- |
 | Media conversion pipeline | P25 | Partially implemented: `msm-media` now has source media kinds, Telegram static/video/thumbnail profiles, prepared output specs, conversion plan selection, and shell-free ffmpeg command planning. Probing, converter execution, and cache persistence are not implemented. |
-| Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, and a concrete `morestickers` target. Telegram target planning is not implemented. |
+| Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, a concrete `morestickers` target, and Telegram sticker set planning. Remote execution is not wired. |
 | Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, and builds `teloxide::Bot`. Sticker set execution through teloxide requester methods is not wired yet. |
-| Telegram sticker set export | P29-P32 | Convert MSM assets, create Telegram sticker sets with a bot, expose job workflow in API/Web/CLI/MCP. |
+| Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, and builds teloxide `InputSticker` data. Uploads, set creation, job execution, and UI/API surfaces are not implemented. |
 | Export jobs | P29-P30 | Partially implemented: storage tables and repository methods exist for targets, jobs, events, prepared media assets, and Telegram publications. API routes, worker execution, retries, and Web/CLI/MCP surfaces are not implemented. |
 | Folder/tag management | Future phase | User-managed pack folders and tags are not implemented. |
 | Subscription groups | Future phase | Pack/group subscription links and moreStickers auto-update integration are not implemented. |
@@ -53,4 +53,4 @@ only designed or planned.
 
 ## Current Next Phase
 
-P25 should start from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 1 and create `msm-media` with tests for target media profiles and conversion planning.
+P25 should continue from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 8 and add protected export API/OpenAPI coverage for target capabilities, target configuration, job creation, job status, and job events.

@@ -63,22 +63,24 @@ packs when the stored PAT has `pack.update` and `pack.delete`.
 It can also import a pasted MoreStickers `.stickerpack` JSON export when the
 stored PAT has `import.run`.
 
-Telegram sticker set export is planned but not implemented yet. P24 documents a
-future export pipeline that will convert pack assets into target-specific media,
-use a Telegram bot to create sticker sets, and expose the workflow through Web,
-API, CLI, and MCP surfaces.
+Telegram sticker set export is partially planned in backend code but not
+user-facing yet. P24/P25 document an export pipeline that will convert pack
+assets into target-specific media, use a Telegram bot to create sticker sets,
+and expose the workflow through Web, API, CLI, and MCP surfaces.
 
-P25 has started the backend media foundation. MSM can select Telegram
-static/video target profiles and build ffmpeg command arguments for static,
-video, and thumbnail outputs, but it cannot yet run ffmpeg, create Telegram
-sticker sets, or expose export jobs through user-facing surfaces.
+P25 has started the backend media and export planning foundation. MSM can select
+Telegram static/video target profiles, build ffmpeg command arguments for
+static, video, and thumbnail outputs, normalize Telegram sticker set names,
+split create/append batches, enforce Telegram set size limits, and prepare
+teloxide `InputSticker` data. It cannot yet run ffmpeg, upload stickers, create
+Telegram sticker sets, or expose export jobs through user-facing surfaces.
 
 Export target/job tables now exist in storage for later API and worker phases,
 but there are no user-facing export job endpoints yet.
 
 Telegram bot integration now uses `teloxide` internally. The current slice only
-builds a configured bot safely; it does not yet expose Telegram sticker export
-actions to users.
+builds a configured bot safely and prepares sticker inputs; it does not yet
+execute Telegram sticker export actions for users.
 
 Current service binary example:
 

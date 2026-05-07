@@ -6,7 +6,7 @@
 
 **Architecture:** Add target-neutral media conversion and exporter layers, then implement Telegram as the first remote publication target. Existing Provider code remains input-only; MoreStickers and Telegram are modeled as export targets behind durable jobs shared by Web, API, CLI, and MCP.
 
-**Tech Stack:** Rust workspace crates, SQLx SQLite/PostgreSQL-compatible migrations, Axum, utoipa, reqwest, serde, tokio, ffmpeg/ffprobe command execution, Vue 3, Tailwind CSS v4, Shadcn Vue-style components, Vitest.
+**Tech Stack:** Rust workspace crates, SQLx SQLite/PostgreSQL-compatible migrations, Axum, utoipa, teloxide, reqwest for non-Telegram HTTP clients, serde, tokio, ffmpeg/ffprobe command execution, Vue 3, Tailwind CSS v4, Shadcn Vue-style components, Vitest.
 
 ---
 
@@ -14,7 +14,7 @@
 
 - Create `crates/msm-media`: media probing, target media profiles, conversion planning, converter command execution, and prepared media cache types.
 - Create `crates/msm-exporters`: export target traits, target registry, target capabilities, MoreStickers export adapter, Telegram export planner.
-- Create `crates/msm-telegram`: Telegram Bot API DTOs, token-redacting config types, HTTP client, and mocked transport tests.
+- Create `crates/msm-telegram`: teloxide bot boundary, token-redacting config types, Bot API URL configuration, and boundary tests.
 - Modify `crates/msm-storage`: migrations and repositories for export targets, jobs, events, prepared media assets, and Telegram publications.
 - Modify `crates/msm-api`: OpenAPI DTOs and protected routes for targets, jobs, and Telegram export requests.
 - Modify `crates/msm-app`: converter configuration, exporter registry composition, and background export worker.
@@ -118,11 +118,11 @@
 - Create: `crates/msm-exporters/tests/telegram_plan_tests.rs`
 - Modify: `crates/msm-exporters/src/lib.rs`
 
-- [ ] Add Telegram target config, sticker set name normalization, set size checks, and `InputSticker` planning.
-- [ ] Test `_by_<bot_username>` suffix handling, 1-50 initial sticker batching, 120 regular sticker limit, 200 custom emoji limit, emoji list validation, and mixed static/video plan output.
-- [ ] Return typed conflicts for create-only exports when the target set already exists.
-- [ ] Run `cargo test -p msm-exporters --locked`.
-- [ ] Commit with message `feat: plan Telegram sticker exports`.
+- [x] Add Telegram target config, sticker set name normalization, set size checks, and `InputSticker` planning.
+- [x] Test `_by_<bot_username>` suffix handling, 64-character set name normalization, invalid bot username rejection, 1-50 initial sticker batching, 120 regular sticker limit, 200 custom emoji limit, emoji list validation, create-only conflict handling, and mixed static/video plan output.
+- [x] Return typed conflicts for create-only exports when the target set already exists.
+- [x] Run `cargo test -p msm-exporters --locked`.
+- [x] Commit with message `feat: plan Telegram sticker exports`.
 
 ## Task 8: Export API And OpenAPI
 
@@ -213,6 +213,6 @@
 
 - The plan preserves `.stickerpack` compatibility by wrapping current MoreStickers export instead of replacing it.
 - The plan keeps provider import and export publication separate.
-- The plan gives Telegram its own Bot API client and keeps tokens redacted.
+- The plan uses teloxide for Telegram bot operations and keeps tokens redacted.
 - The plan requires mocked Telegram tests and does not depend on real network calls in CI.
 - The plan provides Web, API, CLI, and MCP parity before calling the feature complete.

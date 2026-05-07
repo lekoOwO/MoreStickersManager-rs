@@ -509,3 +509,22 @@ These tests prove:
 - empty bot tokens are rejected;
 - Bot API URLs are validated and applied to the constructed `teloxide::Bot`;
 - MSM uses teloxide as the Telegram bot framework boundary instead of a custom HTTP client.
+
+## Telegram Export Planner Tests
+
+Run:
+
+```powershell
+cargo test -p msm-exporters --locked
+cargo clippy -p msm-exporters --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- Telegram sticker set names append and preserve `_by_<bot_username>` suffixes;
+- invalid bot usernames, empty emoji defaults, excessive regular set sizes, and existing create-only set names return typed errors;
+- sticker set names are constrained to Telegram's 64-character limit;
+- create batches contain at most 50 stickers and append batches carry the remainder;
+- regular sets cap at 120 stickers and custom emoji sets allow 200;
+- static and animated MSM stickers map to static/video teloxide sticker formats;
+- planned stickers can be converted to teloxide `InputSticker` values using prepared media files.

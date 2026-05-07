@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P24 Telegram export pipeline planning.
+Current phase: P25 Telegram export planner.
 
 For a concise implemented-versus-planned feature map, see
 `docs/status/implementation-matrix.md`.
@@ -75,15 +75,17 @@ remote publication:
   profiles, prepared output specs, conversion plan selection, and shell-free
   ffmpeg command planning. Media probing, converter execution, and prepared
   output caching remain planned.
-- `msm-exporters`: planned target registry for MoreStickers, Telegram, and
-  future output targets. The base trait, capability metadata, request/plan
-  types, duplicate-safe registry, and concrete MoreStickers export target are
-  implemented.
+- `msm-exporters`: target registry for MoreStickers, Telegram, and future
+  output targets. The base trait, capability metadata, request/plan types,
+  duplicate-safe registry, concrete MoreStickers export target, and Telegram
+  sticker set planner are implemented.
 - `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config
   handling and Bot API URL configuration.
 
-Telegram sticker set creation is not implemented yet. The next slice is export
-planner setup that maps MSM packs/media plans to teloxide sticker concepts in
+Telegram sticker set creation is not implemented yet. MSM can now plan Telegram
+sticker set names, size limits, create/append batches, media profile selection,
+and teloxide `InputSticker` values without network calls. The next slice is
+protected export API/OpenAPI setup in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice

@@ -256,3 +256,11 @@
 - Added redacted `TelegramBotToken` and `TelegramBotConfig`.
 - Added configurable Bot API URL support and `teloxide::Bot` construction.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-telegram --locked`, `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Telegram Export Planner
+
+- Added Telegram export planning in `msm-exporters`.
+- Added Telegram set name normalization with `_by_<bot_username>` suffix handling, invalid bot username rejection, and 64-character Telegram name limit handling.
+- Added regular/custom emoji sticker count limits, create/append batching, default emoji validation, and create-only existing-set conflict errors.
+- Mapped static and animated MSM stickers through `msm-media` target profiles into teloxide `StickerFormat` and `InputSticker` data.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-exporters --locked`, `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.

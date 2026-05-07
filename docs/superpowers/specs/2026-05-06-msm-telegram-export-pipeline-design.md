@@ -36,7 +36,7 @@ Add three bounded layers after P24:
 
 - `msm-media`: probes media, creates conversion plans, executes configured converter commands, and caches prepared outputs. It has no Telegram or MoreStickers API code.
 - `msm-exporters`: owns target-neutral exporter traits, capability metadata, export planning, and exporter registration. It can include a MoreStickers serializer adapter and a Telegram exporter implementation.
-- `msm-telegram`: owns Telegram Bot API DTOs and HTTP client behavior. It has no database, Web, CLI, or MCP logic.
+- `msm-telegram`: owns the teloxide bot boundary and Telegram bot configuration. It has no database, Web, CLI, or MCP logic.
 
 `msm-app` composes storage, media, exporters, background jobs, and route surfaces. `msm-api`, `msm-cli`, `msm-mcp`, and `apps/web` call the same export/job use cases rather than implementing target-specific behavior independently.
 
@@ -116,11 +116,11 @@ The Web UI should add a target settings page and a pack-level export wizard. The
 ## Phased Scope
 
 - P24 documents this design and implementation plan.
-- P25 builds the media profile and conversion planning foundation.
+- P25 builds the media profile, conversion planning, export persistence, exporter registry, MoreStickers target, teloxide bot boundary, and Telegram export planner foundation.
 - P26 adds asset internalization and conversion cache storage.
-- P27 adds target-neutral exporter traits and wraps existing MoreStickers export.
-- P28 adds the Telegram Bot API client and mocked HTTP tests.
-- P29 adds Telegram export planning and durable export job storage/API.
+- P27 adds remaining target-neutral exporter execution details.
+- P28 adds protected export API/OpenAPI routes.
+- P29 adds Telegram publication execution through teloxide and durable worker orchestration.
 - P30 adds worker execution, retries, progress events, and publication recording.
 - P31 adds CLI and MCP export job parity.
 - P32 adds Web target configuration, pack export wizard, and job progress UI.

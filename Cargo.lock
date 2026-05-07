@@ -1389,8 +1389,10 @@ name = "msm-exporters"
 version = "0.1.0"
 dependencies = [
  "msm-domain",
+ "msm-media",
  "serde",
  "serde_json",
+ "teloxide",
  "thiserror",
 ]
 
