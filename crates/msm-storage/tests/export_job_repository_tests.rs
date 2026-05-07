@@ -2,7 +2,7 @@ use msm_domain::{Sticker, StickerPack};
 use msm_storage::{
     models::{
         ExportJobStatus, NewExportJob, NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset,
-        PackVisibility,
+        NewTelegramPublication, PackVisibility,
     },
     DatabaseConfig, DbPool, StorageRepository,
 };
@@ -155,6 +155,114 @@ async fn prepared_media_assets_upsert_by_source_hash_and_profile_key() {
             .unwrap()
             .output_asset_key,
         "prepared/second.png"
+    );
+}
+
+#[tokio::test]
+async fn telegram_publications_can_be_found_and_listed() {
+    let repo = seeded_export_job_repo().await;
+
+    let publication = repo
+        .upsert_telegram_publication(NewTelegramPublication {
+            id: "telegram_pub_1",
+            pack_id: "pack_1",
+            target_id: "target_telegram",
+            job_id: "job_1",
+            sticker_set_name: "sample_by_msm_bot",
+            sticker_set_url: "https://t.me/addstickers/sample_by_msm_bot",
+            sticker_count: 1,
+            sticker_type: "regular",
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(publication.id, "telegram_pub_1");
+    assert_eq!(publication.pack_id, "pack_1");
+    assert_eq!(publication.target_id, "target_telegram");
+    assert_eq!(publication.job_id, "job_1");
+    assert_eq!(publication.sticker_set_name, "sample_by_msm_bot");
+    assert_eq!(
+        publication.sticker_set_url,
+        "https://t.me/addstickers/sample_by_msm_bot"
+    );
+    assert_eq!(publication.sticker_count, 1);
+    assert_eq!(publication.sticker_type, "regular");
+
+    let by_id = repo
+        .find_telegram_publication("telegram_pub_1")
+        .await
+        .unwrap()
+        .expect("publication should be found by ID");
+    assert_eq!(by_id, publication);
+
+    let by_target_set = repo
+        .find_telegram_publication_by_target_set("target_telegram", "sample_by_msm_bot")
+        .await
+        .unwrap()
+        .expect("publication should be found by target and set");
+    assert_eq!(by_target_set.id, "telegram_pub_1");
+
+    let list = repo
+        .list_telegram_publications_for_pack("pack_1")
+        .await
+        .unwrap();
+    assert_eq!(list, vec![publication]);
+}
+
+#[tokio::test]
+async fn telegram_publication_upsert_updates_existing_target_set() {
+    let repo = seeded_export_job_repo().await;
+    repo.upsert_telegram_publication(NewTelegramPublication {
+        id: "telegram_pub_1",
+        pack_id: "pack_1",
+        target_id: "target_telegram",
+        job_id: "job_1",
+        sticker_set_name: "sample_by_msm_bot",
+        sticker_set_url: "https://t.me/addstickers/sample_by_msm_bot",
+        sticker_count: 1,
+        sticker_type: "regular",
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_2",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: "{}",
+    })
+    .await
+    .unwrap();
+
+    let updated = repo
+        .upsert_telegram_publication(NewTelegramPublication {
+            id: "telegram_pub_replacement",
+            pack_id: "pack_1",
+            target_id: "target_telegram",
+            job_id: "job_2",
+            sticker_set_name: "sample_by_msm_bot",
+            sticker_set_url: "https://t.me/addstickers/sample_by_msm_bot_v2",
+            sticker_count: 2,
+            sticker_type: "customEmoji",
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(updated.id, "telegram_pub_1");
+    assert_eq!(updated.job_id, "job_2");
+    assert_eq!(
+        updated.sticker_set_url,
+        "https://t.me/addstickers/sample_by_msm_bot_v2"
+    );
+    assert_eq!(updated.sticker_count, 2);
+    assert_eq!(updated.sticker_type, "customEmoji");
+    assert_eq!(
+        repo.list_telegram_publications_for_pack("pack_1")
+            .await
+            .unwrap()
+            .len(),
+        1
     );
 }
 

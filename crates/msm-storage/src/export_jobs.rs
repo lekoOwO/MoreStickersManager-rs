@@ -4,7 +4,8 @@ use sqlx::Row;
 use crate::{
     models::{
         ExportJobEventRecord, ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJob,
-        NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset, PreparedMediaAssetRecord,
+        NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset, NewTelegramPublication,
+        PreparedMediaAssetRecord, TelegramPublicationRecord,
     },
     StorageError, StorageRepository, StorageResult,
 };
@@ -396,6 +397,122 @@ impl StorageRepository {
             updated_at: row.get("updated_at"),
         }))
     }
+
+    /// Inserts or updates a Telegram publication by `(target_id, sticker_set_name)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn upsert_telegram_publication(
+        &self,
+        publication: NewTelegramPublication<'_>,
+    ) -> StorageResult<TelegramPublicationRecord> {
+        let now = now();
+        sqlx::query(
+            "INSERT INTO telegram_publications (
+                id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
+                sticker_count, sticker_type, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(target_id, sticker_set_name) DO UPDATE SET
+                pack_id = excluded.pack_id,
+                job_id = excluded.job_id,
+                sticker_set_url = excluded.sticker_set_url,
+                sticker_count = excluded.sticker_count,
+                sticker_type = excluded.sticker_type,
+                updated_at = excluded.updated_at",
+        )
+        .bind(publication.id)
+        .bind(publication.pack_id)
+        .bind(publication.target_id)
+        .bind(publication.job_id)
+        .bind(publication.sticker_set_name)
+        .bind(publication.sticker_set_url)
+        .bind(publication.sticker_count)
+        .bind(publication.sticker_type)
+        .bind(&now)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        self.find_telegram_publication_by_target_set(
+            publication.target_id,
+            publication.sticker_set_name,
+        )
+        .await?
+        .ok_or_else(|| StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
+    /// Finds a Telegram publication by its stable ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn find_telegram_publication(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<TelegramPublicationRecord>> {
+        let row = sqlx::query(
+            "SELECT id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
+                sticker_count, sticker_type, created_at, updated_at
+            FROM telegram_publications
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        Ok(row.map(|row| telegram_publication_from_row(&row)))
+    }
+
+    /// Finds a Telegram publication by target and sticker set name.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn find_telegram_publication_by_target_set(
+        &self,
+        target_id: &str,
+        sticker_set_name: &str,
+    ) -> StorageResult<Option<TelegramPublicationRecord>> {
+        let row = sqlx::query(
+            "SELECT id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
+                sticker_count, sticker_type, created_at, updated_at
+            FROM telegram_publications
+            WHERE target_id = ? AND sticker_set_name = ?",
+        )
+        .bind(target_id)
+        .bind(sticker_set_name)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        Ok(row.map(|row| telegram_publication_from_row(&row)))
+    }
+
+    /// Lists Telegram publications for one source pack.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn list_telegram_publications_for_pack(
+        &self,
+        pack_id: &str,
+    ) -> StorageResult<Vec<TelegramPublicationRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
+                sticker_count, sticker_type, created_at, updated_at
+            FROM telegram_publications
+            WHERE pack_id = ?
+            ORDER BY updated_at DESC, sticker_set_name, id",
+        )
+        .bind(pack_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| telegram_publication_from_row(&row))
+            .collect())
+    }
 }
 
 fn export_job_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<ExportJobRecord> {
@@ -430,6 +547,21 @@ fn export_target_from_row(row: &sqlx::sqlite::SqliteRow) -> ExportTargetRecord {
         name: row.get("name"),
         config_json: row.get("config_json"),
         is_enabled: is_enabled != 0,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn telegram_publication_from_row(row: &sqlx::sqlite::SqliteRow) -> TelegramPublicationRecord {
+    TelegramPublicationRecord {
+        id: row.get("id"),
+        pack_id: row.get("pack_id"),
+        target_id: row.get("target_id"),
+        job_id: row.get("job_id"),
+        sticker_set_name: row.get("sticker_set_name"),
+        sticker_set_url: row.get("sticker_set_url"),
+        sticker_count: row.get("sticker_count"),
+        sticker_type: row.get("sticker_type"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }

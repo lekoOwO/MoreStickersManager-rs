@@ -176,6 +176,32 @@ pub struct NewPreparedMediaAsset<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct TelegramPublicationRecord {
+    pub id: String,
+    pub pack_id: String,
+    pub target_id: String,
+    pub job_id: String,
+    pub sticker_set_name: String,
+    pub sticker_set_url: String,
+    pub sticker_count: i64,
+    pub sticker_type: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewTelegramPublication<'a> {
+    pub id: &'a str,
+    pub pack_id: &'a str,
+    pub target_id: &'a str,
+    pub job_id: &'a str,
+    pub sticker_set_name: &'a str,
+    pub sticker_set_url: &'a str,
+    pub sticker_count: i64,
+    pub sticker_type: &'a str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum ExportJobStatus {
     Queued,
     Running,
