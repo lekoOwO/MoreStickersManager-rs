@@ -12,7 +12,8 @@ use crate::{
         format_export, format_export_job, format_export_job_events, format_export_target,
         format_export_target_kinds, format_export_targets, format_health, format_import,
         format_pack_delete, format_pack_list, format_pack_rename, format_pat_create,
-        format_pat_list, format_pat_revoke,
+        format_pat_list, format_pat_revoke, format_telegram_publication,
+        format_telegram_publications,
     },
     CliError, CliResult,
 };
@@ -123,6 +124,10 @@ pub enum ExportCommand {
         #[command(subcommand)]
         command: ExportJobCommand,
     },
+    Publications {
+        #[command(subcommand)]
+        command: ExportPublicationCommand,
+    },
 }
 
 #[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
@@ -168,6 +173,18 @@ pub enum ExportJobCommand {
     Events {
         #[arg(long)]
         job_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum ExportPublicationCommand {
+    List {
+        #[arg(long)]
+        pack_id: String,
+    },
+    Get {
+        #[arg(long)]
+        publication_id: String,
     },
 }
 
@@ -346,6 +363,16 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                     format_export_job_events(cli.output_format, &events)
                 }
             },
+            ExportCommand::Publications { command } => match command {
+                ExportPublicationCommand::List { pack_id } => {
+                    let publications = client.list_telegram_publications(&pack_id).await?;
+                    format_telegram_publications(cli.output_format, &publications)
+                }
+                ExportPublicationCommand::Get { publication_id } => {
+                    let publication = client.get_telegram_publication(&publication_id).await?;
+                    format_telegram_publication(cli.output_format, &publication)
+                }
+            },
         },
     }
 }
@@ -395,11 +422,12 @@ mod tests {
         client::{
             CreateExportJobPayload, CreateExportTargetPayload, CreatePersonalAccessTokenPayload,
             CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
-            ImportPackPayload, MsmClient, PersonalAccessToken,
+            ImportPackPayload, MsmClient, PersonalAccessToken, TelegramPublication,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
-            ExportTargetCommand, OutputFormat, PackCommand, PackVisibility, PatCommand,
+            ExportPublicationCommand, ExportTargetCommand, OutputFormat, PackCommand,
+            PackVisibility, PatCommand,
         },
         output::HealthResponse,
         CliResult,
@@ -651,6 +679,43 @@ mod tests {
                     }
                 }
             } if id == "job_1" && target_id == "target_telegram"
+        ));
+    }
+
+    #[test]
+    fn parses_export_publication_commands() {
+        let list = Cli::parse_from([
+            "msm",
+            "exports",
+            "publications",
+            "list",
+            "--pack-id",
+            "pack_1",
+        ]);
+        assert!(matches!(
+            list.command,
+            Command::Exports {
+                command: ExportCommand::Publications {
+                    command: ExportPublicationCommand::List { ref pack_id }
+                }
+            } if pack_id == "pack_1"
+        ));
+
+        let get = Cli::parse_from([
+            "msm",
+            "exports",
+            "publications",
+            "get",
+            "--publication-id",
+            "telegram_pub_1",
+        ]);
+        assert!(matches!(
+            get.command,
+            Command::Exports {
+                command: ExportCommand::Publications {
+                    command: ExportPublicationCommand::Get { ref publication_id }
+                }
+            } if publication_id == "telegram_pub_1"
         ));
     }
 
@@ -951,6 +1016,45 @@ mod tests {
         assert_eq!(output, "1\tinfo\tqueued\tjob queued");
     }
 
+    #[tokio::test]
+    async fn executes_export_publication_commands() {
+        let list_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "exports",
+                "publications",
+                "list",
+                "--pack-id",
+                "pack_1",
+            ]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            list_output,
+            "telegram_pub_1\tsample_by_msm_bot\thttps://t.me/addstickers/sample_by_msm_bot"
+        );
+
+        let get_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "exports",
+                "publications",
+                "get",
+                "--publication-id",
+                "telegram_pub_1",
+            ]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            get_output,
+            "telegram_pub_1\tsample_by_msm_bot\thttps://t.me/addstickers/sample_by_msm_bot"
+        );
+    }
+
     #[derive(Default)]
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
@@ -1069,6 +1173,20 @@ mod tests {
                 created_at: "2026-05-07T00:00:00Z".to_owned(),
             }])
         }
+
+        async fn list_telegram_publications(
+            &self,
+            _pack_id: &str,
+        ) -> CliResult<Vec<TelegramPublication>> {
+            Ok(vec![sample_telegram_publication()])
+        }
+
+        async fn get_telegram_publication(
+            &self,
+            _publication_id: &str,
+        ) -> CliResult<TelegramPublication> {
+            Ok(sample_telegram_publication())
+        }
     }
 
     fn sample_export_target() -> ExportTarget {
@@ -1095,6 +1213,21 @@ mod tests {
             request: serde_json::json!({ "options": {} }),
             result: None,
             error_summary: None,
+            created_at: "2026-05-07T00:00:00Z".to_owned(),
+            updated_at: "2026-05-07T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_telegram_publication() -> TelegramPublication {
+        TelegramPublication {
+            id: "telegram_pub_1".to_owned(),
+            pack_id: "pack_1".to_owned(),
+            target_id: "target_telegram".to_owned(),
+            job_id: "job_1".to_owned(),
+            sticker_set_name: "sample_by_msm_bot".to_owned(),
+            sticker_set_url: "https://t.me/addstickers/sample_by_msm_bot".to_owned(),
+            sticker_count: 1,
+            sticker_type: "regular".to_owned(),
             created_at: "2026-05-07T00:00:00Z".to_owned(),
             updated_at: "2026-05-07T00:00:00Z".to_owned(),
         }

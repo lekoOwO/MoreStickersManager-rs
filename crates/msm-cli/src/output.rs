@@ -3,7 +3,7 @@ use msm_domain::StickerPack;
 use crate::{
     client::{
         CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
-        PersonalAccessToken,
+        PersonalAccessToken, TelegramPublication,
     },
     command::OutputFormat,
     CliResult,
@@ -251,4 +251,45 @@ pub fn format_export_job_events(
             .join("\n")),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(events)?),
     }
+}
+
+/// Formats Telegram publication list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_telegram_publications(
+    format: OutputFormat,
+    publications: &[TelegramPublication],
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(publications
+            .iter()
+            .map(telegram_publication_line)
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(publications)?),
+    }
+}
+
+/// Formats one Telegram publication response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_telegram_publication(
+    format: OutputFormat,
+    publication: &TelegramPublication,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(telegram_publication_line(publication)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(publication)?),
+    }
+}
+
+fn telegram_publication_line(publication: &TelegramPublication) -> String {
+    format!(
+        "{}\t{}\t{}",
+        publication.id, publication.sticker_set_name, publication.sticker_set_url
+    )
 }

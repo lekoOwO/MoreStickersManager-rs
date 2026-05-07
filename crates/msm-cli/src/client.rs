@@ -129,6 +129,21 @@ pub struct ExportJobEvent {
     pub created_at: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TelegramPublication {
+    pub id: String,
+    pub pack_id: String,
+    pub target_id: String,
+    pub job_id: String,
+    pub sticker_set_name: String,
+    pub sticker_set_url: String,
+    pub sticker_count: i64,
+    pub sticker_type: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[async_trait]
 pub trait MsmClient {
     async fn health(&self) -> CliResult<HealthResponse>;
@@ -152,6 +167,14 @@ pub trait MsmClient {
     async fn create_export_job(&self, payload: CreateExportJobPayload) -> CliResult<ExportJob>;
     async fn get_export_job(&self, job_id: &str) -> CliResult<ExportJob>;
     async fn list_export_job_events(&self, job_id: &str) -> CliResult<Vec<ExportJobEvent>>;
+    async fn list_telegram_publications(
+        &self,
+        pack_id: &str,
+    ) -> CliResult<Vec<TelegramPublication>>;
+    async fn get_telegram_publication(
+        &self,
+        publication_id: &str,
+    ) -> CliResult<TelegramPublication>;
 }
 
 #[derive(Clone)]
@@ -382,6 +405,40 @@ impl MsmClient for ReqwestMsmClient {
             .authorize(
                 self.http
                     .get(self.endpoint(&format!("/api/v1/export-jobs/{job_id}/events"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_telegram_publications(
+        &self,
+        pack_id: &str,
+    ) -> CliResult<Vec<TelegramPublication>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint("/api/v1/telegram-publications")?),
+            )
+            .query(&[("packId", pack_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn get_telegram_publication(
+        &self,
+        publication_id: &str,
+    ) -> CliResult<TelegramPublication> {
+        Ok(self
+            .authorize(
+                self.http.get(
+                    self.endpoint(&format!("/api/v1/telegram-publications/{publication_id}"))?,
+                ),
             )
             .send()
             .await?
