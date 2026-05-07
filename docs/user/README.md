@@ -80,6 +80,10 @@ has a process-backed ffmpeg executor for prepared media conversion, but cannot
 yet upload stickers, create Telegram sticker sets, or expose export jobs in
 Web/CLI/MCP surfaces.
 
+Service startup can bootstrap configured export targets with
+`MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
+targets such as a Telegram bot target before Web target settings exist.
+
 Export target/job tables now exist in storage for later API and worker phases,
 but there are no user-facing export job endpoints yet.
 

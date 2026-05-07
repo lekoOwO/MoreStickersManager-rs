@@ -60,7 +60,8 @@ jobs and Telegram dry-run planning jobs from queued storage records. It can writ
 prepared media cache records through an injected media executor and can be
 started as an optional polling loop. It also has a process-backed prepared media
 executor that runs shell-free ffmpeg command plans and returns output metadata.
-Target bootstrap config and Telegram remote publication remain planned.
+Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
+Telegram remote publication remains planned.
 
 No export target may mutate MoreStickers-compatible pack JSON as a side effect of
 publishing. Target-specific prepared media should be cached separately from the

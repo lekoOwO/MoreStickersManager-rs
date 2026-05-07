@@ -297,3 +297,10 @@
 - Added converter timeout handling, non-zero exit status errors, output directory creation, and prepared output metadata reads.
 - Added tests with an injected command runner so verification does not require ffmpeg to be installed.
 - Verified with `cargo test -p msm-app --locked` and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+
+## 2026-05-07 Export Target Bootstrap Config
+
+- Added `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON` to declare startup export targets.
+- Added idempotent export target create/update during service initialization.
+- Added tests for config parsing, invalid JSON rejection, and repository create/update behavior.
+- Verified with `cargo test -p msm-app --locked` and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.

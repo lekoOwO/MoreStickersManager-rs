@@ -563,4 +563,5 @@ These tests prove:
 - the worker can plan a Telegram dry-run export job without network calls;
 - worker execution records running/succeeded states and ordered job events;
 - injected prepared media executors can write prepared media cache records for planned Telegram media;
-- process-backed prepared media execution uses shell-free conversion command plans and can be tested with an injected command runner instead of installed ffmpeg.
+- process-backed prepared media execution uses shell-free conversion command plans and can be tested with an injected command runner instead of installed ffmpeg;
+- startup export target bootstrap config parses, rejects invalid JSON, and idempotently creates/updates configured targets.

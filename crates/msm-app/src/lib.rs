@@ -18,6 +18,7 @@ use axum::{
 use bytes::Bytes;
 use include_dir::{include_dir, Dir};
 use msm_api::{build_router, ApiState};
+use msm_storage::models::NewExportTarget;
 use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 
 pub mod export_worker;
@@ -37,6 +38,17 @@ pub struct AppConfig {
     pub asset_dir: PathBuf,
     pub web_dist_dir: PathBuf,
     pub export_worker: ExportWorkerConfig,
+    pub bootstrap_export_targets: Vec<BootstrapExportTargetConfig>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BootstrapExportTargetConfig {
+    pub id: String,
+    pub tenant_id: String,
+    pub kind: String,
+    pub name: String,
+    pub config_json: String,
+    pub is_enabled: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -49,6 +61,9 @@ pub enum AppError {
 
     #[error("invalid numeric environment value `{key}` = `{value}`")]
     InvalidNumber { key: String, value: String },
+
+    #[error("invalid JSON environment value `{key}`: {message}")]
+    InvalidJson { key: String, message: String },
 
     #[error("storage error: {0}")]
     Storage(#[from] msm_storage::StorageError),
@@ -131,6 +146,7 @@ impl AppConfig {
                     Self::DEFAULT_EXPORT_WORKER_POLL_INTERVAL_MS,
                 )?),
             },
+            bootstrap_export_targets: read_bootstrap_export_targets(vars)?,
         })
     }
 }
@@ -147,8 +163,39 @@ pub async fn initialize_state(config: &AppConfig) -> AppResult<ApiState> {
     pool.run_migrations().await?;
     std::fs::create_dir_all(&config.asset_dir)?;
     let repository = StorageRepository::new(pool);
+    bootstrap_export_targets(&repository, &config.bootstrap_export_targets).await?;
     let asset_store = LocalAssetStore::new(config.asset_dir.clone());
     Ok(ApiState::new(repository, asset_store))
+}
+
+async fn bootstrap_export_targets(
+    repository: &StorageRepository,
+    targets: &[BootstrapExportTargetConfig],
+) -> AppResult<()> {
+    for target in targets {
+        if repository.find_export_target(&target.id).await?.is_some() {
+            repository
+                .update_export_target(
+                    &target.id,
+                    &target.name,
+                    &target.config_json,
+                    target.is_enabled,
+                )
+                .await?;
+        } else {
+            repository
+                .create_export_target(NewExportTarget {
+                    id: &target.id,
+                    tenant_id: &target.tenant_id,
+                    kind: &target.kind,
+                    name: &target.name,
+                    config_json: &target.config_json,
+                    is_enabled: target.is_enabled,
+                })
+                .await?;
+        }
+    }
+    Ok(())
 }
 
 pub fn build_app_router(state: ApiState, web_dist_dir: impl Into<PathBuf>) -> Router {
@@ -244,6 +291,52 @@ fn read_bool(vars: &BTreeMap<String, String>, key: &str, default: bool) -> AppRe
     }
 }
 
+fn read_bootstrap_export_targets(
+    vars: &BTreeMap<String, String>,
+) -> AppResult<Vec<BootstrapExportTargetConfig>> {
+    let Some(value) = vars
+        .get("MSM_BOOTSTRAP_EXPORT_TARGETS_JSON")
+        .filter(|value| !value.trim().is_empty())
+    else {
+        return Ok(Vec::new());
+    };
+    let raw_targets: Vec<RawBootstrapExportTargetConfig> =
+        serde_json::from_str(value).map_err(|error| AppError::InvalidJson {
+            key: "MSM_BOOTSTRAP_EXPORT_TARGETS_JSON".to_owned(),
+            message: error.to_string(),
+        })?;
+
+    raw_targets
+        .into_iter()
+        .map(|target| {
+            let config_json =
+                serde_json::to_string(&target.config).map_err(|error| AppError::InvalidJson {
+                    key: "MSM_BOOTSTRAP_EXPORT_TARGETS_JSON".to_owned(),
+                    message: error.to_string(),
+                })?;
+            Ok(BootstrapExportTargetConfig {
+                id: target.id,
+                tenant_id: target.tenant_id,
+                kind: target.kind,
+                name: target.name,
+                config_json,
+                is_enabled: target.is_enabled.unwrap_or(true),
+            })
+        })
+        .collect()
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawBootstrapExportTargetConfig {
+    id: String,
+    tenant_id: String,
+    kind: String,
+    name: String,
+    config: serde_json::Value,
+    is_enabled: Option<bool>,
+}
+
 fn normalized_web_path(path: &str) -> Option<String> {
     let trimmed = path.trim_start_matches('/');
     let candidate = if trimmed.is_empty() || trimmed.ends_with('/') {
@@ -325,6 +418,7 @@ mod tests {
             config.export_worker.poll_interval,
             std::time::Duration::from_secs(5)
         );
+        assert!(config.bootstrap_export_targets.is_empty());
     }
 
     #[test]
@@ -348,6 +442,23 @@ mod tests {
         vars.insert(
             "MSM_EXPORT_WORKER_POLL_INTERVAL_MS".to_owned(),
             "250".to_owned(),
+        );
+        vars.insert(
+            "MSM_BOOTSTRAP_EXPORT_TARGETS_JSON".to_owned(),
+            serde_json::json!([
+                {
+                    "id": "target_telegram",
+                    "tenantId": "tenant_1",
+                    "kind": "telegram",
+                    "name": "Telegram",
+                    "config": {
+                        "botUsername": "msm_bot",
+                        "botToken": "secret"
+                    },
+                    "isEnabled": true
+                }
+            ])
+            .to_string(),
         );
 
         let config = AppConfig::from_env_map(&vars).unwrap();
@@ -376,6 +487,12 @@ mod tests {
         assert_eq!(
             config.export_worker.poll_interval,
             std::time::Duration::from_millis(250)
+        );
+        assert_eq!(config.bootstrap_export_targets.len(), 1);
+        assert_eq!(config.bootstrap_export_targets[0].id, "target_telegram");
+        assert_eq!(
+            config.bootstrap_export_targets[0].config_json,
+            r#"{"botToken":"secret","botUsername":"msm_bot"}"#
         );
     }
 
@@ -407,6 +524,58 @@ mod tests {
         let error = AppConfig::from_env_map(&vars).expect_err("invalid bool must fail");
 
         assert!(error.to_string().contains("MSM_EXPORT_WORKER_ENABLED"));
+    }
+
+    #[test]
+    fn config_rejects_invalid_bootstrap_export_target_json() {
+        let mut vars = BTreeMap::new();
+        vars.insert(
+            "MSM_BOOTSTRAP_EXPORT_TARGETS_JSON".to_owned(),
+            "not-json".to_owned(),
+        );
+
+        let error = AppConfig::from_env_map(&vars).expect_err("invalid JSON must fail");
+
+        assert!(error
+            .to_string()
+            .contains("MSM_BOOTSTRAP_EXPORT_TARGETS_JSON"));
+    }
+
+    #[tokio::test]
+    async fn bootstrap_export_targets_creates_and_updates_targets() {
+        let config = msm_storage::DatabaseConfig::parse("sqlite::memory:").unwrap();
+        let pool = msm_storage::DbPool::connect(&config).await.unwrap();
+        pool.run_migrations().await.unwrap();
+        let repository = msm_storage::StorageRepository::new(pool);
+        repository
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+
+        let mut target = super::BootstrapExportTargetConfig {
+            id: "target_telegram".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            kind: "telegram".to_owned(),
+            name: "Telegram".to_owned(),
+            config_json: r#"{"botUsername":"msm_bot"}"#.to_owned(),
+            is_enabled: true,
+        };
+        super::bootstrap_export_targets(&repository, &[target.clone()])
+            .await
+            .unwrap();
+        target.name = "Telegram Updated".to_owned();
+        target.is_enabled = false;
+        super::bootstrap_export_targets(&repository, &[target])
+            .await
+            .unwrap();
+
+        let stored = repository
+            .find_export_target("target_telegram")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(stored.name, "Telegram Updated");
+        assert!(!stored.is_enabled);
     }
 
     #[test]

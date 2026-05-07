@@ -152,7 +152,7 @@
 - [x] Implement queued job polling, running status transition, event recording, exporter execution foundation, success result recording, and failure recording.
 - [x] Implement prepared media executor boundary and prepared media cache writes.
 - [x] Implement real ffmpeg converter process execution.
-- [ ] Implement target bootstrap config.
+- [x] Implement target bootstrap config.
 - [x] Implement background loop composition behind `MSM_EXPORT_WORKER_ENABLED`.
 - [x] Test a mocked MoreStickers export job and a mocked Telegram dry-run export job without real Telegram network access.
 - [x] Run `cargo test -p msm-app --locked`.
