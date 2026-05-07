@@ -394,3 +394,12 @@
 - Added repository tests for create/find/list behavior and upsert update behavior.
 - Documented that worker persistence into `telegram_publications` is still the next integration step.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Telegram Worker Publication Persistence
+
+- Updated successful non-dry-run Telegram worker jobs to upsert `telegram_publications` records.
+- Used stable publication IDs derived from target ID and sticker set name while relying on the storage unique key for updates.
+- Verified dry-run jobs do not create Telegram publication records.
+- Kept Telegram network calls behind injected fake publishers in tests.
+- Documented that API/CLI/MCP/Web publication-history exposure and remote reconciliation remain later slices.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.

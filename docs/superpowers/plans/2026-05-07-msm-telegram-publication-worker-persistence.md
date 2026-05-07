@@ -38,12 +38,12 @@
 - Modify: `docs/status/implementation-matrix.md`
 - Modify: `docs/agents/testing.md`
 
-- [ ] Document that successful worker publication jobs now write durable publication records.
-- [ ] Run `cargo fmt --all -- --check`.
-- [ ] Run `cargo test -p msm-app --locked`.
-- [ ] Run `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
-- [ ] Run `git diff --check`.
-- [ ] Commit with message `docs: document Telegram worker publication persistence`.
+- [x] Document that successful worker publication jobs now write durable publication records.
+- [x] Run `cargo fmt --all -- --check`.
+- [x] Run `cargo test -p msm-app --locked`.
+- [x] Run `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+- [x] Run `git diff --check`.
+- [x] Commit with message `docs: document Telegram worker publication persistence`.
 
 ## Self-Review
 
