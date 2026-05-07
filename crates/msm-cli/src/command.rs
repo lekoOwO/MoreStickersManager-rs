@@ -5,12 +5,14 @@ use msm_domain::StickerPack;
 
 use crate::{
     client::{
-        CreatePersonalAccessTokenPayload, ImportPackPayload, MsmClient, ReqwestMsmClient,
-        UpdatePackPayload,
+        CreateExportJobPayload, CreateExportTargetPayload, CreatePersonalAccessTokenPayload,
+        ImportPackPayload, MsmClient, ReqwestMsmClient, UpdatePackPayload,
     },
     output::{
-        format_export, format_health, format_import, format_pack_delete, format_pack_list,
-        format_pack_rename, format_pat_create, format_pat_list, format_pat_revoke,
+        format_export, format_export_job, format_export_job_events, format_export_target,
+        format_export_target_kinds, format_export_targets, format_health, format_import,
+        format_pack_delete, format_pack_list, format_pack_rename, format_pat_create,
+        format_pat_list, format_pat_revoke,
     },
     CliError, CliResult,
 };
@@ -41,6 +43,10 @@ pub enum Command {
     Pats {
         #[command(subcommand)]
         command: PatCommand,
+    },
+    Exports {
+        #[command(subcommand)]
+        command: ExportCommand,
     },
 }
 
@@ -106,6 +112,65 @@ pub enum PatCommand {
     },
 }
 
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum ExportCommand {
+    Kinds,
+    Targets {
+        #[command(subcommand)]
+        command: ExportTargetCommand,
+    },
+    Jobs {
+        #[command(subcommand)]
+        command: ExportJobCommand,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum ExportTargetCommand {
+    List {
+        #[arg(long)]
+        tenant_id: String,
+    },
+    Create {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        kind: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        config_json: String,
+        #[arg(long)]
+        disabled: bool,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum ExportJobCommand {
+    Create {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        source_pack_id: String,
+        #[arg(long)]
+        target_id: String,
+        #[arg(long, default_value = "{}")]
+        options_json: String,
+    },
+    Get {
+        #[arg(long)]
+        job_id: String,
+    },
+    Events {
+        #[arg(long)]
+        job_id: String,
+    },
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum OutputFormat {
     Human,
@@ -134,6 +199,7 @@ impl PackVisibility {
 /// # Errors
 ///
 /// Returns an error when client calls, file reads, file writes, or JSON handling fail.
+#[allow(clippy::too_many_lines)]
 pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> CliResult<String> {
     match cli.command {
         Command::Health => format_health(cli.output_format, &client.health().await?),
@@ -219,6 +285,68 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                 format_pat_revoke(cli.output_format, &token_id)
             }
         },
+        Command::Exports { command } => match command {
+            ExportCommand::Kinds => {
+                let kinds = client.list_export_target_kinds().await?;
+                format_export_target_kinds(cli.output_format, &kinds)
+            }
+            ExportCommand::Targets { command } => match command {
+                ExportTargetCommand::List { tenant_id } => {
+                    let targets = client.list_export_targets(&tenant_id).await?;
+                    format_export_targets(cli.output_format, &targets)
+                }
+                ExportTargetCommand::Create {
+                    id,
+                    tenant_id,
+                    kind,
+                    name,
+                    config_json,
+                    disabled,
+                } => {
+                    let config = serde_json::from_str(&config_json)?;
+                    let target = client
+                        .create_export_target(CreateExportTargetPayload {
+                            id,
+                            tenant_id,
+                            kind,
+                            name,
+                            config,
+                            is_enabled: !disabled,
+                        })
+                        .await?;
+                    format_export_target(cli.output_format, &target)
+                }
+            },
+            ExportCommand::Jobs { command } => match command {
+                ExportJobCommand::Create {
+                    id,
+                    tenant_id,
+                    source_pack_id,
+                    target_id,
+                    options_json,
+                } => {
+                    let options = serde_json::from_str(&options_json)?;
+                    let job = client
+                        .create_export_job(CreateExportJobPayload {
+                            id,
+                            tenant_id,
+                            source_pack_id,
+                            target_id,
+                            options,
+                        })
+                        .await?;
+                    format_export_job(cli.output_format, &job)
+                }
+                ExportJobCommand::Get { job_id } => {
+                    let job = client.get_export_job(&job_id).await?;
+                    format_export_job(cli.output_format, &job)
+                }
+                ExportJobCommand::Events { job_id } => {
+                    let events = client.list_export_job_events(&job_id).await?;
+                    format_export_job_events(cli.output_format, &events)
+                }
+            },
+        },
     }
 }
 
@@ -265,12 +393,13 @@ mod tests {
 
     use crate::{
         client::{
-            CreatePersonalAccessTokenPayload, CreatedPersonalAccessToken, ImportPackPayload,
-            MsmClient, PersonalAccessToken,
+            CreateExportJobPayload, CreateExportTargetPayload, CreatePersonalAccessTokenPayload,
+            CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
+            ImportPackPayload, MsmClient, PersonalAccessToken,
         },
         command::{
-            execute_with_client, Cli, Command, OutputFormat, PackCommand, PackVisibility,
-            PatCommand,
+            execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
+            ExportTargetCommand, OutputFormat, PackCommand, PackVisibility, PatCommand,
         },
         output::HealthResponse,
         CliResult,
@@ -455,6 +584,73 @@ mod tests {
             Command::Pats {
                 command: PatCommand::Revoke { ref token_id }
             } if token_id == "cli1"
+        ));
+    }
+
+    #[test]
+    fn parses_export_target_create_command() {
+        let cli = Cli::parse_from([
+            "msm",
+            "exports",
+            "targets",
+            "create",
+            "--id",
+            "target_telegram",
+            "--tenant-id",
+            "tenant_1",
+            "--kind",
+            "telegram",
+            "--name",
+            "Telegram",
+            "--config-json",
+            r#"{"botUsername":"msm_bot"}"#,
+        ]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Exports {
+                command: ExportCommand::Targets {
+                    command: ExportTargetCommand::Create {
+                        ref id,
+                        ref tenant_id,
+                        ref kind,
+                        ..
+                    }
+                }
+            } if id == "target_telegram" && tenant_id == "tenant_1" && kind == "telegram"
+        ));
+    }
+
+    #[test]
+    fn parses_export_job_create_command() {
+        let cli = Cli::parse_from([
+            "msm",
+            "exports",
+            "jobs",
+            "create",
+            "--id",
+            "job_1",
+            "--tenant-id",
+            "tenant_1",
+            "--source-pack-id",
+            "pack_1",
+            "--target-id",
+            "target_telegram",
+            "--options-json",
+            r#"{"setNameSlug":"sample"}"#,
+        ]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Exports {
+                command: ExportCommand::Jobs {
+                    command: ExportJobCommand::Create {
+                        ref id,
+                        ref target_id,
+                        ..
+                    }
+                }
+            } if id == "job_1" && target_id == "target_telegram"
         ));
     }
 
@@ -664,6 +860,97 @@ mod tests {
         assert_eq!(client.revoked_pat.lock().unwrap().as_deref(), Some("cli1"));
     }
 
+    #[tokio::test]
+    async fn executes_export_kinds_command() {
+        let output = execute_with_client(
+            Cli::parse_from(["msm", "exports", "kinds"]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "telegram\tTelegram");
+    }
+
+    #[tokio::test]
+    async fn executes_export_target_create_command() {
+        let client = FakeClient::default();
+        let output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "exports",
+                "targets",
+                "create",
+                "--id",
+                "target_telegram",
+                "--tenant-id",
+                "tenant_1",
+                "--kind",
+                "telegram",
+                "--name",
+                "Telegram",
+                "--config-json",
+                r#"{"botUsername":"msm_bot"}"#,
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "created target_telegram");
+        assert_eq!(
+            client
+                .created_export_target
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .config["botUsername"],
+            "msm_bot"
+        );
+    }
+
+    #[tokio::test]
+    async fn executes_export_job_create_command_with_json_output() {
+        let output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "--output-format",
+                "json",
+                "exports",
+                "jobs",
+                "create",
+                "--id",
+                "job_1",
+                "--tenant-id",
+                "tenant_1",
+                "--source-pack-id",
+                "pack_1",
+                "--target-id",
+                "target_telegram",
+            ]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+        let json: serde_json::Value = serde_json::from_str(&output).unwrap();
+
+        assert_eq!(json["id"], "job_1");
+        assert_eq!(json["status"], "queued");
+    }
+
+    #[tokio::test]
+    async fn executes_export_job_events_command() {
+        let output = execute_with_client(
+            Cli::parse_from(["msm", "exports", "jobs", "events", "--job-id", "job_1"]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "1\tinfo\tqueued\tjob queued");
+    }
+
     #[derive(Default)]
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
@@ -671,6 +958,8 @@ mod tests {
         deleted_pack: Mutex<Option<String>>,
         created_pat: Mutex<Option<CreatePersonalAccessTokenPayload>>,
         revoked_pat: Mutex<Option<String>>,
+        created_export_target: Mutex<Option<CreateExportTargetPayload>>,
+        created_export_job: Mutex<Option<CreateExportJobPayload>>,
     }
 
     #[async_trait]
@@ -736,6 +1025,78 @@ mod tests {
         async fn revoke_pat(&self, token_id: &str) -> CliResult<()> {
             *self.revoked_pat.lock().unwrap() = Some(token_id.to_owned());
             Ok(())
+        }
+
+        async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>> {
+            Ok(vec![ExportTargetKind {
+                kind: "telegram".to_owned(),
+                display_name: "Telegram".to_owned(),
+                supports_remote_publication: true,
+                supports_media_conversion: true,
+                requires_credentials: true,
+            }])
+        }
+
+        async fn list_export_targets(&self, _tenant_id: &str) -> CliResult<Vec<ExportTarget>> {
+            Ok(vec![sample_export_target()])
+        }
+
+        async fn create_export_target(
+            &self,
+            payload: CreateExportTargetPayload,
+        ) -> CliResult<ExportTarget> {
+            *self.created_export_target.lock().unwrap() = Some(payload);
+            Ok(sample_export_target())
+        }
+
+        async fn create_export_job(&self, payload: CreateExportJobPayload) -> CliResult<ExportJob> {
+            *self.created_export_job.lock().unwrap() = Some(payload);
+            Ok(sample_export_job())
+        }
+
+        async fn get_export_job(&self, _job_id: &str) -> CliResult<ExportJob> {
+            Ok(sample_export_job())
+        }
+
+        async fn list_export_job_events(&self, _job_id: &str) -> CliResult<Vec<ExportJobEvent>> {
+            Ok(vec![ExportJobEvent {
+                job_id: "job_1".to_owned(),
+                sequence: 1,
+                level: "info".to_owned(),
+                stage: "queued".to_owned(),
+                message: "job queued".to_owned(),
+                metadata: serde_json::json!({}),
+                created_at: "2026-05-07T00:00:00Z".to_owned(),
+            }])
+        }
+    }
+
+    fn sample_export_target() -> ExportTarget {
+        ExportTarget {
+            id: "target_telegram".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            kind: "telegram".to_owned(),
+            name: "Telegram".to_owned(),
+            config: serde_json::json!({ "botToken": "<redacted>" }),
+            is_enabled: true,
+            created_at: "2026-05-07T00:00:00Z".to_owned(),
+            updated_at: "2026-05-07T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_export_job() -> ExportJob {
+        ExportJob {
+            id: "job_1".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            owner_user_id: "user_1".to_owned(),
+            source_pack_id: "pack_1".to_owned(),
+            target_id: "target_telegram".to_owned(),
+            status: "queued".to_owned(),
+            request: serde_json::json!({ "options": {} }),
+            result: None,
+            error_summary: None,
+            created_at: "2026-05-07T00:00:00Z".to_owned(),
+            updated_at: "2026-05-07T00:00:00Z".to_owned(),
         }
     }
 

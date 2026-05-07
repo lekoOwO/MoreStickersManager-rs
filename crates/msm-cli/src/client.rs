@@ -57,6 +57,78 @@ pub struct PersonalAccessToken {
     pub created_at: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportTargetKind {
+    pub kind: String,
+    pub display_name: String,
+    pub supports_remote_publication: bool,
+    pub supports_media_conversion: bool,
+    pub requires_credentials: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateExportTargetPayload {
+    pub id: String,
+    pub tenant_id: String,
+    pub kind: String,
+    pub name: String,
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportTarget {
+    pub id: String,
+    pub tenant_id: String,
+    pub kind: String,
+    pub name: String,
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateExportJobPayload {
+    pub id: String,
+    pub tenant_id: String,
+    pub source_pack_id: String,
+    pub target_id: String,
+    pub options: serde_json::Value,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportJob {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub source_pack_id: String,
+    pub target_id: String,
+    pub status: String,
+    pub request: serde_json::Value,
+    pub result: Option<serde_json::Value>,
+    pub error_summary: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportJobEvent {
+    pub job_id: String,
+    pub sequence: i64,
+    pub level: String,
+    pub stage: String,
+    pub message: String,
+    pub metadata: serde_json::Value,
+    pub created_at: String,
+}
+
 #[async_trait]
 pub trait MsmClient {
     async fn health(&self) -> CliResult<HealthResponse>;
@@ -71,6 +143,15 @@ pub trait MsmClient {
     ) -> CliResult<CreatedPersonalAccessToken>;
     async fn list_pats(&self, user_id: &str) -> CliResult<Vec<PersonalAccessToken>>;
     async fn revoke_pat(&self, token_id: &str) -> CliResult<()>;
+    async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>>;
+    async fn list_export_targets(&self, tenant_id: &str) -> CliResult<Vec<ExportTarget>>;
+    async fn create_export_target(
+        &self,
+        payload: CreateExportTargetPayload,
+    ) -> CliResult<ExportTarget>;
+    async fn create_export_job(&self, payload: CreateExportJobPayload) -> CliResult<ExportJob>;
+    async fn get_export_job(&self, job_id: &str) -> CliResult<ExportJob>;
+    async fn list_export_job_events(&self, job_id: &str) -> CliResult<Vec<ExportJobEvent>>;
 }
 
 #[derive(Clone)]
@@ -235,6 +316,78 @@ impl MsmClient for ReqwestMsmClient {
         .await?
         .error_for_status()?;
         Ok(())
+    }
+
+    async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>> {
+        Ok(self
+            .authorize(self.http.get(self.endpoint("/api/v1/export-target-kinds")?))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_export_targets(&self, tenant_id: &str) -> CliResult<Vec<ExportTarget>> {
+        Ok(self
+            .authorize(self.http.get(self.endpoint("/api/v1/export-targets")?))
+            .query(&[("tenantId", tenant_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn create_export_target(
+        &self,
+        payload: CreateExportTargetPayload,
+    ) -> CliResult<ExportTarget> {
+        Ok(self
+            .authorize(self.http.post(self.endpoint("/api/v1/export-targets")?))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn create_export_job(&self, payload: CreateExportJobPayload) -> CliResult<ExportJob> {
+        Ok(self
+            .authorize(self.http.post(self.endpoint("/api/v1/export-jobs")?))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn get_export_job(&self, job_id: &str) -> CliResult<ExportJob> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/export-jobs/{job_id}"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_export_job_events(&self, job_id: &str) -> CliResult<Vec<ExportJobEvent>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/export-jobs/{job_id}/events"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
     }
 }
 

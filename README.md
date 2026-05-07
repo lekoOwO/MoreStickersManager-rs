@@ -45,6 +45,12 @@ cargo run -p msm-cli -- packs delete --pack-id pack_1
 cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
+cargo run -p msm-cli -- exports kinds
+cargo run -p msm-cli -- exports targets list --tenant-id tenant_1
+cargo run -p msm-cli -- exports targets create --id target_telegram --tenant-id tenant_1 --kind telegram --name Telegram --config-json '{"botUsername":"msm_bot","botToken":"123:token"}'
+cargo run -p msm-cli -- exports jobs create --id job_1 --tenant-id tenant_1 --source-pack-id pack_1 --target-id target_telegram --options-json '{"setNameSlug":"sample"}'
+cargo run -p msm-cli -- exports jobs get --job-id job_1
+cargo run -p msm-cli -- exports jobs events --job-id job_1
 ```
 
 Protected API commands can send a PAT with either:
@@ -90,8 +96,9 @@ responses, queue export jobs, and read job status/events. The app worker can run
 MoreStickers serialization jobs and Telegram dry-run planning jobs from queued
 records, optionally poll in the service process, and write prepared media cache
 records through the media executor boundary. Process-backed ffmpeg execution is
-available through shell-free command plans. Telegram upload/set creation and
-CLI/MCP/Web export surfaces are still planned in
+available through shell-free command plans. The CLI can list target kinds,
+create/list export targets, create export jobs, and read job status/events.
+Telegram upload/set creation and MCP/Web export surfaces are still planned in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice

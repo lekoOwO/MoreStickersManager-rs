@@ -565,3 +565,20 @@ These tests prove:
 - injected prepared media executors can write prepared media cache records for planned Telegram media;
 - process-backed prepared media execution uses shell-free conversion command plans and can be tested with an injected command runner instead of installed ffmpeg;
 - startup export target bootstrap config parses, rejects invalid JSON, and idempotently creates/updates configured targets.
+
+## Export CLI Tests
+
+Run:
+
+```powershell
+cargo test -p msm-cli --locked
+cargo clippy -p msm-cli --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- CLI arguments parse for export target creation and export job creation;
+- `msm exports kinds` calls the target kind API client boundary;
+- target creation preserves JSON config and enabled/disabled state;
+- export job creation supports JSON output;
+- export job event reads render ordered event information.

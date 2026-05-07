@@ -168,7 +168,7 @@
 - Modify: `crates/msm-mcp/src/tools.rs`
 - Modify: `crates/msm-mcp/tests/mcp_tests.rs`
 
-- [ ] Add CLI commands to list target kinds, list/create targets, start exports, and read job status/events.
+- [x] Add CLI commands to list target kinds, list/create targets, start exports, and read job status/events.
 - [ ] Add MCP tools for the same target/job operations.
 - [ ] Test human and JSON CLI output plus MCP tool schemas and PAT forwarding.
 - [ ] Run `cargo test -p msm-cli -p msm-mcp --locked`.

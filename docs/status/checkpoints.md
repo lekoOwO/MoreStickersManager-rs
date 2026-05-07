@@ -304,3 +304,12 @@
 - Added idempotent export target create/update during service initialization.
 - Added tests for config parsing, invalid JSON rejection, and repository create/update behavior.
 - Verified with `cargo test -p msm-app --locked` and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+
+## 2026-05-07 Export CLI Commands
+
+- Added `msm exports kinds`.
+- Added `msm exports targets list` and `msm exports targets create`.
+- Added `msm exports jobs create`, `msm exports jobs get`, and `msm exports jobs events`.
+- Added export target/job DTOs and API calls to the CLI client boundary.
+- Added human and JSON output formatting for export targets, jobs, and events.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, and `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`.

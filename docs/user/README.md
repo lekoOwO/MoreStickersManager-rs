@@ -22,6 +22,12 @@ cargo run -p msm-cli -- packs delete --pack-id pack_1
 cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
+cargo run -p msm-cli -- exports kinds
+cargo run -p msm-cli -- exports targets list --tenant-id tenant_1
+cargo run -p msm-cli -- exports targets create --id target_telegram --tenant-id tenant_1 --kind telegram --name Telegram --config-json '{"botUsername":"msm_bot","botToken":"123:token"}'
+cargo run -p msm-cli -- exports jobs create --id job_1 --tenant-id tenant_1 --source-pack-id pack_1 --target-id target_telegram --options-json '{"setNameSlug":"sample"}'
+cargo run -p msm-cli -- exports jobs get --job-id job_1
+cargo run -p msm-cli -- exports jobs events --job-id job_1
 ```
 
 Protected API-backed CLI commands accept a PAT through `--pat` or `MSM_PAT`:
@@ -76,16 +82,17 @@ prepare teloxide `InputSticker` data. Protected API routes can manage export
 targets, queue export jobs, and read job status/events. The app worker can run
 queued MoreStickers serialization jobs and Telegram dry-run planning jobs, and
 can write prepared media cache records through its media executor boundary. MSM
-has a process-backed ffmpeg executor for prepared media conversion, but cannot
-yet upload stickers, create Telegram sticker sets, or expose export jobs in
-Web/CLI/MCP surfaces.
+has a process-backed ffmpeg executor for prepared media conversion. The CLI can
+manage export targets and queue/read export jobs through the API. MSM cannot yet
+upload stickers, create Telegram sticker sets, or expose export jobs in Web/MCP
+surfaces.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
 targets such as a Telegram bot target before Web target settings exist.
 
-Export target/job tables now exist in storage for later API and worker phases,
-but there are no user-facing export job endpoints yet.
+Export target/job API endpoints and CLI commands now exist for queueing export
+jobs and reading their status/events.
 
 Telegram bot integration now uses `teloxide` internally. The current slice only
 builds a configured bot safely and prepares sticker inputs; it does not yet
@@ -147,6 +154,15 @@ PAT CLI commands:
 - `msm pats create --id <token_id> --user-id <user_id> --name <name> --scope <scope>`
 - `msm pats list --user-id <user_id>`
 - `msm pats revoke --token-id <token_id>`
+
+Export CLI commands:
+
+- `msm exports kinds`
+- `msm exports targets list --tenant-id <tenant_id>`
+- `msm exports targets create --id <target_id> --tenant-id <tenant_id> --kind <kind> --name <name> --config-json <json>`
+- `msm exports jobs create --id <job_id> --tenant-id <tenant_id> --source-pack-id <pack_id> --target-id <target_id> --options-json <json>`
+- `msm exports jobs get --job-id <job_id>`
+- `msm exports jobs events --job-id <job_id>`
 
 `msm pats create` prints the raw token once. Store it immediately outside MSM if
 you need to use it later.

@@ -18,9 +18,10 @@ Last completed:
 - Task 9 worker cache/loop slice: added prepared media executor boundary, prepared media cache writes, worker enabled/poll interval config, and optional service worker loop spawning.
 - Task 9 process converter slice: added process-backed prepared media executor using shell-free `msm-media` conversion commands, timeout handling, exit status validation, and output metadata reads.
 - Task 9 target bootstrap config: added `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON` parsing and idempotent export target create/update during service initialization.
+- Task 10 CLI export commands: added `msm exports kinds`, export target list/create, export job create/get/events commands, API client calls, and human/JSON output.
 
 Current task:
-- Continue Task 10 CLI and MCP parity from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
+- Continue Task 10 MCP parity from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -37,9 +38,10 @@ Last verification:
 - Task 9 cache/loop: `cargo test -p msm-app --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
 - Task 9 process converter: `cargo test -p msm-app --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
 - Task 9 target bootstrap: `cargo test -p msm-app --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+- Task 10 CLI export commands: `cargo fmt --all -- --check`; `cargo test -p msm-cli --locked`; `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`.
 
 Next step:
-- Task 10: add CLI and MCP operations for export target kinds, target CRUD, export job creation, job status, and job events.
+- Task 10: add MCP tools for export target kinds, target list/create, export job creation, job status, and job events.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

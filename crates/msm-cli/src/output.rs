@@ -1,7 +1,10 @@
 use msm_domain::StickerPack;
 
 use crate::{
-    client::{CreatedPersonalAccessToken, PersonalAccessToken},
+    client::{
+        CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
+        PersonalAccessToken,
+    },
     command::OutputFormat,
     CliResult,
 };
@@ -157,5 +160,95 @@ pub fn format_pat_revoke(format: OutputFormat, token_id: &str) -> CliResult<Stri
             status: "revoked",
             token_id: token_id.to_owned(),
         })?),
+    }
+}
+
+/// Formats export target kind responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_export_target_kinds(
+    format: OutputFormat,
+    kinds: &[ExportTargetKind],
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(kinds
+            .iter()
+            .map(|kind| format!("{}\t{}", kind.kind, kind.display_name))
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(kinds)?),
+    }
+}
+
+/// Formats export target list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_export_targets(format: OutputFormat, targets: &[ExportTarget]) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(targets
+            .iter()
+            .map(|target| {
+                let state = if target.is_enabled {
+                    "enabled"
+                } else {
+                    "disabled"
+                };
+                format!("{}\t{}\t{}\t{state}", target.id, target.kind, target.name)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(targets)?),
+    }
+}
+
+/// Formats an export target mutation response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_export_target(format: OutputFormat, target: &ExportTarget) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("created {}", target.id)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(target)?),
+    }
+}
+
+/// Formats an export job response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_export_job(format: OutputFormat, job: &ExportJob) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("{}\t{}", job.id, job.status)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(job)?),
+    }
+}
+
+/// Formats export job events.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_export_job_events(
+    format: OutputFormat,
+    events: &[ExportJobEvent],
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(events
+            .iter()
+            .map(|event| {
+                format!(
+                    "{}\t{}\t{}\t{}",
+                    event.sequence, event.level, event.stage, event.message
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(events)?),
     }
 }
