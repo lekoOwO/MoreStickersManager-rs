@@ -272,3 +272,12 @@
 - Added OpenAPI schemas for target capabilities, target config responses with token redaction, export job requests, job responses, and job events.
 - Added API tests for PAT scope enforcement, token redaction, source pack ownership checks, queued job creation, event reads, and OpenAPI route presence.
 - Verified with `cargo test -p msm-api --locked`, `cargo clippy -p msm-api -p msm-storage -p msm-domain --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Export Worker Foundation
+
+- Added `ExportWorkerConfig` for ffmpeg path, ffprobe path, and max concurrent jobs.
+- Added `ExportWorker` methods to pick the oldest queued job, move jobs through running/succeeded/failed states, and write ordered job events.
+- Added MoreStickers job execution that serializes `.stickerpack` output metadata.
+- Added Telegram dry-run job execution that uses the Telegram planner and records planned set name, create/append counts, and target media profiles without network calls.
+- Added app tests for mocked MoreStickers and Telegram export jobs.
+- Verified with `cargo test -p msm-app --locked` and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.

@@ -20,7 +20,7 @@ only designed or planned.
 | MCP auth | Partially implemented | Pack tool calls enforce Bearer PAT scopes. SSE/session hardening is not implemented. |
 | Provider normalization | Implemented | `msm-providers` normalizes already-fetched Telegram, LINE sticker, and LINE emoji fixtures into MoreStickers-compatible packs. |
 | Provider network fetch | Not implemented | Remote provider API fetch, download, and asset internalization are planned future work. |
-| Service binary | Implemented | `msm-app` composes storage migrations, API routes, local asset store, MCP route, and Web static serving. |
+| Service binary | Implemented | `msm-app` composes storage migrations, API routes, local asset store, MCP route, Web static serving, and export worker foundation types. |
 | Embedded Web dist | Implemented | `msm-app` embeds `apps/web/dist` when present and a placeholder when absent; runtime disk override remains available. |
 | Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, RWD dashboard shell, theme toggle, and i18n exist. |
 | Web API integration | Implemented | Web pack API client can use mock fallback or API-backed pack operations with stored PAT. |
@@ -39,7 +39,7 @@ only designed or planned.
 | Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, a concrete `morestickers` target, and Telegram sticker set planning. Remote execution is not wired. |
 | Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, and builds `teloxide::Bot`. Sticker set execution through teloxide requester methods is not wired yet. |
 | Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, and builds teloxide `InputSticker` data. Uploads, set creation, job execution, and UI/API surfaces are not implemented. |
-| Export jobs | P29-P30 | Partially implemented: storage tables/repositories and protected API/OpenAPI routes exist for targets, queued jobs, job status, and job events. Worker execution, retries, and Web/CLI/MCP surfaces are not implemented. |
+| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, and an app worker foundation exist for targets, queued jobs, job status, and job events. Real converter execution, Telegram publication, retries, background loop composition, and Web/CLI/MCP surfaces are not implemented. |
 | Folder/tag management | Future phase | User-managed pack folders and tags are not implemented. |
 | Subscription groups | Future phase | Pack/group subscription links and moreStickers auto-update integration are not implemented. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |
@@ -53,4 +53,4 @@ only designed or planned.
 
 ## Current Next Phase
 
-P25 should continue from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 9 and add export worker configuration plus mocked MoreStickers and Telegram job execution.
+P25 should continue from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md` Task 9 and add real converter execution/cache writes plus background worker loop composition.

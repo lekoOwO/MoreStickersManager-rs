@@ -19,6 +19,10 @@ use include_dir::{include_dir, Dir};
 use msm_api::{build_router, ApiState};
 use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 
+pub mod export_worker;
+
+pub use export_worker::{ExportWorker, ExportWorkerConfig, ExportWorkerError, ExportWorkerResult};
+
 static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,6 +31,7 @@ pub struct AppConfig {
     pub database_url: String,
     pub asset_dir: PathBuf,
     pub web_dist_dir: PathBuf,
+    pub export_worker: ExportWorkerConfig,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -36,6 +41,9 @@ pub enum AppError {
         value: String,
         source: AddrParseError,
     },
+
+    #[error("invalid numeric environment value `{key}` = `{value}`")]
+    InvalidNumber { key: String, value: String },
 
     #[error("storage error: {0}")]
     Storage(#[from] msm_storage::StorageError),
@@ -51,6 +59,9 @@ impl AppConfig {
     pub const DEFAULT_DATABASE_URL: &'static str = "sqlite:data/msm.sqlite3";
     pub const DEFAULT_ASSET_DIR: &'static str = "data/assets";
     pub const DEFAULT_WEB_DIST_DIR: &'static str = "apps/web/dist";
+    pub const DEFAULT_FFMPEG_PATH: &'static str = "ffmpeg";
+    pub const DEFAULT_FFPROBE_PATH: &'static str = "ffprobe";
+    pub const DEFAULT_EXPORT_MAX_CONCURRENT_JOBS: usize = 1;
 
     /// Reads service configuration from process environment variables.
     ///
@@ -69,6 +80,11 @@ impl AppConfig {
     /// Returns an error when `MSM_BIND_ADDR` is not a valid socket address.
     pub fn from_env_map(vars: &BTreeMap<String, String>) -> AppResult<Self> {
         let bind_addr = read(vars, "MSM_BIND_ADDR", Self::DEFAULT_BIND_ADDR);
+        let max_concurrent_jobs = read_usize(
+            vars,
+            "MSM_EXPORT_MAX_CONCURRENT_JOBS",
+            Self::DEFAULT_EXPORT_MAX_CONCURRENT_JOBS,
+        )?;
         Ok(Self {
             bind_addr: bind_addr
                 .parse()
@@ -79,6 +95,19 @@ impl AppConfig {
             database_url: read(vars, "MSM_DATABASE_URL", Self::DEFAULT_DATABASE_URL),
             asset_dir: PathBuf::from(read(vars, "MSM_ASSET_DIR", Self::DEFAULT_ASSET_DIR)),
             web_dist_dir: PathBuf::from(read(vars, "MSM_WEB_DIST_DIR", Self::DEFAULT_WEB_DIST_DIR)),
+            export_worker: ExportWorkerConfig {
+                ffmpeg_path: PathBuf::from(read(
+                    vars,
+                    "MSM_FFMPEG_PATH",
+                    Self::DEFAULT_FFMPEG_PATH,
+                )),
+                ffprobe_path: PathBuf::from(read(
+                    vars,
+                    "MSM_FFPROBE_PATH",
+                    Self::DEFAULT_FFPROBE_PATH,
+                )),
+                max_concurrent_jobs,
+            },
         })
     }
 }
@@ -138,6 +167,26 @@ fn read(vars: &BTreeMap<String, String>, key: &str, default: &str) -> String {
         .filter(|value| !value.trim().is_empty())
         .cloned()
         .unwrap_or_else(|| default.to_owned())
+}
+
+fn read_usize(vars: &BTreeMap<String, String>, key: &str, default: usize) -> AppResult<usize> {
+    let Some(value) = vars.get(key).filter(|value| !value.trim().is_empty()) else {
+        return Ok(default);
+    };
+    let parsed = value
+        .parse::<usize>()
+        .map_err(|_| AppError::InvalidNumber {
+            key: key.to_owned(),
+            value: value.to_owned(),
+        })?;
+    if parsed == 0 {
+        Err(AppError::InvalidNumber {
+            key: key.to_owned(),
+            value: value.to_owned(),
+        })
+    } else {
+        Ok(parsed)
+    }
 }
 
 fn normalized_web_path(path: &str) -> Option<String> {
@@ -209,6 +258,9 @@ mod tests {
         assert_eq!(config.database_url, "sqlite:data/msm.sqlite3");
         assert_eq!(config.asset_dir, PathBuf::from("data/assets"));
         assert_eq!(config.web_dist_dir, PathBuf::from("apps/web/dist"));
+        assert_eq!(config.export_worker.ffmpeg_path, PathBuf::from("ffmpeg"));
+        assert_eq!(config.export_worker.ffprobe_path, PathBuf::from("ffprobe"));
+        assert_eq!(config.export_worker.max_concurrent_jobs, 1);
     }
 
     #[test]
@@ -221,6 +273,9 @@ mod tests {
         );
         vars.insert("MSM_ASSET_DIR".to_owned(), "tmp/assets".to_owned());
         vars.insert("MSM_WEB_DIST_DIR".to_owned(), "tmp/web".to_owned());
+        vars.insert("MSM_FFMPEG_PATH".to_owned(), "bin/ffmpeg".to_owned());
+        vars.insert("MSM_FFPROBE_PATH".to_owned(), "bin/ffprobe".to_owned());
+        vars.insert("MSM_EXPORT_MAX_CONCURRENT_JOBS".to_owned(), "4".to_owned());
 
         let config = AppConfig::from_env_map(&vars).unwrap();
 
@@ -231,6 +286,15 @@ mod tests {
         assert_eq!(config.database_url, "sqlite:data/test.sqlite3");
         assert_eq!(config.asset_dir, PathBuf::from("tmp/assets"));
         assert_eq!(config.web_dist_dir, PathBuf::from("tmp/web"));
+        assert_eq!(
+            config.export_worker.ffmpeg_path,
+            PathBuf::from("bin/ffmpeg")
+        );
+        assert_eq!(
+            config.export_worker.ffprobe_path,
+            PathBuf::from("bin/ffprobe")
+        );
+        assert_eq!(config.export_worker.max_concurrent_jobs, 4);
     }
 
     #[test]
@@ -241,6 +305,16 @@ mod tests {
         let error = AppConfig::from_env_map(&vars).expect_err("invalid bind address must fail");
 
         assert!(error.to_string().contains("invalid bind address"));
+    }
+
+    #[test]
+    fn config_rejects_invalid_export_worker_concurrency() {
+        let mut vars = BTreeMap::new();
+        vars.insert("MSM_EXPORT_MAX_CONCURRENT_JOBS".to_owned(), "0".to_owned());
+
+        let error = AppConfig::from_env_map(&vars).expect_err("zero concurrency must fail");
+
+        assert!(error.to_string().contains("MSM_EXPORT_MAX_CONCURRENT_JOBS"));
     }
 
     #[test]

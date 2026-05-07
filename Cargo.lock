@@ -1353,8 +1353,12 @@ dependencies = [
  "include_dir",
  "mime_guess",
  "msm-api",
+ "msm-domain",
+ "msm-exporters",
  "msm-mcp",
  "msm-storage",
+ "serde",
+ "serde_json",
  "thiserror",
  "tokio",
 ]

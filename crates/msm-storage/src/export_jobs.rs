@@ -198,6 +198,31 @@ impl StorageRepository {
         row.map(|row| export_job_from_row(&row)).transpose()
     }
 
+    /// Finds the oldest export job with the requested status.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
+    /// is invalid.
+    pub async fn find_next_export_job_by_status(
+        &self,
+        status: ExportJobStatus,
+    ) -> StorageResult<Option<ExportJobRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, source_pack_id, target_id, status,
+                request_json, result_json, error_summary, created_at, updated_at
+            FROM export_jobs
+            WHERE status = ?
+            ORDER BY created_at, id
+            LIMIT 1",
+        )
+        .bind(status.as_str())
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.map(|row| export_job_from_row(&row)).transpose()
+    }
+
     /// Updates an export job status and optional payload fields.
     ///
     /// # Errors

@@ -14,7 +14,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-media`: media profile and command planning foundation added in P25; media probing, converter execution, and prepared output caching remain planned.
 - `msm-exporters`: export target trait, registry, MoreStickers export adapter, and Telegram export planner added in Tasks 4-7; remote execution and future output targets remain planned.
 - `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling and Bot API URL configuration.
-- `msm-app`: runnable service composition binary, added in P9.
+- `msm-app`: runnable service composition binary, added in P9 and extended with export worker foundation in Task 9.
 - `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7.
 
 ## Dependency Rule
@@ -54,6 +54,11 @@ Planned exporter work is split into:
 Task 8 exposes export target and queued job records through protected API routes.
 Those routes do not execute conversions or remote publication; Task 9 worker
 execution owns that state transition.
+
+Task 9 currently has a worker foundation that can run MoreStickers serialization
+jobs and Telegram dry-run planning jobs from queued storage records. Real
+converter execution, prepared media cache writes, background loop lifecycle, and
+Telegram remote publication remain planned.
 
 No export target may mutate MoreStickers-compatible pack JSON as a side effect of
 publishing. Target-specific prepared media should be cached separately from the

@@ -148,11 +148,13 @@
 - Modify: `crates/msm-app/src/main.rs`
 - Modify: `crates/msm-app/src/config.rs`
 
-- [ ] Add worker config for ffmpeg path, ffprobe path, max concurrent jobs, and target bootstrap config.
-- [ ] Implement queued job polling, running status transition, event recording, conversion execution, exporter execution, success result recording, and failure recording.
-- [ ] Test a mocked MoreStickers export job and a mocked Telegram export job without real Telegram network access.
-- [ ] Run `cargo test -p msm-app --locked`.
-- [ ] Commit with message `feat: run export jobs`.
+- [x] Add worker config for ffmpeg path, ffprobe path, and max concurrent jobs.
+- [x] Implement queued job polling, running status transition, event recording, exporter execution foundation, success result recording, and failure recording.
+- [ ] Implement real converter execution and prepared media cache writes.
+- [ ] Implement target bootstrap config and background loop composition.
+- [x] Test a mocked MoreStickers export job and a mocked Telegram dry-run export job without real Telegram network access.
+- [x] Run `cargo test -p msm-app --locked`.
+- [x] Commit worker foundation with message `feat: add export worker foundation`.
 
 ## Task 10: CLI And MCP Parity
 

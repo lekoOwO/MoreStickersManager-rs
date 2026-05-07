@@ -545,3 +545,20 @@ These tests prove:
 - Telegram target config responses redact token-like fields;
 - queued export job creation rejects PAT users that do not own the source pack;
 - export job status and ordered event reads work through protected routes.
+
+## Export Worker Foundation Tests
+
+Run:
+
+```powershell
+cargo test -p msm-app --locked
+cargo clippy -p msm-app --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- worker config reads ffmpeg, ffprobe, and concurrency settings from environment-like input;
+- invalid worker concurrency is rejected;
+- the worker can pick and run a queued MoreStickers export job without remote calls;
+- the worker can plan a Telegram dry-run export job without network calls;
+- worker execution records running/succeeded states and ordered job events.
