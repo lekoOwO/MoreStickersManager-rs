@@ -13,6 +13,7 @@
 - `crates/msm-mcp`: MCP `/mcp` JSON-RPC endpoint with pack list/import/export/update/delete tools.
 - `crates/msm-media`: media profile foundation with source media kinds, Telegram static/video/thumbnail target profiles, prepared media specs, conversion plan selection, and shell-free ffmpeg command planning.
 - `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, protected API client, PAT panel, pack CRUD controls, and pack import UI.
+- `crates/msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling and Bot API URL configuration.
 - `components.json`: Shadcn Vue configuration for the Web UI workspace.
 - `docs/status`: current state and development log.
 - `docs/status/implementation-matrix.md`: implemented-versus-planned feature truth source.
@@ -25,7 +26,7 @@
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.
 - Media probing, converter execution, and prepared media cache persistence.
-- Concrete Telegram export target, API routes, worker execution, and remote publication jobs.
+- Concrete Telegram export target planner, API routes, worker execution, and remote publication jobs.
 - Telegram Bot API sticker set creation and Web-managed export workflow.
 
 Do not add cross-layer dependencies to `msm-domain`.

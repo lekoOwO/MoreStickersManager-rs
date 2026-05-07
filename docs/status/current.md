@@ -11,9 +11,10 @@ Last completed:
 - Task 3 export job persistence: added SQLite tables and repository methods for export targets, export jobs, ordered job events, prepared media assets, and Telegram publication records.
 - Task 4 exporter registry: added `msm-exporters` with target kind keys, capability metadata, export request/plan types, target trait, and duplicate-safe registry.
 - Task 5 MoreStickers export target: wrapped existing `.stickerpack` serialization as a concrete `morestickers` export target with byte-for-byte compatibility tests.
+- Task 6 Telegram bot framework boundary: added `msm-telegram` using `teloxide`, with redacted token/config handling, configurable Bot API URL, and `teloxide::Bot` construction tests.
 
 Current task:
-- Continue Task 6 Telegram Bot API client from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
+- Continue Task 7 Telegram export planner from `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -23,9 +24,10 @@ Last verification:
 - Task 3: `cargo fmt --all -- --check`; `cargo test -p msm-storage --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`; `git diff --check`.
 - Task 4: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
 - Task 5: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
+- Task 6: `cargo fmt --all -- --check`; `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- Task 6: create `msm-telegram` with Telegram Bot API DTOs, token redaction, injectable base URL, and mocked HTTP tests.
+- Task 7: add Telegram export planner in `msm-exporters`, mapping MSM plans to teloxide sticker concepts without executing network calls.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -95,22 +95,21 @@
 - [x] Run `cargo test -p msm-exporters --locked`.
 - [x] Commit with message `feat: add MoreStickers export target`.
 
-## Task 6: Telegram Bot API Client
+## Task 6: Telegram Bot Framework Boundary
 
 **Files:**
 - Create: `crates/msm-telegram/Cargo.toml`
 - Create: `crates/msm-telegram/src/lib.rs`
-- Create: `crates/msm-telegram/src/types.rs`
-- Create: `crates/msm-telegram/src/client.rs`
-- Create: `crates/msm-telegram/tests/client_tests.rs`
+- Create: `crates/msm-telegram/src/bot.rs`
+- Create: `crates/msm-telegram/tests/bot_tests.rs`
 - Modify: `Cargo.toml`
 
-- [ ] Add DTOs for `getMe`, `uploadStickerFile`, `InputSticker`, `createNewStickerSet`, `addStickerToSet`, and common API errors.
-- [ ] Add a `TelegramBotClient` with injectable base URL for tests.
-- [ ] Test successful create, append, invalid token, already-existing set, and request serialization with a mocked HTTP server.
-- [ ] Ensure token values never appear in `Debug`, `Display`, or error output.
-- [ ] Run `cargo test -p msm-telegram --locked`.
-- [ ] Commit with message `feat: add Telegram Bot API client`.
+- [x] Add `teloxide` as the Telegram Bot framework dependency instead of maintaining a custom Bot API HTTP client.
+- [x] Add `TelegramBotToken` and `TelegramBotConfig` with redacted token formatting and configurable Bot API URL.
+- [x] Add a `build_bot` boundary that returns `teloxide::Bot` and applies the configured API URL.
+- [x] Test token redaction, invalid token rejection, Bot API URL validation, and `teloxide::Bot` construction.
+- [x] Run `cargo test -p msm-telegram --locked`.
+- [x] Commit with message `feat: add Telegram bot framework boundary`.
 
 ## Task 7: Telegram Export Planner
 

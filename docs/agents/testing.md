@@ -493,3 +493,19 @@ These tests prove:
 - `MoreStickersExportTarget` emits bytes matching `StickerPack::to_pretty_json()`;
 - target capabilities describe local serialization without credentials or media conversion;
 - target planning returns the expected `.stickerpack` serialization step.
+
+## Telegram Bot Framework Boundary Tests
+
+Run:
+
+```powershell
+cargo test -p msm-telegram --locked
+cargo clippy -p msm-telegram --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- Telegram bot tokens are redacted in debug/display output;
+- empty bot tokens are rejected;
+- Bot API URLs are validated and applied to the constructed `teloxide::Bot`;
+- MSM uses teloxide as the Telegram bot framework boundary instead of a custom HTTP client.

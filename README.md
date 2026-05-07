@@ -79,10 +79,11 @@ remote publication:
   future output targets. The base trait, capability metadata, request/plan
   types, duplicate-safe registry, and concrete MoreStickers export target are
   implemented.
-- `msm-telegram`: planned Telegram Bot API client for sticker set publication.
+- `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config
+  handling and Bot API URL configuration.
 
 Telegram sticker set creation is not implemented yet. The next slice is export
-target traits and registry setup in
+planner setup that maps MSM packs/media plans to teloxide sticker concepts in
 `docs/superpowers/plans/2026-05-06-msm-telegram-export-pipeline.md`.
 
 ## Web UI Slice

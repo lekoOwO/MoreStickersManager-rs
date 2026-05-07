@@ -13,7 +13,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
 - `msm-media`: media profile and command planning foundation added in P25; media probing, converter execution, and prepared output caching remain planned.
 - `msm-exporters`: export target trait, registry, and MoreStickers export adapter added in Tasks 4-5; Telegram export planning and future output targets remain planned.
-- `msm-telegram`: planned Telegram Bot API client and DTO boundary for sticker set publication.
+- `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling and Bot API URL configuration.
 - `msm-app`: runnable service composition binary, added in P9.
 - `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7.
 
@@ -49,7 +49,7 @@ Planned exporter work is split into:
 
 - `msm-media`: target-neutral media kinds, output profiles, conversion plans, shell-free converter command plans, and planned probing/converter execution.
 - `msm-exporters`: target traits, capability metadata, export plans, and target registry.
-- `msm-telegram`: Telegram Bot API requests such as sticker upload, set creation, and set append.
+- `msm-telegram`: `teloxide::Bot` construction and configuration; sticker upload, set creation, and set append should use teloxide requester methods in later worker/exporter phases.
 
 No export target may mutate MoreStickers-compatible pack JSON as a side effect of
 publishing. Target-specific prepared media should be cached separately from the

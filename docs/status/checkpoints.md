@@ -248,3 +248,11 @@
 - Added artifact metadata for suggested file name, MIME type, and serialized bytes.
 - Verified byte-for-byte equality with the domain serialization helper.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-exporters --locked`, `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-07 Telegram Bot Framework Boundary
+
+- Added `crates/msm-telegram` to the Rust workspace.
+- Switched Telegram bot integration to `teloxide` instead of a custom Bot API HTTP client.
+- Added redacted `TelegramBotToken` and `TelegramBotConfig`.
+- Added configurable Bot API URL support and `teloxide::Bot` construction.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-telegram --locked`, `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`, and `git diff --check`.

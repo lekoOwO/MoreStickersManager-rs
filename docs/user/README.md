@@ -76,6 +76,10 @@ sticker sets, or expose export jobs through user-facing surfaces.
 Export target/job tables now exist in storage for later API and worker phases,
 but there are no user-facing export job endpoints yet.
 
+Telegram bot integration now uses `teloxide` internally. The current slice only
+builds a configured bot safely; it does not yet expose Telegram sticker export
+actions to users.
+
 Current service binary example:
 
 ```powershell
