@@ -235,6 +235,44 @@ npm run web:build
 
 Result: all passed.
 
+## Task 7: Storage Pack Membership Links
+
+**Files:**
+- Modify: `crates/msm-storage/src/models.rs`
+- Modify: `crates/msm-storage/src/repositories.rs`
+- Modify: `crates/msm-storage/tests/product_data_repository_tests.rs`
+- Modify: status and agent handoff docs.
+
+- [x] **Step 1: Add failing storage test**
+
+Added RED coverage for folder-pack, pack-tag, and subscription-group pack link
+add/list/remove behavior.
+
+```powershell
+cargo test -p msm-storage pack_memberships_can_be_managed --locked
+```
+
+Result: failed because the repository did not expose folder/tag membership
+methods and subscription group pack insertion returned no link record.
+
+- [x] **Step 2: Implement membership primitives**
+
+Added link records plus repository methods for add/list/remove operations. The
+folder and subscription group pack insert paths are duplicate-safe and update
+sort order on conflict.
+
+- [x] **Step 3: Verify storage slice**
+
+```powershell
+cargo test -p msm-storage pack_memberships_can_be_managed --locked
+cargo fmt --all -- --check
+cargo test -p msm-storage --test product_data_repository_tests --locked
+cargo clippy -p msm-storage --all-targets --locked -- -D warnings
+git diff --check
+```
+
+Expected: all pass.
+
 ## Task 5: MCP Product Metadata Tools
 
 **Files:**

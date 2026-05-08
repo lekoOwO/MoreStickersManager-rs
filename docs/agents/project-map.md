@@ -25,8 +25,8 @@
 
 ## Not Implemented Yet
 
-- Pack-folder/tag membership and subscription group pack membership/link
-  semantics.
+- API/CLI/MCP/Web exposure for pack-folder/tag membership and subscription group
+  pack membership/link semantics.
 - MCP auth/session/SSE hardening.
 - Pack access-management APIs beyond basic visibility.
 - Provider network integrations and asset download orchestration.

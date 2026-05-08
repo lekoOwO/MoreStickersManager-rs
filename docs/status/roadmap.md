@@ -48,12 +48,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   subscription groups.
 - Product-data Web management UI now exists for folders, tags, and subscription
   groups in the Organize workspace.
+- Product-data storage primitives now exist for folder-pack, pack-tag, and
+  subscription-group pack membership links.
 
 ## Immediate Plan
 
-1. Continue pack access-management API design beyond basic visibility.
-2. Add pack-folder/tag membership and subscription group pack membership/link
-   semantics.
+1. Expose pack-folder/tag membership and subscription group pack membership/link
+   semantics through API/OpenAPI.
+2. Add CLI/MCP/Web controls for those membership operations.
 3. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 

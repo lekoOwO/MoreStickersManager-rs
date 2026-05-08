@@ -61,11 +61,12 @@ Last completed:
 - Product-data CLI surface slice: added `msm metadata folders`, `msm metadata tags`, and `msm metadata subscription-groups` create/list commands backed by the protected API client, with human/JSON output and fake-client tests.
 - Product-data MCP surface slice: added `msm.list_folders`, `msm.create_folder`, `msm.list_tags`, `msm.create_tag`, `msm.list_subscription_groups`, and `msm.create_subscription_group` tools with PAT scope enforcement.
 - Product-data Web surface slice: added an Organize workspace section with API-backed folder, tag, and subscription-group create/list management, navigation integration, i18n labels, and selectable subscription PAT scopes.
+- Product-data membership storage slice: added repository primitives for folder-pack links, pack-tag links, and subscription-group pack links, including ordered listing and removal.
 
 Current task:
-- Continue product-data management by broadening pack access metadata controls
-  beyond basic visibility, including pack-folder/tag membership and subscription
-  group pack membership/link semantics.
+- Continue product-data management by exposing pack-folder/tag membership and
+  subscription-group pack membership/link semantics through API/OpenAPI, then
+  CLI/MCP/Web.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -128,6 +129,7 @@ Last verification:
 - Product-data CLI surface slice: RED/GREEN tests with `cargo test -p msm-cli parses_metadata_commands --locked` and `cargo test -p msm-cli executes_metadata_commands --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data MCP surface slice: RED/GREEN tests with `cargo test -p msm-mcp tools_call_manages_folders --locked`, `cargo test -p msm-mcp tools_call_manages_tags --locked`, `cargo test -p msm-mcp tools_call_manages_subscription_groups --locked`, `cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked`, `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`, and `cargo test -p msm-mcp pat_enforcement_metadata_tools_require_expected_scopes --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data Web surface slice: RED/GREEN tests with `npm run web:test -- api-client` and `npm run web:test -- product-metadata-ui`; full verification with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
+- Product-data membership storage slice: RED/GREEN test with `cargo test -p msm-storage pack_memberships_can_be_managed --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --test product_data_repository_tests --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
 - Continue product-data metadata by adding pack-folder/tag membership and subscription-group pack membership/link APIs.

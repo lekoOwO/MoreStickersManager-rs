@@ -12,9 +12,9 @@ use subtle::ConstantTimeEq;
 
 use crate::{
     models::{
-        CreatedPersonalAccessToken, FolderRecord, LocalUserCredentialRecord, NewTag,
-        PackVisibility, PersonalAccessTokenRecord, StickerPackRecord, SubscriptionGroupRecord,
-        TagRecord, UserRecord,
+        CreatedPersonalAccessToken, FolderPackRecord, FolderRecord, LocalUserCredentialRecord,
+        NewTag, PackTagRecord, PackVisibility, PersonalAccessTokenRecord, StickerPackRecord,
+        SubscriptionGroupPackRecord, SubscriptionGroupRecord, TagRecord, UserRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -387,6 +387,71 @@ impl StorageRepository {
         row.as_ref().map(folder_from_row).transpose()
     }
 
+    /// Adds a sticker pack to a folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    pub async fn add_pack_to_folder(
+        &self,
+        folder_id: &str,
+        pack_id: &str,
+        sort_order: i64,
+    ) -> StorageResult<FolderPackRecord> {
+        sqlx::query(
+            "INSERT INTO folder_packs (folder_id, pack_id, sort_order)
+            VALUES (?, ?, ?)
+            ON CONFLICT(folder_id, pack_id) DO UPDATE SET sort_order = excluded.sort_order",
+        )
+        .bind(folder_id)
+        .bind(pack_id)
+        .bind(sort_order)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(FolderPackRecord {
+            folder_id: folder_id.to_owned(),
+            pack_id: pack_id.to_owned(),
+            sort_order,
+        })
+    }
+
+    /// Lists pack IDs in a folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn list_folder_pack_ids(&self, folder_id: &str) -> StorageResult<Vec<String>> {
+        let rows = sqlx::query(
+            "SELECT pack_id FROM folder_packs
+            WHERE folder_id = ?
+            ORDER BY sort_order, pack_id",
+        )
+        .bind(folder_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
+    }
+
+    /// Removes a sticker pack from a folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn remove_pack_from_folder(
+        &self,
+        folder_id: &str,
+        pack_id: &str,
+    ) -> StorageResult<bool> {
+        let result = sqlx::query("DELETE FROM folder_packs WHERE folder_id = ? AND pack_id = ?")
+            .bind(folder_id)
+            .bind(pack_id)
+            .execute(self.sqlite()?)
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
     /// Creates a tag.
     ///
     /// # Errors
@@ -437,6 +502,63 @@ impl StorageRepository {
     pub async fn delete_tag(&self, id: &str) -> StorageResult<bool> {
         let result = sqlx::query("DELETE FROM tags WHERE id = ?")
             .bind(id)
+            .execute(self.sqlite()?)
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Adds a tag to a sticker pack.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    pub async fn add_tag_to_pack(
+        &self,
+        pack_id: &str,
+        tag_id: &str,
+    ) -> StorageResult<PackTagRecord> {
+        sqlx::query(
+            "INSERT OR IGNORE INTO pack_tags (pack_id, tag_id)
+            VALUES (?, ?)",
+        )
+        .bind(pack_id)
+        .bind(tag_id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(PackTagRecord {
+            pack_id: pack_id.to_owned(),
+            tag_id: tag_id.to_owned(),
+        })
+    }
+
+    /// Lists tag IDs assigned to a sticker pack.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn list_pack_tag_ids(&self, pack_id: &str) -> StorageResult<Vec<String>> {
+        let rows = sqlx::query(
+            "SELECT tag_id FROM pack_tags
+            WHERE pack_id = ?
+            ORDER BY tag_id",
+        )
+        .bind(pack_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        Ok(rows.into_iter().map(|row| row.get("tag_id")).collect())
+    }
+
+    /// Removes a tag from a sticker pack.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn remove_tag_from_pack(&self, pack_id: &str, tag_id: &str) -> StorageResult<bool> {
+        let result = sqlx::query("DELETE FROM pack_tags WHERE pack_id = ? AND tag_id = ?")
+            .bind(pack_id)
+            .bind(tag_id)
             .execute(self.sqlite()?)
             .await?;
         Ok(result.rows_affected() == 1)
@@ -563,18 +685,24 @@ impl StorageRepository {
         subscription_group_id: &str,
         pack_id: &str,
         sort_order: i64,
-    ) -> StorageResult<()> {
+    ) -> StorageResult<SubscriptionGroupPackRecord> {
         sqlx::query(
             "INSERT INTO subscription_group_packs (
                 subscription_group_id, pack_id, sort_order
-            ) VALUES (?, ?, ?)",
+            ) VALUES (?, ?, ?)
+            ON CONFLICT(subscription_group_id, pack_id) DO UPDATE SET sort_order = excluded.sort_order",
         )
         .bind(subscription_group_id)
         .bind(pack_id)
         .bind(sort_order)
         .execute(self.sqlite()?)
         .await?;
-        Ok(())
+
+        Ok(SubscriptionGroupPackRecord {
+            subscription_group_id: subscription_group_id.to_owned(),
+            pack_id: pack_id.to_owned(),
+            sort_order,
+        })
     }
 
     /// Finds a sticker pack by internal pack ID.
@@ -878,6 +1006,27 @@ impl StorageRepository {
         .await?;
 
         Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
+    }
+
+    /// Removes a sticker pack from a subscription group.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn remove_pack_from_subscription_group(
+        &self,
+        subscription_group_id: &str,
+        pack_id: &str,
+    ) -> StorageResult<bool> {
+        let result = sqlx::query(
+            "DELETE FROM subscription_group_packs
+            WHERE subscription_group_id = ? AND pack_id = ?",
+        )
+        .bind(subscription_group_id)
+        .bind(pack_id)
+        .execute(self.sqlite()?)
+        .await?;
+        Ok(result.rows_affected() == 1)
     }
 
     pub(crate) fn sqlite(&self) -> StorageResult<&SqlitePool> {

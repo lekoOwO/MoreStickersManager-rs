@@ -63,11 +63,24 @@ pub struct FolderRecord {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct FolderPackRecord {
+    pub folder_id: String,
+    pub pack_id: String,
+    pub sort_order: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct TagRecord {
     pub id: String,
     pub tenant_id: String,
     pub name: String,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct PackTagRecord {
+    pub pack_id: String,
+    pub tag_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -85,6 +98,13 @@ pub struct SubscriptionGroupRecord {
     pub title: String,
     pub visibility: PackVisibility,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct SubscriptionGroupPackRecord {
+    pub subscription_group_id: String,
+    pub pack_id: String,
+    pub sort_order: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

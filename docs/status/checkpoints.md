@@ -754,3 +754,19 @@
   status.
 - Verified with `npm run web:typecheck`, `npm run web:test`, and
   `npm run web:build`.
+
+## 2026-05-09 Product Data Membership Storage
+
+- Added `FolderPackRecord`, `PackTagRecord`, and
+  `SubscriptionGroupPackRecord` models.
+- Added repository methods for adding, ordered listing, and removing folder-pack
+  links.
+- Added repository methods for adding, listing, and removing pack-tag links.
+- Changed subscription-group pack insertion to return a link record and support
+  sort-order upsert; added removal support.
+- Added storage integration coverage for pack membership lifecycle across
+  folders, tags, and subscription groups.
+- Verified with `cargo fmt --all -- --check`,
+  `cargo test -p msm-storage --test product_data_repository_tests --locked`,
+  `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and
+  `git diff --check`.

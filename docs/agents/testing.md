@@ -745,6 +745,21 @@ These tests prove:
   subscription groups through an injected client;
 - Web navigation and i18n types still compile after adding the metadata section.
 
+## Product Metadata Storage Tests
+
+Run:
+
+```powershell
+cargo test -p msm-storage --test product_data_repository_tests --locked
+cargo clippy -p msm-storage --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- folder, tag, and subscription group metadata lifecycle operations work;
+- folder-pack, pack-tag, and subscription-group pack links can be added,
+  listed in deterministic order, and removed.
+
 ## Telegram Publish Boundary Tests
 
 Run:
