@@ -170,8 +170,8 @@ npm run web:build
 The Web UI includes a wide desktop workspace with Ant Design-inspired blue/gray
 tokens, real workspace tabs, PAT and local login dialogs, pack management,
 pack import dialog, folder/tag/subscription-group metadata management, export
-target settings, and a pack export wizard. API/OpenAPI routes now also expose
-folder-pack, pack-tag, and subscription-group pack membership links; CLI/MCP/Web
+target settings, and a pack export wizard. API/OpenAPI, CLI, and MCP now expose
+folder-pack, pack-tag, and subscription-group pack membership links; Web
 membership controls are the next product-data surface slice. It can rename packs, change
 public/private visibility, and delete packs when
 `VITE_MSM_API_BASE_URL` is configured and the stored PAT has the required
@@ -253,16 +253,27 @@ The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
 - `msm.delete_sticker_pack`
 - `msm.list_folders`
 - `msm.create_folder`
+- `msm.list_folder_packs`
+- `msm.add_pack_to_folder`
+- `msm.remove_pack_from_folder`
 - `msm.list_tags`
 - `msm.create_tag`
+- `msm.list_pack_tags`
+- `msm.add_tag_to_pack`
+- `msm.remove_tag_from_pack`
 - `msm.list_subscription_groups`
 - `msm.create_subscription_group`
+- `msm.list_subscription_group_packs`
+- `msm.add_pack_to_subscription_group`
+- `msm.remove_pack_from_subscription_group`
 - `msm.list_export_target_kinds`
 - `msm.list_export_targets`
 - `msm.create_export_target`
 - `msm.create_export_job`
 - `msm.get_export_job`
 - `msm.list_export_job_events`
+- `msm.list_telegram_publications`
+- `msm.get_telegram_publication`
 
 This first MCP slice returns `application/json` responses and does not yet
 implement SSE streams or session management. MCP `tools/call` pack and export

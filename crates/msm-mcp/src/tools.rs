@@ -11,10 +11,19 @@ pub const UPDATE_STICKER_PACK: &str = "msm.update_sticker_pack";
 pub const DELETE_STICKER_PACK: &str = "msm.delete_sticker_pack";
 pub const LIST_FOLDERS: &str = "msm.list_folders";
 pub const CREATE_FOLDER: &str = "msm.create_folder";
+pub const LIST_FOLDER_PACKS: &str = "msm.list_folder_packs";
+pub const ADD_PACK_TO_FOLDER: &str = "msm.add_pack_to_folder";
+pub const REMOVE_PACK_FROM_FOLDER: &str = "msm.remove_pack_from_folder";
 pub const LIST_TAGS: &str = "msm.list_tags";
 pub const CREATE_TAG: &str = "msm.create_tag";
+pub const LIST_PACK_TAGS: &str = "msm.list_pack_tags";
+pub const ADD_TAG_TO_PACK: &str = "msm.add_tag_to_pack";
+pub const REMOVE_TAG_FROM_PACK: &str = "msm.remove_tag_from_pack";
 pub const LIST_SUBSCRIPTION_GROUPS: &str = "msm.list_subscription_groups";
 pub const CREATE_SUBSCRIPTION_GROUP: &str = "msm.create_subscription_group";
+pub const LIST_SUBSCRIPTION_GROUP_PACKS: &str = "msm.list_subscription_group_packs";
+pub const ADD_PACK_TO_SUBSCRIPTION_GROUP: &str = "msm.add_pack_to_subscription_group";
+pub const REMOVE_PACK_FROM_SUBSCRIPTION_GROUP: &str = "msm.remove_pack_from_subscription_group";
 pub const LIST_EXPORT_TARGET_KINDS: &str = "msm.list_export_target_kinds";
 pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
 pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
@@ -35,10 +44,19 @@ pub fn list_tools_result() -> ListToolsResult {
             delete_tool(),
             list_folders_tool(),
             create_folder_tool(),
+            list_folder_packs_tool(),
+            add_pack_to_folder_tool(),
+            remove_pack_from_folder_tool(),
             list_tags_tool(),
             create_tag_tool(),
+            list_pack_tags_tool(),
+            add_tag_to_pack_tool(),
+            remove_tag_from_pack_tool(),
             list_subscription_groups_tool(),
             create_subscription_group_tool(),
+            list_subscription_group_packs_tool(),
+            add_pack_to_subscription_group_tool(),
+            remove_pack_from_subscription_group_tool(),
             list_export_target_kinds_tool(),
             list_export_targets_tool(),
             create_export_target_tool(),
@@ -210,6 +228,64 @@ fn create_folder_tool() -> ToolDefinition {
     }
 }
 
+fn list_folder_packs_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_FOLDER_PACKS,
+        title: "List folder packs",
+        description: "List sticker pack IDs assigned to one folder.",
+        input_schema: object_schema(
+            &json!({
+                "folderId": { "type": "string" }
+            }),
+            &["folderId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn add_pack_to_folder_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: ADD_PACK_TO_FOLDER,
+        title: "Add pack to folder",
+        description: "Assign an owned sticker pack to an owned folder.",
+        input_schema: object_schema(
+            &json!({
+                "folderId": { "type": "string" },
+                "packId": { "type": "string" },
+                "sortOrder": { "type": "integer" }
+            }),
+            &["folderId", "packId", "sortOrder"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn remove_pack_from_folder_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: REMOVE_PACK_FROM_FOLDER,
+        title: "Remove pack from folder",
+        description: "Remove a sticker pack assignment from a folder.",
+        input_schema: object_schema(
+            &json!({
+                "folderId": { "type": "string" },
+                "packId": { "type": "string" }
+            }),
+            &["folderId", "packId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: true,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
 fn list_tags_tool() -> ToolDefinition {
     ToolDefinition {
         name: LIST_TAGS,
@@ -242,6 +318,63 @@ fn create_tag_tool() -> ToolDefinition {
             read_only_hint: false,
             destructive_hint: false,
             idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn list_pack_tags_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_PACK_TAGS,
+        title: "List pack tags",
+        description: "List tag IDs assigned to one sticker pack.",
+        input_schema: object_schema(
+            &json!({
+                "packId": { "type": "string" }
+            }),
+            &["packId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn add_tag_to_pack_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: ADD_TAG_TO_PACK,
+        title: "Add tag to pack",
+        description: "Assign a tenant tag to an owned sticker pack.",
+        input_schema: object_schema(
+            &json!({
+                "packId": { "type": "string" },
+                "tagId": { "type": "string" }
+            }),
+            &["packId", "tagId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn remove_tag_from_pack_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: REMOVE_TAG_FROM_PACK,
+        title: "Remove tag from pack",
+        description: "Remove a tag assignment from an owned sticker pack.",
+        input_schema: object_schema(
+            &json!({
+                "packId": { "type": "string" },
+                "tagId": { "type": "string" }
+            }),
+            &["packId", "tagId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: true,
+            idempotent_hint: true,
             open_world_hint: false,
         },
     }
@@ -282,6 +415,64 @@ fn create_subscription_group_tool() -> ToolDefinition {
             read_only_hint: false,
             destructive_hint: false,
             idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn list_subscription_group_packs_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_SUBSCRIPTION_GROUP_PACKS,
+        title: "List subscription group packs",
+        description: "List sticker pack IDs assigned to one subscription group.",
+        input_schema: object_schema(
+            &json!({
+                "subscriptionGroupId": { "type": "string" }
+            }),
+            &["subscriptionGroupId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn add_pack_to_subscription_group_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: ADD_PACK_TO_SUBSCRIPTION_GROUP,
+        title: "Add pack to subscription group",
+        description: "Assign an owned sticker pack to an owned subscription group.",
+        input_schema: object_schema(
+            &json!({
+                "subscriptionGroupId": { "type": "string" },
+                "packId": { "type": "string" },
+                "sortOrder": { "type": "integer" }
+            }),
+            &["subscriptionGroupId", "packId", "sortOrder"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn remove_pack_from_subscription_group_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: REMOVE_PACK_FROM_SUBSCRIPTION_GROUP,
+        title: "Remove pack from subscription group",
+        description: "Remove a sticker pack assignment from a subscription group.",
+        input_schema: object_schema(
+            &json!({
+                "subscriptionGroupId": { "type": "string" },
+                "packId": { "type": "string" }
+            }),
+            &["subscriptionGroupId", "packId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: true,
+            idempotent_hint: true,
             open_world_hint: false,
         },
     }
@@ -451,11 +642,14 @@ fn read_only_annotations() -> ToolAnnotations {
 #[cfg(test)]
 mod tests {
     use crate::tools::{
-        list_tools_result, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER,
-        CREATE_SUBSCRIPTION_GROUP, CREATE_TAG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK,
-        GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
-        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_STICKER_PACKS,
-        LIST_SUBSCRIPTION_GROUPS, LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, UPDATE_STICKER_PACK,
+        list_tools_result, ADD_PACK_TO_FOLDER, ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK,
+        CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP,
+        CREATE_TAG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
+        GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
+        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS,
+        LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_TAGS,
+        LIST_TELEGRAM_PUBLICATIONS, REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP,
+        REMOVE_TAG_FROM_PACK, UPDATE_STICKER_PACK,
     };
 
     #[test]
@@ -473,10 +667,19 @@ mod tests {
                 DELETE_STICKER_PACK,
                 LIST_FOLDERS,
                 CREATE_FOLDER,
+                LIST_FOLDER_PACKS,
+                ADD_PACK_TO_FOLDER,
+                REMOVE_PACK_FROM_FOLDER,
                 LIST_TAGS,
                 CREATE_TAG,
+                LIST_PACK_TAGS,
+                ADD_TAG_TO_PACK,
+                REMOVE_TAG_FROM_PACK,
                 LIST_SUBSCRIPTION_GROUPS,
                 CREATE_SUBSCRIPTION_GROUP,
+                LIST_SUBSCRIPTION_GROUP_PACKS,
+                ADD_PACK_TO_SUBSCRIPTION_GROUP,
+                REMOVE_PACK_FROM_SUBSCRIPTION_GROUP,
                 LIST_EXPORT_TARGET_KINDS,
                 LIST_EXPORT_TARGETS,
                 CREATE_EXPORT_TARGET,

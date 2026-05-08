@@ -73,7 +73,7 @@ Status meanings:
 | Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, export, Telegram publication history, product metadata, and product membership commands exist. |
-| MCP | Partially complete | Pack, export, Telegram publication history, and product metadata tools exist. Product membership tools are not implemented. |
+| MCP | Partially complete | Pack, export, Telegram publication history, product metadata, and product membership tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login, pack CRUD/import, product metadata create/list, export target/job UI, publication history, and Telegram reconciliation controls exist. Product membership controls are not implemented. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
@@ -88,15 +88,13 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add MCP add/list/remove tools for folder-pack, pack-tag, and
-   subscription-group pack membership links.
-2. Add Web product membership controls in the Organize workspace without
+1. Add Web product membership controls in the Organize workspace without
    regressing desktop/mobile layout quality.
-3. Design and implement subscription payload/link contracts for per-pack and
+2. Design and implement subscription payload/link contracts for per-pack and
    user-created subscription groups.
-4. Implement the pack/group access model for public, private, subscription
+3. Implement the pack/group access model for public, private, subscription
    secret, PAT, and Web session access.
-5. Start tenant administration and RBAC management surfaces.
+4. Start tenant administration and RBAC management surfaces.
 
 Each queue item must update this section when completed or reordered.
 
@@ -115,7 +113,7 @@ tests and docs are updated.
 - [x] Storage for folder-pack, pack-tag, and subscription-group pack links.
 - [x] API/OpenAPI add/list/remove for product membership links.
 - [x] CLI add/list/remove for product membership links.
-- [ ] MCP add/list/remove tools for product membership links.
+- [x] MCP add/list/remove tools for product membership links.
 - [ ] Web add/list/remove controls for product membership links.
 
 ### Phase B: Subscription Links And Access Model
@@ -217,7 +215,7 @@ must record remaining surfaces in the roadmap until parity is reached.
 
 Current parity gaps:
 
-- Product membership links: API and CLI exist; MCP and Web are missing.
+- Product membership links: API, CLI, and MCP exist; Web controls are missing.
 - Product metadata create/list: API, CLI, MCP, and Web exist.
 - Telegram export/reconciliation: API, CLI, MCP, and Web controls exist, but
   operator recovery polish remains.

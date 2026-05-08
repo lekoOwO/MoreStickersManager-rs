@@ -303,9 +303,9 @@ subscription-group pack add/remove uses `subscription.create` until dedicated
 `subscription.update` support is added. Membership endpoints enforce that the
 PAT user owns the referenced pack and folder or subscription group and that the
 linked resources share a tenant. The CLI and MCP endpoint can create/list
-folders, tags, and subscription groups through the protected API. Web
-management controls are available in the Organize workspace; CLI/MCP/Web
-membership controls are planned follow-up slices.
+folders, tags, and subscription groups and add/list/remove membership links.
+Web management controls are available in the Organize workspace; Web
+membership controls are planned as the next follow-up slice.
 
 Current service binary example:
 
@@ -330,18 +330,32 @@ POST /mcp
 ```
 
 Supported methods are `initialize`, `ping`, `tools/list`, and `tools/call`.
-Current tools are `msm.list_sticker_packs`, `msm.export_sticker_pack`,
-`msm.import_sticker_pack`, `msm.update_sticker_pack`, and
-`msm.delete_sticker_pack`.
+
+Pack MCP tools:
+
+- `msm.list_sticker_packs`
+- `msm.export_sticker_pack`
+- `msm.import_sticker_pack`
+- `msm.update_sticker_pack`
+- `msm.delete_sticker_pack`
 
 Product metadata MCP tools:
 
 - `msm.list_folders`
 - `msm.create_folder`
+- `msm.list_folder_packs`
+- `msm.add_pack_to_folder`
+- `msm.remove_pack_from_folder`
 - `msm.list_tags`
 - `msm.create_tag`
+- `msm.list_pack_tags`
+- `msm.add_tag_to_pack`
+- `msm.remove_tag_from_pack`
 - `msm.list_subscription_groups`
 - `msm.create_subscription_group`
+- `msm.list_subscription_group_packs`
+- `msm.add_pack_to_subscription_group`
+- `msm.remove_pack_from_subscription_group`
 
 Export MCP tools:
 

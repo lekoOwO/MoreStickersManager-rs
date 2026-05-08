@@ -13,8 +13,9 @@ use msm_exporters::{
     MoreStickersExportTarget,
 };
 use msm_storage::models::{
-    ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, NewExportJob, NewExportTarget,
-    NewTag, PackVisibility, TelegramPublicationRecord,
+    ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
+    NewExportTarget, NewTag, PackVisibility, StickerPackRecord, SubscriptionGroupRecord, TagRecord,
+    TelegramPublicationRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -22,12 +23,15 @@ use serde_json::{json, Value};
 use crate::{
     protocol::{initialize_result, CallToolResult, JsonRpcRequest, JsonRpcResponse},
     tools::{
-        execution_error_result, list_tools_result, success_result, CREATE_EXPORT_JOB,
-        CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_TAG,
-        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION,
-        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
-        LIST_FOLDERS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS, LIST_TAGS,
-        LIST_TELEGRAM_PUBLICATIONS, UPDATE_STICKER_PACK,
+        execution_error_result, list_tools_result, success_result, ADD_PACK_TO_FOLDER,
+        ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
+        CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_TAG, DELETE_STICKER_PACK,
+        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK,
+        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS,
+        LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS,
+        REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
+        UPDATE_STICKER_PACK,
     },
 };
 
@@ -85,10 +89,25 @@ async fn call_tool(
         DELETE_STICKER_PACK => delete_sticker_pack(&state, headers, arguments).await,
         LIST_FOLDERS => list_folders(&state, headers, arguments).await,
         CREATE_FOLDER => create_folder(&state, headers, arguments).await,
+        LIST_FOLDER_PACKS => list_folder_packs(&state, headers, arguments).await,
+        ADD_PACK_TO_FOLDER => add_pack_to_folder(&state, headers, arguments).await,
+        REMOVE_PACK_FROM_FOLDER => remove_pack_from_folder(&state, headers, arguments).await,
         LIST_TAGS => list_tags(&state, headers, arguments).await,
         CREATE_TAG => create_tag(&state, headers, arguments).await,
+        LIST_PACK_TAGS => list_pack_tags(&state, headers, arguments).await,
+        ADD_TAG_TO_PACK => add_tag_to_pack(&state, headers, arguments).await,
+        REMOVE_TAG_FROM_PACK => remove_tag_from_pack(&state, headers, arguments).await,
         LIST_SUBSCRIPTION_GROUPS => list_subscription_groups(&state, headers, arguments).await,
         CREATE_SUBSCRIPTION_GROUP => create_subscription_group(&state, headers, arguments).await,
+        LIST_SUBSCRIPTION_GROUP_PACKS => {
+            list_subscription_group_packs(&state, headers, arguments).await
+        }
+        ADD_PACK_TO_SUBSCRIPTION_GROUP => {
+            add_pack_to_subscription_group(&state, headers, arguments).await
+        }
+        REMOVE_PACK_FROM_SUBSCRIPTION_GROUP => {
+            remove_pack_from_subscription_group(&state, headers, arguments).await
+        }
         LIST_EXPORT_TARGET_KINDS => list_export_target_kinds(&state, headers, arguments).await,
         LIST_EXPORT_TARGETS => list_export_targets(&state, headers, arguments).await,
         CREATE_EXPORT_TARGET => create_export_target(&state, headers, arguments).await,
@@ -292,6 +311,83 @@ async fn create_folder(
     ))
 }
 
+async fn list_folder_packs(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<FolderPacksArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let _folder = require_owned_folder(state, &args.folder_id, &pat.user_id).await?;
+    let pack_ids = state
+        .repository()
+        .list_folder_pack_ids(&args.folder_id)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Found {} folder pack(s).", pack_ids.len()),
+        json!({ "packIds": pack_ids }),
+    ))
+}
+
+async fn add_pack_to_folder(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<AddPackToFolderArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let folder = require_owned_folder(state, &args.folder_id, &pat.user_id).await?;
+    let pack = load_owned_pack_record(state, &args.pack_id, &pat.user_id).await?;
+    require_same_tenant(&folder.tenant_id, &pack.tenant_id)?;
+    let link = state
+        .repository()
+        .add_pack_to_folder(&args.folder_id, &args.pack_id, args.sort_order)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!(
+            "Added pack `{}` to folder `{}`.",
+            args.pack_id, args.folder_id
+        ),
+        json!({
+            "folderPack": {
+                "folderId": link.folder_id,
+                "packId": link.pack_id,
+                "sortOrder": link.sort_order
+            }
+        }),
+    ))
+}
+
+async fn remove_pack_from_folder(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<RemovePackFromFolderArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let folder = require_owned_folder(state, &args.folder_id, &pat.user_id).await?;
+    let pack = load_owned_pack_record(state, &args.pack_id, &pat.user_id).await?;
+    require_same_tenant(&folder.tenant_id, &pack.tenant_id)?;
+    let removed = state
+        .repository()
+        .remove_pack_from_folder(&args.folder_id, &args.pack_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    require_removed(removed)?;
+
+    Ok(success_result(
+        format!(
+            "Removed pack `{}` from folder `{}`.",
+            args.pack_id, args.folder_id
+        ),
+        json!({ "removed": true, "folderId": args.folder_id, "packId": args.pack_id }),
+    ))
+}
+
 async fn list_tags(
     state: &ApiState,
     headers: &HeaderMap,
@@ -351,6 +447,72 @@ async fn create_tag(
     ))
 }
 
+async fn list_pack_tags(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<PackTagsArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let _pack = load_owned_pack_record(state, &args.pack_id, &pat.user_id).await?;
+    let tag_ids = state
+        .repository()
+        .list_pack_tag_ids(&args.pack_id)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Found {} pack tag(s).", tag_ids.len()),
+        json!({ "tagIds": tag_ids }),
+    ))
+}
+
+async fn add_tag_to_pack(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<AddTagToPackArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let pack = load_owned_pack_record(state, &args.pack_id, &pat.user_id).await?;
+    let tag = require_tag(state, &args.tag_id).await?;
+    require_same_tenant(&pack.tenant_id, &tag.tenant_id)?;
+    let link = state
+        .repository()
+        .add_tag_to_pack(&args.pack_id, &args.tag_id)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Added tag `{}` to pack `{}`.", args.tag_id, args.pack_id),
+        json!({ "packTag": { "packId": link.pack_id, "tagId": link.tag_id } }),
+    ))
+}
+
+async fn remove_tag_from_pack(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<RemoveTagFromPackArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let _pack = load_owned_pack_record(state, &args.pack_id, &pat.user_id).await?;
+    let removed = state
+        .repository()
+        .remove_tag_from_pack(&args.pack_id, &args.tag_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    require_removed(removed)?;
+
+    Ok(success_result(
+        format!(
+            "Removed tag `{}` from pack `{}`.",
+            args.tag_id, args.pack_id
+        ),
+        json!({ "removed": true, "packId": args.pack_id, "tagId": args.tag_id }),
+    ))
+}
+
 async fn list_subscription_groups(
     state: &ApiState,
     headers: &HeaderMap,
@@ -400,6 +562,90 @@ async fn create_subscription_group(
     Ok(success_result(
         format!("Created subscription group `{}`.", args.id),
         json!({ "subscriptionGroup": subscription_group_value(&group) }),
+    ))
+}
+
+async fn list_subscription_group_packs(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<SubscriptionGroupPacksArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::SubscriptionRead).await?;
+    let _group =
+        require_owned_subscription_group(state, &args.subscription_group_id, &pat.user_id).await?;
+    let pack_ids = state
+        .repository()
+        .list_subscription_pack_ids(&args.subscription_group_id)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Found {} subscription group pack(s).", pack_ids.len()),
+        json!({ "packIds": pack_ids }),
+    ))
+}
+
+async fn add_pack_to_subscription_group(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<AddPackToSubscriptionGroupArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::SubscriptionCreate).await?;
+    let group =
+        require_owned_subscription_group(state, &args.subscription_group_id, &pat.user_id).await?;
+    let pack = load_owned_pack_record(state, &args.pack_id, &pat.user_id).await?;
+    require_same_tenant(&group.tenant_id, &pack.tenant_id)?;
+    let link = state
+        .repository()
+        .add_pack_to_subscription_group(&args.subscription_group_id, &args.pack_id, args.sort_order)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!(
+            "Added pack `{}` to subscription group `{}`.",
+            args.pack_id, args.subscription_group_id
+        ),
+        json!({
+            "subscriptionGroupPack": {
+                "subscriptionGroupId": link.subscription_group_id,
+                "packId": link.pack_id,
+                "sortOrder": link.sort_order
+            }
+        }),
+    ))
+}
+
+async fn remove_pack_from_subscription_group(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<RemovePackFromSubscriptionGroupArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::SubscriptionCreate).await?;
+    let group =
+        require_owned_subscription_group(state, &args.subscription_group_id, &pat.user_id).await?;
+    let pack = load_owned_pack_record(state, &args.pack_id, &pat.user_id).await?;
+    require_same_tenant(&group.tenant_id, &pack.tenant_id)?;
+    let removed = state
+        .repository()
+        .remove_pack_from_subscription_group(&args.subscription_group_id, &args.pack_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    require_removed(removed)?;
+
+    Ok(success_result(
+        format!(
+            "Removed pack `{}` from subscription group `{}`.",
+            args.pack_id, args.subscription_group_id
+        ),
+        json!({
+            "removed": true,
+            "subscriptionGroupId": args.subscription_group_id,
+            "packId": args.pack_id
+        }),
     ))
 }
 
@@ -757,7 +1003,7 @@ fn telegram_publication_value(record: &TelegramPublicationRecord) -> Value {
     })
 }
 
-fn subscription_group_value(record: &msm_storage::models::SubscriptionGroupRecord) -> Value {
+fn subscription_group_value(record: &SubscriptionGroupRecord) -> Value {
     json!({
         "id": record.id,
         "tenantId": record.tenant_id,
@@ -790,7 +1036,7 @@ async fn load_owned_pack_record(
     state: &ApiState,
     pack_id: &str,
     user_id: &str,
-) -> Result<msm_storage::models::StickerPackRecord, String> {
+) -> Result<StickerPackRecord, String> {
     let pack = state
         .repository()
         .find_sticker_pack_record(pack_id)
@@ -801,6 +1047,67 @@ async fn load_owned_pack_record(
         Ok(pack)
     } else {
         Err("PAT user does not own the source pack".to_owned())
+    }
+}
+
+async fn require_owned_folder(
+    state: &ApiState,
+    folder_id: &str,
+    user_id: &str,
+) -> Result<FolderRecord, String> {
+    let folder = state
+        .repository()
+        .find_folder_record(folder_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Folder `{folder_id}` was not found."))?;
+    if folder.owner_user_id == user_id {
+        Ok(folder)
+    } else {
+        Err("PAT user does not own the folder".to_owned())
+    }
+}
+
+async fn require_tag(state: &ApiState, tag_id: &str) -> Result<TagRecord, String> {
+    state
+        .repository()
+        .find_tag_record(tag_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Tag `{tag_id}` was not found."))
+}
+
+async fn require_owned_subscription_group(
+    state: &ApiState,
+    subscription_group_id: &str,
+    user_id: &str,
+) -> Result<SubscriptionGroupRecord, String> {
+    let group = state
+        .repository()
+        .find_subscription_group_record(subscription_group_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Subscription group `{subscription_group_id}` was not found."))?;
+    if group.owner_user_id == user_id {
+        Ok(group)
+    } else {
+        Err("PAT user does not own the subscription group".to_owned())
+    }
+}
+
+fn require_same_tenant(left_tenant_id: &str, right_tenant_id: &str) -> Result<(), String> {
+    if left_tenant_id == right_tenant_id {
+        Ok(())
+    } else {
+        Err("membership resources must belong to the same tenant".to_owned())
+    }
+}
+
+fn require_removed(removed: bool) -> Result<(), String> {
+    if removed {
+        Ok(())
+    } else {
+        Err("membership link was not found".to_owned())
     }
 }
 
@@ -893,6 +1200,27 @@ struct CreateFolderArgs {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct FolderPacksArgs {
+    folder_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AddPackToFolderArgs {
+    folder_id: String,
+    pack_id: String,
+    sort_order: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemovePackFromFolderArgs {
+    folder_id: String,
+    pack_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ListTagsArgs {
     tenant_id: String,
 }
@@ -903,6 +1231,26 @@ struct CreateTagArgs {
     id: String,
     tenant_id: String,
     name: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PackTagsArgs {
+    pack_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AddTagToPackArgs {
+    pack_id: String,
+    tag_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemoveTagFromPackArgs {
+    pack_id: String,
+    tag_id: String,
 }
 
 #[derive(Deserialize)]
@@ -920,6 +1268,27 @@ struct CreateSubscriptionGroupArgs {
     owner_user_id: String,
     title: String,
     visibility: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SubscriptionGroupPacksArgs {
+    subscription_group_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AddPackToSubscriptionGroupArgs {
+    subscription_group_id: String,
+    pack_id: String,
+    sort_order: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemovePackFromSubscriptionGroupArgs {
+    subscription_group_id: String,
+    pack_id: String,
 }
 
 #[derive(Deserialize)]

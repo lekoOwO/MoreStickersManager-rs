@@ -25,7 +25,7 @@ mod tests {
 
     use msm_domain::{Permission, Sticker};
     use msm_storage::{
-        models::{NewExportJobEvent, NewExportTarget, NewTelegramPublication},
+        models::{NewExportJobEvent, NewExportTarget, NewTag, NewTelegramPublication},
         DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
     };
     use serde_json::{json, Value};
@@ -67,12 +67,20 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 19);
+        assert_eq!(tools.len(), 28);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools.iter().any(|tool| tool["name"] == "msm.create_folder"
             && tool["inputSchema"]["required"].as_array().unwrap().len() == 4));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.add_pack_to_folder"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 3));
         assert!(tools.iter().any(|tool| tool["name"] == "msm.list_tags"
             && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.add_tag_to_pack"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 2));
         assert!(tools
             .iter()
             .any(|tool| tool["name"] == "msm.create_subscription_group"
@@ -81,6 +89,10 @@ mod tests {
                     .unwrap()
                     .len()
                     == 2));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.add_pack_to_subscription_group"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 3));
         assert!(tools
             .iter()
             .any(|tool| tool["name"] == "msm.create_export_job"
@@ -628,6 +640,148 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn tools_call_manages_folder_pack_memberships() {
+        let state = seeded_state_with_product_metadata().await;
+        let token = create_pat(&state, "foldermember", "user_1", [Permission::PackUpdate]).await;
+
+        let folder_add = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.add_pack_to_folder",
+                    "arguments": {
+                        "folderId": "folder_1",
+                        "packId": "pack_1",
+                        "sortOrder": 10
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(folder_add["result"]["isError"], false);
+        assert_eq!(
+            folder_add["result"]["structuredContent"]["folderPack"]["sortOrder"],
+            10
+        );
+
+        let folder_list = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_folder_packs",
+                    "arguments": { "folderId": "folder_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            folder_list["result"]["structuredContent"]["packIds"],
+            json!(["pack_1"])
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_manages_pack_tag_memberships() {
+        let state = seeded_state_with_product_metadata().await;
+        let token = create_pat(&state, "tagmember", "user_1", [Permission::PackUpdate]).await;
+
+        let tag_add = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.add_tag_to_pack",
+                    "arguments": { "packId": "pack_1", "tagId": "tag_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(tag_add["result"]["isError"], false);
+        assert_eq!(
+            tag_add["result"]["structuredContent"]["packTag"]["tagId"],
+            "tag_1"
+        );
+
+        let tag_remove = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.remove_tag_from_pack",
+                    "arguments": { "packId": "pack_1", "tagId": "tag_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(tag_remove["result"]["structuredContent"]["removed"], true);
+    }
+
+    #[tokio::test]
+    async fn tools_call_manages_subscription_group_pack_memberships() {
+        let state = seeded_state_with_product_metadata().await;
+        let token = create_pat(
+            &state,
+            "groupmember",
+            "user_1",
+            [Permission::SubscriptionCreate, Permission::SubscriptionRead],
+        )
+        .await;
+
+        let group_add = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.add_pack_to_subscription_group",
+                    "arguments": {
+                        "subscriptionGroupId": "sub_1",
+                        "packId": "pack_1",
+                        "sortOrder": 20
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            group_add["result"]["structuredContent"]["subscriptionGroupPack"]["sortOrder"],
+            20
+        );
+
+        let group_remove = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.remove_pack_from_subscription_group",
+                    "arguments": { "subscriptionGroupId": "sub_1", "packId": "pack_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(group_remove["result"]["structuredContent"]["removed"], true);
+    }
+
+    #[tokio::test]
     async fn pat_enforcement_metadata_tools_require_expected_scopes() {
         let state = empty_state_with_owner().await;
         let token = create_pat(&state, "packread", "user_1", [Permission::PackRead]).await;
@@ -645,6 +799,36 @@ mod tests {
                         "tenantId": "tenant_1",
                         "ownerUserId": "user_1",
                         "name": "Favorites"
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], true);
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("pack.update"));
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_membership_tools_require_expected_scopes() {
+        let state = seeded_state_with_product_metadata().await;
+        let token = create_pat(&state, "packread", "user_1", [Permission::PackRead]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.add_pack_to_folder",
+                    "arguments": {
+                        "folderId": "folder_1",
+                        "packId": "pack_1",
+                        "sortOrder": 10
                     }
                 }
             }),
@@ -886,6 +1070,36 @@ mod tests {
                 msm_storage::models::PackVisibility::Private,
                 Some("telegram"),
                 &sample_pack(),
+            )
+            .await
+            .unwrap();
+        state
+    }
+
+    async fn seeded_state_with_product_metadata() -> msm_api::ApiState {
+        let state = seeded_state().await;
+        state
+            .repository()
+            .create_folder("folder_1", "tenant_1", "user_1", "Favorites")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_tag(NewTag {
+                id: "tag_1",
+                tenant_id: "tenant_1",
+                name: "cute",
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_1",
+                "tenant_1",
+                "user_1",
+                "Weekly",
+                msm_storage::models::PackVisibility::Private,
             )
             .await
             .unwrap();

@@ -62,11 +62,14 @@ Last completed:
 - Product-data MCP surface slice: added `msm.list_folders`, `msm.create_folder`, `msm.list_tags`, `msm.create_tag`, `msm.list_subscription_groups`, and `msm.create_subscription_group` tools with PAT scope enforcement.
 - Product-data Web surface slice: added an Organize workspace section with API-backed folder, tag, and subscription-group create/list management, navigation integration, i18n labels, and selectable subscription PAT scopes.
 - Product-data membership storage slice: added repository primitives for folder-pack links, pack-tag links, and subscription-group pack links, including ordered listing and removal.
+- Product-data membership API slice: added protected API/OpenAPI add/list/remove routes for folder-pack, pack-tag, and subscription-group pack membership links.
+- Product-data membership CLI slice: added `msm metadata folders packs`, `msm metadata pack-tags`, and `msm metadata subscription-groups packs` add/list/remove commands.
+- Product-data membership MCP slice: added `msm.list_folder_packs`, `msm.add_pack_to_folder`, `msm.remove_pack_from_folder`, `msm.list_pack_tags`, `msm.add_tag_to_pack`, `msm.remove_tag_from_pack`, `msm.list_subscription_group_packs`, `msm.add_pack_to_subscription_group`, and `msm.remove_pack_from_subscription_group` tools with PAT scope, ownership, and tenant checks.
 
 Current task:
 - Continue product-data management by exposing pack-folder/tag membership and
-  subscription-group pack membership/link semantics through API/OpenAPI, then
-  CLI/MCP/Web.
+  subscription-group pack membership/link semantics in the Web Organize
+  workspace.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -132,11 +135,12 @@ Last verification:
 - Product-data membership storage slice: RED/GREEN test with `cargo test -p msm-storage pack_memberships_can_be_managed --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --test product_data_repository_tests --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data membership API slice: RED/GREEN test with `cargo test -p msm-api metadata_routes_manage_pack_memberships --locked`; OpenAPI path check with `cargo test -p msm-api openapi_endpoint_contains_health_path --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data membership CLI slice: RED/GREEN tests with `cargo test -p msm-cli parses_metadata_membership_commands --locked`, `cargo test -p msm-cli executes_metadata_folder_membership_commands --locked`, `cargo test -p msm-cli executes_metadata_pack_tag_membership_commands --locked`, and `cargo test -p msm-cli executes_metadata_subscription_group_membership_commands --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Product-data membership MCP slice: RED/GREEN tests with `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`, `cargo test -p msm-mcp tools_call_manages_folder_pack_memberships --locked`, `cargo test -p msm-mcp tools_call_manages_pack_tag_memberships --locked`, `cargo test -p msm-mcp tools_call_manages_subscription_group_pack_memberships --locked`, and `cargo test -p msm-mcp pat_enforcement_membership_tools_require_expected_scopes --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Documentation consolidation slice: added `docs/PRD.md` as the living product requirements, roadmap, progress, and completion source; reduced active Agent docs to `docs/agents/README.md`; removed legacy per-phase `docs/superpowers` plans/specs and duplicated Agent handoff files; verification with `git diff --check`.
 - PRD self-review hardening: clarified PRD status semantics, current implementation queue, current surface parity gaps, open product questions, and per-slice definition of done; verification with `git diff --check`.
 
 Next step:
-- Continue product-data metadata by adding MCP and Web controls for pack-folder/tag membership and subscription-group pack membership/link operations.
+- Continue product-data metadata by adding Web controls for pack-folder/tag membership and subscription-group pack membership/link operations.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -796,6 +796,18 @@
   acknowledgements.
 - Added parser and fake-client execution tests for the new membership commands.
 
+## 2026-05-09 Product Data Membership MCP
+
+- Added MCP tool definitions for folder-pack, pack-tag, and subscription-group
+  pack membership add/list/remove operations.
+- Added MCP handler support backed by the storage repository with PAT scope
+  enforcement, resource ownership checks, and same-tenant validation.
+- Added MCP tests for tool registry/schema coverage, successful membership
+  lifecycle calls, and missing `pack.update` rejection.
+- Updated PRD, README, user docs, roadmap, implementation matrix, and current
+  status to mark MCP membership parity and leave Web membership controls as the
+  next slice.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,
