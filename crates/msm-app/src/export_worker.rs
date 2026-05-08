@@ -101,6 +101,10 @@ pub enum ExportWorkerError {
     #[error("Telegram reconciliation execution requires `executeReconciliation: true`")]
     ReconciliationExecutionNotEnabled,
 
+    /// Telegram mirror reconciliation can delete or replace remote stickers.
+    #[error("Telegram mirror reconciliation with replace/delete requires `allowDestructiveReconciliation: true`")]
+    DestructiveReconciliationNotAllowed,
+
     /// Planned sticker has no prepared media output.
     #[error("prepared media output missing for sticker {sticker_id} profile {profile_key}")]
     MissingPreparedMedia {
@@ -628,6 +632,8 @@ impl ExportWorker {
         let reconcile_mode = options.reconcile_mode;
         let remote_set = options.remote_set;
         let execute_reconciliation = options.execute_reconciliation.unwrap_or(false);
+        let allow_destructive_reconciliation =
+            options.allow_destructive_reconciliation.unwrap_or(false);
         let set_type = match options.set_type.as_deref() {
             Some("customEmoji" | "custom_emoji") => TelegramStickerSetType::CustomEmoji,
             _ => TelegramStickerSetType::Regular,
@@ -676,6 +682,7 @@ impl ExportWorker {
                         prepared_media,
                         remote_set,
                         mode,
+                        allow_destructive_reconciliation,
                     )
                     .await;
             }
@@ -786,9 +793,16 @@ impl ExportWorker {
         prepared_media: Vec<CachedPreparedMediaSummary>,
         remote_set: Option<TelegramRemoteSet>,
         mode: TelegramReconcileMode,
+        allow_destructive_reconciliation: bool,
     ) -> ExportWorkerResult<WorkerJobResult> {
         let reconciliation_plan =
             TelegramExportPlanner::plan_reconciliation(plan.clone(), remote_set, mode)?;
+        if mode == TelegramReconcileMode::Mirror
+            && !allow_destructive_reconciliation
+            && reconciliation_plan_has_destructive_mutation(&reconciliation_plan.operations)
+        {
+            return Err(ExportWorkerError::DestructiveReconciliationNotAllowed);
+        }
 
         if let Some((initial_stickers, append_stickers)) = reconciliation_plan
             .operations
@@ -1114,6 +1128,7 @@ struct WorkerTelegramOptions {
     reconcile_mode: Option<TelegramReconcileMode>,
     remote_set: Option<TelegramRemoteSet>,
     execute_reconciliation: Option<bool>,
+    allow_destructive_reconciliation: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -1298,6 +1313,16 @@ const fn telegram_reconcile_operation_label(
 
 const fn telegram_reconcile_operation_is_mutation(operation: &TelegramReconcileOperation) -> bool {
     !matches!(operation, TelegramReconcileOperation::KeepSticker { .. })
+}
+
+fn reconciliation_plan_has_destructive_mutation(operations: &[TelegramReconcileOperation]) -> bool {
+    operations.iter().any(|operation| {
+        matches!(
+            operation,
+            TelegramReconcileOperation::ReplaceSticker { .. }
+                | TelegramReconcileOperation::DeleteSticker { .. }
+        )
+    })
 }
 
 fn next_attempt_at(backoff: Duration) -> ExportWorkerResult<String> {

@@ -576,6 +576,7 @@ These tests prove:
 - queued jobs with future `next_attempt_at` values are skipped by worker polling.
 - Telegram dry-run jobs can summarize reconciliation operation and mutation counts from supplied `reconcileMode` and `remoteSet` options without calling Telegram.
 - non-dry-run append-missing reconciliation requires `executeReconciliation: true`, applies mutations through an injected fake executor, and does not call the create-set publisher.
+- mirror reconciliation plans containing replace/delete require `allowDestructiveReconciliation: true` before the worker calls the mutation executor.
 
 ## Export CLI Tests
 

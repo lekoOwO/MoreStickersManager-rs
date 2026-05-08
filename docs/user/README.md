@@ -107,8 +107,9 @@ operations for live publication yet, but dry-run jobs may include
 counts. Non-dry-run append-missing reconciliation can execute supplied-state
 mutations only when job options include `"dryRun": false`,
 `"reconcileMode": "appendMissing"`, `"executeReconciliation": true`, and a
-`remoteSet`. Current normal live Telegram publication remains
-create/append-oriented and opt-in via `"dryRun": false`.
+`remoteSet`. Mirror-mode replace/delete additionally requires
+`"allowDestructiveReconciliation": true`. Current normal live Telegram
+publication remains create/append-oriented and opt-in via `"dryRun": false`.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant

@@ -488,3 +488,11 @@
 - Persisted reconciled Telegram publication metadata after successful mutation execution.
 - Documented that remote state retrieval and destructive mirror safety controls remain pending.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Telegram Mirror Safety
+
+- Added `allowDestructiveReconciliation` job option for mirror-mode replace/delete operations.
+- Added worker guard that rejects mirror reconciliation plans containing replace/delete unless destructive reconciliation is explicitly allowed.
+- Added a no-network worker test proving mirror delete does not call the mutation executor without the extra allowance.
+- Updated user, architecture, testing, matrix, checkpoint, and current-status docs.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.

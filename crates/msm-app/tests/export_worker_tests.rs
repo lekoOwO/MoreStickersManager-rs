@@ -338,6 +338,48 @@ async fn telegram_append_missing_reconciliation_can_execute_mutations_when_expli
 }
 
 #[tokio::test]
+async fn telegram_mirror_reconciliation_refuses_destructive_mutations_without_explicit_allowance() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_mirror_blocked",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false,"reconcileMode":"mirror","executeReconciliation":true,"remoteSet":{"stickerSetName":"sample_pack_by_msm_bot","title":"Sample","stickers":[{"stickerId":"remote-only","telegramFileId":"tg_remote_only","targetProfileKey":"telegram.sticker.static.v1","emojiList":["ok"],"keywords":[]}]}}}"#,
+        max_attempts: 1,
+    })
+    .await
+    .unwrap();
+    let mutations = Arc::new(FakeTelegramMutationExecutor::default());
+    let worker = ExportWorker::with_media_telegram_and_mutation_executors(
+        repo,
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        Arc::new(FakeTelegramPublicationExecutor::default()),
+        mutations.clone(),
+    );
+
+    let error = worker
+        .run_job("job_telegram_mirror_blocked")
+        .await
+        .expect_err("mirror delete must require explicit destructive opt-in");
+
+    assert!(error.to_string().contains("allowDestructiveReconciliation"));
+    assert!(mutations.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn telegram_publication_failure_marks_job_failed() {
     let repo = seeded_repository().await;
     repo.create_export_target(NewExportTarget {
