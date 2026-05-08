@@ -28,7 +28,8 @@ pub use export_worker::{
     ExportWorkerError, ExportWorkerResult, PreparedMediaExecutor, PreparedMediaOutput,
     PreparedMediaRequest, ProcessPreparedMediaExecutor, TelegramMutationExecutor,
     TelegramMutationRequest, TelegramPublicationExecutor, TelegramPublicationRequest,
-    TeloxideTelegramMutationExecutor, TeloxideTelegramPublicationExecutor,
+    TelegramRemoteStateExecutor, TelegramRemoteStateRequest, TeloxideTelegramMutationExecutor,
+    TeloxideTelegramPublicationExecutor, TeloxideTelegramRemoteStateExecutor,
 };
 
 static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");

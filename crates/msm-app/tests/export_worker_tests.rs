@@ -4,7 +4,7 @@ use msm_app::{
     ConversionCommandRunner, ExportWorker, ExportWorkerConfig, ExportWorkerResult,
     PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest, ProcessPreparedMediaExecutor,
     TelegramMutationExecutor, TelegramMutationRequest, TelegramPublicationExecutor,
-    TelegramPublicationRequest,
+    TelegramPublicationRequest, TelegramRemoteStateExecutor, TelegramRemoteStateRequest,
 };
 use msm_domain::{Sticker, StickerPack};
 use msm_media::ConversionCommand;
@@ -12,7 +12,10 @@ use msm_storage::{
     models::{ExportJobStatus, NewExportJob, NewExportTarget, PackVisibility},
     DatabaseConfig, DbPool, StorageRepository,
 };
-use msm_telegram::{TelegramPublishError, TelegramPublishedSet};
+use msm_telegram::{
+    TelegramFetchedSticker, TelegramFetchedStickerSet, TelegramPublishError, TelegramPublishedSet,
+};
+use teloxide::types::StickerType;
 
 #[tokio::test]
 async fn worker_runs_moresticker_export_job_without_remote_calls() {
@@ -133,11 +136,16 @@ async fn telegram_dry_run_does_not_call_publication_executor() {
     .await
     .unwrap();
     let publisher = Arc::new(FakeTelegramPublicationExecutor::default());
-    let worker = ExportWorker::with_media_and_telegram_executors(
+    let worker = ExportWorker::with_media_telegram_mutation_and_remote_executors(
         repo.clone(),
         worker_config(),
         Arc::new(FakePreparedMediaExecutor),
         publisher.clone(),
+        Arc::new(FakeTelegramMutationExecutor::default()),
+        Arc::new(FakeTelegramRemoteStateExecutor::with_set(remote_set(
+            "sample_pack_by_msm_bot",
+            vec![remote_sticker("tg_file_1", "tg_unique_1")],
+        ))),
     );
 
     let completed = worker.run_job("job_telegram_dry_run").await.unwrap();
@@ -225,11 +233,16 @@ async fn telegram_export_job_can_publish_through_injected_executor() {
     .await
     .unwrap();
     let publisher = Arc::new(FakeTelegramPublicationExecutor::default());
-    let worker = ExportWorker::with_media_and_telegram_executors(
+    let worker = ExportWorker::with_media_telegram_mutation_and_remote_executors(
         repo.clone(),
         worker_config(),
         Arc::new(FakePreparedMediaExecutor),
         publisher.clone(),
+        Arc::new(FakeTelegramMutationExecutor::default()),
+        Arc::new(FakeTelegramRemoteStateExecutor::with_set(remote_set(
+            "sample_pack_by_msm_bot",
+            vec![remote_sticker("tg_file_1", "tg_unique_1")],
+        ))),
     );
 
     let completed = worker.run_job("job_telegram_publish").await.unwrap();
@@ -281,6 +294,69 @@ async fn telegram_export_job_can_publish_through_injected_executor() {
     assert!(stages.contains(&"telegram.publish.create".to_owned()));
     assert!(stages.contains(&"telegram.publish.append".to_owned()));
     assert!(stages.contains(&"succeeded".to_owned()));
+}
+
+#[tokio::test]
+async fn telegram_publication_fetches_remote_state_and_persists_sticker_mappings() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_mapping",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let remote_state = Arc::new(FakeTelegramRemoteStateExecutor::with_set(remote_set(
+        "sample_pack_by_msm_bot",
+        vec![remote_sticker("tg_file_1", "tg_unique_1")],
+    )));
+    let worker = ExportWorker::with_media_telegram_mutation_and_remote_executors(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        Arc::new(FakeTelegramPublicationExecutor::default()),
+        Arc::new(FakeTelegramMutationExecutor::default()),
+        remote_state.clone(),
+    );
+
+    let completed = worker.run_job("job_telegram_mapping").await.unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    assert_eq!(
+        remote_state.calls.lock().unwrap().as_slice(),
+        ["fetch:123:secret:sample_pack_by_msm_bot"]
+    );
+    let publication = repo
+        .find_telegram_publication_by_target_set("target_telegram", "sample_pack_by_msm_bot")
+        .await
+        .unwrap()
+        .expect("publication should be persisted before mappings");
+    let mappings = repo
+        .list_telegram_sticker_mappings_for_publication(&publication.id)
+        .await
+        .unwrap();
+    assert_eq!(mappings.len(), 1);
+    assert_eq!(
+        mappings[0].source_sticker_id,
+        "MoreStickers:Telegram:Sticker:sample:file"
+    );
+    assert_eq!(mappings[0].telegram_file_id, "tg_file_1");
+    assert_eq!(mappings[0].telegram_file_unique_id, "tg_unique_1");
+    assert_eq!(mappings[0].position, 0);
 }
 
 #[tokio::test]
@@ -703,6 +779,37 @@ struct RecordedTelegramMutation {
 }
 
 #[derive(Debug)]
+struct FakeTelegramRemoteStateExecutor {
+    calls: std::sync::Mutex<Vec<String>>,
+    remote_set: TelegramFetchedStickerSet,
+}
+
+impl FakeTelegramRemoteStateExecutor {
+    fn with_set(remote_set: TelegramFetchedStickerSet) -> Self {
+        Self {
+            calls: std::sync::Mutex::new(Vec::new()),
+            remote_set,
+        }
+    }
+}
+
+impl TelegramRemoteStateExecutor for FakeTelegramRemoteStateExecutor {
+    fn fetch(
+        &self,
+        request: TelegramRemoteStateRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<TelegramFetchedStickerSet>> + Send + '_>>
+    {
+        Box::pin(async move {
+            self.calls.lock().unwrap().push(format!(
+                "fetch:{}:{}",
+                request.bot_token, request.sticker_set_name
+            ));
+            Ok(self.remote_set.clone())
+        })
+    }
+}
+
+#[derive(Debug)]
 struct FakePreparedMediaExecutor;
 
 impl PreparedMediaExecutor for FakePreparedMediaExecutor {
@@ -723,6 +830,28 @@ impl PreparedMediaExecutor for FakePreparedMediaExecutor {
                 file_size_bytes: 512,
             }))
         })
+    }
+}
+
+fn remote_set(
+    sticker_set_name: &str,
+    stickers: Vec<TelegramFetchedSticker>,
+) -> TelegramFetchedStickerSet {
+    TelegramFetchedStickerSet {
+        sticker_set_name: sticker_set_name.to_owned(),
+        title: "Sample".to_owned(),
+        sticker_type: StickerType::Regular,
+        stickers,
+    }
+}
+
+fn remote_sticker(file_id: &str, unique_id: &str) -> TelegramFetchedSticker {
+    TelegramFetchedSticker {
+        telegram_file_id: file_id.to_owned(),
+        telegram_file_unique_id: unique_id.to_owned(),
+        emoji: Some("ok".to_owned()),
+        is_animated: false,
+        is_video: false,
     }
 }
 

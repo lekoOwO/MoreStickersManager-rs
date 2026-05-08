@@ -84,7 +84,9 @@ stickers.
 Storage now has a `telegram_sticker_mappings` table for MSM source sticker IDs,
 Telegram file IDs, file unique IDs, and positions per publication/target/set.
 The table is the durable bridge needed for future fetched-state reconciliation;
-worker population from post-publication `getStickerSet` results remains pending.
+successful non-dry-run publication jobs now populate it from post-publication
+`getStickerSet` results. Mapping refresh after reconciliation mutation execution
+remains pending.
 
 Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
 Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds

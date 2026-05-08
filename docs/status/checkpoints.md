@@ -514,3 +514,13 @@
 - Added repository tests proving upsert updates retain stable IDs and ordered publication listing works.
 - Documented that worker publication/reconciliation still needs to populate mappings from fetched remote state.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-storage --test export_job_repository_tests --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Telegram Post-Publication Mapping Population
+
+- Added `TelegramRemoteStateExecutor` and `TelegramRemoteStateRequest` to the app worker boundary.
+- Added a teloxide-backed remote-state executor using `msm-telegram::fetch_sticker_set`.
+- Added worker injection for publication, mutation, and remote-state executors together so tests stay no-network.
+- Updated successful Telegram publication jobs to fetch the remote sticker set after publication and persist per-sticker mappings by planned sticker order.
+- Added worker tests proving mappings persist Telegram file IDs and file unique IDs after a fake publish plus fake remote fetch.
+- Documented that mapping refresh after reconciliation mutation execution remains the next slice.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.

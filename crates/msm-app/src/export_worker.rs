@@ -11,14 +11,15 @@ use msm_media::{ConversionCommand, ConverterToolchain, PreparedMediaSpec, Sticke
 use msm_storage::{
     models::{
         ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJobEvent,
-        NewPreparedMediaAsset, NewTelegramPublication,
+        NewPreparedMediaAsset, NewTelegramPublication, NewTelegramStickerMapping,
     },
     StorageRepository,
 };
 use msm_telegram::{
-    apply_sticker_set_mutations, publish_sticker_set, TelegramBotConfig, TelegramBotError,
-    TelegramPublishError, TelegramPublishRequest, TelegramPublishSticker, TelegramPublishedSet,
-    TelegramStickerSetMutation, TeloxideTelegramStickerSetApi,
+    apply_sticker_set_mutations, fetch_sticker_set, publish_sticker_set, TelegramBotConfig,
+    TelegramBotError, TelegramFetchedStickerSet, TelegramPublishError, TelegramPublishRequest,
+    TelegramPublishSticker, TelegramPublishedSet, TelegramStickerSetMutation,
+    TeloxideTelegramStickerSetApi,
 };
 use sha2::{Digest, Sha256};
 use teloxide::types::{InputFile, StickerType};
@@ -125,6 +126,15 @@ pub enum ExportWorkerError {
     /// Published sticker count does not fit storage.
     #[error("published sticker count overflow")]
     StickerCountOverflow,
+
+    /// Telegram fetched fewer stickers than the worker planned.
+    #[error("Telegram remote sticker count mismatch: planned {planned}, fetched {fetched}")]
+    TelegramRemoteStickerCountMismatch {
+        /// Planned sticker count.
+        planned: usize,
+        /// Fetched sticker count.
+        fetched: usize,
+    },
 
     /// Converter process did not complete before its timeout.
     #[error("converter timed out")]
@@ -245,6 +255,15 @@ pub struct TelegramMutationRequest {
     pub mutations: Vec<TelegramStickerSetMutation>,
 }
 
+/// Request passed from the worker to a Telegram remote-state executor.
+#[derive(Debug)]
+pub struct TelegramRemoteStateRequest {
+    /// Telegram bot token used only for the current fetch call.
+    pub bot_token: String,
+    /// Telegram sticker set name to fetch.
+    pub sticker_set_name: String,
+}
+
 /// Boundary for publishing prepared Telegram sticker sets.
 pub trait TelegramPublicationExecutor: std::fmt::Debug + Send + Sync {
     /// Publishes one Telegram sticker set.
@@ -261,6 +280,15 @@ pub trait TelegramMutationExecutor: std::fmt::Debug + Send + Sync {
         &self,
         request: TelegramMutationRequest,
     ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<usize>> + Send + '_>>;
+}
+
+/// Boundary for fetching Telegram sticker set state.
+pub trait TelegramRemoteStateExecutor: std::fmt::Debug + Send + Sync {
+    /// Fetches one Telegram sticker set.
+    fn fetch(
+        &self,
+        request: TelegramRemoteStateRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<TelegramFetchedStickerSet>> + Send + '_>>;
 }
 
 /// Telegram publication executor backed by `teloxide`.
@@ -295,6 +323,26 @@ impl TelegramMutationExecutor for TeloxideTelegramMutationExecutor {
             let bot = TelegramBotConfig::new(request.bot_token)?.build_bot();
             let api = TeloxideTelegramStickerSetApi::new(bot);
             apply_sticker_set_mutations(&api, request.mutations)
+                .await
+                .map_err(Into::into)
+        })
+    }
+}
+
+/// Telegram remote-state executor backed by `teloxide`.
+#[derive(Debug, Default)]
+pub struct TeloxideTelegramRemoteStateExecutor;
+
+impl TelegramRemoteStateExecutor for TeloxideTelegramRemoteStateExecutor {
+    fn fetch(
+        &self,
+        request: TelegramRemoteStateRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<TelegramFetchedStickerSet>> + Send + '_>>
+    {
+        Box::pin(async move {
+            let bot = TelegramBotConfig::new(request.bot_token)?.build_bot();
+            let api = TeloxideTelegramStickerSetApi::new(bot);
+            fetch_sticker_set(&api, &request.sticker_set_name)
                 .await
                 .map_err(Into::into)
         })
@@ -431,6 +479,7 @@ pub struct ExportWorker {
     media_executor: Arc<dyn PreparedMediaExecutor>,
     telegram_publication_executor: Arc<dyn TelegramPublicationExecutor>,
     telegram_mutation_executor: Arc<dyn TelegramMutationExecutor>,
+    telegram_remote_state_executor: Arc<dyn TelegramRemoteStateExecutor>,
 }
 
 impl ExportWorker {
@@ -485,12 +534,33 @@ impl ExportWorker {
         telegram_publication_executor: Arc<dyn TelegramPublicationExecutor>,
         telegram_mutation_executor: Arc<dyn TelegramMutationExecutor>,
     ) -> Self {
+        Self::with_media_telegram_mutation_and_remote_executors(
+            repository,
+            config,
+            media_executor,
+            telegram_publication_executor,
+            telegram_mutation_executor,
+            Arc::new(TeloxideTelegramRemoteStateExecutor),
+        )
+    }
+
+    /// Creates a worker with all Telegram executors injected.
+    #[must_use]
+    pub fn with_media_telegram_mutation_and_remote_executors(
+        repository: StorageRepository,
+        config: ExportWorkerConfig,
+        media_executor: Arc<dyn PreparedMediaExecutor>,
+        telegram_publication_executor: Arc<dyn TelegramPublicationExecutor>,
+        telegram_mutation_executor: Arc<dyn TelegramMutationExecutor>,
+        telegram_remote_state_executor: Arc<dyn TelegramRemoteStateExecutor>,
+    ) -> Self {
         Self {
             repository,
             config,
             media_executor,
             telegram_publication_executor,
             telegram_mutation_executor,
+            telegram_remote_state_executor,
         }
     }
 
@@ -725,6 +795,12 @@ impl ExportWorker {
             self.telegram_publish_stickers(&plan.initial_stickers, &prepared_media)?;
         let append_stickers =
             self.telegram_publish_stickers(&plan.append_stickers, &prepared_media)?;
+        let planned_stickers = plan
+            .initial_stickers
+            .iter()
+            .chain(plan.append_stickers.iter())
+            .cloned()
+            .collect::<Vec<_>>();
         self.append_event(
             &job.id,
             "info",
@@ -742,7 +818,7 @@ impl ExportWorker {
         let published = self
             .telegram_publication_executor
             .publish(TelegramPublicationRequest {
-                bot_token,
+                bot_token: bot_token.clone(),
                 publish_request: TelegramPublishRequest {
                     owner_user_id: plan.owner_user_id,
                     sticker_set_name: plan.sticker_set_name,
@@ -770,6 +846,14 @@ impl ExportWorker {
                 sticker_type: &sticker_type,
             })
             .await?;
+        self.persist_telegram_sticker_mappings_from_remote(
+            &bot_token,
+            &publication_id,
+            &target.id,
+            &published.sticker_set_name,
+            &planned_stickers,
+        )
+        .await?;
 
         Ok(WorkerJobResult::TelegramPublished {
             target_kind: target.kind.clone(),
@@ -910,6 +994,46 @@ impl ExportWorker {
                 sticker_type: &sticker_type,
             })
             .await?;
+        Ok(())
+    }
+
+    async fn persist_telegram_sticker_mappings_from_remote(
+        &self,
+        bot_token: &str,
+        publication_id: &str,
+        target_id: &str,
+        sticker_set_name: &str,
+        planned_stickers: &[PlannedTelegramSticker],
+    ) -> ExportWorkerResult<()> {
+        let remote = self
+            .telegram_remote_state_executor
+            .fetch(TelegramRemoteStateRequest {
+                bot_token: bot_token.to_owned(),
+                sticker_set_name: sticker_set_name.to_owned(),
+            })
+            .await?;
+        if remote.stickers.len() < planned_stickers.len() {
+            return Err(ExportWorkerError::TelegramRemoteStickerCountMismatch {
+                planned: planned_stickers.len(),
+                fetched: remote.stickers.len(),
+            });
+        }
+
+        for (position, planned) in planned_stickers.iter().enumerate() {
+            let remote_sticker = &remote.stickers[position];
+            self.repository
+                .upsert_telegram_sticker_mapping(NewTelegramStickerMapping {
+                    publication_id,
+                    target_id,
+                    sticker_set_name,
+                    source_sticker_id: &planned.sticker_id,
+                    telegram_file_id: &remote_sticker.telegram_file_id,
+                    telegram_file_unique_id: &remote_sticker.telegram_file_unique_id,
+                    position: i64::try_from(position).unwrap_or(i64::MAX),
+                })
+                .await?;
+        }
+
         Ok(())
     }
 

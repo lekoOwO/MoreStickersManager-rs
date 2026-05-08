@@ -571,6 +571,7 @@ These tests prove:
 - injected Telegram publication executors can publish `dryRun:false` jobs without network access in tests;
 - dry-run Telegram jobs do not call the publication executor;
 - successful non-dry-run Telegram jobs persist durable publication records;
+- successful non-dry-run Telegram publication jobs fetch remote sticker set state through an injected fake and persist per-sticker file mappings;
 - publisher failures mark export jobs as failed and persist an error summary;
 - startup export target bootstrap config parses, rejects invalid JSON, and idempotently creates/updates configured targets.
 - retryable worker failures requeue jobs with backoff until the configured attempt budget is exhausted;
