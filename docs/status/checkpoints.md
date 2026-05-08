@@ -524,3 +524,12 @@
 - Added worker tests proving mappings persist Telegram file IDs and file unique IDs after a fake publish plus fake remote fetch.
 - Documented that mapping refresh after reconciliation mutation execution remains the next slice.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Development Environment Manager
+
+- Added `scripts/dev-manager.mjs`, a dependency-free Node.js manager for local API/Web service start, stop, restart, and status operations.
+- Added environment profile commands for listing profiles, initializing `.env.<name>` files from tracked examples, and switching the active profile.
+- Added `.env.development.example` and `.env.testing.example` for repeatable local API/Web configuration without committing private overrides.
+- Added root npm shortcuts: `dev`, `dev:start`, `dev:stop`, `dev:restart`, `dev:status`, and `dev:env`.
+- Documented usage in README, user docs, project map, testing guide, current status, and the implementation matrix.
+- Verified with `node scripts/dev-manager.mjs --help`, `node scripts/dev-manager.mjs env list`, `node scripts/dev-manager.mjs env init development`, `node scripts/dev-manager.mjs env use testing`, `node scripts/dev-manager.mjs status`, `npm run dev:status`, `node scripts/dev-manager.mjs env use development`, `node scripts/dev-manager.mjs stop`, and `git diff --check`.

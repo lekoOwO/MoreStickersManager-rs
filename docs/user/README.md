@@ -43,9 +43,20 @@ cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
 Current Web UI examples:
 
 ```powershell
+npm run dev:env -- init development
+npm run dev:env -- use development
+npm run dev:start
+npm run dev:status
+npm run dev:stop
 npm run web:dev
 npm run web:build
 ```
+
+`npm run dev:start` runs both the Rust API service and the Vite Web server.
+`npm run dev:start api` or `npm run dev:start web` starts only one side. The
+manager loads `.env.<name>` plus optional `.env.local`, writes logs under
+`tmp/dev-manager/`, and supports `development` and `testing` examples out of the
+box through `.env.development.example` and `.env.testing.example`.
 
 The Web UI can run against mock data or the current API. It demonstrates the app
 shell, responsive layout, theme toggle, language toggle, PAT management, local
@@ -179,6 +190,9 @@ Required PAT scopes are `export.read`, `export.run`, and
 Current service binary example:
 
 ```powershell
+npm run dev:start api
+npm run dev:status
+npm run dev:stop api
 npm run web:build
 cargo run -p msm-app
 ```

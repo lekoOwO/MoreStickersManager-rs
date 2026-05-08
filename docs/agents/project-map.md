@@ -15,6 +15,8 @@
 - `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, protected API clients, PAT panel, pack CRUD controls, pack import UI, export target panel, export wizard, Telegram publication history panel, and export job timeline.
 - `crates/msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling, Bot API URL configuration, mockable sticker set create/append execution, mockable sticker set mutation execution, and remote sticker set metadata fetches.
 - `components.json`: Shadcn Vue configuration for the Web UI workspace.
+- `scripts/dev-manager.mjs`: Node.js local development manager for API/Web start, stop, restart, status, and env profile switching.
+- `.env.development.example` / `.env.testing.example`: tracked local environment profile templates used by the dev manager.
 - `docs/status`: current state and development log.
 - `docs/status/implementation-matrix.md`: implemented-versus-planned feature truth source.
 - `docs/dev`: human developer references.

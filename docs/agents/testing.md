@@ -26,6 +26,29 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+## Development Manager Checks
+
+Run:
+
+```powershell
+node scripts/dev-manager.mjs --help
+node scripts/dev-manager.mjs env list
+node scripts/dev-manager.mjs env init development
+node scripts/dev-manager.mjs env use testing
+node scripts/dev-manager.mjs status
+npm run dev:status
+node scripts/dev-manager.mjs env use development
+node scripts/dev-manager.mjs stop
+```
+
+These checks prove:
+
+- the Node.js manager parses commands without third-party dependencies;
+- tracked env examples can initialize ignored `.env.<name>` files;
+- the active env profile can switch between development and testing;
+- service status reads and cleans PID files without starting long-running processes;
+- npm shortcuts route to the same manager.
+
 ## GitHub Actions Coverage
 
 Workflows:

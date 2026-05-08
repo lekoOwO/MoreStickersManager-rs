@@ -4,6 +4,12 @@
     "apps/web"
   ],
   "scripts": {
+    "dev": "node scripts/dev-manager.mjs start",
+    "dev:start": "node scripts/dev-manager.mjs start",
+    "dev:stop": "node scripts/dev-manager.mjs stop",
+    "dev:restart": "node scripts/dev-manager.mjs restart",
+    "dev:status": "node scripts/dev-manager.mjs status",
+    "dev:env": "node scripts/dev-manager.mjs env",
     "web:dev": "npm --workspace apps/web run dev",
     "web:build": "npm --workspace apps/web run build",
     "web:test": "npm --workspace apps/web run test",

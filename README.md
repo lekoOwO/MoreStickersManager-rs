@@ -13,6 +13,21 @@ MSM preserves the `.stickerpack` JSON shape used by Equicord moreStickers and Mo
 
 ## Development
 
+Use the development manager to switch local env profiles and control the API/Web
+dev processes:
+
+```powershell
+npm run dev:env -- init development
+npm run dev:env -- use development
+npm run dev:start
+npm run dev:status
+npm run dev:stop
+```
+
+The manager loads `.env.<name>` first and `.env.local` second for private local
+overrides. Logs and PID files are stored under `tmp/dev-manager/`. Tracked
+examples are provided as `.env.development.example` and `.env.testing.example`.
+
 Run the current baseline checks:
 
 ```powershell
@@ -117,6 +132,8 @@ The current Web UI is a Vue/Vite frontend foundation with Shadcn Vue-compatible
 local primitives and Tailwind CSS v4:
 
 ```powershell
+npm run dev:start web
+npm run dev:stop web
 npm run web:dev
 npm run web:typecheck
 npm run web:test
@@ -155,6 +172,8 @@ stores the returned PAT through the same `msm.pat` browser-local path.
 Run the current all-in-one service:
 
 ```powershell
+npm run dev:start api
+npm run dev:stop api
 npm run web:build
 cargo run -p msm-app
 ```
