@@ -36,9 +36,10 @@ Last completed:
 - Export job retry policy slice: added retry metadata, due-job backoff selection, worker requeue behavior for retryable failures, terminal failure after attempt budget exhaustion, and `MSM_EXPORT_RETRY_BACKOFF_MS`.
 - Telegram reconciliation policy slice: added pure exporter-level reconciliation planning for create-only, append-missing, and mirror modes, including title updates, sticker replacement, remote-only deletion, and no-network tests.
 - Telegram mutation boundary slice: extended `msm-telegram` with mockable title update, sticker add, sticker replace, and sticker delete mutations backed by teloxide adapter methods and no-network ordering tests.
+- Telegram worker reconciliation dry-run slice: export jobs can accept `reconcileMode` plus optional `remoteSet` options and include reconciliation operation/mutation summaries in Telegram dry-run results without calling Telegram.
 
 Current task:
-- Continue from Telegram mutation boundary: policy modeling and low-level update/delete mutations exist; next step is mapping worker reconciliation plans into safe mutation jobs and remote state inputs.
+- Continue from Telegram worker reconciliation dry-run: worker can summarize reconciliation plans safely; next step is guarded non-dry-run mutation execution and remote state retrieval.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -73,9 +74,10 @@ Last verification:
 - Export job retry policy slice: `cargo fmt --all -- --check`; `cargo test -p msm-storage --test export_job_repository_tests --locked`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo test -p msm-api --locked`; `cargo test -p msm-cli --locked`; `cargo test -p msm-mcp --locked`; `cargo clippy -p msm-storage -p msm-app -p msm-api -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `git diff --check`.
 - Telegram reconciliation policy slice: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --test telegram_plan_tests --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
 - Telegram mutation boundary slice: `cargo fmt --all -- --check`; `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`; `git diff --check`.
+- Telegram worker reconciliation dry-run slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- Map exporter reconciliation operations to Telegram mutation requests in the worker while keeping destructive mirror mode opt-in.
+- Add guarded non-dry-run Telegram reconciliation execution and remote state retrieval, keeping destructive mirror mode opt-in.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

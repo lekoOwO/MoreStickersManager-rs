@@ -71,8 +71,10 @@ can plan create-only, append-missing, and mirror policies from known remote
 sticker set state. Planned operations cover set creation, title update, sticker
 keep/add/replace, and remote-only sticker deletion. `msm-telegram` can execute
 ordered mutation sequences for title update, add, replace, and delete through a
-mockable teloxide-backed trait. Worker mapping and destructive mirror behavior
-still need explicit runtime options and no-network tests before being exposed.
+mockable teloxide-backed trait. Worker dry-run jobs can accept supplied remote
+state and return reconciliation operation/mutation summaries. Non-dry-run
+mutation execution and destructive mirror behavior still need explicit runtime
+options and no-network tests before being exposed.
 
 Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
 Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds

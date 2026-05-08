@@ -153,6 +153,53 @@ async fn telegram_dry_run_does_not_call_publication_executor() {
 }
 
 #[tokio::test]
+async fn telegram_dry_run_reports_reconciliation_mutation_plan() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_reconcile_dry_run",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","reconcileMode":"appendMissing","remoteSet":{"stickerSetName":"sample_pack_by_msm_bot","title":"Sample","stickers":[]}}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let publisher = Arc::new(FakeTelegramPublicationExecutor::default());
+    let worker = ExportWorker::with_media_and_telegram_executors(
+        repo,
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        publisher.clone(),
+    );
+
+    let completed = worker
+        .run_job("job_telegram_reconcile_dry_run")
+        .await
+        .unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
+    assert_eq!(result["kind"], "telegramDryRun");
+    assert_eq!(result["reconciliation"]["mode"], "appendMissing");
+    assert_eq!(result["reconciliation"]["operationCount"], 1);
+    assert_eq!(result["reconciliation"]["mutationCount"], 1);
+    assert_eq!(result["reconciliation"]["operations"][0], "addSticker");
+    assert!(publisher.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn telegram_export_job_can_publish_through_injected_executor() {
     let repo = seeded_repository().await;
     repo.create_export_target(NewExportTarget {

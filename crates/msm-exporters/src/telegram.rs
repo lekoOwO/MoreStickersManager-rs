@@ -66,7 +66,8 @@ pub struct TelegramExportPlan {
 }
 
 /// Remote reconciliation mode for an already published Telegram sticker set.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum TelegramReconcileMode {
     /// Only create a missing set. Existing sets are rejected.
     CreateOnly,
@@ -77,7 +78,8 @@ pub enum TelegramReconcileMode {
 }
 
 /// Known remote Telegram sticker set state.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TelegramRemoteSet {
     /// Telegram sticker set name.
     pub sticker_set_name: String,
@@ -88,7 +90,8 @@ pub struct TelegramRemoteSet {
 }
 
 /// Known remote Telegram sticker metadata for reconciliation.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TelegramRemoteSticker {
     /// MSM sticker compatibility ID.
     pub sticker_id: String,

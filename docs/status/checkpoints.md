@@ -467,3 +467,13 @@
 - Added no-network tests with a recording fake to prove mutation ordering.
 - Documented that worker reconciliation mapping remains pending and destructive mirror execution is not enabled by default.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-telegram --locked`, `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Telegram Worker Reconciliation Dry-Run
+
+- Added serde support for Telegram reconciliation modes and supplied remote set/sticker state.
+- Extended Telegram export job options with `reconcileMode` and `remoteSet`.
+- Added dry-run result reconciliation summaries with mode, operation count, mutation count, and operation labels.
+- Kept Telegram publisher execution disabled for dry-run reconciliation summaries.
+- Added worker tests proving append-missing dry-runs report planned mutation counts without calling Telegram.
+- Documented that non-dry-run mutation execution and remote state retrieval remain future work.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.

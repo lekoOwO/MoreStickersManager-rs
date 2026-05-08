@@ -4,7 +4,8 @@ use std::{
 
 use msm_exporters::{
     MoreStickersExportTarget, PlannedTelegramSticker, TelegramExportOptions, TelegramExportPlan,
-    TelegramExportPlanner, TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
+    TelegramExportPlanner, TelegramReconcileMode, TelegramReconcileOperation, TelegramRemoteSet,
+    TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
 };
 use msm_media::{ConversionCommand, ConverterToolchain, PreparedMediaSpec, StickerTargetProfile};
 use msm_storage::{
@@ -561,6 +562,8 @@ impl ExportWorker {
         let request: WorkerExportJobRequest = serde_json::from_str(&job.request_json)?;
         let options = request.options;
         let dry_run = options.dry_run.unwrap_or(true);
+        let reconcile_mode = options.reconcile_mode;
+        let remote_set = options.remote_set;
         let set_type = match options.set_type.as_deref() {
             Some("customEmoji" | "custom_emoji") => TelegramStickerSetType::CustomEmoji,
             _ => TelegramStickerSetType::Regular,
@@ -590,6 +593,9 @@ impl ExportWorker {
         let prepared_media = self
             .prepare_telegram_media(pack, &plan.initial_stickers, &plan.append_stickers)
             .await?;
+        let reconciliation = reconcile_mode
+            .map(|mode| telegram_reconciliation_summary(plan.clone(), remote_set, mode))
+            .transpose()?;
 
         if !dry_run {
             return self
@@ -612,6 +618,7 @@ impl ExportWorker {
             ffprobe_path: self.config.ffprobe_path.display().to_string(),
             prepared_media,
             dry_run: true,
+            reconciliation,
         })
     }
 
@@ -825,6 +832,8 @@ struct WorkerTelegramOptions {
     dry_run: Option<bool>,
     #[serde(default)]
     existing_sticker_set_names: Vec<String>,
+    reconcile_mode: Option<TelegramReconcileMode>,
+    remote_set: Option<TelegramRemoteSet>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -861,6 +870,7 @@ enum WorkerJobResult {
         ffprobe_path: String,
         prepared_media: Vec<CachedPreparedMediaSummary>,
         dry_run: bool,
+        reconciliation: Option<TelegramReconciliationDryRunSummary>,
     },
     TelegramPublished {
         target_kind: String,
@@ -871,6 +881,15 @@ enum WorkerJobResult {
         prepared_media: Vec<CachedPreparedMediaSummary>,
         dry_run: bool,
     },
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TelegramReconciliationDryRunSummary {
+    mode: TelegramReconcileMode,
+    operation_count: usize,
+    mutation_count: usize,
+    operations: Vec<&'static str>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -934,6 +953,48 @@ fn prepared_output_asset_key(request: &PreparedMediaRequest) -> String {
 
 fn telegram_publication_id(target_id: &str, sticker_set_name: &str) -> String {
     format!("telegram:{target_id}:{sticker_set_name}")
+}
+
+fn telegram_reconciliation_summary(
+    plan: TelegramExportPlan,
+    remote_set: Option<TelegramRemoteSet>,
+    mode: TelegramReconcileMode,
+) -> ExportWorkerResult<TelegramReconciliationDryRunSummary> {
+    let reconciliation = TelegramExportPlanner::plan_reconciliation(plan, remote_set, mode)?;
+    let operations = reconciliation
+        .operations
+        .iter()
+        .map(telegram_reconcile_operation_label)
+        .collect::<Vec<_>>();
+    let mutation_count = reconciliation
+        .operations
+        .iter()
+        .filter(|operation| telegram_reconcile_operation_is_mutation(operation))
+        .count();
+
+    Ok(TelegramReconciliationDryRunSummary {
+        mode,
+        operation_count: reconciliation.operations.len(),
+        mutation_count,
+        operations,
+    })
+}
+
+const fn telegram_reconcile_operation_label(
+    operation: &TelegramReconcileOperation,
+) -> &'static str {
+    match operation {
+        TelegramReconcileOperation::CreateSet { .. } => "createSet",
+        TelegramReconcileOperation::SetTitle { .. } => "setTitle",
+        TelegramReconcileOperation::KeepSticker { .. } => "keepSticker",
+        TelegramReconcileOperation::AddSticker { .. } => "addSticker",
+        TelegramReconcileOperation::ReplaceSticker { .. } => "replaceSticker",
+        TelegramReconcileOperation::DeleteSticker { .. } => "deleteSticker",
+    }
+}
+
+const fn telegram_reconcile_operation_is_mutation(operation: &TelegramReconcileOperation) -> bool {
+    !matches!(operation, TelegramReconcileOperation::KeepSticker { .. })
 }
 
 fn next_attempt_at(backoff: Duration) -> ExportWorkerResult<String> {
