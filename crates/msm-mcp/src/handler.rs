@@ -322,12 +322,13 @@ async fn create_export_job(
         return Err("export target is disabled".to_owned());
     }
 
+    let options = build_export_job_options(&args)?;
     let request_json = serde_json::to_string(&CreateExportJobRequest {
         id: args.id.clone(),
         tenant_id: args.tenant_id.clone(),
         source_pack_id: args.source_pack_id.clone(),
         target_id: args.target_id.clone(),
-        options: args.options,
+        options,
     })
     .map_err(|error| error.to_string())?;
     let job = state
@@ -712,7 +713,20 @@ struct CreateExportJobArgs {
     tenant_id: String,
     source_pack_id: String,
     target_id: String,
+    #[serde(default)]
     options: Value,
+    #[serde(default)]
+    telegram_set_name_slug: Option<String>,
+    #[serde(default)]
+    telegram_default_emoji: Option<String>,
+    #[serde(default)]
+    telegram_dry_run: Option<bool>,
+    #[serde(default)]
+    telegram_reconcile_mode: Option<String>,
+    #[serde(default)]
+    telegram_execute_reconciliation: Option<bool>,
+    #[serde(default)]
+    telegram_allow_destructive_reconciliation: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -729,6 +743,46 @@ struct CreateExportJobRequest {
 #[serde(rename_all = "camelCase")]
 struct ExportJobArgs {
     job_id: String,
+}
+
+fn build_export_job_options(args: &CreateExportJobArgs) -> Result<Value, String> {
+    let mut options = if args.options.is_null() {
+        json!({})
+    } else {
+        args.options.clone()
+    };
+    let Some(object) = options.as_object_mut() else {
+        return Err("export job options must be an object".to_owned());
+    };
+
+    if let Some(value) = &args.telegram_set_name_slug {
+        object.insert("setNameSlug".to_owned(), Value::String(value.clone()));
+    }
+    if let Some(value) = &args.telegram_default_emoji {
+        object.insert("defaultEmoji".to_owned(), Value::String(value.clone()));
+    }
+    if let Some(value) = args.telegram_dry_run {
+        object.insert("dryRun".to_owned(), Value::Bool(value));
+    }
+    if let Some(value) = &args.telegram_reconcile_mode {
+        if !matches!(value.as_str(), "createOnly" | "appendMissing" | "mirror") {
+            return Err(
+                "telegramReconcileMode must be createOnly, appendMissing, or mirror".to_owned(),
+            );
+        }
+        object.insert("reconcileMode".to_owned(), Value::String(value.clone()));
+    }
+    if let Some(value) = args.telegram_execute_reconciliation {
+        object.insert("executeReconciliation".to_owned(), Value::Bool(value));
+    }
+    if let Some(value) = args.telegram_allow_destructive_reconciliation {
+        object.insert(
+            "allowDestructiveReconciliation".to_owned(),
+            Value::Bool(value),
+        );
+    }
+
+    Ok(options)
 }
 
 #[derive(Deserialize)]

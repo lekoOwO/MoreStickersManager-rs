@@ -10,11 +10,10 @@ chronological log and `implementation-matrix.md` for the feature truth table.
 Telegram export has moved past basic dry-run and publication. The active focus
 is now reconciliation usability and parity across Web, API, CLI, and MCP.
 
-The Web UI already exposes dry-run, reconciliation mode, execute-reconciliation,
-and destructive mirror guard controls. API, CLI, and MCP can queue the same jobs
-through raw job options today. The next implementation slice should add explicit
-CLI flags and MCP tool affordances so non-Web callers do not need to hand-write
-the worker options JSON.
+Web, CLI, and MCP now expose dry-run, reconciliation mode,
+execute-reconciliation, and destructive mirror guard controls without requiring
+hand-written worker JSON. Direct API callers can queue the same jobs through the
+generic export job options object.
 
 ## Recently Completed
 
@@ -30,16 +29,21 @@ the worker options JSON.
   plus stored mappings when callers omit `remoteSet`.
 - Mirror-mode destructive replace/delete remains guarded by
   `allowDestructiveReconciliation:true`.
+- CLI export job creation has Telegram-specific flags for live publication,
+  reconciliation mode, execution, set-name slug, default emoji, and destructive
+  mirror opt-in.
+- MCP `msm.create_export_job` has Telegram-specific named fields for the same
+  reconciliation options while preserving raw `options` for advanced callers.
 
 ## Immediate Plan
 
-1. Add CLI convenience flags for Telegram reconciliation job options.
-2. Add MCP reconciliation-specific tool affordances or schemas that expose the
-   same guarded options without requiring opaque JSON.
-3. Extend user documentation with end-to-end append-missing and guarded mirror
-   examples for Web, CLI, MCP, and API.
-4. Add focused tests for the new CLI/MCP option mapping and permission behavior.
-5. Run targeted Rust/Web verification and update this roadmap, current status,
+1. Add API/OpenAPI examples or typed option documentation for Telegram
+   reconciliation job options.
+2. Continue hardening P33 remote target sync by covering destructive mirror
+   execution examples and operator runbooks.
+3. Start the next product-data slice: folder, tag, subscription-group, and pack
+   access-management APIs.
+4. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 
 ## Later Planned Work

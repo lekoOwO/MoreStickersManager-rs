@@ -25,7 +25,7 @@
 
 ## Not Implemented Yet
 
-- CLI/MCP convenience affordances for Telegram reconciliation options.
+- API/OpenAPI examples or typed option docs for Telegram reconciliation options.
 - MCP auth/session/SSE hardening.
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.

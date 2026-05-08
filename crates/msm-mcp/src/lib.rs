@@ -72,7 +72,12 @@ mod tests {
         assert!(tools
             .iter()
             .any(|tool| tool["name"] == "msm.create_export_job"
-                && tool["inputSchema"]["required"].as_array().unwrap().len() == 5));
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 4
+                && tool["inputSchema"]["properties"]["telegramReconcileMode"]["enum"]
+                    .as_array()
+                    .unwrap()
+                    .len()
+                    == 3));
         assert!(tools
             .iter()
             .any(|tool| tool["name"] == "msm.list_telegram_publications"
@@ -347,6 +352,44 @@ mod tests {
             response["result"]["structuredContent"]["job"]["request"]["options"]["format"],
             "stickerpack"
         );
+    }
+
+    #[tokio::test]
+    async fn tools_call_creates_telegram_reconciliation_job_without_raw_options() {
+        let state = seeded_state_with_export_target().await;
+        let token = create_pat(&state, "exportrun", "user_1", [Permission::ExportRun]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.create_export_job",
+                    "arguments": {
+                        "id": "job_telegram_reconcile",
+                        "tenantId": "tenant_1",
+                        "sourcePackId": "pack_1",
+                        "targetId": "target_morestickers",
+                        "telegramDryRun": false,
+                        "telegramReconcileMode": "appendMissing",
+                        "telegramExecuteReconciliation": true,
+                        "telegramSetNameSlug": "sample",
+                        "telegramDefaultEmoji": "ok"
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        let options = &response["result"]["structuredContent"]["job"]["request"]["options"];
+        assert_eq!(options["dryRun"], false);
+        assert_eq!(options["reconcileMode"], "appendMissing");
+        assert_eq!(options["executeReconciliation"], true);
+        assert_eq!(options["setNameSlug"], "sample");
+        assert_eq!(options["defaultEmoji"], "ok");
     }
 
     #[tokio::test]

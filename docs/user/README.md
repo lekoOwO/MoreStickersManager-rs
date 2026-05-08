@@ -166,8 +166,40 @@ preparation. To execute Telegram upload and sticker set creation, queue the job
 with options containing `"dryRun": false` and use a Telegram target config that
 contains `botToken`, `botUsername`, and `ownerUserId`.
 
-To execute an append-missing reconciliation from CLI, MCP, or direct API today,
-queue a Telegram export job with options similar to:
+To execute an append-missing reconciliation from the CLI, use named flags:
+
+```powershell
+cargo run -p msm-cli -- exports jobs create `
+  --id job_reconcile `
+  --tenant-id tenant_1 `
+  --source-pack-id pack_1 `
+  --target-id target_telegram `
+  --telegram-live `
+  --telegram-reconcile-mode append-missing `
+  --execute-reconciliation `
+  --telegram-set-name-slug sample `
+  --telegram-default-emoji ok
+```
+
+The same behavior can be queued through MCP without hand-writing the worker
+options object by passing named fields to `msm.create_export_job`:
+
+```json
+{
+  "id": "job_reconcile",
+  "tenantId": "tenant_1",
+  "sourcePackId": "pack_1",
+  "targetId": "target_telegram",
+  "telegramDryRun": false,
+  "telegramReconcileMode": "appendMissing",
+  "telegramExecuteReconciliation": true,
+  "telegramSetNameSlug": "sample",
+  "telegramDefaultEmoji": "ok"
+}
+```
+
+Direct API calls, advanced CLI usage, and advanced MCP usage can still queue the
+same job with options similar to:
 
 ```json
 {
@@ -190,8 +222,8 @@ stickers, the destructive opt-in must also be present:
 ```
 
 The Web export wizard exposes these controls directly. CLI and MCP currently
-support the same behavior through export job options JSON; dedicated
-reconciliation flags/tools are the next planned usability slice.
+support the same behavior through named fields and still accept raw options JSON
+for advanced cases.
 
 Export target/job API endpoints and CLI commands now exist for queueing export
 jobs and reading their status/events. CLI commands, MCP tools, and Web UI

@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P25 export worker foundation.
+Current phase: P33 Telegram reconciliation usability and parity.
 
 For a concise implemented-versus-planned feature map, see
 `docs/status/implementation-matrix.md`.
@@ -74,6 +74,7 @@ cargo run -p msm-cli -- exports kinds
 cargo run -p msm-cli -- exports targets list --tenant-id tenant_1
 cargo run -p msm-cli -- exports targets create --id target_telegram --tenant-id tenant_1 --kind telegram --name Telegram --config-json '{"botUsername":"msm_bot","botToken":"123:token"}'
 cargo run -p msm-cli -- exports jobs create --id job_1 --tenant-id tenant_1 --source-pack-id pack_1 --target-id target_telegram --options-json '{"setNameSlug":"sample"}'
+cargo run -p msm-cli -- exports jobs create --id job_reconcile --tenant-id tenant_1 --source-pack-id pack_1 --target-id target_telegram --telegram-live --telegram-reconcile-mode append-missing --execute-reconciliation --telegram-set-name-slug sample --telegram-default-emoji ok
 cargo run -p msm-cli -- exports jobs get --job-id job_1
 cargo run -p msm-cli -- exports jobs events --job-id job_1
 ```
@@ -97,44 +98,42 @@ MoreStickers-compatible packs:
 
 Remote provider fetch and asset download are intentionally separate future tasks.
 
-## Export Pipeline Planning
+## Export Pipeline
 
-P24 documents the planned export pipeline for target-specific conversion and
-remote publication:
+P24 started the export pipeline design for target-specific conversion and remote
+publication. The current P33 focus is Telegram remote reconciliation usability:
 
 - `msm-media`: partially implemented media kinds, Telegram static/video/thumbnail
   profiles, prepared output specs, conversion plan selection, and shell-free
-  ffmpeg command planning. Media probing, converter execution, and prepared
-  output caching remain planned.
+  ffmpeg command planning. Media probing remains planned.
 - `msm-exporters`: target registry for MoreStickers, Telegram, and future
   output targets. The base trait, capability metadata, request/plan types,
-  duplicate-safe registry, concrete MoreStickers export target, and Telegram
-  sticker set planner are implemented.
+  duplicate-safe registry, concrete MoreStickers export target, Telegram sticker
+  set planner, and Telegram reconciliation planner are implemented.
 - `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config
-  handling, Bot API URL configuration, and mockable sticker set create/append
-  execution.
+  handling, Bot API URL configuration, mockable sticker set create/append,
+  title/add/replace/delete mutation execution, and remote metadata fetches.
 
 MSM can now plan Telegram sticker set names, size limits, create/append batches,
 media profile selection, and teloxide `InputSticker` values without network
 calls. Protected API/OpenAPI routes can list export capabilities, manage export
 targets with redacted config responses, queue export jobs, and read job
 status/events. The app worker can run MoreStickers serialization jobs, Telegram
-dry-run planning jobs, and Telegram publication jobs when options explicitly set
-`"dryRun": false`. It can optionally poll in the service process, write prepared
-media cache records through the media executor boundary, and publish prepared
-files through the teloxide executor. Process-backed ffmpeg execution is
-available through shell-free command plans. The CLI can list target kinds,
-create/list export targets, create export jobs, and read job status/events. MCP
-tools can list target kinds, list/create export targets, create export jobs, and
-read job status/events. The Web dashboard can configure export targets, queue
-export jobs, and show job status/events; dedicated Telegram publication URL
-surfacing is tracked in
-`docs/superpowers/plans/2026-05-07-msm-telegram-publication-execution.md`.
+dry-run planning jobs, Telegram publication jobs when options explicitly set
+`"dryRun": false`, and guarded Telegram reconciliation mutation jobs. It can
+optionally poll in the service process, write prepared media cache records
+through the media executor boundary, publish prepared files through the teloxide
+executor, fetch post-operation Telegram metadata, and refresh source sticker to
+Telegram file mappings. Process-backed ffmpeg execution is available through
+shell-free command plans.
 
 Telegram jobs are dry-run by default. To create a Telegram sticker set, queue an
-export job with options containing `"dryRun": false` and use a Telegram target
-config with `botToken`, `botUsername`, and `ownerUserId`. Tests use injected
-publishers and do not contact Telegram.
+export job with options containing `"dryRun": false` or use the CLI
+`--telegram-live` flag, and use a Telegram target config with `botToken`,
+`botUsername`, and `ownerUserId`. Append-missing reconciliation can be queued
+from Web controls, CLI flags, MCP named fields, or raw API/MCP job options.
+Mirror-mode replace/delete requires `allowDestructiveReconciliation:true`.
+Tests use injected publishers and do not contact Telegram.
 
 ## Web UI Slice
 

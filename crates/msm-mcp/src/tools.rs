@@ -220,9 +220,18 @@ fn create_export_job_tool() -> ToolDefinition {
                 "tenantId": { "type": "string" },
                 "sourcePackId": { "type": "string" },
                 "targetId": { "type": "string" },
-                "options": { "type": "object" }
+                "options": { "type": "object" },
+                "telegramSetNameSlug": { "type": "string" },
+                "telegramDefaultEmoji": { "type": "string" },
+                "telegramDryRun": { "type": "boolean" },
+                "telegramReconcileMode": {
+                    "type": "string",
+                    "enum": ["createOnly", "appendMissing", "mirror"]
+                },
+                "telegramExecuteReconciliation": { "type": "boolean" },
+                "telegramAllowDestructiveReconciliation": { "type": "boolean" }
             }),
-            &["id", "tenantId", "sourcePackId", "targetId", "options"],
+            &["id", "tenantId", "sourcePackId", "targetId"],
         ),
         annotations: ToolAnnotations {
             read_only_hint: false,

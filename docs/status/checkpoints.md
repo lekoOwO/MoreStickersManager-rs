@@ -624,3 +624,25 @@
 - Moved CLI/MCP reconciliation convenience affordances into the explicit
   remaining-work list.
 - Verified with `git diff --check`.
+
+## 2026-05-09 CLI/MCP Telegram Reconciliation Affordances
+
+- Added CLI export job flags for Telegram live mode, dry-run override,
+  reconciliation mode, execute-reconciliation, set-name slug, default emoji, and
+  destructive mirror opt-in.
+- Added MCP `msm.create_export_job` named Telegram fields for the same worker
+  options while keeping raw `options` available for advanced callers.
+- Made MCP export job `options` optional so named Telegram fields can queue a
+  reconciliation job without an opaque JSON object.
+- Updated README, user docs, roadmap, implementation matrix, project map, and
+  current status for the new CLI/MCP parity.
+- Targeted RED/GREEN verification passed for `cargo test -p msm-cli
+  parses_export_job_create_telegram_reconciliation_flags --locked`,
+  `cargo test -p msm-cli
+  executes_export_job_create_with_telegram_reconciliation_flags --locked`, and
+  `cargo test -p msm-mcp
+  tools_call_creates_telegram_reconciliation_job_without_raw_options --locked`.
+- Full verification passed with `cargo fmt --all -- --check`,
+  `cargo test -p msm-cli -p msm-mcp --locked`,
+  `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`,
+  and `git diff --check`.

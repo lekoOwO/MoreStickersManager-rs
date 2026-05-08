@@ -52,12 +52,13 @@ Last completed:
 - Telegram reconciliation mapping refresh slice: successful non-dry-run reconciliation mutation jobs now fetch remote Telegram sticker set state after mutation execution and refresh per-sticker MSM-to-Telegram file mappings.
 - Telegram automatic remote-state reconciliation slice: non-dry-run reconciliation jobs can omit `remoteSet`; the worker fetches Telegram remote metadata, maps Telegram file IDs through stored sticker mappings, and builds the planner's `TelegramRemoteSet` automatically.
 - Web Telegram reconciliation controls slice: export wizard now exposes Telegram dry-run, reconciliation mode, execute-reconciliation, and destructive mirror guard controls, merging them into export job options without requiring hand-written JSON.
+- CLI/MCP Telegram reconciliation affordances slice: CLI export job creation now has Telegram-specific flags for live mode, reconciliation mode, execute-reconciliation, set-name slug, default emoji, and destructive mirror opt-in; MCP `msm.create_export_job` now accepts equivalent named fields and no longer requires raw `options` for this workflow.
 
 Current task:
-- Continue Telegram reconciliation hardening after Web controls. The immediate
-  implementation target is explicit CLI/MCP affordances for append-missing and
-  guarded mirror flows, plus user-facing examples that no longer require callers
-  to discover raw worker JSON by reading source.
+- Continue Telegram reconciliation hardening after Web/CLI/MCP controls. The
+  immediate implementation target is API/OpenAPI examples or typed option
+  documentation for Telegram job options, then the next data-management slice
+  for folders, tags, subscription groups, and pack access control.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -112,9 +113,10 @@ Last verification:
 - Telegram automatic remote-state reconciliation slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
 - Web Telegram reconciliation controls slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 - Documentation progress and roadmap cleanup: `git diff --check`.
+- CLI/MCP Telegram reconciliation affordances slice: targeted RED/GREEN tests for `cargo test -p msm-cli parses_export_job_create_telegram_reconciliation_flags --locked`, `cargo test -p msm-cli executes_export_job_create_with_telegram_reconciliation_flags --locked`, and `cargo test -p msm-mcp tools_call_creates_telegram_reconciliation_job_without_raw_options --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli -p msm-mcp --locked`, `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Add explicit CLI/MCP affordances and user documentation for Telegram reconciliation modes so non-Web callers do not need to hand-write worker JSON.
+- Add API/OpenAPI examples or typed option documentation for Telegram reconciliation options, then begin folder/tag/subscription/access-management planning.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -165,6 +165,20 @@ pub enum ExportJobCommand {
         target_id: String,
         #[arg(long, default_value = "{}")]
         options_json: String,
+        #[arg(long)]
+        telegram_set_name_slug: Option<String>,
+        #[arg(long)]
+        telegram_default_emoji: Option<String>,
+        #[arg(long, conflicts_with = "telegram_live")]
+        telegram_dry_run: bool,
+        #[arg(long, conflicts_with = "telegram_dry_run")]
+        telegram_live: bool,
+        #[arg(long, value_enum)]
+        telegram_reconcile_mode: Option<TelegramReconcileModeArg>,
+        #[arg(long)]
+        execute_reconciliation: bool,
+        #[arg(long)]
+        allow_destructive_reconciliation: bool,
     },
     Get {
         #[arg(long)]
@@ -192,6 +206,23 @@ pub enum ExportPublicationCommand {
 pub enum OutputFormat {
     Human,
     Json,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum TelegramReconcileModeArg {
+    CreateOnly,
+    AppendMissing,
+    Mirror,
+}
+
+impl TelegramReconcileModeArg {
+    const fn as_worker_value(self) -> &'static str {
+        match self {
+            Self::CreateOnly => "createOnly",
+            Self::AppendMissing => "appendMissing",
+            Self::Mirror => "mirror",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum, serde::Serialize)]
@@ -341,8 +372,33 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                     source_pack_id,
                     target_id,
                     options_json,
+                    telegram_set_name_slug,
+                    telegram_default_emoji,
+                    telegram_dry_run,
+                    telegram_live,
+                    telegram_reconcile_mode,
+                    execute_reconciliation,
+                    allow_destructive_reconciliation,
                 } => {
-                    let options = serde_json::from_str(&options_json)?;
+                    let options = build_export_job_options(
+                        &options_json,
+                        TelegramExportOptionOverrides {
+                            telegram_set_name_slug,
+                            telegram_default_emoji,
+                            dry_run: if telegram_dry_run {
+                                Some(TelegramDryRunOverride::DryRun)
+                            } else if telegram_live {
+                                Some(TelegramDryRunOverride::Live)
+                            } else {
+                                None
+                            },
+                            telegram_reconcile_mode,
+                            execute_reconciliation: execute_reconciliation
+                                .then_some(ReconciliationExecutionFlag),
+                            allow_destructive_reconciliation: allow_destructive_reconciliation
+                                .then_some(DestructiveReconciliationFlag),
+                        },
+                    )?;
                     let job = client
                         .create_export_job(CreateExportJobPayload {
                             id,
@@ -375,6 +431,81 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
             },
         },
     }
+}
+
+struct TelegramExportOptionOverrides {
+    telegram_set_name_slug: Option<String>,
+    telegram_default_emoji: Option<String>,
+    dry_run: Option<TelegramDryRunOverride>,
+    telegram_reconcile_mode: Option<TelegramReconcileModeArg>,
+    execute_reconciliation: Option<ReconciliationExecutionFlag>,
+    allow_destructive_reconciliation: Option<DestructiveReconciliationFlag>,
+}
+
+enum TelegramDryRunOverride {
+    DryRun,
+    Live,
+}
+
+struct ReconciliationExecutionFlag;
+
+struct DestructiveReconciliationFlag;
+
+impl TelegramDryRunOverride {
+    const fn as_worker_value(&self) -> bool {
+        match self {
+            Self::DryRun => true,
+            Self::Live => false,
+        }
+    }
+}
+
+fn build_export_job_options(
+    options_json: &str,
+    overrides: TelegramExportOptionOverrides,
+) -> CliResult<serde_json::Value> {
+    let mut options: serde_json::Value = serde_json::from_str(options_json)?;
+    if options.is_null() {
+        options = serde_json::json!({});
+    }
+    let Some(object) = options.as_object_mut() else {
+        return Err(CliError::Client(
+            "export job options JSON must be an object".to_owned(),
+        ));
+    };
+
+    if let Some(value) = overrides.telegram_set_name_slug {
+        object.insert("setNameSlug".to_owned(), serde_json::Value::String(value));
+    }
+    if let Some(value) = overrides.telegram_default_emoji {
+        object.insert("defaultEmoji".to_owned(), serde_json::Value::String(value));
+    }
+    if let Some(value) = overrides.dry_run {
+        object.insert(
+            "dryRun".to_owned(),
+            serde_json::Value::Bool(value.as_worker_value()),
+        );
+    }
+    if let Some(value) = overrides.telegram_reconcile_mode {
+        object.insert(
+            "reconcileMode".to_owned(),
+            serde_json::Value::String(value.as_worker_value().to_owned()),
+        );
+    }
+    if overrides.execute_reconciliation.is_some() {
+        object.insert(
+            "executeReconciliation".to_owned(),
+            serde_json::Value::Bool(true),
+        );
+    }
+    if overrides.allow_destructive_reconciliation.is_some() {
+        object.insert(
+            "allowDestructiveReconciliation".to_owned(),
+            serde_json::Value::Bool(true),
+        );
+    }
+
+    Ok(options)
 }
 
 /// Runs the CLI from process arguments.
@@ -679,6 +810,45 @@ mod tests {
                     }
                 }
             } if id == "job_1" && target_id == "target_telegram"
+        ));
+    }
+
+    #[test]
+    fn parses_export_job_create_telegram_reconciliation_flags() {
+        let cli = Cli::parse_from([
+            "msm",
+            "exports",
+            "jobs",
+            "create",
+            "--id",
+            "job_1",
+            "--tenant-id",
+            "tenant_1",
+            "--source-pack-id",
+            "pack_1",
+            "--target-id",
+            "target_telegram",
+            "--telegram-live",
+            "--telegram-reconcile-mode",
+            "append-missing",
+            "--execute-reconciliation",
+            "--telegram-set-name-slug",
+            "sample",
+            "--telegram-default-emoji",
+            "ok",
+        ]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Exports {
+                command: ExportCommand::Jobs {
+                    command: ExportJobCommand::Create {
+                        telegram_live: true,
+                        execute_reconciliation: true,
+                        ..
+                    }
+                }
+            }
         ));
     }
 
@@ -1004,6 +1174,46 @@ mod tests {
         assert_eq!(json["status"], "queued");
         assert_eq!(json["attemptCount"], 0);
         assert_eq!(json["maxAttempts"], 3);
+    }
+
+    #[tokio::test]
+    async fn executes_export_job_create_with_telegram_reconciliation_flags() {
+        let client = FakeClient::default();
+        let output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "exports",
+                "jobs",
+                "create",
+                "--id",
+                "job_1",
+                "--tenant-id",
+                "tenant_1",
+                "--source-pack-id",
+                "pack_1",
+                "--target-id",
+                "target_telegram",
+                "--telegram-live",
+                "--telegram-reconcile-mode",
+                "append-missing",
+                "--execute-reconciliation",
+                "--telegram-set-name-slug",
+                "sample",
+                "--telegram-default-emoji",
+                "ok",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "job_1\tqueued\t0/3");
+        let payload = client.created_export_job.lock().unwrap().clone().unwrap();
+        assert_eq!(payload.options["dryRun"], false);
+        assert_eq!(payload.options["reconcileMode"], "appendMissing");
+        assert_eq!(payload.options["executeReconciliation"], true);
+        assert_eq!(payload.options["setNameSlug"], "sample");
+        assert_eq!(payload.options["defaultEmoji"], "ok");
     }
 
     #[tokio::test]
