@@ -805,3 +805,12 @@
 - Removed legacy per-phase `docs/superpowers` plans/specs and duplicated Agent
   handoff files now covered by the PRD, status docs, and developer docs.
 - Updated README, roadmap, and implementation matrix to point to the PRD.
+
+## 2026-05-09 PRD Self-Review Hardening
+
+- Clarified PRD status meanings so feature-level "implemented" does not imply
+  whole-project completion.
+- Added a current implementation queue, current surface parity gaps, open
+  product questions, and per-slice definition of done.
+- Kept the next active implementation focus on product membership MCP and Web
+  parity.

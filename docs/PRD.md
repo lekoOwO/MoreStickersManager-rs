@@ -60,6 +60,13 @@ Primary integrations:
 
 ## Current Status
 
+Status meanings:
+
+- `Implemented`: current scoped contract is usable and tested.
+- `Partially complete`: foundation exists, but parity, hardening, or required
+  completion scope remains.
+- `Not implemented`: no usable production surface exists yet.
+
 | Area | Status | Notes |
 | --- | --- | --- |
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
@@ -76,6 +83,22 @@ Primary integrations:
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Admin config and private asset access model are incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
+
+## Current Implementation Queue
+
+Work these in order unless a higher-risk bug appears:
+
+1. Add MCP add/list/remove tools for folder-pack, pack-tag, and
+   subscription-group pack membership links.
+2. Add Web product membership controls in the Organize workspace without
+   regressing desktop/mobile layout quality.
+3. Design and implement subscription payload/link contracts for per-pack and
+   user-created subscription groups.
+4. Implement the pack/group access model for public, private, subscription
+   secret, PAT, and Web session access.
+5. Start tenant administration and RBAC management surfaces.
+
+Each queue item must update this section when completed or reordered.
 
 ## Completion Roadmap
 
@@ -191,6 +214,48 @@ Each user-facing capability must eventually exist in:
 
 Temporary single-surface slices are allowed during development, but this PRD
 must record remaining surfaces in the roadmap until parity is reached.
+
+Current parity gaps:
+
+- Product membership links: API and CLI exist; MCP and Web are missing.
+- Product metadata create/list: API, CLI, MCP, and Web exist.
+- Telegram export/reconciliation: API, CLI, MCP, and Web controls exist, but
+  operator recovery polish remains.
+- User data migration: storage helpers exist; API, CLI, and Web workflows are
+  missing.
+- Tenant/RBAC administration: storage/bootstrap foundations exist; API, CLI,
+  MCP, and Web admin surfaces are incomplete.
+
+## Open Product Questions
+
+Resolve these before implementing the related phase:
+
+- Subscription access: should subscription secrets grant temporary pack asset
+  access only through subscription routes, or should they also work as generic
+  pack credentials?
+- Pack membership UI: should folder/tag assignment live in pack detail, the
+  Organize workspace, or both with different density layouts?
+- RBAC granularity: should owner-only checks remain direct `owner_user_id`
+  comparisons, or should all checks move through a tenant role/permission
+  evaluator before adding admin delegation?
+- PostgreSQL strategy: use SQLx compile-time checked queries per backend, query
+  builder abstraction, or repository trait with backend-specific
+  implementations?
+- Provider credentials: store per tenant, per user, or per export/import target?
+
+When a question is answered, replace it with the decision or move the decision
+to `docs/status/decisions.md`.
+
+## Slice Definition Of Done
+
+For any implementation slice:
+
+- Add or update tests before implementation where behavior changes.
+- Update API/OpenAPI, CLI, MCP, and Web parity status in this PRD.
+- Update `docs/status/current.md` with exact verification commands.
+- Append one concise checkpoint to `docs/status/checkpoints.md`.
+- Keep user docs current when commands, routes, or UI behavior changes.
+- Commit with author `Leko <leko@leko.moe>` and a normal human commit message.
 
 ## Architecture Map
 
