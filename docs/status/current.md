@@ -54,12 +54,14 @@ Last completed:
 - Web Telegram reconciliation controls slice: export wizard now exposes Telegram dry-run, reconciliation mode, execute-reconciliation, and destructive mirror guard controls, merging them into export job options without requiring hand-written JSON.
 - CLI/MCP Telegram reconciliation affordances slice: CLI export job creation now has Telegram-specific flags for live mode, reconciliation mode, execute-reconciliation, set-name slug, default emoji, and destructive mirror opt-in; MCP `msm.create_export_job` now accepts equivalent named fields and no longer requires raw `options` for this workflow.
 - API/OpenAPI Telegram options documentation slice: `CreateExportJobRequest.options` now points to a typed `TelegramExportJobOptions` OpenAPI schema that documents dry-run, reconciliation mode, execution guard, destructive mirror guard, remote state, and set naming fields while preserving JSON request flexibility.
+- Telegram destructive mirror operator runbook slice: added a user-facing runbook for safe dry-run review, append-missing operation, guarded mirror execution, review checklist, and recovery notes.
+- Product-data API planning slice: added the implementation plan for folder, tag, subscription-group, and pack access metadata APIs.
 
 Current task:
-- Continue Telegram reconciliation hardening after Web/CLI/MCP controls. The
-  immediate implementation target is destructive mirror operator documentation,
-  then the next data-management slice for folders, tags, subscription groups,
-  and pack access control.
+- Begin the product-data API implementation slice for folders, tags,
+  subscription groups, and pack access metadata. Storage/domain foundations
+  already exist; next work should add repository listing/CRUD methods, API
+  routes, OpenAPI schemas, and package tests.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -116,9 +118,10 @@ Last verification:
 - Documentation progress and roadmap cleanup: `git diff --check`.
 - CLI/MCP Telegram reconciliation affordances slice: targeted RED/GREEN tests for `cargo test -p msm-cli parses_export_job_create_telegram_reconciliation_flags --locked`, `cargo test -p msm-cli executes_export_job_create_with_telegram_reconciliation_flags --locked`, and `cargo test -p msm-mcp tools_call_creates_telegram_reconciliation_job_without_raw_options --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli -p msm-mcp --locked`, `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 - API/OpenAPI Telegram options documentation slice: targeted RED/GREEN test for `cargo test -p msm-api openapi_documents_telegram_export_job_options --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Telegram destructive mirror operator runbook and product-data API planning slice: docs-only verification with `git diff --check`.
 
 Next step:
-- Add destructive mirror operator documentation, then begin folder/tag/subscription/access-management planning.
+- Execute `docs/superpowers/plans/2026-05-09-msm-product-data-api.md`, starting with storage tests for folder/tag/subscription metadata CRUD.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

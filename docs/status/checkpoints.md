@@ -664,3 +664,16 @@
   `cargo test -p msm-api --locked`,
   `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and
   `git diff --check`.
+
+## 2026-05-09 Telegram Mirror Runbook And Product Data API Plan
+
+- Added `docs/user/telegram-reconciliation-runbook.md` with safe operator flow,
+  append-missing examples, guarded mirror examples, review checklist, and
+  recovery notes.
+- Linked the runbook from user and architecture docs.
+- Added `docs/superpowers/plans/2026-05-09-msm-product-data-api.md` as the next
+  implementation plan for folder, tag, subscription-group, and pack access
+  metadata APIs.
+- Updated roadmap, implementation matrix, project map, and current status so the
+  active next slice is product-data API implementation.
+- Verified with `git diff --check`.

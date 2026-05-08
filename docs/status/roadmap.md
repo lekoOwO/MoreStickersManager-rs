@@ -7,8 +7,9 @@ chronological log and `implementation-matrix.md` for the feature truth table.
 
 ## Current Focus
 
-Telegram export has moved past basic dry-run and publication. The active focus
-is now reconciliation usability and parity across Web, API, CLI, and MCP.
+Telegram export has moved past basic dry-run and publication. The P33
+reconciliation usability slice is functionally covered across Web, API, CLI,
+and MCP; the active handoff focus is moving into product-data APIs.
 
 Web, CLI, and MCP now expose dry-run, reconciliation mode,
 execute-reconciliation, and destructive mirror guard controls without requiring
@@ -36,14 +37,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   reconciliation options while preserving raw `options` for advanced callers.
 - API/OpenAPI exposes a typed `TelegramExportJobOptions` schema for the generic
   export job options object.
+- Destructive mirror operation now has a user-facing runbook.
 
 ## Immediate Plan
 
-1. Continue hardening P33 remote target sync by covering destructive mirror
-   execution examples and operator runbooks.
-2. Start the next product-data slice: folder, tag, subscription-group, and pack
+1. Start the next product-data slice: folder, tag, subscription-group, and pack
    access-management APIs.
-3. Run targeted Rust/Web verification and update this roadmap, current status,
+2. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 
 ## Later Planned Work

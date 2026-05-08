@@ -91,8 +91,10 @@ Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JS
 Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds
 Web export target settings, Telegram token validation, export job queueing, job
 event display, completed sticker set URL display, and Web reconciliation
-controls. CLI/MCP reconciliation convenience flags and schemas are the next
-planned parity slice; raw job options already work.
+controls. CLI/MCP named reconciliation affordances and the OpenAPI
+`TelegramExportJobOptions` schema now document the same worker options. Use
+`docs/user/telegram-reconciliation-runbook.md` for destructive mirror operator
+flow.
 
 Worker tests keep Telegram network access behind injected fake publishers. Local
 and CI verification must not call Telegram; live publication requires an

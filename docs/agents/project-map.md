@@ -25,7 +25,7 @@
 
 ## Not Implemented Yet
 
-- Destructive mirror operator documentation for Telegram reconciliation.
+- Product-data API slice for folders, tags, subscription groups, and pack access metadata.
 - MCP auth/session/SSE hardening.
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.

@@ -221,6 +221,12 @@ stickers, the destructive opt-in must also be present:
 }
 ```
 
+For live mirror operation, follow the detailed runbook in
+`docs/user/telegram-reconciliation-runbook.md`. The required safety sequence is:
+run dry-run first, review planned replace/delete operations, confirm the MSM
+pack is the source of truth, then execute with both
+`executeReconciliation:true` and `allowDestructiveReconciliation:true`.
+
 The Web export wizard exposes these controls directly. CLI and MCP currently
 support the same behavior through named fields and still accept raw options JSON
 for advanced cases. The OpenAPI document exposes the
