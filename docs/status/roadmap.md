@@ -52,10 +52,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   subscription-group pack membership links.
 - Product-data API/OpenAPI routes now exist for folder-pack, pack-tag, and
   subscription-group pack membership links.
+- Product-data CLI add/list/remove commands now exist for folder-pack, pack-tag,
+  and subscription-group pack membership links.
 
 ## Immediate Plan
 
-1. Add CLI/MCP/Web controls for pack-folder/tag membership and subscription
+1. Add MCP and Web controls for pack-folder/tag membership and subscription
    group pack membership/link operations.
 2. Add subscription link generation and access policy enforcement after the
    membership controls are visible across all surfaces.

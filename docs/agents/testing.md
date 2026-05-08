@@ -678,6 +678,27 @@ These tests prove:
   and visibility fields preserved;
 - human output formats folders, tags, and subscription groups predictably.
 
+## Product Metadata CLI Membership Tests
+
+Run:
+
+```powershell
+cargo test -p msm-cli parses_metadata_membership_commands --locked
+cargo test -p msm-cli executes_metadata_folder_membership_commands --locked
+cargo test -p msm-cli executes_metadata_pack_tag_membership_commands --locked
+cargo test -p msm-cli executes_metadata_subscription_group_membership_commands --locked
+cargo clippy -p msm-cli --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- CLI arguments parse for folder-pack, pack-tag, and subscription-group pack
+  add/list/remove commands;
+- membership commands call the API client boundary with IDs and sort order
+  preserved;
+- human output formats link rows, ID lists, and remove acknowledgements
+  predictably.
+
 ## Export MCP Tests
 
 Run:

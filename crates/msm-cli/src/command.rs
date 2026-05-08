@@ -11,11 +11,12 @@ use crate::{
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
-        format_export_target_kinds, format_export_targets, format_folder, format_folders,
-        format_health, format_import, format_pack_delete, format_pack_list, format_pack_rename,
-        format_pat_create, format_pat_list, format_pat_revoke, format_subscription_group,
-        format_subscription_groups, format_tag, format_tags, format_telegram_publication,
-        format_telegram_publications,
+        format_export_target_kinds, format_export_targets, format_folder, format_folder_pack,
+        format_folders, format_health, format_import, format_membership_remove, format_pack_delete,
+        format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag, format_pat_create,
+        format_pat_list, format_pat_revoke, format_subscription_group,
+        format_subscription_group_pack, format_subscription_groups, format_tag, format_tag_ids,
+        format_tags, format_telegram_publication, format_telegram_publications,
     },
     CliError, CliResult,
 };
@@ -125,6 +126,10 @@ pub enum MetadataCommand {
         #[command(subcommand)]
         command: FolderCommand,
     },
+    PackTags {
+        #[command(subcommand)]
+        command: PackTagCommand,
+    },
     Tags {
         #[command(subcommand)]
         command: TagCommand,
@@ -152,6 +157,52 @@ pub enum FolderCommand {
         owner_user_id: String,
         #[arg(long)]
         name: String,
+    },
+    Packs {
+        #[command(subcommand)]
+        command: FolderPackCommand,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum FolderPackCommand {
+    List {
+        #[arg(long)]
+        folder_id: String,
+    },
+    Add {
+        #[arg(long)]
+        folder_id: String,
+        #[arg(long)]
+        pack_id: String,
+        #[arg(long, default_value_t = 0)]
+        sort_order: i64,
+    },
+    Remove {
+        #[arg(long)]
+        folder_id: String,
+        #[arg(long)]
+        pack_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum PackTagCommand {
+    List {
+        #[arg(long)]
+        pack_id: String,
+    },
+    Add {
+        #[arg(long)]
+        pack_id: String,
+        #[arg(long)]
+        tag_id: String,
+    },
+    Remove {
+        #[arg(long)]
+        pack_id: String,
+        #[arg(long)]
+        tag_id: String,
     },
 }
 
@@ -190,6 +241,32 @@ pub enum SubscriptionGroupCommand {
         title: String,
         #[arg(long, value_enum)]
         visibility: PackVisibility,
+    },
+    Packs {
+        #[command(subcommand)]
+        command: SubscriptionGroupPackCommand,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum SubscriptionGroupPackCommand {
+    List {
+        #[arg(long)]
+        subscription_group_id: String,
+    },
+    Add {
+        #[arg(long)]
+        subscription_group_id: String,
+        #[arg(long)]
+        pack_id: String,
+        #[arg(long, default_value_t = 0)]
+        sort_order: i64,
+    },
+    Remove {
+        #[arg(long)]
+        subscription_group_id: String,
+        #[arg(long)]
+        pack_id: String,
     },
 }
 
@@ -438,6 +515,40 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                         .await?;
                     format_folder(cli.output_format, &folder)
                 }
+                FolderCommand::Packs { command } => match command {
+                    FolderPackCommand::List { folder_id } => {
+                        let pack_ids = client.list_folder_pack_ids(&folder_id).await?;
+                        format_pack_ids(cli.output_format, &pack_ids)
+                    }
+                    FolderPackCommand::Add {
+                        folder_id,
+                        pack_id,
+                        sort_order,
+                    } => {
+                        let link = client
+                            .add_pack_to_folder(&folder_id, &pack_id, sort_order)
+                            .await?;
+                        format_folder_pack(cli.output_format, &link)
+                    }
+                    FolderPackCommand::Remove { folder_id, pack_id } => {
+                        client.remove_pack_from_folder(&folder_id, &pack_id).await?;
+                        format_membership_remove(cli.output_format, &folder_id, &pack_id)
+                    }
+                },
+            },
+            MetadataCommand::PackTags { command } => match command {
+                PackTagCommand::List { pack_id } => {
+                    let tag_ids = client.list_pack_tag_ids(&pack_id).await?;
+                    format_tag_ids(cli.output_format, &tag_ids)
+                }
+                PackTagCommand::Add { pack_id, tag_id } => {
+                    let link = client.add_tag_to_pack(&pack_id, &tag_id).await?;
+                    format_pack_tag(cli.output_format, &link)
+                }
+                PackTagCommand::Remove { pack_id, tag_id } => {
+                    client.remove_tag_from_pack(&pack_id, &tag_id).await?;
+                    format_membership_remove(cli.output_format, &pack_id, &tag_id)
+                }
             },
             MetadataCommand::Tags { command } => match command {
                 TagCommand::List { tenant_id } => {
@@ -487,6 +598,43 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                         .await?;
                     format_subscription_group(cli.output_format, &group)
                 }
+                SubscriptionGroupCommand::Packs { command } => match command {
+                    SubscriptionGroupPackCommand::List {
+                        subscription_group_id,
+                    } => {
+                        let pack_ids = client
+                            .list_subscription_group_pack_ids(&subscription_group_id)
+                            .await?;
+                        format_pack_ids(cli.output_format, &pack_ids)
+                    }
+                    SubscriptionGroupPackCommand::Add {
+                        subscription_group_id,
+                        pack_id,
+                        sort_order,
+                    } => {
+                        let link = client
+                            .add_pack_to_subscription_group(
+                                &subscription_group_id,
+                                &pack_id,
+                                sort_order,
+                            )
+                            .await?;
+                        format_subscription_group_pack(cli.output_format, &link)
+                    }
+                    SubscriptionGroupPackCommand::Remove {
+                        subscription_group_id,
+                        pack_id,
+                    } => {
+                        client
+                            .remove_pack_from_subscription_group(&subscription_group_id, &pack_id)
+                            .await?;
+                        format_membership_remove(
+                            cli.output_format,
+                            &subscription_group_id,
+                            &pack_id,
+                        )
+                    }
+                },
             },
         },
         Command::Exports { command } => match command {
@@ -710,14 +858,14 @@ mod tests {
             CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
             CreatePersonalAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
             CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
-            Folder, ImportPackPayload, MsmClient, PersonalAccessToken, SubscriptionGroup, Tag,
-            TelegramPublication,
+            Folder, FolderPack, ImportPackPayload, MsmClient, PackTag, PersonalAccessToken,
+            SubscriptionGroup, SubscriptionGroupPack, Tag, TelegramPublication,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
-            ExportPublicationCommand, ExportTargetCommand, FolderCommand, MetadataCommand,
-            OutputFormat, PackCommand, PackVisibility, PatCommand, SubscriptionGroupCommand,
-            TagCommand,
+            ExportPublicationCommand, ExportTargetCommand, FolderCommand, FolderPackCommand,
+            MetadataCommand, OutputFormat, PackCommand, PackTagCommand, PackVisibility, PatCommand,
+            SubscriptionGroupCommand, SubscriptionGroupPackCommand, TagCommand,
         },
         output::HealthResponse,
         CliResult,
@@ -1115,6 +1263,79 @@ mod tests {
                     }
                 }
             } if id == "sub_1"
+        ));
+    }
+
+    #[test]
+    fn parses_metadata_membership_commands() {
+        let folder_pack_add = Cli::parse_from([
+            "msm",
+            "metadata",
+            "folders",
+            "packs",
+            "add",
+            "--folder-id",
+            "folder_1",
+            "--pack-id",
+            "pack_1",
+            "--sort-order",
+            "10",
+        ]);
+        assert!(matches!(
+            folder_pack_add.command,
+            Command::Metadata {
+                command: MetadataCommand::Folders {
+                    command: FolderCommand::Packs {
+                        command: FolderPackCommand::Add {
+                            ref folder_id,
+                            ref pack_id,
+                            sort_order,
+                        }
+                    }
+                }
+            } if folder_id == "folder_1" && pack_id == "pack_1" && sort_order == 10
+        ));
+
+        let pack_tag_list = Cli::parse_from([
+            "msm",
+            "metadata",
+            "pack-tags",
+            "list",
+            "--pack-id",
+            "pack_1",
+        ]);
+        assert!(matches!(
+            pack_tag_list.command,
+            Command::Metadata {
+                command: MetadataCommand::PackTags {
+                    command: PackTagCommand::List { ref pack_id }
+                }
+            } if pack_id == "pack_1"
+        ));
+
+        let subscription_group_pack_remove = Cli::parse_from([
+            "msm",
+            "metadata",
+            "subscription-groups",
+            "packs",
+            "remove",
+            "--subscription-group-id",
+            "sub_1",
+            "--pack-id",
+            "pack_1",
+        ]);
+        assert!(matches!(
+            subscription_group_pack_remove.command,
+            Command::Metadata {
+                command: MetadataCommand::SubscriptionGroups {
+                    command: SubscriptionGroupCommand::Packs {
+                        command: SubscriptionGroupPackCommand::Remove {
+                            ref subscription_group_id,
+                            ref pack_id,
+                        }
+                    }
+                }
+            } if subscription_group_id == "sub_1" && pack_id == "pack_1"
         ));
     }
 
@@ -1567,6 +1788,133 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn executes_metadata_folder_membership_commands() {
+        let client = FakeClient::default();
+
+        let add_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "metadata",
+                "folders",
+                "packs",
+                "add",
+                "--folder-id",
+                "folder_1",
+                "--pack-id",
+                "pack_1",
+                "--sort-order",
+                "10",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(add_output, "folder_1\tpack_1\t10");
+        assert_eq!(
+            client.added_folder_pack.lock().unwrap().as_ref().unwrap(),
+            &("folder_1".to_owned(), "pack_1".to_owned(), 10)
+        );
+
+        let list_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "metadata",
+                "folders",
+                "packs",
+                "list",
+                "--folder-id",
+                "folder_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(list_output, "pack_1");
+    }
+
+    #[tokio::test]
+    async fn executes_metadata_pack_tag_membership_commands() {
+        let client = FakeClient::default();
+
+        let pack_tag_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "metadata",
+                "pack-tags",
+                "add",
+                "--pack-id",
+                "pack_1",
+                "--tag-id",
+                "tag_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(pack_tag_output, "pack_1\ttag_1");
+
+        let pack_tag_remove = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "metadata",
+                "pack-tags",
+                "remove",
+                "--pack-id",
+                "pack_1",
+                "--tag-id",
+                "tag_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(pack_tag_remove, "removed pack_1 tag_1");
+    }
+
+    #[tokio::test]
+    async fn executes_metadata_subscription_group_membership_commands() {
+        let client = FakeClient::default();
+
+        let subscription_pack_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "metadata",
+                "subscription-groups",
+                "packs",
+                "add",
+                "--subscription-group-id",
+                "sub_1",
+                "--pack-id",
+                "pack_1",
+                "--sort-order",
+                "20",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(subscription_pack_output, "sub_1\tpack_1\t20");
+
+        let subscription_pack_remove = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "metadata",
+                "subscription-groups",
+                "packs",
+                "remove",
+                "--subscription-group-id",
+                "sub_1",
+                "--pack-id",
+                "pack_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(subscription_pack_remove, "removed sub_1 pack_1");
+    }
+
     #[derive(Default)]
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
@@ -1577,6 +1925,12 @@ mod tests {
         created_folder: Mutex<Option<CreateFolderPayload>>,
         created_tag: Mutex<Option<CreateTagPayload>>,
         created_subscription_group: Mutex<Option<CreateSubscriptionGroupPayload>>,
+        added_folder_pack: Mutex<Option<(String, String, i64)>>,
+        removed_folder_pack: Mutex<Option<(String, String)>>,
+        added_pack_tag: Mutex<Option<(String, String)>>,
+        removed_pack_tag: Mutex<Option<(String, String)>>,
+        added_subscription_group_pack: Mutex<Option<(String, String, i64)>>,
+        removed_subscription_group_pack: Mutex<Option<(String, String)>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
         created_export_job: Mutex<Option<CreateExportJobPayload>>,
     }
@@ -1684,6 +2038,72 @@ mod tests {
             Ok(vec![sample_subscription_group()])
         }
 
+        async fn add_pack_to_folder(
+            &self,
+            folder_id: &str,
+            pack_id: &str,
+            sort_order: i64,
+        ) -> CliResult<FolderPack> {
+            *self.added_folder_pack.lock().unwrap() =
+                Some((folder_id.to_owned(), pack_id.to_owned(), sort_order));
+            Ok(sample_folder_pack())
+        }
+
+        async fn list_folder_pack_ids(&self, _folder_id: &str) -> CliResult<Vec<String>> {
+            Ok(vec!["pack_1".to_owned()])
+        }
+
+        async fn remove_pack_from_folder(&self, folder_id: &str, pack_id: &str) -> CliResult<()> {
+            *self.removed_folder_pack.lock().unwrap() =
+                Some((folder_id.to_owned(), pack_id.to_owned()));
+            Ok(())
+        }
+
+        async fn add_tag_to_pack(&self, pack_id: &str, tag_id: &str) -> CliResult<PackTag> {
+            *self.added_pack_tag.lock().unwrap() = Some((pack_id.to_owned(), tag_id.to_owned()));
+            Ok(sample_pack_tag())
+        }
+
+        async fn list_pack_tag_ids(&self, _pack_id: &str) -> CliResult<Vec<String>> {
+            Ok(vec!["tag_1".to_owned()])
+        }
+
+        async fn remove_tag_from_pack(&self, pack_id: &str, tag_id: &str) -> CliResult<()> {
+            *self.removed_pack_tag.lock().unwrap() = Some((pack_id.to_owned(), tag_id.to_owned()));
+            Ok(())
+        }
+
+        async fn add_pack_to_subscription_group(
+            &self,
+            subscription_group_id: &str,
+            pack_id: &str,
+            sort_order: i64,
+        ) -> CliResult<SubscriptionGroupPack> {
+            *self.added_subscription_group_pack.lock().unwrap() = Some((
+                subscription_group_id.to_owned(),
+                pack_id.to_owned(),
+                sort_order,
+            ));
+            Ok(sample_subscription_group_pack())
+        }
+
+        async fn list_subscription_group_pack_ids(
+            &self,
+            _subscription_group_id: &str,
+        ) -> CliResult<Vec<String>> {
+            Ok(vec!["pack_1".to_owned()])
+        }
+
+        async fn remove_pack_from_subscription_group(
+            &self,
+            subscription_group_id: &str,
+            pack_id: &str,
+        ) -> CliResult<()> {
+            *self.removed_subscription_group_pack.lock().unwrap() =
+                Some((subscription_group_id.to_owned(), pack_id.to_owned()));
+            Ok(())
+        }
+
         async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>> {
             Ok(vec![ExportTargetKind {
                 kind: "telegram".to_owned(),
@@ -1782,6 +2202,29 @@ mod tests {
             title: "Weekly".to_owned(),
             visibility: PackVisibility::Private,
             created_at: "2026-05-09T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_folder_pack() -> FolderPack {
+        FolderPack {
+            folder_id: "folder_1".to_owned(),
+            pack_id: "pack_1".to_owned(),
+            sort_order: 10,
+        }
+    }
+
+    fn sample_pack_tag() -> PackTag {
+        PackTag {
+            pack_id: "pack_1".to_owned(),
+            tag_id: "tag_1".to_owned(),
+        }
+    }
+
+    fn sample_subscription_group_pack() -> SubscriptionGroupPack {
+        SubscriptionGroupPack {
+            subscription_group_id: "sub_1".to_owned(),
+            pack_id: "pack_1".to_owned(),
+            sort_order: 20,
         }
     }
 

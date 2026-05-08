@@ -388,10 +388,19 @@ Product metadata CLI commands:
 
 - `msm metadata folders create --id <folder_id> --tenant-id <tenant_id> --owner-user-id <user_id> --name <name>`
 - `msm metadata folders list --tenant-id <tenant_id> --owner-user-id <user_id>`
+- `msm metadata folders packs add --folder-id <folder_id> --pack-id <pack_id> --sort-order <number>`
+- `msm metadata folders packs list --folder-id <folder_id>`
+- `msm metadata folders packs remove --folder-id <folder_id> --pack-id <pack_id>`
 - `msm metadata tags create --id <tag_id> --tenant-id <tenant_id> --name <name>`
 - `msm metadata tags list --tenant-id <tenant_id>`
+- `msm metadata pack-tags add --pack-id <pack_id> --tag-id <tag_id>`
+- `msm metadata pack-tags list --pack-id <pack_id>`
+- `msm metadata pack-tags remove --pack-id <pack_id> --tag-id <tag_id>`
 - `msm metadata subscription-groups create --id <group_id> --tenant-id <tenant_id> --owner-user-id <user_id> --title <title> --visibility <public|private>`
 - `msm metadata subscription-groups list --tenant-id <tenant_id> --owner-user-id <user_id>`
+- `msm metadata subscription-groups packs add --subscription-group-id <group_id> --pack-id <pack_id> --sort-order <number>`
+- `msm metadata subscription-groups packs list --subscription-group-id <group_id>`
+- `msm metadata subscription-groups packs remove --subscription-group-id <group_id> --pack-id <pack_id>`
 
 `msm pats create` prints the raw token once. Store it immediately outside MSM if
 you need to use it later.

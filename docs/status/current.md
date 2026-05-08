@@ -131,9 +131,10 @@ Last verification:
 - Product-data Web surface slice: RED/GREEN tests with `npm run web:test -- api-client` and `npm run web:test -- product-metadata-ui`; full verification with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
 - Product-data membership storage slice: RED/GREEN test with `cargo test -p msm-storage pack_memberships_can_be_managed --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --test product_data_repository_tests --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data membership API slice: RED/GREEN test with `cargo test -p msm-api metadata_routes_manage_pack_memberships --locked`; OpenAPI path check with `cargo test -p msm-api openapi_endpoint_contains_health_path --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Product-data membership CLI slice: RED/GREEN tests with `cargo test -p msm-cli parses_metadata_membership_commands --locked`, `cargo test -p msm-cli executes_metadata_folder_membership_commands --locked`, `cargo test -p msm-cli executes_metadata_pack_tag_membership_commands --locked`, and `cargo test -p msm-cli executes_metadata_subscription_group_membership_commands --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Continue product-data metadata by adding CLI/MCP/Web controls for pack-folder/tag membership and subscription-group pack membership/link operations.
+- Continue product-data metadata by adding MCP and Web controls for pack-folder/tag membership and subscription-group pack membership/link operations.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

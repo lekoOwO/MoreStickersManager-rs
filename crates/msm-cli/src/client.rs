@@ -53,6 +53,20 @@ pub struct Folder {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpsertPackMembershipPayload {
+    pub sort_order: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderPack {
+    pub folder_id: String,
+    pub pack_id: String,
+    pub sort_order: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTagPayload {
     pub id: String,
     pub tenant_id: String,
@@ -66,6 +80,13 @@ pub struct Tag {
     pub tenant_id: String,
     pub name: String,
     pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackTag {
+    pub pack_id: String,
+    pub tag_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -87,6 +108,14 @@ pub struct SubscriptionGroup {
     pub title: String,
     pub visibility: PackVisibility,
     pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionGroupPack {
+    pub subscription_group_id: String,
+    pub pack_id: String,
+    pub sort_order: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -231,6 +260,32 @@ pub trait MsmClient {
         tenant_id: &str,
         owner_user_id: &str,
     ) -> CliResult<Vec<SubscriptionGroup>>;
+    async fn add_pack_to_folder(
+        &self,
+        folder_id: &str,
+        pack_id: &str,
+        sort_order: i64,
+    ) -> CliResult<FolderPack>;
+    async fn list_folder_pack_ids(&self, folder_id: &str) -> CliResult<Vec<String>>;
+    async fn remove_pack_from_folder(&self, folder_id: &str, pack_id: &str) -> CliResult<()>;
+    async fn add_tag_to_pack(&self, pack_id: &str, tag_id: &str) -> CliResult<PackTag>;
+    async fn list_pack_tag_ids(&self, pack_id: &str) -> CliResult<Vec<String>>;
+    async fn remove_tag_from_pack(&self, pack_id: &str, tag_id: &str) -> CliResult<()>;
+    async fn add_pack_to_subscription_group(
+        &self,
+        subscription_group_id: &str,
+        pack_id: &str,
+        sort_order: i64,
+    ) -> CliResult<SubscriptionGroupPack>;
+    async fn list_subscription_group_pack_ids(
+        &self,
+        subscription_group_id: &str,
+    ) -> CliResult<Vec<String>>;
+    async fn remove_pack_from_subscription_group(
+        &self,
+        subscription_group_id: &str,
+        pack_id: &str,
+    ) -> CliResult<()>;
     async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>>;
     async fn list_export_targets(&self, tenant_id: &str) -> CliResult<Vec<ExportTarget>>;
     async fn create_export_target(
@@ -488,6 +543,133 @@ impl MsmClient for ReqwestMsmClient {
             .error_for_status()?
             .json()
             .await?)
+    }
+
+    async fn add_pack_to_folder(
+        &self,
+        folder_id: &str,
+        pack_id: &str,
+        sort_order: i64,
+    ) -> CliResult<FolderPack> {
+        Ok(self
+            .authorize(
+                self.http
+                    .put(self.endpoint(&format!("/api/v1/folders/{folder_id}/packs/{pack_id}"))?),
+            )
+            .json(&UpsertPackMembershipPayload { sort_order })
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_folder_pack_ids(&self, folder_id: &str) -> CliResult<Vec<String>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/folders/{folder_id}/packs"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn remove_pack_from_folder(&self, folder_id: &str, pack_id: &str) -> CliResult<()> {
+        self.authorize(
+            self.http
+                .delete(self.endpoint(&format!("/api/v1/folders/{folder_id}/packs/{pack_id}"))?),
+        )
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
+    }
+
+    async fn add_tag_to_pack(&self, pack_id: &str, tag_id: &str) -> CliResult<PackTag> {
+        Ok(self
+            .authorize(
+                self.http
+                    .put(self.endpoint(&format!("/api/v1/packs/{pack_id}/tags/{tag_id}"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_pack_tag_ids(&self, pack_id: &str) -> CliResult<Vec<String>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/packs/{pack_id}/tags"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn remove_tag_from_pack(&self, pack_id: &str, tag_id: &str) -> CliResult<()> {
+        self.authorize(
+            self.http
+                .delete(self.endpoint(&format!("/api/v1/packs/{pack_id}/tags/{tag_id}"))?),
+        )
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
+    }
+
+    async fn add_pack_to_subscription_group(
+        &self,
+        subscription_group_id: &str,
+        pack_id: &str,
+        sort_order: i64,
+    ) -> CliResult<SubscriptionGroupPack> {
+        Ok(self
+            .authorize(self.http.put(self.endpoint(&format!(
+                "/api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}"
+            ))?))
+            .json(&UpsertPackMembershipPayload { sort_order })
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_subscription_group_pack_ids(
+        &self,
+        subscription_group_id: &str,
+    ) -> CliResult<Vec<String>> {
+        Ok(self
+            .authorize(self.http.get(self.endpoint(&format!(
+                "/api/v1/subscription-groups/{subscription_group_id}/packs"
+            ))?))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn remove_pack_from_subscription_group(
+        &self,
+        subscription_group_id: &str,
+        pack_id: &str,
+    ) -> CliResult<()> {
+        self.authorize(self.http.delete(self.endpoint(&format!(
+            "/api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}"
+        ))?))
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
     }
 
     async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>> {

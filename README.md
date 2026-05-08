@@ -72,10 +72,19 @@ cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
 cargo run -p msm-cli -- metadata folders create --id folder_1 --tenant-id tenant_1 --owner-user-id user_1 --name Favorites
 cargo run -p msm-cli -- metadata folders list --tenant-id tenant_1 --owner-user-id user_1
+cargo run -p msm-cli -- metadata folders packs add --folder-id folder_1 --pack-id pack_1 --sort-order 10
+cargo run -p msm-cli -- metadata folders packs list --folder-id folder_1
+cargo run -p msm-cli -- metadata folders packs remove --folder-id folder_1 --pack-id pack_1
 cargo run -p msm-cli -- metadata tags create --id tag_1 --tenant-id tenant_1 --name cute
 cargo run -p msm-cli -- metadata tags list --tenant-id tenant_1
+cargo run -p msm-cli -- metadata pack-tags add --pack-id pack_1 --tag-id tag_1
+cargo run -p msm-cli -- metadata pack-tags list --pack-id pack_1
+cargo run -p msm-cli -- metadata pack-tags remove --pack-id pack_1 --tag-id tag_1
 cargo run -p msm-cli -- metadata subscription-groups create --id sub_1 --tenant-id tenant_1 --owner-user-id user_1 --title Weekly --visibility private
 cargo run -p msm-cli -- metadata subscription-groups list --tenant-id tenant_1 --owner-user-id user_1
+cargo run -p msm-cli -- metadata subscription-groups packs add --subscription-group-id sub_1 --pack-id pack_1 --sort-order 20
+cargo run -p msm-cli -- metadata subscription-groups packs list --subscription-group-id sub_1
+cargo run -p msm-cli -- metadata subscription-groups packs remove --subscription-group-id sub_1 --pack-id pack_1
 cargo run -p msm-cli -- exports kinds
 cargo run -p msm-cli -- exports targets list --tenant-id tenant_1
 cargo run -p msm-cli -- exports targets create --id target_telegram --tenant-id tenant_1 --kind telegram --name Telegram --config-json '{"botUsername":"msm_bot","botToken":"123:token"}'

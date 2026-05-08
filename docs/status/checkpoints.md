@@ -785,3 +785,13 @@
   own the pack and folder or subscription group being linked.
 - Added API integration coverage for membership add/list/remove behavior and
   OpenAPI path registration.
+
+## 2026-05-09 Product Data Membership CLI
+
+- Added CLI DTOs and HTTP client calls for folder-pack, pack-tag, and
+  subscription-group pack membership add/list/remove operations.
+- Added `msm metadata folders packs`, `msm metadata pack-tags`, and
+  `msm metadata subscription-groups packs` command groups.
+- Added human/JSON output formatting for membership links, ID lists, and remove
+  acknowledgements.
+- Added parser and fake-client execution tests for the new membership commands.

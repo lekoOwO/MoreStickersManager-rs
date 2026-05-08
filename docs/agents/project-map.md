@@ -6,7 +6,7 @@
 - `crates/msm-domain/src/authz.rs`: pure authorization policy primitives and evaluators.
 - `crates/msm-storage`: SQL storage primitives, local asset storage, portable export/import, PAT/local credential storage, and export target/job/retry/prepared media/Telegram sticker mapping persistence.
 - `crates/msm-api`: Axum API routes and utoipa OpenAPI generation, including export target/job routes, product metadata routes, and product membership routes.
-- `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete, PAT lifecycle commands, product metadata create/list commands, export target/job commands, and Telegram publication history reads.
+- `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete, PAT lifecycle commands, product metadata create/list commands, product membership commands, export target/job commands, and Telegram publication history reads.
 - `crates/msm-providers`: provider registry plus Telegram and LINE fixture normalizers.
 - `crates/msm-exporters`: export target trait, target kind keys, capability metadata, request/plan types, duplicate-safe registry, concrete `morestickers` export target, Telegram sticker set planner, and Telegram reconciliation policy planner.
 - `crates/msm-app`: runnable Axum service binary composing storage, API, assets, Web UI static serving, prepared media conversion, export worker execution, bounded export job retry handling, Telegram reconciliation dry-run summaries, guarded append-missing mutation execution, mirror destructive-operation guards, and post-publication Telegram sticker mapping population.
@@ -25,7 +25,7 @@
 
 ## Not Implemented Yet
 
-- CLI/MCP/Web exposure for pack-folder/tag membership and subscription group
+- MCP/Web exposure for pack-folder/tag membership and subscription group
   pack membership/link semantics.
 - MCP auth/session/SSE hardening.
 - Pack access-management APIs beyond basic visibility.

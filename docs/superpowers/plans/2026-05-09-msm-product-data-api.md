@@ -354,6 +354,73 @@ Result: passed with `cargo fmt --all -- --check`,
 `cargo clippy -p msm-api -p msm-storage --all-targets --locked -- -D warnings`,
 and `git diff --check`.
 
+## Task 9: CLI Pack Membership Links
+
+**Files:**
+- Modify: `crates/msm-cli/src/client.rs`
+- Modify: `crates/msm-cli/src/command.rs`
+- Modify: `crates/msm-cli/src/output.rs`
+- Modify: `README.md`
+- Modify: `docs/user/README.md`
+- Modify: status and agent handoff docs.
+
+- [x] **Step 1: Add failing CLI parser and execution tests**
+
+Added RED tests for:
+
+- `msm metadata folders packs add/list/remove`
+- `msm metadata pack-tags add/list/remove`
+- `msm metadata subscription-groups packs add/list/remove`
+
+```powershell
+cargo test -p msm-cli parses_metadata_membership_commands --locked
+cargo test -p msm-cli executes_metadata_folder_membership_commands --locked
+cargo test -p msm-cli executes_metadata_pack_tag_membership_commands --locked
+cargo test -p msm-cli executes_metadata_subscription_group_membership_commands --locked
+```
+
+Result: failed because CLI membership DTOs, trait methods, command enums, and
+dispatch did not exist.
+
+- [x] **Step 2: Implement CLI membership client and commands**
+
+Added membership response DTOs, sort-order payloads, reqwest calls, Clap command
+groups, dispatch, fake-client coverage, and human/JSON output formatting.
+
+- [x] **Step 3: Verify focused tests**
+
+```powershell
+cargo test -p msm-cli parses_metadata_membership_commands --locked
+cargo test -p msm-cli executes_metadata_folder_membership_commands --locked
+cargo test -p msm-cli executes_metadata_pack_tag_membership_commands --locked
+cargo test -p msm-cli executes_metadata_subscription_group_membership_commands --locked
+```
+
+Result: both passed.
+
+- [x] **Step 4: Update handoff docs**
+
+Documented the new commands and updated current status, checkpoints, roadmap,
+implementation matrix, project map, and agent testing notes.
+
+- [x] **Step 5: Run full CLI verification**
+
+Run:
+
+```powershell
+cargo fmt --all -- --check
+cargo test -p msm-cli --locked
+cargo clippy -p msm-cli --all-targets --locked -- -D warnings
+git diff --check
+```
+
+Expected: all pass.
+
+Result: passed with `cargo fmt --all -- --check`,
+`cargo test -p msm-cli --locked`,
+`cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and
+`git diff --check`.
+
 ## Task 5: MCP Product Metadata Tools
 
 **Files:**

@@ -3,7 +3,8 @@ use msm_domain::StickerPack;
 use crate::{
     client::{
         CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
-        Folder, PersonalAccessToken, SubscriptionGroup, Tag, TelegramPublication,
+        Folder, FolderPack, PackTag, PersonalAccessToken, SubscriptionGroup, SubscriptionGroupPack,
+        Tag, TelegramPublication,
     },
     command::OutputFormat,
     CliResult,
@@ -33,6 +34,14 @@ pub struct RevokePatResponse {
 pub struct PackMutationResponse {
     pub status: &'static str,
     pub pack_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MembershipMutationResponse {
+    pub status: &'static str,
+    pub left_id: String,
+    pub right_id: String,
 }
 
 /// Formats a health response.
@@ -188,6 +197,89 @@ pub fn format_folder(format: OutputFormat, folder: &Folder) -> CliResult<String>
     match format {
         OutputFormat::Human => Ok(folder_line(folder)),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(folder)?),
+    }
+}
+
+/// Formats folder pack ID list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_pack_ids(format: OutputFormat, pack_ids: &[String]) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(pack_ids.join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(pack_ids)?),
+    }
+}
+
+/// Formats tag ID list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tag_ids(format: OutputFormat, tag_ids: &[String]) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(tag_ids.join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(tag_ids)?),
+    }
+}
+
+/// Formats one folder-pack response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_folder_pack(format: OutputFormat, link: &FolderPack) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(folder_pack_line(link)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(link)?),
+    }
+}
+
+/// Formats one pack-tag response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_pack_tag(format: OutputFormat, link: &PackTag) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(pack_tag_line(link)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(link)?),
+    }
+}
+
+/// Formats one subscription-group-pack response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_subscription_group_pack(
+    format: OutputFormat,
+    link: &SubscriptionGroupPack,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(subscription_group_pack_line(link)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(link)?),
+    }
+}
+
+/// Formats a removed membership response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_membership_remove(
+    format: OutputFormat,
+    left_id: &str,
+    right_id: &str,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("removed {left_id} {right_id}")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(&MembershipMutationResponse {
+            status: "removed",
+            left_id: left_id.to_owned(),
+            right_id: right_id.to_owned(),
+        })?),
     }
 }
 
@@ -383,8 +475,16 @@ fn folder_line(folder: &Folder) -> String {
     format!("{}\t{}", folder.id, folder.name)
 }
 
+fn folder_pack_line(link: &FolderPack) -> String {
+    format!("{}\t{}\t{}", link.folder_id, link.pack_id, link.sort_order)
+}
+
 fn tag_line(tag: &Tag) -> String {
     format!("{}\t{}", tag.id, tag.name)
+}
+
+fn pack_tag_line(link: &PackTag) -> String {
+    format!("{}\t{}", link.pack_id, link.tag_id)
 }
 
 fn group_line(group: &SubscriptionGroup) -> String {
@@ -393,5 +493,12 @@ fn group_line(group: &SubscriptionGroup) -> String {
         group.id,
         group.title,
         group.visibility.as_str()
+    )
+}
+
+fn subscription_group_pack_line(link: &SubscriptionGroupPack) -> String {
+    format!(
+        "{}\t{}\t{}",
+        link.subscription_group_id, link.pack_id, link.sort_order
     )
 }
