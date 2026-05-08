@@ -9,7 +9,7 @@ only designed or planned.
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Repository hygiene | Implemented | `.gitignore`, workspace layout, documentation structure, local dev manager, env examples, CI baseline, release workflows, Dockerfile, and `.dockerignore` exist. |
+| Repository hygiene | Implemented | `.gitignore`, workspace layout, `pnpm-workspace.yaml`, documentation structure, local dev manager, env examples, CI baseline, release workflows, Dockerfile, and `.dockerignore` exist. |
 | MoreStickers compatibility | Implemented | `msm-domain` preserves `.stickerpack` JSON shape and upstream-compatible IDs. |
 | Domain authorization | Implemented | Pure RBAC/PAT policy primitives and pack/subscription access evaluators exist in `msm-domain::authz`. |
 | Storage foundation | Implemented | SQLite storage primitives, migrations, local asset storage, pack/sticker records, PAT storage, local credentials, export target/job tables, export retry metadata, prepared media cache records, Telegram publication records, Telegram per-sticker file mappings, and portable user export/import exist. |
@@ -20,7 +20,7 @@ only designed or planned.
 | MCP auth | Partially implemented | Pack and export tool calls enforce Bearer PAT scopes. SSE/session hardening is not implemented. |
 | Provider normalization | Implemented | `msm-providers` normalizes already-fetched Telegram, LINE sticker, and LINE emoji fixtures into MoreStickers-compatible packs. |
 | Provider network fetch | Not implemented | Remote provider API fetch, download, and asset internalization are planned future work. |
-| Service binary | Implemented | `msm-app` composes storage migrations, API routes, local asset store, MCP route, Web static serving, and export worker foundation types. Root npm dev scripts can start/stop/status the service with env profiles. |
+| Service binary | Implemented | `msm-app` composes storage migrations, API routes, local asset store, MCP route, Web static serving, and export worker foundation types. Root npm/pnpm dev scripts can start/stop/status the service with env profiles. |
 | Embedded Web dist | Implemented | `msm-app` embeds `apps/web/dist` when present and a placeholder when absent; runtime disk override remains available. |
 | Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, RWD dashboard shell, theme toggle, and i18n exist. |
 | Web API integration | Implemented | Web pack and export API clients can use API-backed pack/export operations with stored PAT; pack list still has mock fallback for local preview. |

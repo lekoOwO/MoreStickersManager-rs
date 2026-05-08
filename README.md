@@ -27,6 +27,8 @@ npm run dev:stop
 The manager loads `.env.<name>` first and `.env.local` second for private local
 overrides. Logs and PID files are stored under `tmp/dev-manager/`. Tracked
 examples are provided as `.env.development.example` and `.env.testing.example`.
+The Web dev process is launched through the local Vite binary, so the manager
+works from both `npm run ...` and `pnpm run ...` entrypoints.
 
 Run the current baseline checks:
 

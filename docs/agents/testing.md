@@ -39,6 +39,16 @@ node scripts/dev-manager.mjs status
 npm run dev:status
 node scripts/dev-manager.mjs env use development
 node scripts/dev-manager.mjs stop
+pnpm run dev:start
+pnpm run dev:status
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173
+pnpm run dev:stop
+npm run dev:start
+npm run dev:status
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173
+npm run dev:stop
 ```
 
 These checks prove:
@@ -47,7 +57,11 @@ These checks prove:
 - tracked env examples can initialize ignored `.env.<name>` files;
 - the active env profile can switch between development and testing;
 - service status reads and cleans PID files without starting long-running processes;
-- npm shortcuts route to the same manager.
+- npm shortcuts can start and stop both services through the same manager.
+- pnpm entrypoints can start and stop both services on Windows without `.cmd`
+  spawn errors;
+- the API and Web dev servers are actually reachable over HTTP before claiming
+  the environment is running.
 
 ## GitHub Actions Coverage
 

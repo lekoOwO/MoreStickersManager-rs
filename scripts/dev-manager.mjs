@@ -19,8 +19,13 @@ const SERVICES = {
     pidFile: "api.pid",
   },
   web: {
-    command: process.platform === "win32" ? "npm.cmd" : "npm",
-    args: ["run", "web:dev"],
+    command: process.execPath,
+    args: [
+      path.join(ROOT, "node_modules", "vite", "bin", "vite.js"),
+      "--host",
+      "127.0.0.1",
+    ],
+    cwd: path.join(ROOT, "apps", "web"),
     logFile: "web.log",
     pidFile: "web.pid",
   },
@@ -151,6 +156,33 @@ function parseEnvFile(filePath) {
   return parsed;
 }
 
+function rootRelativePath(value) {
+  return path.isAbsolute(value) ? value : path.join(ROOT, value);
+}
+
+function sqliteFilePath(databaseUrl) {
+  if (!databaseUrl?.startsWith("sqlite:")) {
+    return null;
+  }
+  const filePath = databaseUrl.slice("sqlite:".length);
+  if (!filePath || filePath === ":memory:") {
+    return null;
+  }
+  return rootRelativePath(filePath);
+}
+
+function ensureLocalRuntimePaths(values) {
+  const databasePath = sqliteFilePath(values.MSM_DATABASE_URL);
+  if (databasePath) {
+    fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+  }
+  for (const key of ["MSM_ASSET_DIR", "MSM_PREPARED_MEDIA_DIR"]) {
+    if (values[key]) {
+      fs.mkdirSync(rootRelativePath(values[key]), { recursive: true });
+    }
+  }
+}
+
 function loadEnv() {
   const envName = currentEnvName();
   const envPath = envFileFor(envName);
@@ -205,32 +237,45 @@ function removePid(service) {
   fs.rmSync(pidPath(service), { force: true });
 }
 
+function spawnDetached(command, args, options) {
+  if (process.platform === "win32" && /\.(?:cmd|bat)$/i.test(command)) {
+    return spawn(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", command, ...args], options);
+  }
+  return spawn(command, args, options);
+}
+
 function startService(service) {
   ensureStateDir();
   const existingPid = readPid(service);
   if (isRunning(existingPid)) {
     console.log(`${service}: already running (pid ${existingPid})`);
-    return;
+    return false;
   }
   removePid(service);
 
   const { envName, values } = loadEnv();
+  ensureLocalRuntimePaths(values);
   const config = SERVICES[service];
   const log = fs.openSync(logPath(service), "a");
-  const child = spawn(config.command, config.args, {
-    cwd: ROOT,
-    env: values,
-    detached: true,
-    stdio: ["ignore", log, log],
-    windowsHide: true,
-  });
+  let child;
+  try {
+    child = spawnDetached(config.command, config.args, {
+      cwd: config.cwd ?? ROOT,
+      env: values,
+      detached: true,
+      stdio: ["ignore", log, log],
+      windowsHide: true,
+    });
+  } finally {
+    fs.closeSync(log);
+  }
 
   child.unref();
-  fs.closeSync(log);
   fs.writeFileSync(pidPath(service), `${child.pid}${os.EOL}`);
   console.log(
     `${service}: started pid ${child.pid} using ${envName} (${path.relative(ROOT, logPath(service))})`,
   );
+  return true;
 }
 
 function stopService(service) {
@@ -326,8 +371,18 @@ async function main() {
       return;
     }
     if (command === "start") {
+      const started = [];
       for (const service of normalizeTarget(targetOrAction)) {
-        startService(service);
+        try {
+          if (startService(service)) {
+            started.push(service);
+          }
+        } catch (error) {
+          for (const startedService of started.reverse()) {
+            stopService(startedService);
+          }
+          throw error;
+        }
       }
       return;
     }

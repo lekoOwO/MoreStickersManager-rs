@@ -56,7 +56,10 @@ npm run web:build
 `npm run dev:start api` or `npm run dev:start web` starts only one side. The
 manager loads `.env.<name>` plus optional `.env.local`, writes logs under
 `tmp/dev-manager/`, and supports `development` and `testing` examples out of the
-box through `.env.development.example` and `.env.testing.example`.
+box through `.env.development.example` and `.env.testing.example`. `pnpm run`
+works as well; the repository includes `pnpm-workspace.yaml`, and the manager
+launches the local Vite binary directly instead of depending on package-manager
+argument forwarding.
 
 The Web UI can run against mock data or the current API. It demonstrates the app
 shell, responsive layout, theme toggle, language toggle, PAT management, local

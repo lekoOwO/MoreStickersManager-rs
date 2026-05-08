@@ -16,6 +16,7 @@
 - `crates/msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling, Bot API URL configuration, mockable sticker set create/append execution, mockable sticker set mutation execution, and remote sticker set metadata fetches.
 - `components.json`: Shadcn Vue configuration for the Web UI workspace.
 - `scripts/dev-manager.mjs`: Node.js local development manager for API/Web start, stop, restart, status, and env profile switching.
+- `pnpm-workspace.yaml`: pnpm workspace declaration for the Web app package.
 - `.env.development.example` / `.env.testing.example`: tracked local environment profile templates used by the dev manager.
 - `docs/status`: current state and development log.
 - `docs/status/implementation-matrix.md`: implemented-versus-planned feature truth source.
