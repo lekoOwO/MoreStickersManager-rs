@@ -86,9 +86,15 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 npm run web:typecheck
 npm run web:test
+npm run web:e2e
 npm run web:build
 cargo build --locked -p msm-app
 ```
+
+`npm run web:e2e` uses Playwright with the installed Microsoft Edge channel
+(`channel: "msedge"`). Do not run `playwright install chromium` for this
+project; the E2E suite is intended to avoid downloading browser binaries into
+the user profile.
 
 Docker image verification requires Docker:
 

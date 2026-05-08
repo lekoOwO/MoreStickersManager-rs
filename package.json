@@ -13,6 +13,7 @@
     "web:dev": "npm --workspace apps/web run dev",
     "web:build": "npm --workspace apps/web run build",
     "web:test": "npm --workspace apps/web run test",
+    "web:e2e": "npm --workspace apps/web run test:e2e",
     "web:typecheck": "npm --workspace apps/web run typecheck"
   },
   "devDependencies": {

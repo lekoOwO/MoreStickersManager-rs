@@ -28,6 +28,7 @@
 *.log
 /coverage/
 **/coverage/
+**/test-results/
 lcov.info
 
 # OS and editor noise

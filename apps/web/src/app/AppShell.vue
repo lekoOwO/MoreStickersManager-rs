@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
   DatabaseIcon,
   KeyRoundIcon,
   LanguagesIcon,
@@ -39,6 +41,7 @@ const emit = defineEmits<{
 }>();
 
 const mobileNavOpen = ref(false);
+const sidebarExpanded = ref(false);
 const activeSection = ref<WorkspaceSection>("packs");
 const authDialogOpen = ref(false);
 const accessDialogOpen = ref(false);
@@ -115,6 +118,16 @@ watch(
 function selectSection(section: WorkspaceSection) {
   activeSection.value = section;
   mobileNavOpen.value = false;
+}
+
+function currentSectionLabel() {
+  return activeSection.value === "overview"
+    ? labels.value.overview
+    : activeSection.value === "packs"
+      ? labels.value.packs
+      : activeSection.value === "exports"
+        ? labels.value.exportPack
+        : labels.value.exportTargets;
 }
 
 function saveToken() {
@@ -214,86 +227,77 @@ function requirePatClient() {
 
 <template>
   <div class="min-h-svh bg-background text-foreground">
-    <div class="grid min-h-svh w-full lg:grid-cols-[5.25rem_22rem_minmax(0,1fr)]">
-      <aside class="hidden border-r bg-card/80 px-3 py-5 backdrop-blur-xl lg:flex lg:flex-col lg:items-center lg:gap-4">
-        <button
-          class="grid size-12 place-items-center rounded-2xl bg-primary text-base font-black tracking-tight text-primary-foreground shadow-[0_18px_44px_-26px_color-mix(in_oklch,var(--primary)_70%,transparent)]"
-          type="button"
-          @click="selectSection('overview')"
-        >
-          MS
-        </button>
-
-        <nav class="mt-4 flex flex-col gap-2" :aria-label="labels.navigation">
+    <div
+      class="grid min-h-svh w-full transition-[grid-template-columns] duration-200 ease-out"
+      :class="sidebarExpanded ? 'lg:grid-cols-[16rem_minmax(0,1fr)]' : 'lg:grid-cols-[4.75rem_minmax(0,1fr)]'"
+    >
+      <aside
+        class="hidden border-r bg-card/82 px-3 py-4 backdrop-blur-xl lg:flex lg:flex-col lg:gap-4"
+        data-testid="desktop-sidebar"
+        :data-expanded="sidebarExpanded ? 'true' : 'false'"
+      >
+        <div class="flex items-center gap-3" :class="sidebarExpanded ? 'justify-between' : 'justify-center'">
           <button
-            v-for="item in navigationItems"
-            :key="item.key"
-            class="grid size-11 place-items-center rounded-2xl text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            :class="activeSection === item.key ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground' : ''"
+            class="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary text-sm font-black tracking-tight text-primary-foreground shadow-[0_14px_34px_-24px_color-mix(in_oklch,var(--primary)_70%,transparent)]"
             type="button"
-            @click="selectSection(item.key)"
+            aria-label="MSM overview"
+            @click="selectSection('overview')"
           >
-            <component :is="item.icon" class="size-5" />
-            <span class="sr-only">{{ item.label }}</span>
+            MS
           </button>
-        </nav>
-
-        <div class="mt-auto flex flex-col gap-2">
-          <Button variant="ghost" size="icon" :aria-label="labels.language" @click="emit('toggleLocale')">
-            <LanguagesIcon data-icon="inline-start" />
-          </Button>
-          <Button variant="outline" size="icon" :aria-label="labels.theme" @click="emit('toggleTheme')">
-            <MoonIcon v-if="theme === 'light'" data-icon="inline-start" />
-            <SunIcon v-else data-icon="inline-start" />
-          </Button>
-        </div>
-      </aside>
-
-      <aside class="hidden border-r bg-card/72 px-5 py-6 backdrop-blur-xl lg:flex lg:flex-col lg:gap-6">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">MSM</p>
-          <h1 class="mt-3 break-words text-[1.7rem] font-semibold leading-none tracking-[-0.05em]">
-            {{ labels.appName }}
-          </h1>
-          <p class="mt-4 text-sm leading-6 text-muted-foreground">{{ labels.dashboardSubtitle }}</p>
-        </div>
-
-        <div class="rounded-[1.35rem] border bg-background/78 p-4 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--foreground)_8%,transparent)]">
-          <div class="flex items-center justify-between gap-3">
-            <span class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Runtime</span>
-            <Badge :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
+          <div v-if="sidebarExpanded" class="min-w-0">
+            <p class="truncate text-sm font-semibold tracking-tight">{{ labels.appName }}</p>
+            <p class="truncate text-xs text-muted-foreground">{{ runtimeMode.label }}</p>
           </div>
-          <p class="mt-3 text-xs leading-5 text-muted-foreground">{{ runtimeMode.help }}</p>
-          <p v-if="apiBaseUrl" class="mt-3 truncate font-mono text-[0.7rem] text-muted-foreground">{{ apiBaseUrl }}</p>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="shrink-0"
+            type="button"
+            data-testid="sidebar-collapse"
+            :aria-expanded="sidebarExpanded"
+            :aria-label="sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'"
+            @click="sidebarExpanded = !sidebarExpanded"
+          >
+            <ChevronLeftIcon v-if="sidebarExpanded" data-icon="inline-start" />
+            <ChevronRightIcon v-else data-icon="inline-start" />
+          </Button>
         </div>
 
-        <nav class="flex flex-col gap-1" :aria-label="labels.navigation">
+        <div
+          class="rounded-2xl border bg-background/72 p-3"
+          :class="sidebarExpanded ? '' : 'grid place-items-center'"
+          data-testid="runtime-status"
+        >
+          <Badge :variant="runtimeMode.badgeVariant">{{ sidebarExpanded ? runtimeMode.label : "API" }}</Badge>
+          <p v-if="sidebarExpanded" class="mt-2 text-xs leading-5 text-muted-foreground">{{ runtimeMode.help }}</p>
+        </div>
+
+        <nav class="flex flex-col gap-1" :aria-label="labels.navigation" data-testid="primary-navigation">
           <button
             v-for="item in navigationItems"
             :key="item.key"
-            class="group flex items-center justify-between gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            :class="activeSection === item.key ? 'bg-accent text-accent-foreground shadow-sm' : ''"
+            class="group flex items-center rounded-2xl px-3 py-3 text-left text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            :class="[
+              activeSection === item.key ? 'bg-accent text-accent-foreground shadow-sm' : '',
+              sidebarExpanded ? 'justify-between gap-3' : 'justify-center',
+            ]"
             type="button"
+            :aria-label="item.label"
+            :aria-current="activeSection === item.key ? 'page' : undefined"
             @click="selectSection(item.key)"
           >
             <span class="flex min-w-0 items-center gap-3">
               <component :is="item.icon" class="size-4 shrink-0" />
-              <span class="truncate">{{ item.label }}</span>
+              <span v-if="sidebarExpanded" class="truncate">{{ item.label }}</span>
             </span>
-            <span class="size-1.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-45" :class="activeSection === item.key ? 'opacity-70' : ''" />
+            <span
+              v-if="sidebarExpanded"
+              class="size-1.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-45"
+              :class="activeSection === item.key ? 'opacity-70' : ''"
+            />
           </button>
         </nav>
-
-        <div class="mt-auto grid gap-3">
-          <Button variant="outline" type="button" class="w-full justify-start" @click="authDialogOpen = true">
-            <LogInIcon data-icon="inline-start" />
-            {{ labels.localLogin }}
-          </Button>
-          <Button variant="secondary" type="button" class="w-full justify-start" @click="accessDialogOpen = true">
-            <KeyRoundIcon data-icon="inline-start" />
-            {{ labels.personalAccessTokens }}
-          </Button>
-        </div>
       </aside>
 
       <div class="flex min-w-0 flex-col">
@@ -314,13 +318,13 @@ function requirePatClient() {
               <div class="min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:hidden">MSM</p>
                 <h2 class="truncate text-xl font-semibold tracking-tight md:text-2xl lg:text-lg">
-                  {{ activeSection === "overview" ? labels.overview : activeSection === "packs" ? labels.packs : activeSection === "exports" ? labels.exportPack : labels.exportTargets }}
+                  {{ currentSectionLabel() }}
                 </h2>
               </div>
             </div>
 
             <div class="flex items-center gap-2">
-              <Badge class="hidden md:inline-flex" :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
+              <Badge class="hidden md:inline-flex" data-testid="runtime-badge" :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
               <Button variant="outline" size="sm" type="button" @click="authDialogOpen = true">
                 <LogInIcon data-icon="inline-start" />
                 <span class="hidden sm:inline">{{ labels.localLogin }}</span>
@@ -360,41 +364,9 @@ function requirePatClient() {
         </header>
 
         <main class="flex-1 px-4 py-5 md:px-8 md:py-7 lg:px-10 xl:px-12">
-          <section class="mb-7 hidden grid-cols-[minmax(0,1.35fr)_minmax(24rem,0.65fr)] gap-6 lg:grid">
-            <div>
-              <div class="flex flex-wrap items-center gap-3">
-                <Badge :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
-                <span class="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  {{ labels.desktopWorkspace }}
-                </span>
-              </div>
-              <h1 class="mt-4 max-w-[12ch] text-5xl font-semibold leading-[0.92] tracking-[-0.06em] xl:text-7xl">
-                {{ labels.dashboardTitle }}
-              </h1>
-              <p class="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
-                {{ labels.dashboardSubtitle }}
-              </p>
-            </div>
-            <div class="grid content-end gap-4">
-              <div class="rounded-[1.6rem] border bg-card/86 p-5 shadow-[0_28px_80px_-56px_color-mix(in_oklch,var(--primary)_55%,transparent)]">
-                <p class="text-sm font-semibold">{{ hasPat ? labels.currentPat : labels.patTokenHelp }}</p>
-                <p class="mt-2 text-sm leading-6 text-muted-foreground">
-                  {{ runtimeMode.help }}
-                </p>
-                <div class="mt-5 flex flex-wrap gap-2">
-                  <Button variant="secondary" size="sm" type="button" @click="accessDialogOpen = true">PAT</Button>
-                  <Button variant="outline" size="sm" type="button" @click="authDialogOpen = true">{{ labels.localLogin }}</Button>
-                </div>
-              </div>
-              <div class="h-2 rounded-full bg-muted">
-                <div class="h-full rounded-full transition-all" :class="runtimeMode.tone" :style="{ width: hasPat && isConnected ? '100%' : isConnected ? '62%' : '32%' }" />
-              </div>
-            </div>
-          </section>
-
           <section class="mb-5 rounded-[1.4rem] border bg-card/84 p-4 shadow-[0_18px_56px_-44px_color-mix(in_oklch,var(--primary)_48%,transparent)] lg:hidden">
             <div class="flex items-center justify-between gap-3">
-              <Badge :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
+              <Badge data-testid="runtime-badge" :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
               <span class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{{ labels.mobileWorkspace }}</span>
             </div>
             <h1 class="mt-4 text-3xl font-semibold leading-tight tracking-[-0.045em]">{{ labels.dashboardTitle }}</h1>

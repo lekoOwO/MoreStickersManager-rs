@@ -562,3 +562,14 @@
 - Added pointer cursor and pressed/hover motion states for interactive buttons and controls.
 - Increased blue accent chroma in both light and dark themes.
 - Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `pnpm run dev:stop`, `pnpm run dev:start`, API health check, PAT-authenticated pack list check, Web HTTP check, Vite module env check, and `pnpm run dev:stop`.
+
+## 2026-05-08 Web Native Navigation Correction
+
+- Removed the wide non-collapsible context sidebar in favor of one collapsible desktop navigation rail.
+- Suppressed `PackDashboard`'s internal tab strip when `AppShell` owns the active section, eliminating duplicate synchronized navigation.
+- Kept the top bar for global actions only: runtime status, login, PAT, language, and theme.
+- Moved narrow desktop pack management to the card layout to avoid horizontal page overflow.
+- Recalibrated dark theme to a near-black background and Ant Design-like blue instead of fluorescent blue.
+- Added Playwright E2E coverage for live API status, absence of mock preview when API/PAT env is present, single navigation source, section switching, sidebar collapse/expand, and narrow desktop overflow.
+- Configured Playwright to use the installed Microsoft Edge channel instead of downloaded Chromium, and removed downloaded Playwright browser artifacts from the local profile.
+- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run web:e2e`, and confirmed `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.

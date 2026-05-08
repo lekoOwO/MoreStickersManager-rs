@@ -30,12 +30,16 @@
 
 :root {
   --radius: 0.75rem;
+  --app-background:
+    linear-gradient(180deg, color-mix(in oklch, var(--primary) 5%, transparent), transparent 18rem),
+    radial-gradient(circle at top right, color-mix(in oklch, var(--primary) 11%, transparent), transparent 32rem),
+    var(--background);
   --background: oklch(0.984 0.012 247);
   --foreground: oklch(0.21 0.045 255);
   --card: oklch(1 0 0 / 0.96);
   --card-foreground: var(--foreground);
-  --primary: oklch(0.59 0.215 248);
-  --primary-foreground: oklch(0.99 0.006 248);
+  --primary: #1677ff;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.94 0.024 246);
   --secondary-foreground: oklch(0.29 0.048 255);
   --muted: oklch(0.95 0.018 246);
@@ -49,22 +53,23 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.05 252);
-  --foreground: oklch(0.97 0.014 245);
-  --card: oklch(0.22 0.055 252 / 0.94);
+  --app-background: linear-gradient(180deg, #0b0f17 0%, #0d121c 45rem, #0b0f17 100%);
+  --background: #0b0f17;
+  --foreground: oklch(0.96 0.012 248);
+  --card: rgb(18 24 36 / 0.94);
   --card-foreground: var(--foreground);
-  --primary: oklch(0.75 0.19 238);
-  --primary-foreground: oklch(0.12 0.05 252);
-  --secondary: oklch(0.3 0.06 252);
+  --primary: #1668dc;
+  --primary-foreground: #ffffff;
+  --secondary: rgb(28 36 52);
   --secondary-foreground: oklch(0.93 0.012 253);
-  --muted: oklch(0.28 0.045 252);
+  --muted: rgb(24 31 45);
   --muted-foreground: oklch(0.76 0.035 245);
-  --accent: oklch(0.4 0.12 240);
+  --accent: rgb(20 58 112);
   --accent-foreground: oklch(0.97 0.018 240);
   --destructive: oklch(0.66 0.18 25);
-  --border: oklch(0.37 0.06 252);
+  --border: rgb(45 57 78);
   --input: var(--border);
-  --ring: oklch(0.75 0.19 238);
+  --ring: #1668dc;
 }
 
 * {
@@ -74,10 +79,7 @@
 body {
   min-width: 320px;
   margin: 0;
-  background:
-    linear-gradient(180deg, color-mix(in oklch, var(--primary) 7%, transparent), transparent 18rem),
-    radial-gradient(circle at top right, color-mix(in oklch, var(--primary) 16%, transparent), transparent 34rem),
-    var(--background);
+  background: var(--app-background);
   color: var(--foreground);
   font-variant-numeric: tabular-nums;
 }
