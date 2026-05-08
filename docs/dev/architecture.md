@@ -13,7 +13,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
 - `msm-media`: media profile and command planning foundation added in P25; media probing remains planned.
 - `msm-exporters`: export target trait, registry, MoreStickers export adapter, Telegram export planner, and Telegram reconciliation policy planner added in Tasks 4-7/P33; future output targets remain planned.
-- `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling, Bot API URL configuration, and mockable sticker set create/append execution.
+- `msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling, Bot API URL configuration, mockable sticker set create/append execution, and mockable sticker set mutation execution.
 - `msm-app`: runnable service composition binary, added in P9 and extended with export worker execution, prepared media conversion, and Telegram publication.
 - `apps/web`: Vue/Vite Web UI foundation with Shadcn Vue-compatible primitives and Tailwind CSS v4, added in P7 and extended with export target/job workflow controls and Telegram publication result display.
 
@@ -49,7 +49,7 @@ Planned exporter work is split into:
 
 - `msm-media`: target-neutral media kinds, output profiles, conversion plans, shell-free converter command plans, and planned probing/converter execution.
 - `msm-exporters`: target traits, capability metadata, export plans, target registry, MoreStickers serialization target, Telegram sticker set planner, and pure Telegram reconciliation policy planner.
-- `msm-telegram`: `teloxide::Bot` construction/configuration plus sticker set create/append methods behind a mockable trait.
+- `msm-telegram`: `teloxide::Bot` construction/configuration plus sticker set create/append/update/delete methods behind a mockable trait.
 
 Task 8 exposes export target and queued job records through protected API routes.
 Those routes do not execute conversions or remote publication; Task 9 worker
@@ -69,9 +69,10 @@ worker failures requeue jobs with bounded `attempt_count`, `max_attempts`, and
 Telegram remote reconciliation is modeled before execution. The exporter layer
 can plan create-only, append-missing, and mirror policies from known remote
 sticker set state. Planned operations cover set creation, title update, sticker
-keep/add/replace, and remote-only sticker deletion. Execution remains a worker
-and `msm-telegram` responsibility so destructive mirror behavior can stay behind
-explicit runtime options and no-network tests.
+keep/add/replace, and remote-only sticker deletion. `msm-telegram` can execute
+ordered mutation sequences for title update, add, replace, and delete through a
+mockable teloxide-backed trait. Worker mapping and destructive mirror behavior
+still need explicit runtime options and no-network tests before being exposed.
 
 Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
 Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds

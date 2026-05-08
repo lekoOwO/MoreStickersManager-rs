@@ -2,8 +2,9 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use msm_telegram::{
-    publish_sticker_set, TelegramBotConfig, TelegramPublishRequest, TelegramPublishSticker,
-    TelegramPublishedSet, TelegramStickerSetApi, TeloxideTelegramStickerSetApi,
+    apply_sticker_set_mutations, publish_sticker_set, TelegramBotConfig, TelegramPublishRequest,
+    TelegramPublishSticker, TelegramPublishedSet, TelegramStickerSetApi,
+    TelegramStickerSetMutation, TeloxideTelegramStickerSetApi,
 };
 use teloxide::types::{InputFile, InputSticker, StickerFormat, StickerType};
 
@@ -51,6 +52,47 @@ fn teloxide_adapter_can_be_built_from_bot_config() {
     assert_api_trait(&adapter);
 }
 
+#[tokio::test]
+async fn apply_sticker_set_mutations_executes_remote_changes_in_order() {
+    let api = RecordingTelegramApi::default();
+    let applied = apply_sticker_set_mutations(
+        &api,
+        vec![
+            TelegramStickerSetMutation::SetTitle {
+                sticker_set_name: "cats_by_msm_bot".to_owned(),
+                title: "Cats v2".to_owned(),
+            },
+            TelegramStickerSetMutation::ReplaceSticker {
+                owner_user_id: 42,
+                sticker_set_name: "cats_by_msm_bot".to_owned(),
+                old_telegram_file_id: "tg_old".to_owned(),
+                sticker: publish_sticker("cat_1"),
+            },
+            TelegramStickerSetMutation::AddSticker {
+                owner_user_id: 42,
+                sticker_set_name: "cats_by_msm_bot".to_owned(),
+                sticker: publish_sticker("cat_2"),
+            },
+            TelegramStickerSetMutation::DeleteSticker {
+                telegram_file_id: "tg_remote_only".to_owned(),
+            },
+        ],
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(applied, 4);
+    assert_eq!(
+        api.calls.lock().unwrap().as_slice(),
+        [
+            "title:cats_by_msm_bot:Cats v2",
+            "replace:42:cats_by_msm_bot:tg_old:cat_1",
+            "append:42:cats_by_msm_bot:cat_2",
+            "delete:tg_remote_only",
+        ]
+    );
+}
+
 #[derive(Default)]
 struct RecordingTelegramApi {
     calls: Mutex<Vec<String>>,
@@ -88,6 +130,43 @@ impl TelegramStickerSetApi for RecordingTelegramApi {
             "append:{owner_user_id}:{sticker_set_name}:{}",
             sticker.source_sticker_id
         ));
+        Ok(())
+    }
+
+    async fn set_sticker_set_title(
+        &self,
+        sticker_set_name: &str,
+        title: &str,
+    ) -> Result<(), msm_telegram::TelegramPublishError> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push(format!("title:{sticker_set_name}:{title}"));
+        Ok(())
+    }
+
+    async fn replace_sticker_in_set(
+        &self,
+        owner_user_id: i64,
+        sticker_set_name: &str,
+        old_telegram_file_id: &str,
+        sticker: TelegramPublishSticker,
+    ) -> Result<(), msm_telegram::TelegramPublishError> {
+        self.calls.lock().unwrap().push(format!(
+            "replace:{owner_user_id}:{sticker_set_name}:{old_telegram_file_id}:{}",
+            sticker.source_sticker_id
+        ));
+        Ok(())
+    }
+
+    async fn delete_sticker_from_set(
+        &self,
+        telegram_file_id: &str,
+    ) -> Result<(), msm_telegram::TelegramPublishError> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push(format!("delete:{telegram_file_id}"));
         Ok(())
     }
 }

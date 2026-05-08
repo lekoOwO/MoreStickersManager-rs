@@ -457,3 +457,13 @@
 - Added planner tests proving create-only rejection, append-missing non-destructive behavior, and mirror update/add/delete behavior without Telegram network access.
 - Documented that policy modeling exists, while remote state fetch and destructive execution remain pending worker/Telegram-boundary work.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-exporters --test telegram_plan_tests --locked`, `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Telegram Mutation Boundary
+
+- Added `TelegramStickerSetMutation` for title update, sticker add, sticker replace, and sticker delete operations.
+- Extended the mockable `TelegramStickerSetApi` trait with set-title, replace-sticker, and delete-sticker methods.
+- Implemented the new methods in `TeloxideTelegramStickerSetApi` using teloxide requester methods.
+- Added `apply_sticker_set_mutations` to execute mutation sequences in order.
+- Added no-network tests with a recording fake to prove mutation ordering.
+- Documented that worker reconciliation mapping remains pending and destructive mirror execution is not enabled by default.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-telegram --locked`, `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`, and `git diff --check`.

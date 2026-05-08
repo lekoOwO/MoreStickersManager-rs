@@ -100,9 +100,10 @@ Telegram remote synchronization policy is now defined in backend planner code.
 MSM can model create-only, append-missing, and mirror reconciliation operations
 against known remote sticker set state, including title updates, sticker
 replacement, missing sticker additions, and remote-only sticker deletions. The
-worker does not execute those update/delete operations yet; current live
-Telegram publication remains create/append-oriented and opt-in via
-`"dryRun": false`.
+Telegram boundary can execute ordered title/add/replace/delete mutation
+sequences through teloxide. The worker does not map jobs into those update/delete
+operations yet; current live Telegram publication remains create/append-oriented
+and opt-in via `"dryRun": false`.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant

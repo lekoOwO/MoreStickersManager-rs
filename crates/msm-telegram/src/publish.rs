@@ -45,6 +45,43 @@ pub struct TelegramPublishedSet {
     pub url: String,
 }
 
+/// Remote sticker set mutation that can be executed through Telegram Bot API.
+#[derive(Debug)]
+pub enum TelegramStickerSetMutation {
+    /// Update the sticker set title.
+    SetTitle {
+        /// Telegram sticker set name.
+        sticker_set_name: String,
+        /// Desired title.
+        title: String,
+    },
+    /// Add a sticker to an existing set.
+    AddSticker {
+        /// Telegram user ID that owns the sticker set.
+        owner_user_id: i64,
+        /// Telegram sticker set name.
+        sticker_set_name: String,
+        /// Sticker to add.
+        sticker: TelegramPublishSticker,
+    },
+    /// Replace an existing sticker in a set.
+    ReplaceSticker {
+        /// Telegram user ID that owns the sticker set.
+        owner_user_id: i64,
+        /// Telegram sticker set name.
+        sticker_set_name: String,
+        /// Telegram file ID currently in the set.
+        old_telegram_file_id: String,
+        /// Replacement sticker.
+        sticker: TelegramPublishSticker,
+    },
+    /// Delete a sticker from a set.
+    DeleteSticker {
+        /// Telegram file ID currently in the set.
+        telegram_file_id: String,
+    },
+}
+
 /// Low-level Telegram sticker set API boundary.
 #[async_trait]
 pub trait TelegramStickerSetApi: Send + Sync {
@@ -64,6 +101,28 @@ pub trait TelegramStickerSetApi: Send + Sync {
         owner_user_id: i64,
         sticker_set_name: &str,
         sticker: TelegramPublishSticker,
+    ) -> Result<(), TelegramPublishError>;
+
+    /// Updates a sticker set title.
+    async fn set_sticker_set_title(
+        &self,
+        sticker_set_name: &str,
+        title: &str,
+    ) -> Result<(), TelegramPublishError>;
+
+    /// Replaces one sticker in an existing sticker set.
+    async fn replace_sticker_in_set(
+        &self,
+        owner_user_id: i64,
+        sticker_set_name: &str,
+        old_telegram_file_id: &str,
+        sticker: TelegramPublishSticker,
+    ) -> Result<(), TelegramPublishError>;
+
+    /// Deletes one sticker from an existing sticker set.
+    async fn delete_sticker_from_set(
+        &self,
+        telegram_file_id: &str,
     ) -> Result<(), TelegramPublishError>;
 }
 
@@ -149,6 +208,57 @@ impl TelegramStickerSetApi for TeloxideTelegramStickerSetApi {
             })?;
         Ok(())
     }
+
+    async fn set_sticker_set_title(
+        &self,
+        sticker_set_name: &str,
+        title: &str,
+    ) -> Result<(), TelegramPublishError> {
+        self.bot
+            .set_sticker_set_title(sticker_set_name.to_owned(), title.to_owned())
+            .send()
+            .await
+            .map_err(|error| TelegramPublishError::Api {
+                message: error.to_string(),
+            })?;
+        Ok(())
+    }
+
+    async fn replace_sticker_in_set(
+        &self,
+        owner_user_id: i64,
+        sticker_set_name: &str,
+        old_telegram_file_id: &str,
+        sticker: TelegramPublishSticker,
+    ) -> Result<(), TelegramPublishError> {
+        self.bot
+            .replace_sticker_in_set(
+                telegram_user_id(owner_user_id)?,
+                sticker_set_name.to_owned(),
+                old_telegram_file_id.to_owned(),
+                sticker.input,
+            )
+            .send()
+            .await
+            .map_err(|error| TelegramPublishError::Api {
+                message: error.to_string(),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_sticker_from_set(
+        &self,
+        telegram_file_id: &str,
+    ) -> Result<(), TelegramPublishError> {
+        self.bot
+            .delete_sticker_from_set(telegram_file_id.to_owned())
+            .send()
+            .await
+            .map_err(|error| TelegramPublishError::Api {
+                message: error.to_string(),
+            })?;
+        Ok(())
+    }
 }
 
 /// Publishes a planned Telegram sticker set through a mockable API boundary.
@@ -186,6 +296,55 @@ pub async fn publish_sticker_set(
         title: request.title,
         sticker_count: initial_count + append_count,
     })
+}
+
+/// Applies remote sticker set mutations through a mockable API boundary.
+///
+/// # Errors
+///
+/// Returns an error when any Telegram API mutation fails.
+pub async fn apply_sticker_set_mutations(
+    api: &dyn TelegramStickerSetApi,
+    mutations: Vec<TelegramStickerSetMutation>,
+) -> Result<usize, TelegramPublishError> {
+    let mutation_count = mutations.len();
+    for mutation in mutations {
+        match mutation {
+            TelegramStickerSetMutation::SetTitle {
+                sticker_set_name,
+                title,
+            } => {
+                api.set_sticker_set_title(&sticker_set_name, &title).await?;
+            }
+            TelegramStickerSetMutation::AddSticker {
+                owner_user_id,
+                sticker_set_name,
+                sticker,
+            } => {
+                api.add_sticker_to_set(owner_user_id, &sticker_set_name, sticker)
+                    .await?;
+            }
+            TelegramStickerSetMutation::ReplaceSticker {
+                owner_user_id,
+                sticker_set_name,
+                old_telegram_file_id,
+                sticker,
+            } => {
+                api.replace_sticker_in_set(
+                    owner_user_id,
+                    &sticker_set_name,
+                    &old_telegram_file_id,
+                    sticker,
+                )
+                .await?;
+            }
+            TelegramStickerSetMutation::DeleteSticker { telegram_file_id } => {
+                api.delete_sticker_from_set(&telegram_file_id).await?;
+            }
+        }
+    }
+
+    Ok(mutation_count)
 }
 
 fn telegram_user_id(owner_user_id: i64) -> Result<UserId, TelegramPublishError> {

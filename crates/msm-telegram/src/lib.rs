@@ -5,6 +5,7 @@ pub mod publish;
 
 pub use bot::{TelegramBotConfig, TelegramBotError, TelegramBotToken};
 pub use publish::{
-    publish_sticker_set, TelegramPublishError, TelegramPublishRequest, TelegramPublishSticker,
-    TelegramPublishedSet, TelegramStickerSetApi, TeloxideTelegramStickerSetApi,
+    apply_sticker_set_mutations, publish_sticker_set, TelegramPublishError, TelegramPublishRequest,
+    TelegramPublishSticker, TelegramPublishedSet, TelegramStickerSetApi,
+    TelegramStickerSetMutation, TeloxideTelegramStickerSetApi,
 };
