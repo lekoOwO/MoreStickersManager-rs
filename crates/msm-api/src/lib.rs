@@ -148,6 +148,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn openapi_documents_telegram_export_job_options() {
+        let response = build_router(test_state().await)
+            .oneshot(
+                Request::builder()
+                    .uri("/openapi.json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(
+            json["components"]["schemas"]["TelegramReconcileModeOption"]["enum"],
+            serde_json::json!(["createOnly", "appendMissing", "mirror"])
+        );
+        let option_schema = &json["components"]["schemas"]["TelegramExportJobOptions"];
+        assert_eq!(
+            option_schema["properties"]["reconcileMode"]["oneOf"][1]["enum"],
+            serde_json::json!(["createOnly", "appendMissing", "mirror"])
+        );
+        assert_eq!(
+            option_schema["properties"]["allowDestructiveReconciliation"]["type"],
+            serde_json::json!(["boolean", "null"])
+        );
+        assert_eq!(
+            json["components"]["schemas"]["CreateExportJobRequest"]["properties"]["options"]
+                ["$ref"],
+            "#/components/schemas/TelegramExportJobOptions"
+        );
+    }
+
+    #[tokio::test]
     async fn imports_lists_and_exports_pack() {
         let state = test_state().await;
         state

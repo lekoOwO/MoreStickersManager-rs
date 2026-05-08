@@ -25,7 +25,7 @@
 
 ## Not Implemented Yet
 
-- API/OpenAPI examples or typed option docs for Telegram reconciliation options.
+- Destructive mirror operator documentation for Telegram reconciliation.
 - MCP auth/session/SSE hardening.
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.

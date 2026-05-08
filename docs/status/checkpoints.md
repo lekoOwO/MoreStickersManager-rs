@@ -646,3 +646,21 @@
   `cargo test -p msm-cli -p msm-mcp --locked`,
   `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`,
   and `git diff --check`.
+
+## 2026-05-09 API OpenAPI Telegram Options Documentation
+
+- Added `TelegramExportJobOptions` and `TelegramReconcileModeOption` OpenAPI
+  schemas for target-specific Telegram export job options.
+- Pointed `CreateExportJobRequest.options` at the typed Telegram options schema
+  while keeping the runtime API request field as flexible JSON.
+- Documented dry-run, set naming, reconciliation mode, execution guard,
+  destructive mirror guard, remote state, and existing-set fields in the schema.
+- Updated README, user docs, roadmap, implementation matrix, project map, and
+  current status so API callers no longer need worker-source inspection to
+  discover Telegram reconciliation options.
+- Targeted RED/GREEN verification passed for `cargo test -p msm-api
+  openapi_documents_telegram_export_job_options --locked`.
+- Full verification passed with `cargo fmt --all -- --check`,
+  `cargo test -p msm-api --locked`,
+  `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and
+  `git diff --check`.

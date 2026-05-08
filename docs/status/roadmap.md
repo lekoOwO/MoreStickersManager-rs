@@ -12,8 +12,8 @@ is now reconciliation usability and parity across Web, API, CLI, and MCP.
 
 Web, CLI, and MCP now expose dry-run, reconciliation mode,
 execute-reconciliation, and destructive mirror guard controls without requiring
-hand-written worker JSON. Direct API callers can queue the same jobs through the
-generic export job options object.
+hand-written worker JSON. OpenAPI now documents the target-specific
+`TelegramExportJobOptions` schema behind the generic export job options object.
 
 ## Recently Completed
 
@@ -34,16 +34,16 @@ generic export job options object.
   mirror opt-in.
 - MCP `msm.create_export_job` has Telegram-specific named fields for the same
   reconciliation options while preserving raw `options` for advanced callers.
+- API/OpenAPI exposes a typed `TelegramExportJobOptions` schema for the generic
+  export job options object.
 
 ## Immediate Plan
 
-1. Add API/OpenAPI examples or typed option documentation for Telegram
-   reconciliation job options.
-2. Continue hardening P33 remote target sync by covering destructive mirror
+1. Continue hardening P33 remote target sync by covering destructive mirror
    execution examples and operator runbooks.
-3. Start the next product-data slice: folder, tag, subscription-group, and pack
+2. Start the next product-data slice: folder, tag, subscription-group, and pack
    access-management APIs.
-4. Run targeted Rust/Web verification and update this roadmap, current status,
+3. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 
 ## Later Planned Work

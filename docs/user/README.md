@@ -223,7 +223,10 @@ stickers, the destructive opt-in must also be present:
 
 The Web export wizard exposes these controls directly. CLI and MCP currently
 support the same behavior through named fields and still accept raw options JSON
-for advanced cases.
+for advanced cases. The OpenAPI document exposes the
+`TelegramExportJobOptions` schema behind `CreateExportJobRequest.options`, so
+API clients can discover `dryRun`, `reconcileMode`, `executeReconciliation`,
+`allowDestructiveReconciliation`, `remoteSet`, and related Telegram fields.
 
 Export target/job API endpoints and CLI commands now exist for queueing export
 jobs and reading their status/events. CLI commands, MCP tools, and Web UI

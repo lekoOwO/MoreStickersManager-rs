@@ -170,7 +170,40 @@ pub struct CreateExportJobRequest {
     pub tenant_id: String,
     pub source_pack_id: String,
     pub target_id: String,
+    #[schema(value_type = TelegramExportJobOptions)]
     pub options: serde_json::Value,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TelegramExportJobOptions {
+    /// Slug input used to build the Telegram sticker set name.
+    pub set_name_slug: Option<String>,
+    /// Telegram sticker set title. Defaults to the MSM pack title.
+    pub set_title: Option<String>,
+    /// Emoji used for stickers without provider-specific emoji metadata.
+    pub default_emoji: Option<String>,
+    /// Defaults to true. Set false to allow worker-side Telegram mutation.
+    pub dry_run: Option<bool>,
+    /// Remote reconciliation strategy for an existing Telegram sticker set.
+    #[schema(inline)]
+    pub reconcile_mode: Option<TelegramReconcileModeOption>,
+    /// Required before reconciliation mutations are executed.
+    pub execute_reconciliation: Option<bool>,
+    /// Required in addition to executeReconciliation for mirror replace/delete.
+    pub allow_destructive_reconciliation: Option<bool>,
+    /// Optional caller-supplied Telegram remote state. If omitted, the worker can derive it from fetched Telegram metadata and stored mappings.
+    pub remote_set: Option<serde_json::Value>,
+    /// Existing Telegram set names used by create-only dry-run planning.
+    pub existing_sticker_set_names: Option<Vec<String>>,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum TelegramReconcileModeOption {
+    CreateOnly,
+    AppendMissing,
+    Mirror,
 }
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]

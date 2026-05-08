@@ -133,6 +133,9 @@ export job with options containing `"dryRun": false` or use the CLI
 `botUsername`, and `ownerUserId`. Append-missing reconciliation can be queued
 from Web controls, CLI flags, MCP named fields, or raw API/MCP job options.
 Mirror-mode replace/delete requires `allowDestructiveReconciliation:true`.
+OpenAPI documents the target-specific `TelegramExportJobOptions` schema behind
+`CreateExportJobRequest.options` so API callers can discover the supported
+Telegram fields without reading worker code.
 Tests use injected publishers and do not contact Telegram.
 
 ## Web UI Slice
