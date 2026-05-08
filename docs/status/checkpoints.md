@@ -496,3 +496,12 @@
 - Added a no-network worker test proving mirror delete does not call the mutation executor without the extra allowance.
 - Updated user, architecture, testing, matrix, checkpoint, and current-status docs.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Telegram Remote Fetch Boundary
+
+- Added `TelegramFetchedStickerSet` and `TelegramFetchedSticker` DTOs for remote Bot API state.
+- Extended the mockable `TelegramStickerSetApi` trait with `get_sticker_set`.
+- Implemented `TeloxideTelegramStickerSetApi::get_sticker_set` through teloxide `getStickerSet`.
+- Added `fetch_sticker_set` orchestration function with a no-network recording fake test.
+- Documented that fetched Telegram metadata still needs persisted per-sticker MSM source ID mapping before worker reconciliation can use it automatically.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-telegram --locked`, `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`, and `git diff --check`.

@@ -652,5 +652,6 @@ These tests prove:
 - the publish boundary creates a sticker set before appending stickers;
 - append calls preserve planned sticker order;
 - mutation execution preserves title update, replace, add, and delete order through a recording fake;
+- remote sticker set fetches return Bot API metadata through a recording fake without network access;
 - the teloxide adapter can be built from validated bot config and implements the same mockable sticker set API trait;
 - publication tests use recording fakes and do not call Telegram.

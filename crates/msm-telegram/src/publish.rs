@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use teloxide::{
     payloads::CreateNewStickerSetSetters,
     requests::{Request, Requester},
-    types::{InputSticker, StickerType, UserId},
+    types::{InputSticker, StickerSet, StickerType, UserId},
     Bot,
 };
 
@@ -43,6 +43,34 @@ pub struct TelegramPublishedSet {
     pub sticker_count: usize,
     /// Public Telegram add-stickers URL.
     pub url: String,
+}
+
+/// Remote Telegram sticker set state fetched from Bot API.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TelegramFetchedStickerSet {
+    /// Telegram sticker set name.
+    pub sticker_set_name: String,
+    /// Telegram sticker set title.
+    pub title: String,
+    /// Telegram sticker set type.
+    pub sticker_type: StickerType,
+    /// Remote sticker metadata.
+    pub stickers: Vec<TelegramFetchedSticker>,
+}
+
+/// Remote Telegram sticker metadata fetched from Bot API.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TelegramFetchedSticker {
+    /// Telegram file ID usable by Bot API mutations.
+    pub telegram_file_id: String,
+    /// Telegram file unique ID.
+    pub telegram_file_unique_id: String,
+    /// Telegram sticker emoji when present.
+    pub emoji: Option<String>,
+    /// Whether Telegram reports this sticker as animated.
+    pub is_animated: bool,
+    /// Whether Telegram reports this sticker as video.
+    pub is_video: bool,
 }
 
 /// Remote sticker set mutation that can be executed through Telegram Bot API.
@@ -124,6 +152,12 @@ pub trait TelegramStickerSetApi: Send + Sync {
         &self,
         telegram_file_id: &str,
     ) -> Result<(), TelegramPublishError>;
+
+    /// Fetches remote sticker set state.
+    async fn get_sticker_set(
+        &self,
+        sticker_set_name: &str,
+    ) -> Result<TelegramFetchedStickerSet, TelegramPublishError>;
 }
 
 /// Errors raised while publishing Telegram sticker sets.
@@ -259,6 +293,20 @@ impl TelegramStickerSetApi for TeloxideTelegramStickerSetApi {
             })?;
         Ok(())
     }
+
+    async fn get_sticker_set(
+        &self,
+        sticker_set_name: &str,
+    ) -> Result<TelegramFetchedStickerSet, TelegramPublishError> {
+        self.bot
+            .get_sticker_set(sticker_set_name.to_owned())
+            .send()
+            .await
+            .map(telegram_fetched_sticker_set)
+            .map_err(|error| TelegramPublishError::Api {
+                message: error.to_string(),
+            })
+    }
 }
 
 /// Publishes a planned Telegram sticker set through a mockable API boundary.
@@ -347,8 +395,39 @@ pub async fn apply_sticker_set_mutations(
     Ok(mutation_count)
 }
 
+/// Fetches remote sticker set state through a mockable API boundary.
+///
+/// # Errors
+///
+/// Returns an error when Telegram rejects the fetch request.
+pub async fn fetch_sticker_set(
+    api: &dyn TelegramStickerSetApi,
+    sticker_set_name: &str,
+) -> Result<TelegramFetchedStickerSet, TelegramPublishError> {
+    api.get_sticker_set(sticker_set_name).await
+}
+
 fn telegram_user_id(owner_user_id: i64) -> Result<UserId, TelegramPublishError> {
     u64::try_from(owner_user_id)
         .map(UserId)
         .map_err(|_| TelegramPublishError::InvalidOwnerUserId { owner_user_id })
+}
+
+fn telegram_fetched_sticker_set(sticker_set: StickerSet) -> TelegramFetchedStickerSet {
+    TelegramFetchedStickerSet {
+        sticker_set_name: sticker_set.name,
+        title: sticker_set.title,
+        sticker_type: sticker_set.kind,
+        stickers: sticker_set
+            .stickers
+            .into_iter()
+            .map(|sticker| TelegramFetchedSticker {
+                telegram_file_id: sticker.file.id.0,
+                telegram_file_unique_id: sticker.file.unique_id.0,
+                emoji: sticker.emoji,
+                is_animated: sticker.flags.is_animated,
+                is_video: sticker.flags.is_video,
+            })
+            .collect(),
+    }
 }

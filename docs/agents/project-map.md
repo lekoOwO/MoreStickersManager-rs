@@ -13,7 +13,7 @@
 - `crates/msm-mcp`: MCP `/mcp` JSON-RPC endpoint with pack list/import/export/update/delete tools, export target/job tools, and Telegram publication history tools.
 - `crates/msm-media`: media profile foundation with source media kinds, Telegram static/video/thumbnail target profiles, prepared media specs, conversion plan selection, and shell-free ffmpeg command planning.
 - `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, protected API clients, PAT panel, pack CRUD controls, pack import UI, export target panel, export wizard, Telegram publication history panel, and export job timeline.
-- `crates/msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling, Bot API URL configuration, mockable sticker set create/append execution, and mockable sticker set mutation execution.
+- `crates/msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling, Bot API URL configuration, mockable sticker set create/append execution, mockable sticker set mutation execution, and remote sticker set metadata fetches.
 - `components.json`: Shadcn Vue configuration for the Web UI workspace.
 - `docs/status`: current state and development log.
 - `docs/status/implementation-matrix.md`: implemented-versus-planned feature truth source.
@@ -26,7 +26,7 @@
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.
 - Media probing through ffprobe.
-- Telegram remote state retrieval for reconciliation jobs.
+- Persisted per-sticker Telegram source ID mapping for automatic fetched-state reconciliation.
 
 Do not add cross-layer dependencies to `msm-domain`.
 For feature completion status, prefer `../status/implementation-matrix.md` over

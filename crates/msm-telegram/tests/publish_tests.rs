@@ -2,7 +2,8 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use msm_telegram::{
-    apply_sticker_set_mutations, publish_sticker_set, TelegramBotConfig, TelegramPublishRequest,
+    apply_sticker_set_mutations, fetch_sticker_set, publish_sticker_set, TelegramBotConfig,
+    TelegramFetchedSticker, TelegramFetchedStickerSet, TelegramPublishRequest,
     TelegramPublishSticker, TelegramPublishedSet, TelegramStickerSetApi,
     TelegramStickerSetMutation, TeloxideTelegramStickerSetApi,
 };
@@ -93,9 +94,45 @@ async fn apply_sticker_set_mutations_executes_remote_changes_in_order() {
     );
 }
 
+#[tokio::test]
+async fn fetch_sticker_set_returns_remote_state_through_api_boundary() {
+    let api = RecordingTelegramApi::with_remote_set(TelegramFetchedStickerSet {
+        sticker_set_name: "cats_by_msm_bot".to_owned(),
+        title: "Cats".to_owned(),
+        sticker_type: StickerType::Regular,
+        stickers: vec![TelegramFetchedSticker {
+            telegram_file_id: "tg_file".to_owned(),
+            telegram_file_unique_id: "tg_unique".to_owned(),
+            emoji: Some("🐱".to_owned()),
+            is_animated: false,
+            is_video: false,
+        }],
+    });
+
+    let remote = fetch_sticker_set(&api, "cats_by_msm_bot").await.unwrap();
+
+    assert_eq!(remote.sticker_set_name, "cats_by_msm_bot");
+    assert_eq!(remote.title, "Cats");
+    assert_eq!(remote.stickers[0].telegram_file_id, "tg_file");
+    assert_eq!(
+        api.calls.lock().unwrap().as_slice(),
+        ["fetch:cats_by_msm_bot"]
+    );
+}
+
 #[derive(Default)]
 struct RecordingTelegramApi {
     calls: Mutex<Vec<String>>,
+    remote_set: Mutex<Option<TelegramFetchedStickerSet>>,
+}
+
+impl RecordingTelegramApi {
+    fn with_remote_set(remote_set: TelegramFetchedStickerSet) -> Self {
+        Self {
+            calls: Mutex::new(Vec::new()),
+            remote_set: Mutex::new(Some(remote_set)),
+        }
+    }
 }
 
 #[async_trait]
@@ -168,6 +205,21 @@ impl TelegramStickerSetApi for RecordingTelegramApi {
             .unwrap()
             .push(format!("delete:{telegram_file_id}"));
         Ok(())
+    }
+
+    async fn get_sticker_set(
+        &self,
+        sticker_set_name: &str,
+    ) -> Result<TelegramFetchedStickerSet, msm_telegram::TelegramPublishError> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push(format!("fetch:{sticker_set_name}"));
+        self.remote_set.lock().unwrap().clone().ok_or_else(|| {
+            msm_telegram::TelegramPublishError::Api {
+                message: "missing remote set".to_owned(),
+            }
+        })
     }
 }
 

@@ -76,7 +76,10 @@ state and return reconciliation operation/mutation summaries. Non-dry-run
 append-missing reconciliation can execute supplied-state mutations only when
 `executeReconciliation` is explicitly enabled. Mirror-mode replace/delete also
 requires `allowDestructiveReconciliation` before mutation execution. Remote state
-retrieval still needs explicit no-network tests before being exposed.
+retrieval now exists in the Telegram boundary through a mockable `getStickerSet`
+adapter, but worker reconciliation still needs persisted per-sticker MSM source
+ID mapping before fetched Telegram stickers can be matched back to canonical MSM
+stickers.
 
 Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
 Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds
