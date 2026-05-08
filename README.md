@@ -25,10 +25,13 @@ npm run dev:stop
 ```
 
 The manager loads `.env.<name>` first and `.env.local` second for private local
-overrides. Logs and PID files are stored under `tmp/dev-manager/`. Tracked
-examples are provided as `.env.development.example` and `.env.testing.example`.
+overrides. PID files, stdout logs, stderr logs, and Windows wrapper files are
+stored under `tmp/dev-manager/`. Tracked examples are provided as
+`.env.development.example` and `.env.testing.example`.
 The Web dev process is launched through the local Vite binary, so the manager
-works from both `npm run ...` and `pnpm run ...` entrypoints.
+works from both `npm run ...` and `pnpm run ...` entrypoints. On Windows,
+services are started through hidden wrapper processes to avoid visible console
+windows for Rust/Vite child processes.
 
 Run the current baseline checks:
 

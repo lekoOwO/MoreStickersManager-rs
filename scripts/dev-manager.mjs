@@ -16,6 +16,7 @@ const SERVICES = {
     command: "cargo",
     args: ["run", "-p", "msm-app"],
     logFile: "api.log",
+    errLogFile: "api.err.log",
     pidFile: "api.pid",
   },
   web: {
@@ -24,9 +25,14 @@ const SERVICES = {
       path.join(ROOT, "node_modules", "vite", "bin", "vite.js"),
       "--host",
       "127.0.0.1",
+      "--port",
+      "5173",
+      "--strictPort",
     ],
     cwd: path.join(ROOT, "apps", "web"),
+    port: 5173,
     logFile: "web.log",
+    errLogFile: "web.err.log",
     pidFile: "web.pid",
   },
 };
@@ -212,6 +218,14 @@ function logPath(service) {
   return path.join(STATE_DIR, SERVICES[service].logFile);
 }
 
+function errLogPath(service) {
+  return path.join(STATE_DIR, SERVICES[service].errLogFile);
+}
+
+function wrapperPath(service) {
+  return path.join(STATE_DIR, `${service}.cmd`);
+}
+
 function readPid(service) {
   const file = pidPath(service);
   if (!fs.existsSync(file)) {
@@ -244,6 +258,105 @@ function spawnDetached(command, args, options) {
   return spawn(command, args, options);
 }
 
+function quoteBatchArg(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function quotePowerShellString(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function writeWindowsWrapper(service, config, logFile, errLogFile) {
+  const lines = [
+    "@echo off",
+    `cd /d ${quoteBatchArg(config.cwd ?? ROOT)}`,
+    [
+      quoteBatchArg(config.command),
+      ...config.args.map(quoteBatchArg),
+      `1>>${quoteBatchArg(logFile)}`,
+      `2>>${quoteBatchArg(errLogFile)}`,
+    ].join(" "),
+  ];
+  fs.writeFileSync(wrapperPath(service), `${lines.join(os.EOL)}${os.EOL}`);
+}
+
+function sleepSync(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function findListeningPid(port) {
+  const result = spawnSync("netstat.exe", ["-ano", "-p", "tcp"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    windowsHide: true,
+  });
+  if (result.status !== 0) {
+    return null;
+  }
+  const portSuffix = `:${port}`;
+  for (const line of result.stdout.split(/\r?\n/)) {
+    const columns = line.trim().split(/\s+/);
+    if (columns.length < 5 || columns[0] !== "TCP") {
+      continue;
+    }
+    const [, localAddress, , state, pid] = columns;
+    if (state === "LISTENING" && localAddress.endsWith(portSuffix)) {
+      const parsed = Number.parseInt(pid, 10);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+  }
+  return null;
+}
+
+function waitForListeningPid(port, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const pid = findListeningPid(port);
+    if (pid) {
+      return pid;
+    }
+    sleepSync(250);
+  }
+  return null;
+}
+
+function startWindowsHiddenProcess(service, config, values, logFile, errLogFile) {
+  writeWindowsWrapper(service, config, logFile, errLogFile);
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    [
+      "$process = Start-Process",
+      `-FilePath ${quotePowerShellString(wrapperPath(service))}`,
+      `-WorkingDirectory ${quotePowerShellString(config.cwd ?? ROOT)}`,
+      "-WindowStyle Hidden",
+      "-PassThru",
+    ].join(" "),
+    "[Console]::Out.WriteLine($process.Id)",
+  ].join("; ");
+  const launcher = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+    {
+      cwd: config.cwd ?? ROOT,
+      env: values,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    },
+  );
+  if (launcher.status !== 0) {
+    throw new Error(launcher.stderr.trim() || "Failed to start hidden Windows process");
+  }
+  const pid = Number.parseInt(launcher.stdout.trim(), 10);
+  if (!Number.isFinite(pid)) {
+    throw new Error(`Failed to read child PID from launcher output: ${launcher.stdout.trim()}`);
+  }
+  if (config.port) {
+    return waitForListeningPid(config.port) ?? pid;
+  }
+  return pid;
+}
+
 function startService(service) {
   ensureStateDir();
   const existingPid = readPid(service);
@@ -256,24 +369,32 @@ function startService(service) {
   const { envName, values } = loadEnv();
   ensureLocalRuntimePaths(values);
   const config = SERVICES[service];
-  const log = fs.openSync(logPath(service), "a");
-  let child;
-  try {
-    child = spawnDetached(config.command, config.args, {
-      cwd: config.cwd ?? ROOT,
-      env: values,
-      detached: true,
-      stdio: ["ignore", log, log],
-      windowsHide: true,
-    });
-  } finally {
-    fs.closeSync(log);
+  const serviceLogPath = logPath(service);
+  const serviceErrLogPath = errLogPath(service);
+  let pid;
+
+  if (process.platform === "win32") {
+    pid = startWindowsHiddenProcess(service, config, values, serviceLogPath, serviceErrLogPath);
+  } else {
+    const log = fs.openSync(serviceLogPath, "a");
+    let child;
+    try {
+      child = spawnDetached(config.command, config.args, {
+        cwd: config.cwd ?? ROOT,
+        env: values,
+        detached: true,
+        stdio: ["ignore", log, log],
+      });
+    } finally {
+      fs.closeSync(log);
+    }
+    child.unref();
+    pid = child.pid;
   }
 
-  child.unref();
-  fs.writeFileSync(pidPath(service), `${child.pid}${os.EOL}`);
+  fs.writeFileSync(pidPath(service), `${pid}${os.EOL}`);
   console.log(
-    `${service}: started pid ${child.pid} using ${envName} (${path.relative(ROOT, logPath(service))})`,
+    `${service}: started pid ${pid} using ${envName} (${path.relative(ROOT, serviceLogPath)}, ${path.relative(ROOT, serviceErrLogPath)})`,
   );
   return true;
 }
@@ -317,7 +438,7 @@ function status() {
       removePid(service);
     }
     console.log(
-      `${service}: ${running ? `running (pid ${pid})` : "stopped"} | log ${path.relative(ROOT, logPath(service))}`,
+      `${service}: ${running ? `running (pid ${pid})` : "stopped"} | log ${path.relative(ROOT, logPath(service))} | err ${path.relative(ROOT, errLogPath(service))}`,
     );
   }
 }

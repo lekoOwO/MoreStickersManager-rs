@@ -60,6 +60,8 @@ These checks prove:
 - npm shortcuts can start and stop both services through the same manager.
 - pnpm entrypoints can start and stop both services on Windows without `.cmd`
   spawn errors;
+- Windows service startup uses hidden wrappers instead of detached console
+  processes;
 - the API and Web dev servers are actually reachable over HTTP before claiming
   the environment is running.
 
