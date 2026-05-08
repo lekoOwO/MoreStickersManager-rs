@@ -67,14 +67,13 @@ export interface ExportJobEvent {
 
 export interface TelegramPublication {
   id: string;
-  tenantId: string;
-  sourcePackId: string;
+  packId: string;
   targetId: string;
+  jobId: string;
   stickerSetName: string;
-  stickerSetTitle: string;
   stickerSetUrl: string;
   stickerCount: number;
-  lastPublishedAt: string;
+  stickerType: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -32,9 +32,10 @@ Last completed:
 - Telegram publication API slice: added protected `GET /api/v1/telegram-publications?packId=...` and `GET /api/v1/telegram-publications/{publication_id}` routes with OpenAPI schemas, `export.read` enforcement, and pack ownership checks.
 - Telegram publication CLI slice: added `msm exports publications list --pack-id ...` and `msm exports publications get --publication-id ...` with human/JSON output.
 - Web export UX/publication history slice: reviewed the current frontend, kept the existing shell instead of a full rewrite, and added persisted Telegram publication history to the export wizard for the selected pack.
+- Telegram publication MCP slice: added `msm.list_telegram_publications` and `msm.get_telegram_publication` tools with `export.read` enforcement and pack ownership checks.
 
 Current task:
-- Continue from publication-history parity: API, CLI, and Web reads are now surfaced; next step is adding MCP read tools or defining Telegram remote reconciliation/update/delete behavior.
+- Continue from publication-history parity: API, CLI, MCP, and Web reads are now surfaced; next step is defining Telegram remote reconciliation/update/delete behavior or export job retry policy.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -65,9 +66,10 @@ Last verification:
 - Telegram publication API slice: `cargo fmt --all -- --check`; `cargo test -p msm-api --locked`; `cargo clippy -p msm-api --all-targets --locked -- -D warnings`; `git diff --check`.
 - Telegram publication CLI slice: `cargo fmt --all -- --check`; `cargo test -p msm-cli --locked`; `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`; `git diff --check`.
 - Web export UX/publication history slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `git diff --check`.
+- Telegram publication MCP slice: `cargo fmt --all -- --check`; `cargo test -p msm-mcp --locked`; `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `git diff --check`.
 
 Next step:
-- Add MCP read tools for Telegram publication history, then choose the first remote reconciliation/update/delete policy slice.
+- Choose the first remote reconciliation/update/delete policy slice or implement export job retry policy.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

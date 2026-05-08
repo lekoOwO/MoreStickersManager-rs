@@ -15,6 +15,8 @@ pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
 pub const CREATE_EXPORT_JOB: &str = "msm.create_export_job";
 pub const GET_EXPORT_JOB: &str = "msm.get_export_job";
 pub const LIST_EXPORT_JOB_EVENTS: &str = "msm.list_export_job_events";
+pub const LIST_TELEGRAM_PUBLICATIONS: &str = "msm.list_telegram_publications";
+pub const GET_TELEGRAM_PUBLICATION: &str = "msm.get_telegram_publication";
 
 #[must_use]
 pub fn list_tools_result() -> ListToolsResult {
@@ -31,6 +33,8 @@ pub fn list_tools_result() -> ListToolsResult {
             create_export_job_tool(),
             get_export_job_tool(),
             list_export_job_events_tool(),
+            list_telegram_publications_tool(),
+            get_telegram_publication_tool(),
         ],
     }
 }
@@ -259,6 +263,36 @@ fn list_export_job_events_tool() -> ToolDefinition {
     }
 }
 
+fn list_telegram_publications_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_TELEGRAM_PUBLICATIONS,
+        title: "List Telegram publications",
+        description: "List persisted Telegram sticker set publications for one source pack.",
+        input_schema: object_schema(
+            &json!({
+                "packId": { "type": "string" }
+            }),
+            &["packId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn get_telegram_publication_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: GET_TELEGRAM_PUBLICATION,
+        title: "Get Telegram publication",
+        description: "Read one persisted Telegram sticker set publication by ID.",
+        input_schema: object_schema(
+            &json!({
+                "publicationId": { "type": "string" }
+            }),
+            &["publicationId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
 fn object_schema(properties: &Value, required: &[&'static str]) -> Value {
     json!({
         "type": "object",
@@ -281,8 +315,9 @@ fn read_only_annotations() -> ToolAnnotations {
 mod tests {
     use crate::tools::{
         list_tools_result, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, DELETE_STICKER_PACK,
-        EXPORT_STICKER_PACK, GET_EXPORT_JOB, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
-        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_STICKER_PACKS, UPDATE_STICKER_PACK,
+        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK,
+        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_STICKER_PACKS,
+        LIST_TELEGRAM_PUBLICATIONS, UPDATE_STICKER_PACK,
     };
 
     #[test]
@@ -304,6 +339,8 @@ mod tests {
                 CREATE_EXPORT_JOB,
                 GET_EXPORT_JOB,
                 LIST_EXPORT_JOB_EVENTS,
+                LIST_TELEGRAM_PUBLICATIONS,
+                GET_TELEGRAM_PUBLICATION,
             ]
         );
     }

@@ -9,7 +9,7 @@ MSM is built as a Rust workspace. The domain crate owns MoreStickers compatibili
 - `msm-storage`: database repositories, asset storage, and export job persistence, added across P2/P12/P18/P21/Task 3.
 - `msm-api`: HTTP API and OpenAPI, added in P4 and extended with export target/job routes in Task 8.
 - `msm-cli`: command-line client, added in P5 and extended with export target/job commands in Task 10.
-- `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11 and extended with export target/job tools in Task 10.
+- `msm-mcp`: MCP JSON-RPC endpoint and tool execution, added in P11 and extended with export target/job and Telegram publication history tools.
 - `msm-providers`: provider registry and provider-specific normalization into `MoreStickers` packs, added in P6.
 - `msm-media`: media profile and command planning foundation added in P25; media probing remains planned.
 - `msm-exporters`: export target trait, registry, MoreStickers export adapter, and Telegram export planner added in Tasks 4-7; future output targets remain planned.

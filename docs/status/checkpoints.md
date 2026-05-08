@@ -429,3 +429,12 @@
 - Added Traditional Chinese and English labels for loading, empty, error, refresh, and publication metadata states.
 - Added Web tests for API URL construction, Bearer auth forwarding, and wizard history rendering.
 - Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.
+
+## 2026-05-08 Telegram Publication MCP Tools
+
+- Added `msm.list_telegram_publications` and `msm.get_telegram_publication` to MCP `tools/list`.
+- Added MCP tool execution for persisted Telegram publication history.
+- Enforced `export.read` and source pack ownership before returning publication records.
+- Corrected the Web publication DTO to match the API/MCP storage shape (`packId`, `jobId`, `stickerType`, `updatedAt`).
+- Added MCP tests for list/get behavior and missing `export.read` rejection.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.

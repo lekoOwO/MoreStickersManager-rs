@@ -261,14 +261,13 @@ describe("export UI", () => {
       listTelegramPublications: vi.fn(async () => [
         {
           id: "telegram_pub_1",
-          tenantId: "tenant_1",
-          sourcePackId: "pack_1",
+          packId: "pack_1",
           targetId: "target_telegram",
+          jobId: "job_1",
           stickerSetName: "sample_pack_by_msm_bot",
-          stickerSetTitle: "Sample Pack",
           stickerSetUrl: "https://t.me/addstickers/sample_pack_by_msm_bot",
           stickerCount: 2,
-          lastPublishedAt: "2026-05-08T00:00:00Z",
+          stickerType: "regular",
           createdAt: "2026-05-08T00:00:00Z",
           updatedAt: "2026-05-08T00:00:00Z",
         },

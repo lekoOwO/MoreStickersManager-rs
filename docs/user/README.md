@@ -118,9 +118,8 @@ with options containing `"dryRun": false` and use a Telegram target config that
 contains `botToken`, `botUsername`, and `ownerUserId`.
 
 Export target/job API endpoints and CLI commands now exist for queueing export
-jobs and reading their status/events. CLI commands and Web UI controls can also
-read persisted Telegram publication history. MCP tools are available for export
-targets and jobs; publication-history MCP tools remain future work.
+jobs and reading their status/events. CLI commands, MCP tools, and Web UI
+controls can also read persisted Telegram publication history.
 
 Telegram publication history API endpoints are available for completed
 non-dry-run publication records:
@@ -182,6 +181,8 @@ Export MCP tools:
 - `msm.create_export_job`
 - `msm.get_export_job`
 - `msm.list_export_job_events`
+- `msm.list_telegram_publications`
+- `msm.get_telegram_publication`
 
 PAT foundation status:
 
@@ -223,7 +224,8 @@ PAT enforcement status:
   MCP tools.
 - `pack.delete` is required for pack delete API routes and MCP tools.
 - `import.run` is required for pack import API routes and MCP tools.
-- `export.read` is required for export target/job read API routes and MCP tools.
+- `export.read` is required for export target/job/publication read API routes
+  and MCP tools.
 - `export.run` is required for export job creation API routes and MCP tools.
 - `export.target.manage` is required for export target management API routes and
   MCP tools.

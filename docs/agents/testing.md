@@ -606,6 +606,7 @@ These tests prove:
 - export target creation requires `export.target.manage` and redacts token-like response config fields;
 - export job creation requires `export.run`, validates source pack ownership, and stores queued job requests;
 - export job event reads require `export.read` and return ordered event metadata.
+- Telegram publication list/get tools require `export.read`, validate source pack ownership, and return persisted sticker set links.
 
 ## Web Export Workflow Tests
 

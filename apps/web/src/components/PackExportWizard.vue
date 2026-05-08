@@ -230,7 +230,7 @@ function exportClient() {
                   {{ publication.stickerSetName }}
                 </a>
                 <p class="mt-1 text-muted-foreground">
-                  {{ labels.lastPublished }} {{ publication.lastPublishedAt.split("T")[0] }}
+                  {{ labels.lastPublished }} {{ publication.updatedAt.split("T")[0] }}
                 </p>
               </div>
               <Badge variant="outline">{{ publication.stickerCount }} {{ labels.publicationStickers }}</Badge>

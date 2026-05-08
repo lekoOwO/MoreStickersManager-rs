@@ -14,7 +14,7 @@ use msm_exporters::{
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, NewExportJob, NewExportTarget,
-    PackVisibility,
+    PackVisibility, TelegramPublicationRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -24,8 +24,9 @@ use crate::{
     tools::{
         execution_error_result, list_tools_result, success_result, CREATE_EXPORT_JOB,
         CREATE_EXPORT_TARGET, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
-        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
-        LIST_STICKER_PACKS, UPDATE_STICKER_PACK,
+        GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
+        LIST_EXPORT_TARGET_KINDS, LIST_STICKER_PACKS, LIST_TELEGRAM_PUBLICATIONS,
+        UPDATE_STICKER_PACK,
     },
 };
 
@@ -87,6 +88,8 @@ async fn call_tool(
         CREATE_EXPORT_JOB => create_export_job(&state, headers, arguments).await,
         GET_EXPORT_JOB => get_export_job(&state, headers, arguments).await,
         LIST_EXPORT_JOB_EVENTS => list_export_job_events(&state, headers, arguments).await,
+        LIST_TELEGRAM_PUBLICATIONS => list_telegram_publications(&state, headers, arguments).await,
+        GET_TELEGRAM_PUBLICATION => get_telegram_publication(&state, headers, arguments).await,
         _ => Err("Unknown tool".to_owned()),
     };
 
@@ -384,6 +387,55 @@ async fn list_export_job_events(
     ))
 }
 
+async fn list_telegram_publications(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ListTelegramPublicationsArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ExportRead).await?;
+    let _pack = load_owned_pack_record(state, &args.pack_id, &pat.user_id).await?;
+    let publications = state
+        .repository()
+        .list_telegram_publications_for_pack(&args.pack_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .map(|publication| telegram_publication_value(&publication))
+        .collect::<Vec<_>>();
+
+    Ok(success_result(
+        format!("Found {} Telegram publication(s).", publications.len()),
+        json!({ "publications": publications }),
+    ))
+}
+
+async fn get_telegram_publication(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<GetTelegramPublicationArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ExportRead).await?;
+    let publication = state
+        .repository()
+        .find_telegram_publication(&args.publication_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| {
+            format!(
+                "Telegram publication `{}` was not found.",
+                args.publication_id
+            )
+        })?;
+    let _pack = load_owned_pack_record(state, &publication.pack_id, &pat.user_id).await?;
+
+    Ok(success_result(
+        format!("Read Telegram publication `{}`.", args.publication_id),
+        json!({ "publication": telegram_publication_value(&publication) }),
+    ))
+}
+
 async fn require_tool_pat(
     state: &ApiState,
     headers: &HeaderMap,
@@ -506,6 +558,21 @@ fn export_job_event_value(record: &ExportJobEventRecord) -> Result<Value, String
     }))
 }
 
+fn telegram_publication_value(record: &TelegramPublicationRecord) -> Value {
+    json!({
+        "id": record.id,
+        "packId": record.pack_id,
+        "targetId": record.target_id,
+        "jobId": record.job_id,
+        "stickerSetName": record.sticker_set_name,
+        "stickerSetUrl": record.sticker_set_url,
+        "stickerCount": record.sticker_count,
+        "stickerType": record.sticker_type,
+        "createdAt": record.created_at,
+        "updatedAt": record.updated_at
+    })
+}
+
 async fn load_owned_export_job(
     state: &ApiState,
     job_id: &str,
@@ -521,6 +588,24 @@ async fn load_owned_export_job(
         Ok(job)
     } else {
         Err("PAT user does not own the export job".to_owned())
+    }
+}
+
+async fn load_owned_pack_record(
+    state: &ApiState,
+    pack_id: &str,
+    user_id: &str,
+) -> Result<msm_storage::models::StickerPackRecord, String> {
+    let pack = state
+        .repository()
+        .find_sticker_pack_record(pack_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Sticker pack `{pack_id}` was not found."))?;
+    if pack.owner_user_id == user_id {
+        Ok(pack)
+    } else {
+        Err("PAT user does not own the source pack".to_owned())
     }
 }
 
@@ -640,6 +725,18 @@ struct CreateExportJobRequest {
 #[serde(rename_all = "camelCase")]
 struct ExportJobArgs {
     job_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ListTelegramPublicationsArgs {
+    pack_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetTelegramPublicationArgs {
+    publication_id: String,
 }
 
 struct ErrorTemplate(i64, String);

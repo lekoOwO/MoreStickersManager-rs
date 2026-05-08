@@ -25,7 +25,7 @@ mod tests {
 
     use msm_domain::{Permission, Sticker};
     use msm_storage::{
-        models::{NewExportJobEvent, NewExportTarget},
+        models::{NewExportJobEvent, NewExportTarget, NewTelegramPublication},
         DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
     };
     use serde_json::{json, Value};
@@ -67,12 +67,20 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 11);
+        assert_eq!(tools.len(), 13);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools
             .iter()
             .any(|tool| tool["name"] == "msm.create_export_job"
                 && tool["inputSchema"]["required"].as_array().unwrap().len() == 5));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.list_telegram_publications"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.get_telegram_publication"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
     }
 
     #[tokio::test]
@@ -360,6 +368,79 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn tools_call_reads_telegram_publications() {
+        let state = seeded_state_with_publication().await;
+        let token = create_pat(&state, "exportread", "user_1", [Permission::ExportRead]).await;
+        let list_response = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_telegram_publications",
+                    "arguments": { "packId": "pack_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(list_response["result"]["isError"], false);
+        assert_eq!(
+            list_response["result"]["structuredContent"]["publications"][0]["stickerSetUrl"],
+            "https://t.me/addstickers/sample_by_msm_bot"
+        );
+
+        let get_response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.get_telegram_publication",
+                    "arguments": { "publicationId": "telegram_pub_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(get_response["result"]["isError"], false);
+        assert_eq!(
+            get_response["result"]["structuredContent"]["publication"]["stickerSetName"],
+            "sample_by_msm_bot"
+        );
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_telegram_publications_require_export_read() {
+        let state = seeded_state_with_publication().await;
+        let token = create_pat(&state, "packread", "user_1", [Permission::PackRead]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_telegram_publications",
+                    "arguments": { "packId": "pack_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], true);
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("export.read"));
+    }
+
+    #[tokio::test]
     async fn pat_enforcement_export_job_requires_export_run() {
         let state = seeded_state_with_export_target().await;
         let token = create_pat(&state, "exportread", "user_1", [Permission::ExportRead]).await;
@@ -607,6 +688,25 @@ mod tests {
                 stage: "queued",
                 message: "job queued",
                 metadata_json: "{}",
+            })
+            .await
+            .unwrap();
+        state
+    }
+
+    async fn seeded_state_with_publication() -> msm_api::ApiState {
+        let state = seeded_state_with_export_job().await;
+        state
+            .repository()
+            .upsert_telegram_publication(NewTelegramPublication {
+                id: "telegram_pub_1",
+                pack_id: "pack_1",
+                target_id: "target_morestickers",
+                job_id: "job_1",
+                sticker_set_name: "sample_by_msm_bot",
+                sticker_set_url: "https://t.me/addstickers/sample_by_msm_bot",
+                sticker_count: 1,
+                sticker_type: "regular",
             })
             .await
             .unwrap();
