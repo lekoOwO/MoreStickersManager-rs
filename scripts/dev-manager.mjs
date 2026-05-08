@@ -10,6 +10,28 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const STATE_DIR = path.join(ROOT, "tmp", "dev-manager");
 const CURRENT_ENV_FILE = path.join(STATE_DIR, "current-env");
 const DEFAULT_ENV = "development";
+const LOCAL_ENV_FILE = path.join(ROOT, ".env.local");
+const LOCAL_ENV_BOOTSTRAP_START = "# MSM dev-manager bootstrap start";
+const LOCAL_ENV_BOOTSTRAP_END = "# MSM dev-manager bootstrap end";
+const DEFAULT_DEV_SCOPES = [
+  "pack.create",
+  "pack.read",
+  "pack.update",
+  "pack.delete",
+  "pack.manage_access",
+  "asset.read",
+  "subscription.create",
+  "subscription.read",
+  "subscription.update",
+  "subscription.delete",
+  "subscription.manage_access",
+  "provider.import",
+  "export.read",
+  "export.run",
+  "export.target.manage",
+  "import.run",
+  "pat.manage",
+];
 
 const SERVICES = {
   api: {
@@ -205,7 +227,7 @@ function loadEnv() {
     values: {
       ...process.env,
       ...parseEnvFile(envPath),
-      ...parseEnvFile(path.join(ROOT, ".env.local")),
+      ...parseEnvFile(LOCAL_ENV_FILE),
     },
   };
 }
@@ -318,6 +340,224 @@ function waitForListeningPid(port, timeoutMs = 10_000) {
     sleepSync(250);
   }
   return null;
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+function truthyEnv(value) {
+  if (value === undefined || value === null || value === "") {
+    return false;
+  }
+  return !["0", "false", "no", "off"].includes(String(value).toLowerCase());
+}
+
+function splitScopes(value) {
+  if (!value?.trim()) {
+    return DEFAULT_DEV_SCOPES;
+  }
+  return value
+    .split(/[,\s]+/)
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+}
+
+function apiBaseUrl(values) {
+  if (values.VITE_MSM_API_BASE_URL) {
+    return values.VITE_MSM_API_BASE_URL.replace(/\/+$/, "");
+  }
+  const bindAddr = values.MSM_BIND_ADDR ?? "127.0.0.1:3000";
+  return `http://${bindAddr}`.replace(/\/+$/, "");
+}
+
+async function waitForApiHealth(baseUrl, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = "";
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${baseUrl}/healthz`);
+      if (response.ok) {
+        return;
+      }
+      lastError = `HTTP ${response.status}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await sleep(500);
+  }
+  throw new Error(`API did not become healthy at ${baseUrl}/healthz: ${lastError}`);
+}
+
+async function requestJson(baseUrl, pathName, options = {}) {
+  const headers = {
+    Accept: "application/json",
+    ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+    ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+  };
+  const response = await fetch(`${baseUrl}${pathName}`, {
+    method: options.method ?? "GET",
+    headers,
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  const text = await response.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+  return { ok: response.ok, status: response.status, data };
+}
+
+async function verifyPat(baseUrl, userId, token) {
+  if (!token) {
+    return false;
+  }
+  const response = await requestJson(
+    baseUrl,
+    `/api/v1/packs?userId=${encodeURIComponent(userId)}`,
+    { token },
+  );
+  return response.ok;
+}
+
+function updateLocalEnvBootstrap(values) {
+  const managedBlock = [
+    LOCAL_ENV_BOOTSTRAP_START,
+    "# This block is maintained by scripts/dev-manager.mjs for local development.",
+    `VITE_MSM_PAT=${values.VITE_MSM_PAT}`,
+    LOCAL_ENV_BOOTSTRAP_END,
+    "",
+  ].join(os.EOL);
+  const existing = fs.existsSync(LOCAL_ENV_FILE) ? fs.readFileSync(LOCAL_ENV_FILE, "utf8") : "";
+  const pattern = new RegExp(
+    `${LOCAL_ENV_BOOTSTRAP_START}[\\s\\S]*?${LOCAL_ENV_BOOTSTRAP_END}\\r?\\n?`,
+    "m",
+  );
+  const next = pattern.test(existing)
+    ? existing.replace(pattern, managedBlock)
+    : `${existing.trimEnd()}${existing.trimEnd() ? os.EOL.repeat(2) : ""}${managedBlock}`;
+  fs.writeFileSync(LOCAL_ENV_FILE, next);
+}
+
+function devPackPayload() {
+  const packId = "MoreStickers:Telegram:Pack:dev_cats";
+  const sticker = {
+    id: "MoreStickers:Telegram:Sticker:dev_cats:cat_1",
+    image: "https://msm.example/assets/dev/cat_1.webp",
+    title: "Development Cat",
+    stickerPackId: packId,
+    filename: "cat_1.webp",
+    isAnimated: false,
+  };
+  return {
+    id: packId,
+    title: "Development Cats",
+    author: {
+      name: "MSM Development",
+    },
+    logo: sticker,
+    stickers: [sticker],
+  };
+}
+
+async function importDevSamplePack(baseUrl, values, token) {
+  if (!truthyEnv(values.MSM_DEV_SAMPLE_PACK_ENABLED)) {
+    return;
+  }
+  const tenantId = values.MSM_DEV_TENANT_ID ?? "tenant_1";
+  const userId = values.MSM_DEV_USER_ID ?? values.VITE_MSM_USER_ID ?? "user_1";
+  const pack = devPackPayload();
+  const response = await requestJson(baseUrl, "/api/v1/packs/import", {
+    method: "POST",
+    token,
+    body: {
+      tenantId,
+      ownerUserId: userId,
+      packId: pack.id,
+      visibility: "public",
+      pack,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Failed to import dev sample pack: HTTP ${response.status} ${JSON.stringify(response.data)}`,
+    );
+  }
+}
+
+async function registerDevUser(baseUrl, values) {
+  const response = await requestJson(baseUrl, "/api/v1/auth/local/register", {
+    method: "POST",
+    body: {
+      id: values.MSM_DEV_USER_ID ?? values.VITE_MSM_USER_ID ?? "user_1",
+      email: values.MSM_DEV_USER_EMAIL ?? "dev@msm.local",
+      displayName: values.MSM_DEV_USER_DISPLAY_NAME ?? "MSM Developer",
+      password: values.MSM_DEV_USER_PASSWORD ?? "dev-password",
+      tenantId: values.MSM_DEV_TENANT_ID ?? "tenant_1",
+      tenantName: values.MSM_DEV_TENANT_NAME ?? "MSM Development",
+      tenantRole: values.MSM_DEV_TENANT_ROLE ?? "admin",
+    },
+  });
+  if (response.ok || response.status === 409) {
+    return;
+  }
+  const message = typeof response.data === "string" ? response.data : JSON.stringify(response.data);
+  if (response.status >= 400 && message?.toLowerCase().includes("unique")) {
+    return;
+  }
+  throw new Error(`Failed to register dev user: HTTP ${response.status} ${message}`);
+}
+
+async function createDevPat(baseUrl, values) {
+  const userId = values.MSM_DEV_USER_ID ?? values.VITE_MSM_USER_ID ?? "user_1";
+  const tokenIdPrefix = (values.MSM_DEV_PAT_ID_PREFIX ?? "dev-web").replace(/_+/g, "-");
+  const response = await requestJson(baseUrl, "/api/v1/pats", {
+    method: "POST",
+    body: {
+      id: `${tokenIdPrefix}-${Date.now()}`,
+      userId,
+      name: values.MSM_DEV_PAT_NAME ?? "Development Web UI",
+      scopes: splitScopes(values.MSM_DEV_PAT_SCOPES),
+      expiresAt: null,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Failed to create dev PAT: HTTP ${response.status} ${JSON.stringify(response.data)}`,
+    );
+  }
+  if (!response.data?.token) {
+    throw new Error("PAT creation response did not include a token");
+  }
+  return response.data.token;
+}
+
+async function bootstrapDevEnvironment() {
+  const { envName, values } = loadEnv();
+  if (!truthyEnv(values.MSM_DEV_BOOTSTRAP_ENABLED)) {
+    return;
+  }
+  const baseUrl = apiBaseUrl(values);
+  const userId = values.MSM_DEV_USER_ID ?? values.VITE_MSM_USER_ID ?? "user_1";
+  await waitForApiHealth(baseUrl);
+
+  if (await verifyPat(baseUrl, userId, values.VITE_MSM_PAT)) {
+    console.log(`dev bootstrap: existing VITE_MSM_PAT is valid for ${envName}`);
+    return;
+  }
+
+  await registerDevUser(baseUrl, values);
+  const token = await createDevPat(baseUrl, values);
+  updateLocalEnvBootstrap({ VITE_MSM_PAT: token });
+  process.env.VITE_MSM_PAT = token;
+  await importDevSamplePack(baseUrl, { ...values, VITE_MSM_PAT: token }, token);
+  console.log(`dev bootstrap: wrote VITE_MSM_PAT to ${path.relative(ROOT, LOCAL_ENV_FILE)}`);
 }
 
 function startWindowsHiddenProcess(service, config, values, logFile, errLogFile) {
@@ -493,10 +733,14 @@ async function main() {
     }
     if (command === "start") {
       const started = [];
-      for (const service of normalizeTarget(targetOrAction)) {
+      const services = normalizeTarget(targetOrAction);
+      for (const service of services) {
         try {
           if (startService(service)) {
             started.push(service);
+          }
+          if (service === "api") {
+            await bootstrapDevEnvironment();
           }
         } catch (error) {
           for (const startedService of started.reverse()) {
@@ -514,9 +758,13 @@ async function main() {
       return;
     }
     if (command === "restart") {
-      for (const service of normalizeTarget(targetOrAction)) {
+      const services = normalizeTarget(targetOrAction);
+      for (const service of services) {
         stopService(service);
         startService(service);
+        if (service === "api") {
+          await bootstrapDevEnvironment();
+        }
       }
       return;
     }

@@ -62,6 +62,13 @@ manager launches the local Vite binary directly instead of depending on
 package-manager argument forwarding. On Windows, services are launched through
 hidden wrappers so Rust/Vite child processes do not open visible console
 windows.
+The default `development` profile also bootstraps a usable local environment:
+after the API reports healthy, the manager registers or reuses the dev account,
+creates a fresh PAT, writes `VITE_MSM_PAT` into a managed block in `.env.local`,
+imports a small sample pack, and then starts Vite. This makes the Web UI use
+the live API immediately instead of starting against an unauthenticated empty
+server. Set `MSM_DEV_BOOTSTRAP_ENABLED=false` in the active `.env.<name>` file
+to opt out. The `testing` example keeps bootstrap disabled by default.
 
 The Web UI can run against mock data or the current API. It uses a wide desktop
 workspace, Ant Design-inspired blue/gray theme tokens, workspace tabs, and
@@ -74,12 +81,14 @@ when the export API is available. The export wizard also shows persisted
 Telegram publication history for the selected pack, including completed sticker
 set links from prior non-dry-run jobs.
 
-To point the dashboard at the current pack-list API:
+With the default development profile, `npm run dev:start` points the dashboard
+at the local API and seeds `VITE_MSM_PAT` automatically. To override the live API
+connection manually:
 
 ```powershell
 $env:VITE_MSM_API_BASE_URL="http://localhost:3000"
 $env:VITE_MSM_USER_ID="user_1"
-$env:VITE_MSM_PAT="msm_pat_cli1_secret"
+$env:VITE_MSM_PAT="<raw-pat>"
 npm run web:dev
 ```
 

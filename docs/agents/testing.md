@@ -42,6 +42,8 @@ node scripts/dev-manager.mjs stop
 pnpm run dev:start
 pnpm run dev:status
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz
+$token = (Select-String -Path .env.local -Pattern '^VITE_MSM_PAT=').Line.Split('=', 2)[1]
+Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:3000/api/v1/packs?userId=user_1" -Headers @{ Authorization = "Bearer $token" }
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173
 pnpm run dev:stop
 npm run dev:start
@@ -62,6 +64,8 @@ These checks prove:
   spawn errors;
 - Windows service startup uses hidden wrappers instead of detached console
   processes;
+- the development profile bootstraps a usable API account, PAT, and sample pack
+  before Vite starts;
 - the API and Web dev servers are actually reachable over HTTP before claiming
   the environment is running.
 

@@ -28,6 +28,11 @@ The manager loads `.env.<name>` first and `.env.local` second for private local
 overrides. PID files, stdout logs, stderr logs, and Windows wrapper files are
 stored under `tmp/dev-manager/`. Tracked examples are provided as
 `.env.development.example` and `.env.testing.example`.
+The `development` profile enables dev bootstrap by default: after the API is
+healthy, the manager creates or reuses the local dev account, creates a PAT,
+writes `VITE_MSM_PAT` into a managed `.env.local` block, imports a small sample
+pack, and only then starts the Web process so Vite receives a usable API token.
+Set `MSM_DEV_BOOTSTRAP_ENABLED=false` to disable this behavior.
 The Web dev process is launched through the local Vite binary, so the manager
 works from both `npm run ...` and `pnpm run ...` entrypoints. On Windows,
 services are started through hidden wrapper processes to avoid visible console
@@ -153,12 +158,15 @@ rename packs, change public/private visibility, and delete packs when
 scopes. It can also import a pasted MoreStickers `.stickerpack` JSON export
 when the stored PAT has `import.run`.
 
-To connect the dashboard to the current P4 API list route, set:
+With the default development profile, `npm run dev:start` automatically points
+the dashboard at `http://127.0.0.1:3000`, writes a development PAT to
+`.env.local`, and imports a small sample sticker pack. To override those values
+manually, set:
 
 ```powershell
 $env:VITE_MSM_API_BASE_URL="http://localhost:3000"
 $env:VITE_MSM_USER_ID="user_1"
-$env:VITE_MSM_PAT="msm_pat_cli1_secret"
+$env:VITE_MSM_PAT="<raw-pat>"
 npm run web:dev
 ```
 

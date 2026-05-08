@@ -543,3 +543,11 @@
 - Reworked pack management into a metrics strip, tabbed workspace, table-style pack rows, and a dialog for `.stickerpack` import.
 - Kept the existing API client boundaries and injected-client tests for pack CRUD, import, export targets, export jobs, and Telegram publication history.
 - Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `pnpm run dev:start`, API/Web HTTP smoke checks, and `pnpm run dev:stop`.
+
+## 2026-05-08 Development Bootstrap Usability
+
+- Added `MSM_DEV_BOOTSTRAP_ENABLED` flow to the development manager.
+- The manager now waits for API health, registers or reuses the local dev account, creates a fresh PAT, writes `VITE_MSM_PAT` into a managed `.env.local` block, and imports a small sample pack before starting Web.
+- Updated development/testing env examples so development bootstraps by default and testing remains isolated by default.
+- Documented the bootstrap behavior in README, user docs, agent docs, project map, testing guide, implementation matrix, and current status.
+- Verified with `node --check scripts/dev-manager.mjs`, `pnpm run dev:stop`, `node scripts/dev-manager.mjs env use development`, `pnpm run dev:start`, `pnpm run dev:status`, `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`, PAT-authenticated `GET /api/v1/packs?userId=user_1`, `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173`, `pnpm run dev:stop`, repeated `pnpm run dev:start` with an existing valid PAT, repeated `pnpm run dev:stop`, and `git diff --check`.
