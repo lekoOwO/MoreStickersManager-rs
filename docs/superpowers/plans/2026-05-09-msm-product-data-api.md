@@ -98,7 +98,7 @@ Result: passed with `cargo fmt --all -- --check`,
 - Modify: `crates/msm-api/src/lib.rs`
 - Modify: `crates/msm-api/src/openapi.rs`
 
-- [ ] **Step 1: Write failing API tests**
+- [x] **Step 1: Write failing API tests**
 
 Add tests for:
 
@@ -121,7 +121,7 @@ async fn metadata_routes_manage_folders_tags_and_subscriptions() {
 }
 ```
 
-- [ ] **Step 2: Run the failing API tests**
+- [x] **Step 2: Run the failing API tests**
 
 Run:
 
@@ -129,9 +129,9 @@ Run:
 cargo test -p msm-api metadata_routes_manage_folders_tags_and_subscriptions --locked
 ```
 
-Expected: fail because routes are not mounted.
+Result: failed with `404` because routes were not mounted.
 
-- [ ] **Step 3: Implement API route module**
+- [x] **Step 3: Implement API route module**
 
 Use existing PAT helpers:
 
@@ -140,11 +140,11 @@ Use existing PAT helpers:
 - subscription group list requires `subscription.read`;
 - all routes must verify tenant/user ownership through query/body fields.
 
-- [ ] **Step 4: Register OpenAPI**
+- [x] **Step 4: Register OpenAPI**
 
 Register paths and DTO schemas in `crates/msm-api/src/openapi.rs`. Add a test asserting `/api/v1/folders`, `/api/v1/tags`, and `/api/v1/subscription-groups` exist in `/openapi.json`.
 
-- [ ] **Step 5: Verify API**
+- [x] **Step 5: Verify API**
 
 Run:
 
@@ -154,7 +154,10 @@ cargo test -p msm-api --locked
 cargo clippy -p msm-api --all-targets --locked -- -D warnings
 ```
 
-Expected: all pass.
+Result: passed with `cargo fmt --all -- --check`,
+`cargo test -p msm-storage -p msm-api --locked`,
+`cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`,
+and `git diff --check`.
 
 ## Task 3: Status And Handoff Documentation
 

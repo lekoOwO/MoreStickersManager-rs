@@ -693,3 +693,19 @@
   `cargo test -p msm-storage --locked`,
   `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and
   `git diff --check`.
+
+## 2026-05-09 Product Data API Routes
+
+- Added folder create/list DTOs, protected API routes, and OpenAPI schemas.
+- Added tag create/list DTOs, protected API routes, and OpenAPI schemas.
+- Added subscription group create/list DTOs, protected API routes, and OpenAPI
+  schemas.
+- Mounted `/api/v1/folders`, `/api/v1/tags`, and
+  `/api/v1/subscription-groups`.
+- Added API tests for product metadata routes and OpenAPI path registration.
+- Updated user docs, product-data implementation plan, roadmap, implementation
+  matrix, and current status.
+- Verified with `cargo fmt --all -- --check`,
+  `cargo test -p msm-storage -p msm-api --locked`,
+  `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`,
+  and `git diff --check`.

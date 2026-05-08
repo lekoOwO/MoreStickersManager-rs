@@ -15,7 +15,7 @@ pub struct UpdatePackRequest {
     pub visibility: PackVisibilityDto,
 }
 
-#[derive(Clone, Copy, Debug, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum PackVisibilityDto {
     Public,
@@ -32,6 +32,86 @@ pub struct HealthResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ListPacksQuery {
     pub user_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
+pub struct ListFoldersQuery {
+    pub tenant_id: String,
+    pub owner_user_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateFolderRequest {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub name: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub name: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
+pub struct ListTagsQuery {
+    pub tenant_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTagRequest {
+    pub id: String,
+    pub tenant_id: String,
+    pub name: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TagResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub name: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
+pub struct ListSubscriptionGroupsQuery {
+    pub tenant_id: String,
+    pub owner_user_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSubscriptionGroupRequest {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub title: String,
+    pub visibility: PackVisibilityDto,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionGroupResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub title: String,
+    pub visibility: PackVisibilityDto,
+    pub created_at: String,
 }
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
@@ -257,6 +337,51 @@ impl From<PackVisibilityDto> for msm_storage::models::PackVisibility {
         match value {
             PackVisibilityDto::Public => Self::Public,
             PackVisibilityDto::Private => Self::Private,
+        }
+    }
+}
+
+impl From<msm_storage::models::PackVisibility> for PackVisibilityDto {
+    fn from(value: msm_storage::models::PackVisibility) -> Self {
+        match value {
+            msm_storage::models::PackVisibility::Public => Self::Public,
+            msm_storage::models::PackVisibility::Private => Self::Private,
+        }
+    }
+}
+
+impl From<msm_storage::models::FolderRecord> for FolderResponse {
+    fn from(record: msm_storage::models::FolderRecord) -> Self {
+        Self {
+            id: record.id,
+            tenant_id: record.tenant_id,
+            owner_user_id: record.owner_user_id,
+            name: record.name,
+            created_at: record.created_at.to_rfc3339(),
+        }
+    }
+}
+
+impl From<msm_storage::models::TagRecord> for TagResponse {
+    fn from(record: msm_storage::models::TagRecord) -> Self {
+        Self {
+            id: record.id,
+            tenant_id: record.tenant_id,
+            name: record.name,
+            created_at: record.created_at.to_rfc3339(),
+        }
+    }
+}
+
+impl From<msm_storage::models::SubscriptionGroupRecord> for SubscriptionGroupResponse {
+    fn from(record: msm_storage::models::SubscriptionGroupRecord) -> Self {
+        Self {
+            id: record.id,
+            tenant_id: record.tenant_id,
+            owner_user_id: record.owner_user_id,
+            title: record.title,
+            visibility: record.visibility.into(),
+            created_at: record.created_at.to_rfc3339(),
         }
     }
 }

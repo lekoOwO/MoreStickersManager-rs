@@ -40,12 +40,15 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Destructive mirror operation now has a user-facing runbook.
 - Product-data storage repository primitives now exist for folders, tags, and
   subscription group metadata.
+- Product-data API routes and OpenAPI schemas now exist for folder, tag, and
+  subscription group create/list workflows.
 
 ## Immediate Plan
 
-1. Add product-data API routes and OpenAPI schemas for folder, tag, and
-   subscription-group metadata.
-2. Run targeted Rust/Web verification and update this roadmap, current status,
+1. Add CLI/MCP surfaces or Web management UI for folder, tag, and subscription
+   group metadata.
+2. Continue pack access-management API design beyond basic visibility.
+3. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 
 ## Later Planned Work

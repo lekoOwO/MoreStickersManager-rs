@@ -42,6 +42,19 @@ pub fn build_router(state: ApiState) -> Router {
             get(routes::packs::export_pack),
         )
         .route(
+            "/api/v1/folders",
+            get(routes::metadata::list_folders).post(routes::metadata::create_folder),
+        )
+        .route(
+            "/api/v1/tags",
+            get(routes::metadata::list_tags).post(routes::metadata::create_tag),
+        )
+        .route(
+            "/api/v1/subscription-groups",
+            get(routes::metadata::list_subscription_groups)
+                .post(routes::metadata::create_subscription_group),
+        )
+        .route(
             "/api/v1/export-target-kinds",
             get(routes::exports::list_target_kinds),
         )
@@ -141,6 +154,9 @@ mod tests {
         assert!(json["paths"].get("/api/v1/export-target-kinds").is_some());
         assert!(json["paths"].get("/api/v1/export-targets").is_some());
         assert!(json["paths"].get("/api/v1/export-jobs").is_some());
+        assert!(json["paths"].get("/api/v1/folders").is_some());
+        assert!(json["paths"].get("/api/v1/tags").is_some());
+        assert!(json["paths"].get("/api/v1/subscription-groups").is_some());
         assert!(json["paths"].get("/api/v1/telegram-publications").is_some());
         assert!(json["paths"]
             .get("/api/v1/telegram-publications/{publication_id}")
@@ -778,6 +794,133 @@ mod tests {
         let events: serde_json::Value = serde_json::from_slice(&events_body).unwrap();
         assert_eq!(events[0]["message"], "job queued");
         assert_eq!(events[0]["metadata"]["target"], "telegram");
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn metadata_routes_manage_folders_tags_and_subscriptions() {
+        let state = seeded_state().await;
+        let pack_token = create_pat(&state, "packupdate", "user_1", [Permission::PackUpdate]).await;
+        let subscription_create_token = create_pat(
+            &state,
+            "subcreate",
+            "user_1",
+            [Permission::SubscriptionCreate],
+        )
+        .await;
+        let subscription_read_token =
+            create_pat(&state, "subread", "user_1", [Permission::SubscriptionRead]).await;
+
+        let folder_body = serde_json::json!({
+            "id": "folder_1",
+            "tenantId": "tenant_1",
+            "ownerUserId": "user_1",
+            "name": "Favorites"
+        });
+        let folder_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/folders")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(folder_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(folder_response.status(), StatusCode::CREATED);
+
+        let folder_list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/folders?tenantId=tenant_1&ownerUserId=user_1")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(folder_list.status(), StatusCode::OK);
+        let folder_body = to_bytes(folder_list.into_body(), usize::MAX).await.unwrap();
+        let folders: serde_json::Value = serde_json::from_slice(&folder_body).unwrap();
+        assert_eq!(folders[0]["name"], "Favorites");
+
+        let tag_body = serde_json::json!({
+            "id": "tag_1",
+            "tenantId": "tenant_1",
+            "name": "cute"
+        });
+        let tag_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/tags")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(tag_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tag_response.status(), StatusCode::CREATED);
+
+        let tag_list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/tags?tenantId=tenant_1")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tag_list.status(), StatusCode::OK);
+        let tag_body = to_bytes(tag_list.into_body(), usize::MAX).await.unwrap();
+        let tags: serde_json::Value = serde_json::from_slice(&tag_body).unwrap();
+        assert_eq!(tags[0]["name"], "cute");
+
+        let subscription_body = serde_json::json!({
+            "id": "sub_1",
+            "tenantId": "tenant_1",
+            "ownerUserId": "user_1",
+            "title": "Weekly",
+            "visibility": "private"
+        });
+        let subscription_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/subscription-groups")
+                    .header(
+                        "authorization",
+                        format!("Bearer {subscription_create_token}"),
+                    )
+                    .header("content-type", "application/json")
+                    .body(Body::from(subscription_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_response.status(), StatusCode::CREATED);
+
+        let subscription_list = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/subscription-groups?tenantId=tenant_1&ownerUserId=user_1")
+                    .header("authorization", format!("Bearer {subscription_read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_list.status(), StatusCode::OK);
+        let subscription_body = to_bytes(subscription_list.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let subscriptions: serde_json::Value = serde_json::from_slice(&subscription_body).unwrap();
+        assert_eq!(subscriptions[0]["title"], "Weekly");
+        assert_eq!(subscriptions[0]["visibility"], "private");
     }
 
     #[tokio::test]

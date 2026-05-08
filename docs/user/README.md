@@ -269,6 +269,19 @@ Export API endpoints currently available:
 Required PAT scopes are `export.read`, `export.run`, and
 `export.target.manage`.
 
+Product metadata API endpoints currently available:
+
+- `POST /api/v1/folders`
+- `GET /api/v1/folders?tenantId=...&ownerUserId=...`
+- `POST /api/v1/tags`
+- `GET /api/v1/tags?tenantId=...`
+- `POST /api/v1/subscription-groups`
+- `GET /api/v1/subscription-groups?tenantId=...&ownerUserId=...`
+
+Folder and tag endpoints currently require `pack.update`. Subscription group
+creation requires `subscription.create`; subscription group listing requires
+`subscription.read`. CLI/MCP/Web management surfaces are still future slices.
+
 Current service binary example:
 
 ```powershell

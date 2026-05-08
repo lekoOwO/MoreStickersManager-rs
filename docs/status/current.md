@@ -57,12 +57,13 @@ Last completed:
 - Telegram destructive mirror operator runbook slice: added a user-facing runbook for safe dry-run review, append-missing operation, guarded mirror execution, review checklist, and recovery notes.
 - Product-data API planning slice: added the implementation plan for folder, tag, subscription-group, and pack access metadata APIs.
 - Product-data storage repository slice: added folder records and CRUD/listing methods, tag records and create/list/delete methods, subscription-group list/rename/delete methods, and a storage integration test covering the first product-data metadata lifecycle.
+- Product-data API route slice: added protected folder create/list, tag create/list, and subscription-group create/list API routes plus DTOs and OpenAPI registration.
 
 Current task:
 - Begin the product-data API implementation slice for folders, tags,
-  subscription groups, and pack access metadata. Storage/domain foundations
-  now have folder/tag/subscription repository CRUD/listing support; next work
-  should add API routes, OpenAPI schemas, and package tests.
+  subscription groups, and pack access metadata. Storage/API foundations now
+  exist; next work should add CLI/MCP surfaces, Web management UI, and broader
+  pack access metadata controls.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -121,9 +122,10 @@ Last verification:
 - API/OpenAPI Telegram options documentation slice: targeted RED/GREEN test for `cargo test -p msm-api openapi_documents_telegram_export_job_options --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Telegram destructive mirror operator runbook and product-data API planning slice: docs-only verification with `git diff --check`.
 - Product-data storage repository slice: RED/GREEN test with `cargo test -p msm-storage folders_tags_and_subscription_groups_can_be_managed --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Product-data API route slice: RED/GREEN test with `cargo test -p msm-api metadata_routes_manage_folders_tags_and_subscriptions --locked`; OpenAPI path check with `cargo test -p msm-api openapi_endpoint_contains_health_path --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Continue `docs/superpowers/plans/2026-05-09-msm-product-data-api.md` Task 2 by adding API routes and OpenAPI schemas for folder/tag/subscription metadata.
+- Continue product-data metadata by adding CLI/MCP surfaces or Web management UI for the new folder/tag/subscription API routes.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
