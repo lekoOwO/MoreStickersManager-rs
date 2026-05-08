@@ -591,3 +591,12 @@
 - Reused the post-publication mapping persistence path so reconciliation jobs refresh MSM source sticker ID to Telegram file ID mappings by planned sticker order.
 - Added a no-network worker test proving reconciliation mapping refresh calls the injected remote-state executor and persists updated Telegram file IDs.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run web:e2e`, and confirmed `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.
+
+## 2026-05-09 Telegram Automatic Remote-State Reconciliation
+
+- Added worker-side automatic `TelegramRemoteSet` construction for non-dry-run reconciliation jobs when callers omit `remoteSet`.
+- The worker now fetches remote Telegram sticker set metadata, loads stored mappings for the matching publication, and maps Telegram file IDs back to MSM source sticker IDs before planning reconciliation.
+- Unknown remote stickers are represented as remote-only placeholders so mirror mode can still plan guarded deletions later.
+- Zero-mutation reconciliation no longer calls the mutation executor; it still persists the publication record and reports a reconciled result.
+- Added a no-network worker test proving append-missing reconciliation can use stored mappings plus fetched metadata without caller-supplied `remoteSet`.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.

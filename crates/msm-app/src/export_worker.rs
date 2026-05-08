@@ -5,7 +5,7 @@ use std::{
 use msm_exporters::{
     MoreStickersExportTarget, PlannedTelegramSticker, TelegramExportOptions, TelegramExportPlan,
     TelegramExportPlanner, TelegramReconcileMode, TelegramReconcileOperation, TelegramRemoteSet,
-    TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
+    TelegramRemoteSticker, TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
 };
 use msm_media::{ConversionCommand, ConverterToolchain, PreparedMediaSpec, StickerTargetProfile};
 use msm_storage::{
@@ -17,9 +17,9 @@ use msm_storage::{
 };
 use msm_telegram::{
     apply_sticker_set_mutations, fetch_sticker_set, publish_sticker_set, TelegramBotConfig,
-    TelegramBotError, TelegramFetchedStickerSet, TelegramPublishError, TelegramPublishRequest,
-    TelegramPublishSticker, TelegramPublishedSet, TelegramStickerSetMutation,
-    TeloxideTelegramStickerSetApi,
+    TelegramBotError, TelegramFetchedSticker, TelegramFetchedStickerSet, TelegramPublishError,
+    TelegramPublishRequest, TelegramPublishSticker, TelegramPublishedSet,
+    TelegramStickerSetMutation, TeloxideTelegramStickerSetApi,
 };
 use sha2::{Digest, Sha256};
 use teloxide::types::{InputFile, StickerType};
@@ -733,6 +733,17 @@ impl ExportWorker {
         let prepared_media = self
             .prepare_telegram_media(pack, &plan.initial_stickers, &plan.append_stickers)
             .await?;
+        let remote_set = if !dry_run && reconcile_mode.is_some() {
+            self.resolve_telegram_reconciliation_remote_set(
+                bot_token.as_deref(),
+                &target.id,
+                &plan,
+                remote_set,
+            )
+            .await?
+        } else {
+            remote_set
+        };
         let reconciliation = reconcile_mode
             .map(|mode| telegram_reconciliation_summary(plan.clone(), remote_set.clone(), mode))
             .transpose()?;
@@ -935,14 +946,17 @@ impl ExportWorker {
             "applying Telegram reconciliation mutations",
         )
         .await?;
-        let applied_count = self
-            .telegram_mutation_executor
-            .apply(TelegramMutationRequest {
-                bot_token: bot_token.clone(),
-                sticker_set_name: plan.sticker_set_name.clone(),
-                mutations,
-            })
-            .await?;
+        let applied_count = if mutations.is_empty() {
+            0
+        } else {
+            self.telegram_mutation_executor
+                .apply(TelegramMutationRequest {
+                    bot_token: bot_token.clone(),
+                    sticker_set_name: plan.sticker_set_name.clone(),
+                    mutations,
+                })
+                .await?
+        };
 
         let sticker_set_url = telegram_sticker_set_url(&plan.sticker_set_name);
         let sticker_count = plan.initial_stickers.len() + plan.append_stickers.len();
@@ -955,19 +969,11 @@ impl ExportWorker {
             set_type,
         )
         .await?;
-        let publication_id = telegram_publication_id(&target.id, &plan.sticker_set_name);
-        let planned_stickers = plan
-            .initial_stickers
-            .iter()
-            .chain(plan.append_stickers.iter())
-            .cloned()
-            .collect::<Vec<_>>();
-        self.persist_telegram_sticker_mappings_from_remote(
+        self.refresh_telegram_sticker_mappings_after_reconciliation(
             &bot_token,
-            &publication_id,
-            &target.id,
-            &plan.sticker_set_name,
-            &planned_stickers,
+            target,
+            &plan,
+            applied_count,
         )
         .await?;
 
@@ -1010,6 +1016,133 @@ impl ExportWorker {
             })
             .await?;
         Ok(())
+    }
+
+    async fn resolve_telegram_reconciliation_remote_set(
+        &self,
+        bot_token: Option<&str>,
+        target_id: &str,
+        plan: &TelegramExportPlan,
+        remote_set: Option<TelegramRemoteSet>,
+    ) -> ExportWorkerResult<Option<TelegramRemoteSet>> {
+        if remote_set.is_some() {
+            return Ok(remote_set);
+        }
+
+        let bot_token = bot_token.ok_or(ExportWorkerError::MissingTelegramBotToken)?;
+        let planned_stickers = plan
+            .initial_stickers
+            .iter()
+            .chain(plan.append_stickers.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+        self.resolve_telegram_remote_set_from_stored_mappings(
+            bot_token,
+            target_id,
+            &plan.sticker_set_name,
+            &plan.title,
+            &planned_stickers,
+        )
+        .await
+        .map(Some)
+    }
+
+    async fn refresh_telegram_sticker_mappings_after_reconciliation(
+        &self,
+        bot_token: &str,
+        target: &ExportTargetRecord,
+        plan: &TelegramExportPlan,
+        applied_count: usize,
+    ) -> ExportWorkerResult<()> {
+        if applied_count == 0 {
+            return Ok(());
+        }
+
+        let publication_id = telegram_publication_id(&target.id, &plan.sticker_set_name);
+        let planned_stickers = plan
+            .initial_stickers
+            .iter()
+            .chain(plan.append_stickers.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+        self.persist_telegram_sticker_mappings_from_remote(
+            bot_token,
+            &publication_id,
+            &target.id,
+            &plan.sticker_set_name,
+            &planned_stickers,
+        )
+        .await
+    }
+
+    async fn resolve_telegram_remote_set_from_stored_mappings(
+        &self,
+        bot_token: &str,
+        target_id: &str,
+        sticker_set_name: &str,
+        fallback_title: &str,
+        planned_stickers: &[PlannedTelegramSticker],
+    ) -> ExportWorkerResult<TelegramRemoteSet> {
+        let fetched = self
+            .telegram_remote_state_executor
+            .fetch(TelegramRemoteStateRequest {
+                bot_token: bot_token.to_owned(),
+                sticker_set_name: sticker_set_name.to_owned(),
+            })
+            .await?;
+        let mappings = if let Some(publication) = self
+            .repository
+            .find_telegram_publication_by_target_set(target_id, sticker_set_name)
+            .await?
+        {
+            self.repository
+                .list_telegram_sticker_mappings_for_publication(&publication.id)
+                .await?
+        } else {
+            Vec::new()
+        };
+
+        let stickers = fetched
+            .stickers
+            .iter()
+            .map(|remote| {
+                let mapping = mappings.iter().find(|mapping| {
+                    mapping.telegram_file_id == remote.telegram_file_id
+                        || mapping.telegram_file_unique_id == remote.telegram_file_unique_id
+                });
+                let planned = mapping.and_then(|mapping| {
+                    planned_stickers
+                        .iter()
+                        .find(|planned| planned.sticker_id == mapping.source_sticker_id)
+                });
+                TelegramRemoteSticker {
+                    sticker_id: mapping.map_or_else(
+                        || format!("telegram:remote:{}", remote.telegram_file_id),
+                        |mapping| mapping.source_sticker_id.clone(),
+                    ),
+                    telegram_file_id: remote.telegram_file_id.clone(),
+                    target_profile_key: planned.map_or_else(
+                        || fetched_profile_key(remote).to_owned(),
+                        |planned| planned.target_profile_key.clone(),
+                    ),
+                    emoji_list: remote.emoji.clone().map_or_else(
+                        || planned.map_or_else(Vec::new, |planned| planned.emoji_list.clone()),
+                        |emoji| vec![emoji],
+                    ),
+                    keywords: planned.map_or_else(Vec::new, |planned| planned.keywords.clone()),
+                }
+            })
+            .collect();
+
+        Ok(TelegramRemoteSet {
+            sticker_set_name: fetched.sticker_set_name,
+            title: if fetched.title.is_empty() {
+                fallback_title.to_owned()
+            } else {
+                fetched.title
+            },
+            stickers,
+        })
     }
 
     async fn persist_telegram_sticker_mappings_from_remote(
@@ -1365,6 +1498,14 @@ fn media_profile_for_key(profile_key: &str) -> ExportWorkerResult<MediaProfileSu
         _ => Err(ExportWorkerError::UnknownMediaProfile {
             profile_key: profile_key.to_owned(),
         }),
+    }
+}
+
+fn fetched_profile_key(remote: &TelegramFetchedSticker) -> &'static str {
+    if remote.is_video || remote.is_animated {
+        "telegram.sticker.video.v1"
+    } else {
+        "telegram.sticker.static.v1"
     }
 }
 

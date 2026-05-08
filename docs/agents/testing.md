@@ -634,6 +634,7 @@ These tests prove:
 - successful non-dry-run Telegram jobs persist durable publication records;
 - successful non-dry-run Telegram publication jobs fetch remote sticker set state through an injected fake and persist per-sticker file mappings;
 - successful non-dry-run Telegram reconciliation mutation jobs fetch remote sticker set state through an injected fake and refresh per-sticker file mappings;
+- non-dry-run Telegram reconciliation can omit `remoteSet` and build remote planner state from fetched Telegram metadata plus stored sticker mappings;
 - publisher failures mark export jobs as failed and persist an error summary;
 - startup export target bootstrap config parses, rejects invalid JSON, and idempotently creates/updates configured targets.
 - retryable worker failures requeue jobs with backoff until the configured attempt budget is exhausted;

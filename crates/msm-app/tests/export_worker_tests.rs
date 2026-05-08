@@ -489,6 +489,79 @@ async fn telegram_reconciliation_refreshes_remote_state_and_persists_sticker_map
 }
 
 #[tokio::test]
+async fn telegram_reconciliation_can_build_remote_set_from_stored_mappings() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_initial_mapping",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_auto_remote_reconcile",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false,"reconcileMode":"appendMissing","executeReconciliation":true}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let remote_state = Arc::new(FakeTelegramRemoteStateExecutor::with_set(remote_set(
+        "sample_pack_by_msm_bot",
+        vec![remote_sticker("tg_existing_file", "tg_existing_unique")],
+    )));
+    let mutations = Arc::new(FakeTelegramMutationExecutor::default());
+    let worker = ExportWorker::with_media_telegram_mutation_and_remote_executors(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        Arc::new(FakeTelegramPublicationExecutor::default()),
+        mutations.clone(),
+        remote_state.clone(),
+    );
+
+    worker
+        .run_job("job_telegram_initial_mapping")
+        .await
+        .unwrap();
+    let completed = worker
+        .run_job("job_telegram_auto_remote_reconcile")
+        .await
+        .unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
+    assert_eq!(result["kind"], "telegramReconciled");
+    assert_eq!(result["reconciliation"]["mode"], "appendMissing");
+    assert_eq!(result["reconciliation"]["mutationCount"], 0);
+    assert!(mutations.calls.lock().unwrap().is_empty());
+    assert_eq!(
+        remote_state.calls.lock().unwrap().as_slice(),
+        [
+            "fetch:123:secret:sample_pack_by_msm_bot",
+            "fetch:123:secret:sample_pack_by_msm_bot",
+        ]
+    );
+}
+
+#[tokio::test]
 async fn telegram_mirror_reconciliation_refuses_destructive_mutations_without_explicit_allowance() {
     let repo = seeded_repository().await;
     repo.create_export_target(NewExportTarget {
