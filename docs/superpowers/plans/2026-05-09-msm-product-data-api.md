@@ -189,6 +189,69 @@ git diff --check
 
 Expected: all pass.
 
+## Task 5: MCP Product Metadata Tools
+
+**Files:**
+- Modify: `crates/msm-mcp/src/tools.rs`
+- Modify: `crates/msm-mcp/src/handler.rs`
+- Modify: `crates/msm-mcp/src/lib.rs`
+- Modify: `README.md`
+- Modify: `docs/user/README.md`
+- Modify: `docs/status/current.md`
+- Modify: `docs/status/implementation-matrix.md`
+- Modify: `docs/status/checkpoints.md`
+- Modify: `docs/status/roadmap.md`
+- Modify: `docs/agents/project-map.md`
+- Modify: `docs/agents/testing.md`
+
+- [x] **Step 1: Add failing MCP tests**
+
+Added tests for `tools/list`, metadata tool execution, and PAT scope
+enforcement.
+
+```powershell
+cargo test -p msm-mcp tools_call_manages_product_metadata --locked
+```
+
+Result: failed because MCP tool registry and handler dispatch did not yet know
+the product metadata tools.
+
+- [x] **Step 2: Implement MCP tools**
+
+Added `msm.list_folders`, `msm.create_folder`, `msm.list_tags`,
+`msm.create_tag`, `msm.list_subscription_groups`, and
+`msm.create_subscription_group` tool definitions and handler implementations.
+
+- [x] **Step 3: Verify focused tests**
+
+```powershell
+cargo test -p msm-mcp tools_call_manages_folders --locked
+cargo test -p msm-mcp tools_call_manages_tags --locked
+cargo test -p msm-mcp tools_call_manages_subscription_groups --locked
+cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked
+cargo test -p msm-mcp tool_registry_contains_pack_tools --locked
+cargo test -p msm-mcp pat_enforcement_metadata_tools_require_expected_scopes --locked
+```
+
+Result: all passed.
+
+- [x] **Step 4: Update handoff and user docs**
+
+Documented the MCP tools and updated status/agent handoff docs.
+
+- [x] **Step 5: Run full MCP verification**
+
+Run:
+
+```powershell
+cargo fmt --all -- --check
+cargo test -p msm-mcp --locked
+cargo clippy -p msm-mcp --all-targets --locked -- -D warnings
+git diff --check
+```
+
+Expected: all pass.
+
 ## Task 4: CLI Product Metadata Commands
 
 **Files:**

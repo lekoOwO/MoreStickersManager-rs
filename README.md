@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: P33 Telegram reconciliation usability and parity.
+Current phase: product-data management surfaces after P33 Telegram reconciliation parity.
 
 For a concise implemented-versus-planned feature map, see
 `docs/status/implementation-matrix.md`.
@@ -239,6 +239,12 @@ The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
 - `msm.import_sticker_pack`
 - `msm.update_sticker_pack`
 - `msm.delete_sticker_pack`
+- `msm.list_folders`
+- `msm.create_folder`
+- `msm.list_tags`
+- `msm.create_tag`
+- `msm.list_subscription_groups`
+- `msm.create_subscription_group`
 - `msm.list_export_target_kinds`
 - `msm.list_export_targets`
 - `msm.create_export_target`

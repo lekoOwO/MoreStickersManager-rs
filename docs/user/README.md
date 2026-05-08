@@ -286,9 +286,9 @@ Product metadata API endpoints currently available:
 
 Folder and tag endpoints currently require `pack.update`. Subscription group
 creation requires `subscription.create`; subscription group listing requires
-`subscription.read`. The CLI can create/list folders, tags, and subscription
-groups through the protected API. MCP/Web management surfaces are still future
-slices.
+`subscription.read`. The CLI and MCP endpoint can create/list folders, tags,
+and subscription groups through the protected API. Web management controls are
+still a future slice.
 
 Current service binary example:
 
@@ -316,6 +316,15 @@ Supported methods are `initialize`, `ping`, `tools/list`, and `tools/call`.
 Current tools are `msm.list_sticker_packs`, `msm.export_sticker_pack`,
 `msm.import_sticker_pack`, `msm.update_sticker_pack`, and
 `msm.delete_sticker_pack`.
+
+Product metadata MCP tools:
+
+- `msm.list_folders`
+- `msm.create_folder`
+- `msm.list_tags`
+- `msm.create_tag`
+- `msm.list_subscription_groups`
+- `msm.create_subscription_group`
 
 Export MCP tools:
 

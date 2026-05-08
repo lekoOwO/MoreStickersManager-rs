@@ -9,6 +9,12 @@ pub const EXPORT_STICKER_PACK: &str = "msm.export_sticker_pack";
 pub const IMPORT_STICKER_PACK: &str = "msm.import_sticker_pack";
 pub const UPDATE_STICKER_PACK: &str = "msm.update_sticker_pack";
 pub const DELETE_STICKER_PACK: &str = "msm.delete_sticker_pack";
+pub const LIST_FOLDERS: &str = "msm.list_folders";
+pub const CREATE_FOLDER: &str = "msm.create_folder";
+pub const LIST_TAGS: &str = "msm.list_tags";
+pub const CREATE_TAG: &str = "msm.create_tag";
+pub const LIST_SUBSCRIPTION_GROUPS: &str = "msm.list_subscription_groups";
+pub const CREATE_SUBSCRIPTION_GROUP: &str = "msm.create_subscription_group";
 pub const LIST_EXPORT_TARGET_KINDS: &str = "msm.list_export_target_kinds";
 pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
 pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
@@ -27,6 +33,12 @@ pub fn list_tools_result() -> ListToolsResult {
             import_tool(),
             update_tool(),
             delete_tool(),
+            list_folders_tool(),
+            create_folder_tool(),
+            list_tags_tool(),
+            create_tag_tool(),
+            list_subscription_groups_tool(),
+            create_subscription_group_tool(),
             list_export_target_kinds_tool(),
             list_export_targets_tool(),
             create_export_target_tool(),
@@ -154,6 +166,122 @@ fn delete_tool() -> ToolDefinition {
             read_only_hint: false,
             destructive_hint: true,
             idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn list_folders_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_FOLDERS,
+        title: "List folders",
+        description: "List user-created sticker pack folders for one tenant owner.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "ownerUserId": { "type": "string" }
+            }),
+            &["tenantId", "ownerUserId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn create_folder_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: CREATE_FOLDER,
+        title: "Create folder",
+        description: "Create a user folder for sticker pack organization.",
+        input_schema: object_schema(
+            &json!({
+                "id": { "type": "string" },
+                "tenantId": { "type": "string" },
+                "ownerUserId": { "type": "string" },
+                "name": { "type": "string" }
+            }),
+            &["id", "tenantId", "ownerUserId", "name"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn list_tags_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_TAGS,
+        title: "List tags",
+        description: "List sticker pack tags configured for one tenant.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" }
+            }),
+            &["tenantId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn create_tag_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: CREATE_TAG,
+        title: "Create tag",
+        description: "Create a sticker pack tag in one tenant.",
+        input_schema: object_schema(
+            &json!({
+                "id": { "type": "string" },
+                "tenantId": { "type": "string" },
+                "name": { "type": "string" }
+            }),
+            &["id", "tenantId", "name"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn list_subscription_groups_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_SUBSCRIPTION_GROUPS,
+        title: "List subscription groups",
+        description: "List subscription groups owned by one user in one tenant.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "ownerUserId": { "type": "string" }
+            }),
+            &["tenantId", "ownerUserId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn create_subscription_group_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: CREATE_SUBSCRIPTION_GROUP,
+        title: "Create subscription group",
+        description: "Create a subscription group for selected sticker packs.",
+        input_schema: object_schema(
+            &json!({
+                "id": { "type": "string" },
+                "tenantId": { "type": "string" },
+                "ownerUserId": { "type": "string" },
+                "title": { "type": "string" },
+                "visibility": { "type": "string", "enum": ["public", "private"] }
+            }),
+            &["id", "tenantId", "ownerUserId", "title", "visibility"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
             open_world_hint: false,
         },
     }
@@ -323,10 +451,11 @@ fn read_only_annotations() -> ToolAnnotations {
 #[cfg(test)]
 mod tests {
     use crate::tools::{
-        list_tools_result, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, DELETE_STICKER_PACK,
-        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK,
-        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_STICKER_PACKS,
-        LIST_TELEGRAM_PUBLICATIONS, UPDATE_STICKER_PACK,
+        list_tools_result, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER,
+        CREATE_SUBSCRIPTION_GROUP, CREATE_TAG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK,
+        GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
+        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_STICKER_PACKS,
+        LIST_SUBSCRIPTION_GROUPS, LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, UPDATE_STICKER_PACK,
     };
 
     #[test]
@@ -342,6 +471,12 @@ mod tests {
                 IMPORT_STICKER_PACK,
                 UPDATE_STICKER_PACK,
                 DELETE_STICKER_PACK,
+                LIST_FOLDERS,
+                CREATE_FOLDER,
+                LIST_TAGS,
+                CREATE_TAG,
+                LIST_SUBSCRIPTION_GROUPS,
+                CREATE_SUBSCRIPTION_GROUP,
                 LIST_EXPORT_TARGET_KINDS,
                 LIST_EXPORT_TARGETS,
                 CREATE_EXPORT_TARGET,

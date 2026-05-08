@@ -14,7 +14,7 @@ use msm_exporters::{
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, NewExportJob, NewExportTarget,
-    PackVisibility, TelegramPublicationRecord,
+    NewTag, PackVisibility, TelegramPublicationRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -23,10 +23,11 @@ use crate::{
     protocol::{initialize_result, CallToolResult, JsonRpcRequest, JsonRpcResponse},
     tools::{
         execution_error_result, list_tools_result, success_result, CREATE_EXPORT_JOB,
-        CREATE_EXPORT_TARGET, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
-        GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
-        LIST_EXPORT_TARGET_KINDS, LIST_STICKER_PACKS, LIST_TELEGRAM_PUBLICATIONS,
-        UPDATE_STICKER_PACK,
+        CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_TAG,
+        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION,
+        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
+        LIST_FOLDERS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS, LIST_TAGS,
+        LIST_TELEGRAM_PUBLICATIONS, UPDATE_STICKER_PACK,
     },
 };
 
@@ -82,6 +83,12 @@ async fn call_tool(
         IMPORT_STICKER_PACK => import_sticker_pack(&state, headers, arguments).await,
         UPDATE_STICKER_PACK => update_sticker_pack(&state, headers, arguments).await,
         DELETE_STICKER_PACK => delete_sticker_pack(&state, headers, arguments).await,
+        LIST_FOLDERS => list_folders(&state, headers, arguments).await,
+        CREATE_FOLDER => create_folder(&state, headers, arguments).await,
+        LIST_TAGS => list_tags(&state, headers, arguments).await,
+        CREATE_TAG => create_tag(&state, headers, arguments).await,
+        LIST_SUBSCRIPTION_GROUPS => list_subscription_groups(&state, headers, arguments).await,
+        CREATE_SUBSCRIPTION_GROUP => create_subscription_group(&state, headers, arguments).await,
         LIST_EXPORT_TARGET_KINDS => list_export_target_kinds(&state, headers, arguments).await,
         LIST_EXPORT_TARGETS => list_export_targets(&state, headers, arguments).await,
         CREATE_EXPORT_TARGET => create_export_target(&state, headers, arguments).await,
@@ -221,6 +228,178 @@ async fn delete_sticker_pack(
     Ok(success_result(
         format!("Deleted sticker pack `{}`.", args.pack_id),
         json!({ "deleted": true, "packId": args.pack_id }),
+    ))
+}
+
+async fn list_folders(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ListFoldersArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    pat.require_user(&args.owner_user_id)
+        .map_err(auth_error_message)?;
+    let folders = state
+        .repository()
+        .list_folders(&args.tenant_id, &args.owner_user_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .map(|folder| {
+            json!({
+                "id": folder.id,
+                "tenantId": folder.tenant_id,
+                "ownerUserId": folder.owner_user_id,
+                "name": folder.name,
+                "createdAt": folder.created_at
+            })
+        })
+        .collect::<Vec<_>>();
+
+    Ok(success_result(
+        format!("Found {} folder(s).", folders.len()),
+        json!({ "folders": folders }),
+    ))
+}
+
+async fn create_folder(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<CreateFolderArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    pat.require_user(&args.owner_user_id)
+        .map_err(auth_error_message)?;
+    let folder = state
+        .repository()
+        .create_folder(&args.id, &args.tenant_id, &args.owner_user_id, &args.name)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Created folder `{}`.", args.id),
+        json!({
+            "folder": {
+                "id": folder.id,
+                "tenantId": folder.tenant_id,
+                "ownerUserId": folder.owner_user_id,
+                "name": folder.name,
+                "createdAt": folder.created_at
+            }
+        }),
+    ))
+}
+
+async fn list_tags(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ListTagsArgs>(arguments)?;
+    let _pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let tags = state
+        .repository()
+        .list_tags(&args.tenant_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .map(|tag| {
+            json!({
+                "id": tag.id,
+                "tenantId": tag.tenant_id,
+                "name": tag.name,
+                "createdAt": tag.created_at
+            })
+        })
+        .collect::<Vec<_>>();
+
+    Ok(success_result(
+        format!("Found {} tag(s).", tags.len()),
+        json!({ "tags": tags }),
+    ))
+}
+
+async fn create_tag(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<CreateTagArgs>(arguments)?;
+    let _pat = require_tool_pat(state, headers, Permission::PackUpdate).await?;
+    let tag = state
+        .repository()
+        .create_tag(NewTag {
+            id: &args.id,
+            tenant_id: &args.tenant_id,
+            name: &args.name,
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Created tag `{}`.", args.id),
+        json!({
+            "tag": {
+                "id": tag.id,
+                "tenantId": tag.tenant_id,
+                "name": tag.name,
+                "createdAt": tag.created_at
+            }
+        }),
+    ))
+}
+
+async fn list_subscription_groups(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ListSubscriptionGroupsArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::SubscriptionRead).await?;
+    pat.require_user(&args.owner_user_id)
+        .map_err(auth_error_message)?;
+    let groups = state
+        .repository()
+        .list_subscription_groups(&args.tenant_id, &args.owner_user_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .map(|group| subscription_group_value(&group))
+        .collect::<Vec<_>>();
+
+    Ok(success_result(
+        format!("Found {} subscription group(s).", groups.len()),
+        json!({ "subscriptionGroups": groups }),
+    ))
+}
+
+async fn create_subscription_group(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<CreateSubscriptionGroupArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::SubscriptionCreate).await?;
+    pat.require_user(&args.owner_user_id)
+        .map_err(auth_error_message)?;
+    let visibility = parse_visibility(&args.visibility)?;
+    let group = state
+        .repository()
+        .create_subscription_group(
+            &args.id,
+            &args.tenant_id,
+            &args.owner_user_id,
+            &args.title,
+            visibility,
+        )
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Created subscription group `{}`.", args.id),
+        json!({ "subscriptionGroup": subscription_group_value(&group) }),
     ))
 }
 
@@ -578,6 +757,17 @@ fn telegram_publication_value(record: &TelegramPublicationRecord) -> Value {
     })
 }
 
+fn subscription_group_value(record: &msm_storage::models::SubscriptionGroupRecord) -> Value {
+    json!({
+        "id": record.id,
+        "tenantId": record.tenant_id,
+        "ownerUserId": record.owner_user_id,
+        "title": record.title,
+        "visibility": record.visibility.as_str(),
+        "createdAt": record.created_at
+    })
+}
+
 async fn load_owned_export_job(
     state: &ApiState,
     job_id: &str,
@@ -683,6 +873,53 @@ struct UpdateStickerPackArgs {
 #[serde(rename_all = "camelCase")]
 struct DeleteStickerPackArgs {
     pack_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ListFoldersArgs {
+    tenant_id: String,
+    owner_user_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateFolderArgs {
+    id: String,
+    tenant_id: String,
+    owner_user_id: String,
+    name: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ListTagsArgs {
+    tenant_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateTagArgs {
+    id: String,
+    tenant_id: String,
+    name: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ListSubscriptionGroupsArgs {
+    tenant_id: String,
+    owner_user_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateSubscriptionGroupArgs {
+    id: String,
+    tenant_id: String,
+    owner_user_id: String,
+    title: String,
+    visibility: String,
 }
 
 #[derive(Deserialize)]

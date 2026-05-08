@@ -725,3 +725,18 @@
   `cargo test -p msm-cli --locked`,
   `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and
   `git diff --check`.
+
+## 2026-05-09 Product Data MCP Tools
+
+- Added MCP tool definitions for folder create/list, tag create/list, and
+  subscription-group create/list workflows.
+- Added MCP handler support backed by the same storage repository methods and
+  PAT scope model as the API routes.
+- Added `tools/list`, product metadata tool execution, and scope enforcement
+  tests.
+- Updated README, user docs, roadmap, implementation matrix, current status,
+  project map, and agent testing notes.
+- Verified with `cargo fmt --all -- --check`,
+  `cargo test -p msm-mcp --locked`,
+  `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and
+  `git diff --check`.

@@ -44,11 +44,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   subscription group create/list workflows.
 - Product-data CLI create/list commands now exist for folders, tags, and
   subscription groups.
+- Product-data MCP create/list tools now exist for folders, tags, and
+  subscription groups.
 
 ## Immediate Plan
 
-1. Add MCP surfaces or Web management UI for folder, tag, and subscription
-   group metadata.
+1. Add Web management UI for folder, tag, and subscription group metadata.
 2. Continue pack access-management API design beyond basic visibility.
 3. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.

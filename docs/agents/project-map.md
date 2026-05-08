@@ -10,7 +10,7 @@
 - `crates/msm-providers`: provider registry plus Telegram and LINE fixture normalizers.
 - `crates/msm-exporters`: export target trait, target kind keys, capability metadata, request/plan types, duplicate-safe registry, concrete `morestickers` export target, Telegram sticker set planner, and Telegram reconciliation policy planner.
 - `crates/msm-app`: runnable Axum service binary composing storage, API, assets, Web UI static serving, prepared media conversion, export worker execution, bounded export job retry handling, Telegram reconciliation dry-run summaries, guarded append-missing mutation execution, mirror destructive-operation guards, and post-publication Telegram sticker mapping population.
-- `crates/msm-mcp`: MCP `/mcp` JSON-RPC endpoint with pack list/import/export/update/delete tools, export target/job tools, and Telegram publication history tools.
+- `crates/msm-mcp`: MCP `/mcp` JSON-RPC endpoint with pack list/import/export/update/delete tools, product metadata tools, export target/job tools, and Telegram publication history tools.
 - `crates/msm-media`: media profile foundation with source media kinds, Telegram static/video/thumbnail target profiles, prepared media specs, conversion plan selection, and shell-free ffmpeg command planning.
 - `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, protected API clients, PAT panel, pack CRUD controls, pack import UI, export target panel, export wizard, Telegram publication history panel, and export job timeline.
 - `crates/msm-telegram`: teloxide-based Telegram bot boundary with redacted token/config handling, Bot API URL configuration, mockable sticker set create/append execution, mockable sticker set mutation execution, and remote sticker set metadata fetches.
@@ -25,7 +25,7 @@
 
 ## Not Implemented Yet
 
-- MCP/Web product metadata management surfaces for folders, tags, subscription
+- Web product metadata management surfaces for folders, tags, subscription
   groups, and broader pack access metadata controls.
 - MCP auth/session/SSE hardening.
 - Pack access-management APIs beyond basic visibility.

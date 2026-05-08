@@ -690,6 +690,12 @@ cargo clippy -p msm-mcp --all-targets --locked -- -D warnings
 These tests prove:
 
 - `tools/list` exposes pack tools plus export target/job tools;
+- `tools/list` exposes product metadata tools for folders, tags, and
+  subscription groups;
+- product metadata tool calls can create/list folders, tags, and subscription
+  groups through storage-backed handlers;
+- product metadata tools enforce `pack.update`, `subscription.create`, and
+  `subscription.read` scopes;
 - export target kind listing requires `export.read`;
 - export target creation requires `export.target.manage` and redacts token-like response config fields;
 - export job creation requires `export.run`, validates source pack ownership, and stores queued job requests;
