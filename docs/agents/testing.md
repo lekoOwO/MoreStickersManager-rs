@@ -575,6 +575,7 @@ These tests prove:
 - retryable worker failures requeue jobs with backoff until the configured attempt budget is exhausted;
 - queued jobs with future `next_attempt_at` values are skipped by worker polling.
 - Telegram dry-run jobs can summarize reconciliation operation and mutation counts from supplied `reconcileMode` and `remoteSet` options without calling Telegram.
+- non-dry-run append-missing reconciliation requires `executeReconciliation: true`, applies mutations through an injected fake executor, and does not call the create-set publisher.
 
 ## Export CLI Tests
 

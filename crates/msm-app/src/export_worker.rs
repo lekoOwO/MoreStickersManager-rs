@@ -16,9 +16,9 @@ use msm_storage::{
     StorageRepository,
 };
 use msm_telegram::{
-    publish_sticker_set, TelegramBotConfig, TelegramBotError, TelegramPublishError,
-    TelegramPublishRequest, TelegramPublishSticker, TelegramPublishedSet,
-    TeloxideTelegramStickerSetApi,
+    apply_sticker_set_mutations, publish_sticker_set, TelegramBotConfig, TelegramBotError,
+    TelegramPublishError, TelegramPublishRequest, TelegramPublishSticker, TelegramPublishedSet,
+    TelegramStickerSetMutation, TeloxideTelegramStickerSetApi,
 };
 use sha2::{Digest, Sha256};
 use teloxide::types::{InputFile, StickerType};
@@ -96,6 +96,10 @@ pub enum ExportWorkerError {
     /// Telegram remote publication requires a bot token.
     #[error("Telegram publication requires target config field `botToken`")]
     MissingTelegramBotToken,
+
+    /// Telegram reconciliation execution requires an explicit opt-in flag.
+    #[error("Telegram reconciliation execution requires `executeReconciliation: true`")]
+    ReconciliationExecutionNotEnabled,
 
     /// Planned sticker has no prepared media output.
     #[error("prepared media output missing for sticker {sticker_id} profile {profile_key}")]
@@ -226,6 +230,17 @@ pub struct TelegramPublicationRequest {
     pub publish_request: TelegramPublishRequest,
 }
 
+/// Request passed from the worker to a Telegram mutation executor.
+#[derive(Debug)]
+pub struct TelegramMutationRequest {
+    /// Telegram bot token used only for the current mutation call.
+    pub bot_token: String,
+    /// Telegram sticker set name being reconciled.
+    pub sticker_set_name: String,
+    /// Ordered mutations to apply.
+    pub mutations: Vec<TelegramStickerSetMutation>,
+}
+
 /// Boundary for publishing prepared Telegram sticker sets.
 pub trait TelegramPublicationExecutor: std::fmt::Debug + Send + Sync {
     /// Publishes one Telegram sticker set.
@@ -233,6 +248,15 @@ pub trait TelegramPublicationExecutor: std::fmt::Debug + Send + Sync {
         &self,
         request: TelegramPublicationRequest,
     ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<TelegramPublishedSet>> + Send + '_>>;
+}
+
+/// Boundary for applying Telegram sticker set mutations.
+pub trait TelegramMutationExecutor: std::fmt::Debug + Send + Sync {
+    /// Applies ordered Telegram sticker set mutations.
+    fn apply(
+        &self,
+        request: TelegramMutationRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<usize>> + Send + '_>>;
 }
 
 /// Telegram publication executor backed by `teloxide`.
@@ -248,6 +272,25 @@ impl TelegramPublicationExecutor for TeloxideTelegramPublicationExecutor {
             let bot = TelegramBotConfig::new(request.bot_token)?.build_bot();
             let api = TeloxideTelegramStickerSetApi::new(bot);
             publish_sticker_set(&api, request.publish_request)
+                .await
+                .map_err(Into::into)
+        })
+    }
+}
+
+/// Telegram mutation executor backed by `teloxide`.
+#[derive(Debug, Default)]
+pub struct TeloxideTelegramMutationExecutor;
+
+impl TelegramMutationExecutor for TeloxideTelegramMutationExecutor {
+    fn apply(
+        &self,
+        request: TelegramMutationRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<usize>> + Send + '_>> {
+        Box::pin(async move {
+            let bot = TelegramBotConfig::new(request.bot_token)?.build_bot();
+            let api = TeloxideTelegramStickerSetApi::new(bot);
+            apply_sticker_set_mutations(&api, request.mutations)
                 .await
                 .map_err(Into::into)
         })
@@ -383,6 +426,7 @@ pub struct ExportWorker {
     config: ExportWorkerConfig,
     media_executor: Arc<dyn PreparedMediaExecutor>,
     telegram_publication_executor: Arc<dyn TelegramPublicationExecutor>,
+    telegram_mutation_executor: Arc<dyn TelegramMutationExecutor>,
 }
 
 impl ExportWorker {
@@ -419,11 +463,30 @@ impl ExportWorker {
         media_executor: Arc<dyn PreparedMediaExecutor>,
         telegram_publication_executor: Arc<dyn TelegramPublicationExecutor>,
     ) -> Self {
+        Self::with_media_telegram_and_mutation_executors(
+            repository,
+            config,
+            media_executor,
+            telegram_publication_executor,
+            Arc::new(TeloxideTelegramMutationExecutor),
+        )
+    }
+
+    /// Creates a worker with explicit prepared media, Telegram publication, and mutation executors.
+    #[must_use]
+    pub fn with_media_telegram_and_mutation_executors(
+        repository: StorageRepository,
+        config: ExportWorkerConfig,
+        media_executor: Arc<dyn PreparedMediaExecutor>,
+        telegram_publication_executor: Arc<dyn TelegramPublicationExecutor>,
+        telegram_mutation_executor: Arc<dyn TelegramMutationExecutor>,
+    ) -> Self {
         Self {
             repository,
             config,
             media_executor,
             telegram_publication_executor,
+            telegram_mutation_executor,
         }
     }
 
@@ -564,6 +627,7 @@ impl ExportWorker {
         let dry_run = options.dry_run.unwrap_or(true);
         let reconcile_mode = options.reconcile_mode;
         let remote_set = options.remote_set;
+        let execute_reconciliation = options.execute_reconciliation.unwrap_or(false);
         let set_type = match options.set_type.as_deref() {
             Some("customEmoji" | "custom_emoji") => TelegramStickerSetType::CustomEmoji,
             _ => TelegramStickerSetType::Regular,
@@ -594,10 +658,27 @@ impl ExportWorker {
             .prepare_telegram_media(pack, &plan.initial_stickers, &plan.append_stickers)
             .await?;
         let reconciliation = reconcile_mode
-            .map(|mode| telegram_reconciliation_summary(plan.clone(), remote_set, mode))
+            .map(|mode| telegram_reconciliation_summary(plan.clone(), remote_set.clone(), mode))
             .transpose()?;
 
         if !dry_run {
+            if let Some(mode) = reconcile_mode {
+                if !execute_reconciliation {
+                    return Err(ExportWorkerError::ReconciliationExecutionNotEnabled);
+                }
+                return self
+                    .reconcile_telegram_job(
+                        job,
+                        target,
+                        bot_token,
+                        set_type,
+                        plan,
+                        prepared_media,
+                        remote_set,
+                        mode,
+                    )
+                    .await;
+            }
             return self
                 .publish_telegram_job(job, target, bot_token, set_type, plan, prepared_media)
                 .await;
@@ -694,6 +775,178 @@ impl ExportWorker {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
+    async fn reconcile_telegram_job(
+        &self,
+        job: &ExportJobRecord,
+        target: &ExportTargetRecord,
+        bot_token: Option<String>,
+        set_type: TelegramStickerSetType,
+        plan: TelegramExportPlan,
+        prepared_media: Vec<CachedPreparedMediaSummary>,
+        remote_set: Option<TelegramRemoteSet>,
+        mode: TelegramReconcileMode,
+    ) -> ExportWorkerResult<WorkerJobResult> {
+        let reconciliation_plan =
+            TelegramExportPlanner::plan_reconciliation(plan.clone(), remote_set, mode)?;
+
+        if let Some((initial_stickers, append_stickers)) = reconciliation_plan
+            .operations
+            .iter()
+            .find_map(|operation| match operation {
+                TelegramReconcileOperation::CreateSet {
+                    initial_stickers,
+                    append_stickers,
+                } => Some((initial_stickers.clone(), append_stickers.clone())),
+                _ => None,
+            })
+        {
+            return self
+                .publish_telegram_job(
+                    job,
+                    target,
+                    bot_token,
+                    set_type,
+                    TelegramExportPlan {
+                        sticker_set_name: plan.sticker_set_name,
+                        title: plan.title,
+                        owner_user_id: plan.owner_user_id,
+                        set_type: plan.set_type,
+                        initial_stickers,
+                        append_stickers,
+                    },
+                    prepared_media,
+                )
+                .await;
+        }
+
+        let bot_token = bot_token.ok_or(ExportWorkerError::MissingTelegramBotToken)?;
+        let mutations = self.telegram_reconciliation_mutations(
+            &reconciliation_plan.operations,
+            plan.owner_user_id,
+            &plan.sticker_set_name,
+            &prepared_media,
+        )?;
+        let summary =
+            telegram_reconciliation_summary_from_operations(mode, &reconciliation_plan.operations);
+
+        self.append_event(
+            &job.id,
+            "info",
+            "telegram.reconcile",
+            "applying Telegram reconciliation mutations",
+        )
+        .await?;
+        let applied_count = self
+            .telegram_mutation_executor
+            .apply(TelegramMutationRequest {
+                bot_token,
+                sticker_set_name: plan.sticker_set_name.clone(),
+                mutations,
+            })
+            .await?;
+
+        let sticker_set_url = telegram_sticker_set_url(&plan.sticker_set_name);
+        let sticker_count = plan.initial_stickers.len() + plan.append_stickers.len();
+        self.persist_telegram_publication(
+            job,
+            target,
+            &plan.sticker_set_name,
+            &sticker_set_url,
+            sticker_count,
+            set_type,
+        )
+        .await?;
+
+        Ok(WorkerJobResult::TelegramReconciled {
+            target_kind: target.kind.clone(),
+            sticker_set_name: plan.sticker_set_name,
+            sticker_set_url,
+            sticker_count,
+            sticker_type: sticker_type_label(set_type).to_owned(),
+            applied_mutation_count: applied_count,
+            reconciliation: summary,
+            prepared_media,
+            dry_run: false,
+        })
+    }
+
+    async fn persist_telegram_publication(
+        &self,
+        job: &ExportJobRecord,
+        target: &ExportTargetRecord,
+        sticker_set_name: &str,
+        sticker_set_url: &str,
+        sticker_count: usize,
+        set_type: TelegramStickerSetType,
+    ) -> ExportWorkerResult<()> {
+        let publication_id = telegram_publication_id(&target.id, sticker_set_name);
+        let sticker_count =
+            i64::try_from(sticker_count).map_err(|_| ExportWorkerError::StickerCountOverflow)?;
+        let sticker_type = sticker_type_label(set_type).to_owned();
+        self.repository
+            .upsert_telegram_publication(NewTelegramPublication {
+                id: &publication_id,
+                pack_id: &job.source_pack_id,
+                target_id: &target.id,
+                job_id: &job.id,
+                sticker_set_name,
+                sticker_set_url,
+                sticker_count,
+                sticker_type: &sticker_type,
+            })
+            .await?;
+        Ok(())
+    }
+
+    fn telegram_reconciliation_mutations(
+        &self,
+        operations: &[TelegramReconcileOperation],
+        owner_user_id: i64,
+        sticker_set_name: &str,
+        prepared_media: &[CachedPreparedMediaSummary],
+    ) -> ExportWorkerResult<Vec<TelegramStickerSetMutation>> {
+        let mut mutations = Vec::new();
+        for operation in operations {
+            match operation {
+                TelegramReconcileOperation::CreateSet { .. }
+                | TelegramReconcileOperation::KeepSticker { .. } => {}
+                TelegramReconcileOperation::SetTitle { title } => {
+                    mutations.push(TelegramStickerSetMutation::SetTitle {
+                        sticker_set_name: sticker_set_name.to_owned(),
+                        title: title.clone(),
+                    });
+                }
+                TelegramReconcileOperation::AddSticker { sticker } => {
+                    mutations.push(TelegramStickerSetMutation::AddSticker {
+                        owner_user_id,
+                        sticker_set_name: sticker_set_name.to_owned(),
+                        sticker: self.telegram_publish_sticker(sticker, prepared_media)?,
+                    });
+                }
+                TelegramReconcileOperation::ReplaceSticker {
+                    old_telegram_file_id,
+                    sticker,
+                } => {
+                    mutations.push(TelegramStickerSetMutation::ReplaceSticker {
+                        owner_user_id,
+                        sticker_set_name: sticker_set_name.to_owned(),
+                        old_telegram_file_id: old_telegram_file_id.clone(),
+                        sticker: self.telegram_publish_sticker(sticker, prepared_media)?,
+                    });
+                }
+                TelegramReconcileOperation::DeleteSticker {
+                    telegram_file_id, ..
+                } => {
+                    mutations.push(TelegramStickerSetMutation::DeleteSticker {
+                        telegram_file_id: telegram_file_id.clone(),
+                    });
+                }
+            }
+        }
+        Ok(mutations)
+    }
+
     fn telegram_publish_stickers(
         &self,
         planned_stickers: &[PlannedTelegramSticker],
@@ -723,6 +976,32 @@ impl ExportWorker {
                 })
             })
             .collect()
+    }
+
+    fn telegram_publish_sticker(
+        &self,
+        planned: &PlannedTelegramSticker,
+        prepared_media: &[CachedPreparedMediaSummary],
+    ) -> ExportWorkerResult<TelegramPublishSticker> {
+        let prepared = prepared_media
+            .iter()
+            .find(|prepared| {
+                prepared.sticker_id == planned.sticker_id
+                    && prepared.profile_key == planned.target_profile_key
+            })
+            .ok_or_else(|| ExportWorkerError::MissingPreparedMedia {
+                sticker_id: planned.sticker_id.clone(),
+                profile_key: planned.target_profile_key.clone(),
+            })?;
+        let file = InputFile::file(
+            self.config
+                .prepared_media_dir
+                .join(&prepared.output_asset_key),
+        );
+        Ok(TelegramPublishSticker {
+            source_sticker_id: planned.sticker_id.clone(),
+            input: planned.to_input_sticker(file),
+        })
     }
 
     async fn prepare_telegram_media(
@@ -834,6 +1113,7 @@ struct WorkerTelegramOptions {
     existing_sticker_set_names: Vec<String>,
     reconcile_mode: Option<TelegramReconcileMode>,
     remote_set: Option<TelegramRemoteSet>,
+    execute_reconciliation: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -878,6 +1158,17 @@ enum WorkerJobResult {
         sticker_set_url: String,
         sticker_count: usize,
         sticker_type: String,
+        prepared_media: Vec<CachedPreparedMediaSummary>,
+        dry_run: bool,
+    },
+    TelegramReconciled {
+        target_kind: String,
+        sticker_set_name: String,
+        sticker_set_url: String,
+        sticker_count: usize,
+        sticker_type: String,
+        applied_mutation_count: usize,
+        reconciliation: TelegramReconciliationDryRunSummary,
         prepared_media: Vec<CachedPreparedMediaSummary>,
         dry_run: bool,
     },
@@ -955,29 +1246,41 @@ fn telegram_publication_id(target_id: &str, sticker_set_name: &str) -> String {
     format!("telegram:{target_id}:{sticker_set_name}")
 }
 
+fn telegram_sticker_set_url(sticker_set_name: &str) -> String {
+    format!("https://t.me/addstickers/{sticker_set_name}")
+}
+
 fn telegram_reconciliation_summary(
     plan: TelegramExportPlan,
     remote_set: Option<TelegramRemoteSet>,
     mode: TelegramReconcileMode,
 ) -> ExportWorkerResult<TelegramReconciliationDryRunSummary> {
     let reconciliation = TelegramExportPlanner::plan_reconciliation(plan, remote_set, mode)?;
-    let operations = reconciliation
-        .operations
+    Ok(telegram_reconciliation_summary_from_operations(
+        mode,
+        &reconciliation.operations,
+    ))
+}
+
+fn telegram_reconciliation_summary_from_operations(
+    mode: TelegramReconcileMode,
+    operations: &[TelegramReconcileOperation],
+) -> TelegramReconciliationDryRunSummary {
+    let operation_labels = operations
         .iter()
         .map(telegram_reconcile_operation_label)
         .collect::<Vec<_>>();
-    let mutation_count = reconciliation
-        .operations
+    let mutation_count = operations
         .iter()
         .filter(|operation| telegram_reconcile_operation_is_mutation(operation))
         .count();
 
-    Ok(TelegramReconciliationDryRunSummary {
+    TelegramReconciliationDryRunSummary {
         mode,
-        operation_count: reconciliation.operations.len(),
+        operation_count: operations.len(),
         mutation_count,
-        operations,
-    })
+        operations: operation_labels,
+    }
 }
 
 const fn telegram_reconcile_operation_label(

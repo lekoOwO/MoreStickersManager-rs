@@ -37,9 +37,10 @@ Last completed:
 - Telegram reconciliation policy slice: added pure exporter-level reconciliation planning for create-only, append-missing, and mirror modes, including title updates, sticker replacement, remote-only deletion, and no-network tests.
 - Telegram mutation boundary slice: extended `msm-telegram` with mockable title update, sticker add, sticker replace, and sticker delete mutations backed by teloxide adapter methods and no-network ordering tests.
 - Telegram worker reconciliation dry-run slice: export jobs can accept `reconcileMode` plus optional `remoteSet` options and include reconciliation operation/mutation summaries in Telegram dry-run results without calling Telegram.
+- Telegram guarded reconciliation execution slice: non-dry-run `appendMissing` reconciliation can execute planned Telegram mutations through an injected executor when `executeReconciliation:true` and `remoteSet` are supplied; regular publication remains unchanged.
 
 Current task:
-- Continue from Telegram worker reconciliation dry-run: worker can summarize reconciliation plans safely; next step is guarded non-dry-run mutation execution and remote state retrieval.
+- Continue from guarded Telegram reconciliation execution: supplied remote state can drive append-missing mutation execution; next step is remote state retrieval and broader mirror safety controls.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -75,9 +76,10 @@ Last verification:
 - Telegram reconciliation policy slice: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --test telegram_plan_tests --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
 - Telegram mutation boundary slice: `cargo fmt --all -- --check`; `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`; `git diff --check`.
 - Telegram worker reconciliation dry-run slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
+- Telegram guarded reconciliation execution slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- Add guarded non-dry-run Telegram reconciliation execution and remote state retrieval, keeping destructive mirror mode opt-in.
+- Add Telegram remote state retrieval and explicit mirror-mode destructive safety controls.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

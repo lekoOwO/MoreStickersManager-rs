@@ -3,7 +3,8 @@ use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 use msm_app::{
     ConversionCommandRunner, ExportWorker, ExportWorkerConfig, ExportWorkerResult,
     PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest, ProcessPreparedMediaExecutor,
-    TelegramPublicationExecutor, TelegramPublicationRequest,
+    TelegramMutationExecutor, TelegramMutationRequest, TelegramPublicationExecutor,
+    TelegramPublicationRequest,
 };
 use msm_domain::{Sticker, StickerPack};
 use msm_media::ConversionCommand;
@@ -280,6 +281,60 @@ async fn telegram_export_job_can_publish_through_injected_executor() {
     assert!(stages.contains(&"telegram.publish.create".to_owned()));
     assert!(stages.contains(&"telegram.publish.append".to_owned()));
     assert!(stages.contains(&"succeeded".to_owned()));
+}
+
+#[tokio::test]
+async fn telegram_append_missing_reconciliation_can_execute_mutations_when_explicitly_enabled() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_reconcile_execute",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false,"reconcileMode":"appendMissing","executeReconciliation":true,"remoteSet":{"stickerSetName":"sample_pack_by_msm_bot","title":"Sample","stickers":[]}}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let publisher = Arc::new(FakeTelegramPublicationExecutor::default());
+    let mutations = Arc::new(FakeTelegramMutationExecutor::default());
+    let worker = ExportWorker::with_media_telegram_and_mutation_executors(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        publisher.clone(),
+        mutations.clone(),
+    );
+
+    let completed = worker
+        .run_job("job_telegram_reconcile_execute")
+        .await
+        .unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
+    assert_eq!(result["kind"], "telegramReconciled");
+    assert_eq!(result["stickerSetName"], "sample_pack_by_msm_bot");
+    assert_eq!(result["reconciliation"]["mode"], "appendMissing");
+    assert_eq!(result["reconciliation"]["mutationCount"], 1);
+    assert_eq!(result["dryRun"], false);
+    assert!(publisher.calls.lock().unwrap().is_empty());
+    let calls = mutations.calls.lock().unwrap();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].bot_token, "123:secret");
+    assert_eq!(calls[0].mutation_count, 1);
+    assert_eq!(calls[0].sticker_set_name, "sample_pack_by_msm_bot");
 }
 
 #[tokio::test]
@@ -575,6 +630,34 @@ struct RecordedTelegramPublication {
     sticker_set_name: String,
     initial_count: usize,
     append_count: usize,
+}
+
+#[derive(Debug, Default)]
+struct FakeTelegramMutationExecutor {
+    calls: std::sync::Mutex<Vec<RecordedTelegramMutation>>,
+}
+
+impl TelegramMutationExecutor for FakeTelegramMutationExecutor {
+    fn apply(
+        &self,
+        request: TelegramMutationRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<usize>> + Send + '_>> {
+        Box::pin(async move {
+            self.calls.lock().unwrap().push(RecordedTelegramMutation {
+                bot_token: request.bot_token,
+                sticker_set_name: request.sticker_set_name,
+                mutation_count: request.mutations.len(),
+            });
+            Ok(1)
+        })
+    }
+}
+
+#[derive(Debug)]
+struct RecordedTelegramMutation {
+    bot_token: String,
+    sticker_set_name: String,
+    mutation_count: usize,
 }
 
 #[derive(Debug)]

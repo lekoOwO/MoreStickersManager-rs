@@ -9,7 +9,7 @@
 - `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete, PAT lifecycle commands, export target/job commands, and Telegram publication history reads.
 - `crates/msm-providers`: provider registry plus Telegram and LINE fixture normalizers.
 - `crates/msm-exporters`: export target trait, target kind keys, capability metadata, request/plan types, duplicate-safe registry, concrete `morestickers` export target, Telegram sticker set planner, and Telegram reconciliation policy planner.
-- `crates/msm-app`: runnable Axum service binary composing storage, API, assets, Web UI static serving, prepared media conversion, export worker execution, bounded export job retry handling, and Telegram reconciliation dry-run summaries.
+- `crates/msm-app`: runnable Axum service binary composing storage, API, assets, Web UI static serving, prepared media conversion, export worker execution, bounded export job retry handling, Telegram reconciliation dry-run summaries, and guarded append-missing mutation execution.
 - `crates/msm-mcp`: MCP `/mcp` JSON-RPC endpoint with pack list/import/export/update/delete tools, export target/job tools, and Telegram publication history tools.
 - `crates/msm-media`: media profile foundation with source media kinds, Telegram static/video/thumbnail target profiles, prepared media specs, conversion plan selection, and shell-free ffmpeg command planning.
 - `apps/web`: Vue/Vite Web UI foundation with theme, i18n, Shadcn Vue-style primitives, mock fallback, protected API clients, PAT panel, pack CRUD controls, pack import UI, export target panel, export wizard, Telegram publication history panel, and export job timeline.
@@ -26,7 +26,7 @@
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.
 - Media probing through ffprobe.
-- Guarded non-dry-run Telegram reconciliation mutation execution and remote state retrieval.
+- Telegram remote state retrieval and explicit mirror-mode destructive safety controls.
 
 Do not add cross-layer dependencies to `msm-domain`.
 For feature completion status, prefer `../status/implementation-matrix.md` over

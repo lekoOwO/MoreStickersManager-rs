@@ -477,3 +477,14 @@
 - Added worker tests proving append-missing dry-runs report planned mutation counts without calling Telegram.
 - Documented that non-dry-run mutation execution and remote state retrieval remain future work.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Telegram Guarded Reconciliation Execution
+
+- Added `TelegramMutationExecutor` and `TelegramMutationRequest` to the app worker boundary.
+- Added a teloxide-backed mutation executor that reuses the `msm-telegram` mutation orchestrator.
+- Added `executeReconciliation` job option; non-dry-run reconciliation refuses to run unless explicitly enabled.
+- Wired supplied-state append-missing reconciliation operations into Telegram add/replace/title/delete mutation requests.
+- Added a worker test proving append-missing reconciliation executes mutations through an injected fake and does not call the create-set publisher.
+- Persisted reconciled Telegram publication metadata after successful mutation execution.
+- Documented that remote state retrieval and destructive mirror safety controls remain pending.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`.

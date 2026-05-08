@@ -104,8 +104,11 @@ Telegram boundary can execute ordered title/add/replace/delete mutation
 sequences through teloxide. The worker does not map jobs into those update/delete
 operations for live publication yet, but dry-run jobs may include
 `reconcileMode` plus a supplied `remoteSet` to return operation and mutation
-counts. Current live Telegram publication remains create/append-oriented and
-opt-in via `"dryRun": false`.
+counts. Non-dry-run append-missing reconciliation can execute supplied-state
+mutations only when job options include `"dryRun": false`,
+`"reconcileMode": "appendMissing"`, `"executeReconciliation": true`, and a
+`remoteSet`. Current normal live Telegram publication remains
+create/append-oriented and opt-in via `"dryRun": false`.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
