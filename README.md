@@ -320,10 +320,11 @@ defaults to `admin`.
 
 ## Project Docs
 
+- `docs/PRD.md`: living product requirements, status, roadmap, and completion checklist.
 - `docs/dev/architecture.md`: architecture and crate boundaries.
 - `docs/dev/compatibility.md`: sticker pack format compatibility.
 - `docs/dev/providers.md`: provider normalization status.
-- `docs/status/implementation-matrix.md`: implemented-versus-planned feature status.
+- `docs/status/implementation-matrix.md`: compact implemented-versus-planned feature status.
 - `docs/user/README.md`: user-facing documentation index.
-- `docs/agents/README.md`: agent handoff entrypoint.
+- `docs/agents/README.md`: minimal agent handoff entrypoint.
 - `docs/status/current.md`: current development state.

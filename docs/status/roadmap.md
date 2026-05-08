@@ -3,7 +3,8 @@
 Last updated: 2026-05-09.
 
 This file is the short handoff view. Use `current.md` for the detailed
-chronological log and `implementation-matrix.md` for the feature truth table.
+chronological log, `implementation-matrix.md` for the feature truth table, and
+`../PRD.md` for the living completion roadmap.
 
 ## Current Focus
 

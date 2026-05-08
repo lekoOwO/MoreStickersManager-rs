@@ -3,7 +3,8 @@
 Last updated: 2026-05-09.
 
 This file is the quick truth source for what MSM can do today versus what is
-only designed or planned.
+only designed or planned. Use `../PRD.md` for the broader product requirements,
+roadmap, and completion definition.
 
 ## Current Capability Status
 

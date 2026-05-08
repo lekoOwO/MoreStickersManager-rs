@@ -795,3 +795,13 @@
 - Added human/JSON output formatting for membership links, ID lists, and remove
   acknowledgements.
 - Added parser and fake-client execution tests for the new membership commands.
+
+## 2026-05-09 Documentation Consolidation
+
+- Added `docs/PRD.md` as the living requirements, current status, roadmap,
+  surface parity, verification, and completion source.
+- Reduced active Agent handoff docs to `docs/agents/README.md` and folded the
+  old read order/status protocol into that file.
+- Removed legacy per-phase `docs/superpowers` plans/specs and duplicated Agent
+  handoff files now covered by the PRD, status docs, and developer docs.
+- Updated README, roadmap, and implementation matrix to point to the PRD.
