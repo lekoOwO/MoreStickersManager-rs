@@ -100,8 +100,9 @@ The Web E2E suite currently covers:
 
 - live API/PAT runtime mode and absence of mock-preview copy when env is set;
 - single desktop navigation source and workspace section switching;
-- collapsed/expanded desktop rail behavior, including non-clipped brand text
-  and no incorrect collapsed `API` label;
+- collapsed/expanded desktop rail behavior, including non-clipped brand text,
+  collapsed controls contained inside the rail, and no incorrect collapsed
+  `API` label;
 - selectable PAT scope controls instead of raw scope text input;
 - fixed zh-TW dashboard/access-token/import-dialog labels on desktop, narrow
   desktop, and mobile;
@@ -632,6 +633,7 @@ These tests prove:
 - dry-run Telegram jobs do not call the publication executor;
 - successful non-dry-run Telegram jobs persist durable publication records;
 - successful non-dry-run Telegram publication jobs fetch remote sticker set state through an injected fake and persist per-sticker file mappings;
+- successful non-dry-run Telegram reconciliation mutation jobs fetch remote sticker set state through an injected fake and refresh per-sticker file mappings;
 - publisher failures mark export jobs as failed and persist an error summary;
 - startup export target bootstrap config parses, rejects invalid JSON, and idempotently creates/updates configured targets.
 - retryable worker failures requeue jobs with backoff until the configured attempt budget is exhausted;

@@ -385,12 +385,16 @@ async fn telegram_append_missing_reconciliation_can_execute_mutations_when_expli
     .unwrap();
     let publisher = Arc::new(FakeTelegramPublicationExecutor::default());
     let mutations = Arc::new(FakeTelegramMutationExecutor::default());
-    let worker = ExportWorker::with_media_telegram_and_mutation_executors(
+    let worker = ExportWorker::with_media_telegram_mutation_and_remote_executors(
         repo.clone(),
         worker_config(),
         Arc::new(FakePreparedMediaExecutor),
         publisher.clone(),
         mutations.clone(),
+        Arc::new(FakeTelegramRemoteStateExecutor::with_set(remote_set(
+            "sample_pack_by_msm_bot",
+            vec![remote_sticker("tg_file_1", "tg_unique_1")],
+        ))),
     );
 
     let completed = worker
@@ -411,6 +415,77 @@ async fn telegram_append_missing_reconciliation_can_execute_mutations_when_expli
     assert_eq!(calls[0].bot_token, "123:secret");
     assert_eq!(calls[0].mutation_count, 1);
     assert_eq!(calls[0].sticker_set_name, "sample_pack_by_msm_bot");
+}
+
+#[tokio::test]
+async fn telegram_reconciliation_refreshes_remote_state_and_persists_sticker_mappings() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_reconcile_mapping",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false,"reconcileMode":"appendMissing","executeReconciliation":true,"remoteSet":{"stickerSetName":"sample_pack_by_msm_bot","title":"Sample","stickers":[]}}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let remote_state = Arc::new(FakeTelegramRemoteStateExecutor::with_set(remote_set(
+        "sample_pack_by_msm_bot",
+        vec![remote_sticker(
+            "tg_file_after_reconcile",
+            "tg_unique_after_reconcile",
+        )],
+    )));
+    let worker = ExportWorker::with_media_telegram_mutation_and_remote_executors(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        Arc::new(FakeTelegramPublicationExecutor::default()),
+        Arc::new(FakeTelegramMutationExecutor::default()),
+        remote_state.clone(),
+    );
+
+    let completed = worker
+        .run_job("job_telegram_reconcile_mapping")
+        .await
+        .unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    assert_eq!(
+        remote_state.calls.lock().unwrap().as_slice(),
+        ["fetch:123:secret:sample_pack_by_msm_bot"]
+    );
+    let publication = repo
+        .find_telegram_publication_by_target_set("target_telegram", "sample_pack_by_msm_bot")
+        .await
+        .unwrap()
+        .expect("reconciled publication should be persisted before mappings");
+    let mappings = repo
+        .list_telegram_sticker_mappings_for_publication(&publication.id)
+        .await
+        .unwrap();
+    assert_eq!(mappings.len(), 1);
+    assert_eq!(
+        mappings[0].source_sticker_id,
+        "MoreStickers:Telegram:Sticker:sample:file"
+    );
+    assert_eq!(mappings[0].telegram_file_id, "tg_file_after_reconcile");
+    assert_eq!(
+        mappings[0].telegram_file_unique_id,
+        "tg_unique_after_reconcile"
+    );
 }
 
 #[tokio::test]

@@ -267,7 +267,10 @@ function requirePatClient() {
         data-testid="desktop-sidebar"
         :data-expanded="sidebarExpanded ? 'true' : 'false'"
       >
-        <div class="flex items-center gap-3" :class="sidebarExpanded ? 'justify-between' : 'justify-center'">
+        <div
+          class="flex items-center"
+          :class="sidebarExpanded ? 'justify-between gap-3' : 'flex-col justify-center gap-2'"
+        >
           <button
             class="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary text-sm font-black tracking-tight text-primary-foreground shadow-[0_14px_34px_-24px_color-mix(in_oklch,var(--primary)_70%,transparent)]"
             type="button"

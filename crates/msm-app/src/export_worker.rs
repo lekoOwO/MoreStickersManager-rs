@@ -938,7 +938,7 @@ impl ExportWorker {
         let applied_count = self
             .telegram_mutation_executor
             .apply(TelegramMutationRequest {
-                bot_token,
+                bot_token: bot_token.clone(),
                 sticker_set_name: plan.sticker_set_name.clone(),
                 mutations,
             })
@@ -953,6 +953,21 @@ impl ExportWorker {
             &sticker_set_url,
             sticker_count,
             set_type,
+        )
+        .await?;
+        let publication_id = telegram_publication_id(&target.id, &plan.sticker_set_name);
+        let planned_stickers = plan
+            .initial_stickers
+            .iter()
+            .chain(plan.append_stickers.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+        self.persist_telegram_sticker_mappings_from_remote(
+            &bot_token,
+            &publication_id,
+            &target.id,
+            &plan.sticker_set_name,
+            &planned_stickers,
         )
         .await?;
 

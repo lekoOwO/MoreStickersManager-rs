@@ -53,6 +53,7 @@ test("desktop sidebar collapses and expands without duplicating top navigation",
   const sidebar = page.getByTestId("desktop-sidebar");
   await expect(sidebar).toHaveAttribute("data-expanded", "false");
   await expect(page.getByTestId("runtime-status")).not.toContainText("API");
+  await expectRailControlsInside(sidebar, page.getByRole("button", { name: "MSM overview" }), page.getByTestId("sidebar-collapse"));
   await page.getByTestId("sidebar-collapse").click();
   await expect(sidebar).toHaveAttribute("data-expanded", "true");
   const brand = page.getByTestId("sidebar-brand").getByText("MoreStickersManager");
@@ -111,3 +112,15 @@ test("pack layout does not force horizontal page overflow on narrow desktop", as
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
+
+async function expectRailControlsInside(sidebar: import("@playwright/test").Locator, ...controls: import("@playwright/test").Locator[]) {
+  const sidebarBox = await sidebar.boundingBox();
+  expect(sidebarBox).not.toBeNull();
+
+  for (const control of controls) {
+    const controlBox = await control.boundingBox();
+    expect(controlBox).not.toBeNull();
+    expect(controlBox!.x).toBeGreaterThanOrEqual(sidebarBox!.x + 8);
+    expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(sidebarBox!.x + sidebarBox!.width - 8);
+  }
+}

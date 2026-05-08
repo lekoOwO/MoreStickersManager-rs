@@ -582,3 +582,12 @@
 - Translated remaining fixed zh-TW dashboard and access-token labels, including provider/status/import-dialog and scope-selection UI.
 - Extended Playwright E2E to assert brand non-clipping, collapsed runtime label behavior, selectable PAT scopes, zh-TW fixed chrome labels, and import-dialog translation on desktop, narrow desktop, and mobile where applicable.
 - Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run web:e2e`, and confirmed `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.
+
+## 2026-05-09 Web Rail Containment And Telegram Reconciliation Mappings
+
+- Fixed the collapsed desktop rail header by stacking the MS logo and expand control vertically inside the narrow rail instead of forcing them into one overflowing row.
+- Added Playwright bounding-box coverage proving collapsed rail controls stay inside the rail with at least minimal horizontal breathing room.
+- Updated successful non-dry-run Telegram reconciliation mutation jobs to fetch remote sticker set state after mutation execution.
+- Reused the post-publication mapping persistence path so reconciliation jobs refresh MSM source sticker ID to Telegram file ID mappings by planned sticker order.
+- Added a no-network worker test proving reconciliation mapping refresh calls the injected remote-state executor and persists updated Telegram file IDs.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run web:e2e`, and confirmed `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.

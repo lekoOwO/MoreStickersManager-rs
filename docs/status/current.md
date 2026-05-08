@@ -48,9 +48,11 @@ Last completed:
 - Web desktop/mobile UX correction slice: Vite now loads env files from the repository root, runtime status distinguishes Live API/API-needs-PAT/Mock preview, desktop uses a full-width workbench layout with an icon rail plus context panel, mobile uses separate compact pack cards, buttons expose pointer/pressed states, and light/dark blue tokens are more vivid.
 - Web native navigation correction slice: desktop navigation is now a single collapsible rail, duplicate in-content tabs are suppressed when the shell controls the active section, top-bar controls are limited to global actions, dark theme returns to a near-black Ant Design-like blue palette, and Playwright E2E uses installed Microsoft Edge instead of downloaded Chromium.
 - Web UI QA hardening slice: fixed expanded desktop brand clipping, removed the incorrect collapsed `API` runtime label, replaced free-form PAT scope text inputs with selectable scope cards, translated remaining fixed zh-TW dashboard/access-token labels, and added Edge E2E coverage for those regressions.
+- Web rail containment follow-up: collapsed desktop rail header now stacks the MS logo and expand control vertically, keeping both controls inside the rail with E2E bounding-box coverage.
+- Telegram reconciliation mapping refresh slice: successful non-dry-run reconciliation mutation jobs now fetch remote Telegram sticker set state after mutation execution and refresh per-sticker MSM-to-Telegram file mappings.
 
 Current task:
-- Return to post-publication mappings after the Web workspace redesign slice: initial publication populates mappings; next step is refreshing mappings after reconciliation mutation execution and using them to build fetched remote state automatically.
+- Continue post-publication mapping work: initial publication and reconciliation mutation execution both populate mappings; next step is deriving reconciliation remote state automatically from stored mappings plus fetched Telegram metadata.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -97,9 +99,10 @@ Last verification:
 - Web desktop/mobile UX correction slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `pnpm run dev:stop`; `pnpm run dev:start`; API health check; PAT-authenticated pack list check; Web HTTP check; Vite module env check; `pnpm run dev:stop`.
 - Web native navigation correction slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e` using installed Microsoft Edge; verified `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.
 - Web UI QA hardening slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e` using installed Microsoft Edge; verified `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.
+- Web rail containment and Telegram reconciliation mapping refresh slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e` using installed Microsoft Edge; verified `%LOCALAPPDATA%\ms-playwright` does not exist after E2E; `git diff --check`.
 
 Next step:
-- Refresh Telegram sticker mappings after reconciliation mutation execution, then derive remote reconciliation state from stored mappings plus fetched Telegram metadata.
+- Derive Telegram reconciliation remote state automatically from stored source-sticker mappings plus fetched Telegram metadata, so users do not need to supply `remoteSet` manually.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
