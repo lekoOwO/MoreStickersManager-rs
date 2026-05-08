@@ -808,6 +808,19 @@
   status to mark MCP membership parity and leave Web membership controls as the
   next slice.
 
+## 2026-05-09 Product Data Membership Web
+
+- Added Web ProductMetadataClient methods for folder-pack, pack-tag, and
+  subscription-group pack add/list/remove API routes.
+- Added an Organize workspace membership console that lets users select a pack
+  and link or unlink it from folders, tags, and subscription groups.
+- Passed the live pack list into the Organize workspace so membership controls
+  operate on user-visible packs rather than manual ID entry.
+- Added API client and Vue component coverage for membership link operations.
+- Updated PRD, README, user docs, roadmap, implementation matrix, and current
+  status to mark product organization parity complete across API, CLI, MCP, and
+  Web.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,

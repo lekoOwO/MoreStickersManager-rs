@@ -6,8 +6,11 @@ import {
   createPatClient,
   createProductMetadataClient,
   folderListUrl,
+  folderPackListUrl,
   mapApiPackRecord,
   packListUrl,
+  packTagListUrl,
+  subscriptionGroupPackListUrl,
   subscriptionGroupListUrl,
   tagListUrl,
   type ApiStickerPackRecord,
@@ -378,6 +381,15 @@ describe("product metadata API client", () => {
     expect(subscriptionGroupListUrl("https://msm.example.test/", "tenant 1", "user 1")).toBe(
       "https://msm.example.test/api/v1/subscription-groups?tenantId=tenant+1&ownerUserId=user+1",
     );
+    expect(folderPackListUrl("https://msm.example.test/", "folder 1")).toBe(
+      "https://msm.example.test/api/v1/folders/folder%201/packs",
+    );
+    expect(packTagListUrl("https://msm.example.test/", "pack 1")).toBe(
+      "https://msm.example.test/api/v1/packs/pack%201/tags",
+    );
+    expect(subscriptionGroupPackListUrl("https://msm.example.test/", "sub 1")).toBe(
+      "https://msm.example.test/api/v1/subscription-groups/sub%201/packs",
+    );
   });
 
   it("lists and creates folders, tags, and subscription groups with bearer auth", async () => {
@@ -489,6 +501,70 @@ describe("product metadata API client", () => {
         ownerUserId: "user_1",
         name: "Favorites",
       }),
+    });
+  });
+
+  it("manages folder, tag, and subscription group membership links with bearer auth", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT" && url.endsWith("/api/v1/folders/folder_1/packs/pack_1")) {
+        return new Response(JSON.stringify({ folderId: "folder_1", packId: "pack_1", sortOrder: 10 }), { status: 200 });
+      }
+      if (init?.method === "DELETE" && url.endsWith("/api/v1/folders/folder_1/packs/pack_1")) {
+        return new Response(null, { status: 204 });
+      }
+      if (init?.method === "PUT" && url.endsWith("/api/v1/packs/pack_1/tags/tag_1")) {
+        return new Response(JSON.stringify({ packId: "pack_1", tagId: "tag_1" }), { status: 200 });
+      }
+      if (init?.method === "DELETE" && url.endsWith("/api/v1/packs/pack_1/tags/tag_1")) {
+        return new Response(null, { status: 204 });
+      }
+      if (init?.method === "PUT" && url.endsWith("/api/v1/subscription-groups/sub_1/packs/pack_1")) {
+        return new Response(JSON.stringify({ subscriptionGroupId: "sub_1", packId: "pack_1", sortOrder: 20 }), { status: 200 });
+      }
+      if (init?.method === "DELETE" && url.endsWith("/api/v1/subscription-groups/sub_1/packs/pack_1")) {
+        return new Response(null, { status: 204 });
+      }
+      if (url.endsWith("/api/v1/folders/folder_1/packs")) {
+        return new Response(JSON.stringify(["pack_1"]), { status: 200 });
+      }
+      if (url.endsWith("/api/v1/packs/pack_1/tags")) {
+        return new Response(JSON.stringify(["tag_1"]), { status: 200 });
+      }
+      return new Response(JSON.stringify(["pack_1"]), { status: 200 });
+    });
+    const client = createProductMetadataClient({
+      baseUrl: "https://msm.example.test/",
+      authToken: "msm_pat_web_secret",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const folderLink = await client.addPackToFolder({ folderId: "folder_1", packId: "pack_1", sortOrder: 10 });
+    const folderPacks = await client.listFolderPacks("folder_1");
+    await client.removePackFromFolder("folder_1", "pack_1");
+    const packTag = await client.addTagToPack("pack_1", "tag_1");
+    const packTags = await client.listPackTags("pack_1");
+    await client.removeTagFromPack("pack_1", "tag_1");
+    const groupLink = await client.addPackToSubscriptionGroup({
+      subscriptionGroupId: "sub_1",
+      packId: "pack_1",
+      sortOrder: 20,
+    });
+    const groupPacks = await client.listSubscriptionGroupPacks("sub_1");
+    await client.removePackFromSubscriptionGroup("sub_1", "pack_1");
+
+    expect(folderLink.sortOrder).toBe(10);
+    expect(folderPacks).toEqual(["pack_1"]);
+    expect(packTag.tagId).toBe("tag_1");
+    expect(packTags).toEqual(["tag_1"]);
+    expect(groupLink.sortOrder).toBe(20);
+    expect(groupPacks).toEqual(["pack_1"]);
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/folders/folder_1/packs/pack_1", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_web_secret",
+      },
+      body: JSON.stringify({ sortOrder: 10 }),
     });
   });
 });

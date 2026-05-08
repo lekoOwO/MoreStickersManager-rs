@@ -74,7 +74,7 @@ Status meanings:
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, export, Telegram publication history, product metadata, and product membership commands exist. |
 | MCP | Partially complete | Pack, export, Telegram publication history, product metadata, and product membership tools exist. Session/SSE hardening remains incomplete. |
-| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login, pack CRUD/import, product metadata create/list, export target/job UI, publication history, and Telegram reconciliation controls exist. Product membership controls are not implemented. |
+| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login, pack CRUD/import, product metadata create/list, product membership add/remove controls, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
@@ -88,13 +88,11 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add Web product membership controls in the Organize workspace without
-   regressing desktop/mobile layout quality.
-2. Design and implement subscription payload/link contracts for per-pack and
+1. Design and implement subscription payload/link contracts for per-pack and
    user-created subscription groups.
-3. Implement the pack/group access model for public, private, subscription
+2. Implement the pack/group access model for public, private, subscription
    secret, PAT, and Web session access.
-4. Start tenant administration and RBAC management surfaces.
+3. Start tenant administration and RBAC management surfaces.
 
 Each queue item must update this section when completed or reordered.
 
@@ -114,7 +112,7 @@ tests and docs are updated.
 - [x] API/OpenAPI add/list/remove for product membership links.
 - [x] CLI add/list/remove for product membership links.
 - [x] MCP add/list/remove tools for product membership links.
-- [ ] Web add/list/remove controls for product membership links.
+- [x] Web add/list/remove controls for product membership links.
 
 ### Phase B: Subscription Links And Access Model
 
@@ -215,7 +213,7 @@ must record remaining surfaces in the roadmap until parity is reached.
 
 Current parity gaps:
 
-- Product membership links: API, CLI, and MCP exist; Web controls are missing.
+- Product membership links: API, CLI, MCP, and Web controls exist.
 - Product metadata create/list: API, CLI, MCP, and Web exist.
 - Telegram export/reconciliation: API, CLI, MCP, and Web controls exist, but
   operator recovery polish remains.
@@ -231,8 +229,9 @@ Resolve these before implementing the related phase:
 - Subscription access: should subscription secrets grant temporary pack asset
   access only through subscription routes, or should they also work as generic
   pack credentials?
-- Pack membership UI: should folder/tag assignment live in pack detail, the
-  Organize workspace, or both with different density layouts?
+- Pack membership UI decision: the first complete surface lives in the
+  Organize workspace as a dedicated membership console; a future pack-detail
+  shortcut can be added only if it improves daily workflow density.
 - RBAC granularity: should owner-only checks remain direct `owner_user_id`
   comparisons, or should all checks move through a tenant role/permission
   evaluator before adding admin delegation?

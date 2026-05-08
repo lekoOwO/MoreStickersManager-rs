@@ -304,8 +304,8 @@ subscription-group pack add/remove uses `subscription.create` until dedicated
 PAT user owns the referenced pack and folder or subscription group and that the
 linked resources share a tenant. The CLI and MCP endpoint can create/list
 folders, tags, and subscription groups and add/list/remove membership links.
-Web management controls are available in the Organize workspace; Web
-membership controls are planned as the next follow-up slice.
+The Web Organize workspace provides the same membership controls through a
+pack-focused console for folder, tag, and subscription-group assignments.
 
 Current service binary example:
 

@@ -57,14 +57,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   and subscription-group pack membership links.
 - Product-data MCP add/list/remove tools now exist for folder-pack, pack-tag,
   and subscription-group pack membership links.
+- Product-data Web controls now exist in the Organize workspace for
+  folder-pack, pack-tag, and subscription-group pack membership links.
 
 ## Immediate Plan
 
-1. Add Web controls for pack-folder/tag membership and subscription group pack
-   membership/link operations.
-2. Add subscription link generation and access policy enforcement after the
-   membership controls are visible across all surfaces.
-3. Run targeted Rust/Web verification and update this roadmap, current status,
+1. Add subscription link generation and access policy enforcement now that
+   product membership controls are visible across API, CLI, MCP, and Web.
+2. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 
 ## Later Planned Work

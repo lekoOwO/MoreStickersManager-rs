@@ -427,6 +427,7 @@ function visibilityVariant(visibility: PackVisibility) {
       <ProductMetadataPanel
         :metadata-client="metadataClient"
         :locale="locale"
+        :packs="packs"
         :pat-token="patToken"
         :tenant-id="tenantId"
         :owner-user-id="ownerUserId"

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import ProductMetadataPanel from "@/components/ProductMetadataPanel.vue";
 import type { ProductMetadataClient } from "@/lib/api-client";
+import type { StickerPackSummary } from "@/lib/sticker-packs";
 
 describe("product metadata UI", () => {
   it("creates and lists folders, tags, and subscription groups", async () => {
@@ -17,8 +18,14 @@ describe("product metadata UI", () => {
         },
       ]),
       createFolder: vi.fn(async (request) => ({ ...request, createdAt: "2026-05-09T00:00:00Z" })),
+      listFolderPacks: vi.fn(async () => []),
+      addPackToFolder: vi.fn(async (request) => request),
+      removePackFromFolder: vi.fn(async () => undefined),
       listTags: vi.fn(async () => [{ id: "tag_1", tenantId: "tenant_1", name: "cute", createdAt: "2026-05-09T00:00:00Z" }]),
       createTag: vi.fn(async (request) => ({ ...request, createdAt: "2026-05-09T00:00:00Z" })),
+      listPackTags: vi.fn(async () => []),
+      addTagToPack: vi.fn(async (packId, tagId) => ({ packId, tagId })),
+      removeTagFromPack: vi.fn(async () => undefined),
       listSubscriptionGroups: vi.fn(async () => [
         {
           id: "sub_1",
@@ -30,6 +37,9 @@ describe("product metadata UI", () => {
         },
       ]),
       createSubscriptionGroup: vi.fn(async (request) => ({ ...request, createdAt: "2026-05-09T00:00:00Z" })),
+      listSubscriptionGroupPacks: vi.fn(async () => []),
+      addPackToSubscriptionGroup: vi.fn(async (request) => request),
+      removePackFromSubscriptionGroup: vi.fn(async () => undefined),
     };
     const wrapper = mount(ProductMetadataPanel, {
       props: {
@@ -74,5 +84,86 @@ describe("product metadata UI", () => {
     expect(client.listFolders).toHaveBeenCalledTimes(4);
     expect(client.listTags).toHaveBeenCalledTimes(4);
     expect(client.listSubscriptionGroups).toHaveBeenCalledTimes(4);
+  });
+
+  it("adds and removes pack memberships from the Organize workspace", async () => {
+    const packs: StickerPackSummary[] = [
+      {
+        id: "pack_1",
+        title: "Sample",
+        provider: "Telegram",
+        visibility: "private",
+        stickerCount: 1,
+        subscriptionReady: true,
+        updatedAt: "2026-05-09",
+      },
+    ];
+    const client: ProductMetadataClient = {
+      listFolders: vi.fn(async () => [
+        {
+          id: "folder_1",
+          tenantId: "tenant_1",
+          ownerUserId: "user_1",
+          name: "Favorites",
+          createdAt: "2026-05-09T00:00:00Z",
+        },
+      ]),
+      createFolder: vi.fn(async (request) => ({ ...request, createdAt: "2026-05-09T00:00:00Z" })),
+      listFolderPacks: vi.fn(async () => []),
+      addPackToFolder: vi.fn(async (request) => request),
+      removePackFromFolder: vi.fn(async () => undefined),
+      listTags: vi.fn(async () => [{ id: "tag_1", tenantId: "tenant_1", name: "cute", createdAt: "2026-05-09T00:00:00Z" }]),
+      createTag: vi.fn(async (request) => ({ ...request, createdAt: "2026-05-09T00:00:00Z" })),
+      listPackTags: vi.fn(async () => []),
+      addTagToPack: vi.fn(async (packId, tagId) => ({ packId, tagId })),
+      removeTagFromPack: vi.fn(async () => undefined),
+      listSubscriptionGroups: vi.fn(async () => [
+        {
+          id: "sub_1",
+          tenantId: "tenant_1",
+          ownerUserId: "user_1",
+          title: "Weekly",
+          visibility: "private",
+          createdAt: "2026-05-09T00:00:00Z",
+        },
+      ]),
+      createSubscriptionGroup: vi.fn(async (request) => ({ ...request, createdAt: "2026-05-09T00:00:00Z" })),
+      listSubscriptionGroupPacks: vi.fn(async () => []),
+      addPackToSubscriptionGroup: vi.fn(async (request) => request),
+      removePackFromSubscriptionGroup: vi.fn(async () => undefined),
+    };
+    const wrapper = mount(ProductMetadataPanel, {
+      props: {
+        locale: "en",
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        metadataClient: client,
+        packs,
+      },
+    });
+
+    await flushPromises();
+    await wrapper.get('[aria-label="Pack to organize"]').setValue("pack_1");
+    await wrapper.get('[aria-label="Folder membership target"]').setValue("folder_1");
+    await wrapper.get('[aria-label="Add pack to folder"]').trigger("click");
+    await wrapper.get('[aria-label="Remove pack from folder"]').trigger("click");
+    await wrapper.get('[aria-label="Tag membership target"]').setValue("tag_1");
+    await wrapper.get('[aria-label="Add tag to pack"]').trigger("click");
+    await wrapper.get('[aria-label="Remove tag from pack"]').trigger("click");
+    await wrapper.get('[aria-label="Subscription membership target"]').setValue("sub_1");
+    await wrapper.get('[aria-label="Add pack to subscription group"]').trigger("click");
+    await wrapper.get('[aria-label="Remove pack from subscription group"]').trigger("click");
+    await flushPromises();
+
+    expect(client.addPackToFolder).toHaveBeenCalledWith({ folderId: "folder_1", packId: "pack_1", sortOrder: 0 });
+    expect(client.removePackFromFolder).toHaveBeenCalledWith("folder_1", "pack_1");
+    expect(client.addTagToPack).toHaveBeenCalledWith("pack_1", "tag_1");
+    expect(client.removeTagFromPack).toHaveBeenCalledWith("pack_1", "tag_1");
+    expect(client.addPackToSubscriptionGroup).toHaveBeenCalledWith({
+      subscriptionGroupId: "sub_1",
+      packId: "pack_1",
+      sortOrder: 0,
+    });
+    expect(client.removePackFromSubscriptionGroup).toHaveBeenCalledWith("sub_1", "pack_1");
   });
 });

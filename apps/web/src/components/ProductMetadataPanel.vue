@@ -12,6 +12,7 @@ import {
   type WritablePackVisibility,
 } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
+import type { StickerPackSummary } from "@/lib/sticker-packs";
 
 const props = defineProps<{
   locale: Locale;
@@ -19,6 +20,7 @@ const props = defineProps<{
   ownerUserId: string;
   patToken?: string;
   metadataClient?: ProductMetadataClient;
+  packs?: StickerPackSummary[];
 }>();
 
 const folders = ref<ProductMetadataFolder[]>([]);
@@ -33,13 +35,25 @@ const tagName = ref("reaction");
 const subscriptionGroupId = ref("sub_weekly");
 const subscriptionGroupTitle = ref("Weekly sync");
 const subscriptionGroupVisibility = ref<WritablePackVisibility>("private");
+const selectedPackId = ref("");
+const selectedFolderId = ref("");
+const selectedTagId = ref("");
+const selectedSubscriptionGroupId = ref("");
+const folderPackIds = ref<string[]>([]);
+const packTagIds = ref<string[]>([]);
+const subscriptionGroupPackIds = ref<string[]>([]);
 
 const labels = computed(() => allMessages()[props.locale]);
+const packs = computed(() => props.packs ?? []);
 
 onMounted(loadMetadata);
 watch(() => props.metadataClient, loadMetadata);
 watch(() => props.patToken, loadMetadata);
 watch(() => [props.tenantId, props.ownerUserId], loadMetadata);
+watch(() => props.packs, refreshSelections, { deep: true });
+watch(selectedPackId, loadMemberships);
+watch(selectedFolderId, loadFolderMemberships);
+watch(selectedSubscriptionGroupId, loadSubscriptionGroupMemberships);
 
 async function loadMetadata() {
   loadingError.value = "";
@@ -53,6 +67,8 @@ async function loadMetadata() {
     folders.value = nextFolders;
     tags.value = nextTags;
     subscriptionGroups.value = nextGroups;
+    ensureSelections();
+    await loadMemberships();
   } catch (error) {
     loadingError.value = error instanceof Error ? error.message : String(error);
   }
@@ -101,6 +117,104 @@ async function createSubscriptionGroup() {
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
   }
+}
+
+async function addPackToFolder() {
+  actionError.value = "";
+  try {
+    await metadataClient().addPackToFolder({
+      folderId: selectedFolderId.value,
+      packId: selectedPackId.value,
+      sortOrder: 0,
+    });
+    await loadFolderMemberships();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function removePackFromFolder() {
+  actionError.value = "";
+  try {
+    await metadataClient().removePackFromFolder(selectedFolderId.value, selectedPackId.value);
+    await loadFolderMemberships();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function addTagToPack() {
+  actionError.value = "";
+  try {
+    await metadataClient().addTagToPack(selectedPackId.value, selectedTagId.value);
+    await loadPackTagMemberships();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function removeTagFromPack() {
+  actionError.value = "";
+  try {
+    await metadataClient().removeTagFromPack(selectedPackId.value, selectedTagId.value);
+    await loadPackTagMemberships();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function addPackToSubscriptionGroup() {
+  actionError.value = "";
+  try {
+    await metadataClient().addPackToSubscriptionGroup({
+      subscriptionGroupId: selectedSubscriptionGroupId.value,
+      packId: selectedPackId.value,
+      sortOrder: 0,
+    });
+    await loadSubscriptionGroupMemberships();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function removePackFromSubscriptionGroup() {
+  actionError.value = "";
+  try {
+    await metadataClient().removePackFromSubscriptionGroup(selectedSubscriptionGroupId.value, selectedPackId.value);
+    await loadSubscriptionGroupMemberships();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function refreshSelections() {
+  ensureSelections();
+  await loadMemberships();
+}
+
+function ensureSelections() {
+  selectedPackId.value ||= packs.value[0]?.id ?? "";
+  selectedFolderId.value ||= folders.value[0]?.id ?? "";
+  selectedTagId.value ||= tags.value[0]?.id ?? "";
+  selectedSubscriptionGroupId.value ||= subscriptionGroups.value[0]?.id ?? "";
+}
+
+async function loadMemberships() {
+  await Promise.all([loadFolderMemberships(), loadPackTagMemberships(), loadSubscriptionGroupMemberships()]);
+}
+
+async function loadFolderMemberships() {
+  folderPackIds.value = selectedFolderId.value ? await metadataClient().listFolderPacks(selectedFolderId.value) : [];
+}
+
+async function loadPackTagMemberships() {
+  packTagIds.value = selectedPackId.value ? await metadataClient().listPackTags(selectedPackId.value) : [];
+}
+
+async function loadSubscriptionGroupMemberships() {
+  subscriptionGroupPackIds.value = selectedSubscriptionGroupId.value
+    ? await metadataClient().listSubscriptionGroupPacks(selectedSubscriptionGroupId.value)
+    : [];
 }
 
 function metadataClient() {
@@ -214,5 +328,64 @@ function metadataClient() {
         </div>
       </section>
     </div>
+
+    <section class="overflow-hidden rounded-[1.35rem] border bg-card/80">
+      <div class="border-b px-5 py-4">
+        <h3 class="font-semibold">{{ labels.membershipConsole }}</h3>
+        <p class="mt-1 max-w-3xl text-sm text-muted-foreground">{{ labels.membershipConsoleHelp }}</p>
+      </div>
+
+      <div class="grid gap-4 px-5 py-5 xl:grid-cols-[minmax(16rem,0.8fr)_repeat(3,minmax(0,1fr))]">
+        <label class="flex flex-col gap-2 text-sm font-medium">
+          {{ labels.packToOrganize }}
+          <select v-model="selectedPackId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" :aria-label="labels.packToOrganize">
+            <option v-for="pack in packs" :key="pack.id" :value="pack.id">{{ pack.title }} · {{ pack.id }}</option>
+          </select>
+          <span v-if="packs.length === 0" class="text-xs text-muted-foreground">{{ labels.noPacksToOrganize }}</span>
+        </label>
+
+        <form class="flex flex-col gap-3 rounded-2xl border bg-background/45 p-4" @submit.prevent>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.folderMembershipTarget }}
+            <select v-model="selectedFolderId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" :aria-label="labels.folderMembershipTarget">
+              <option v-for="folder in folders" :key="folder.id" :value="folder.id">{{ folder.name }}</option>
+            </select>
+          </label>
+          <p class="text-xs text-muted-foreground">{{ labels.currentFolderMembers }}: {{ folderPackIds.length }}</p>
+          <div class="flex flex-wrap gap-2">
+            <Button type="button" :disabled="!selectedPackId || !selectedFolderId" :aria-label="labels.addPackToFolder" @click="addPackToFolder">{{ labels.add }}</Button>
+            <Button type="button" variant="outline" :disabled="!selectedPackId || !selectedFolderId" :aria-label="labels.removePackFromFolder" @click="removePackFromFolder">{{ labels.remove }}</Button>
+          </div>
+        </form>
+
+        <form class="flex flex-col gap-3 rounded-2xl border bg-background/45 p-4" @submit.prevent>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.tagMembershipTarget }}
+            <select v-model="selectedTagId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" :aria-label="labels.tagMembershipTarget">
+              <option v-for="tag in tags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
+            </select>
+          </label>
+          <p class="text-xs text-muted-foreground">{{ labels.currentPackTags }}: {{ packTagIds.length }}</p>
+          <div class="flex flex-wrap gap-2">
+            <Button type="button" :disabled="!selectedPackId || !selectedTagId" :aria-label="labels.addTagToPack" @click="addTagToPack">{{ labels.add }}</Button>
+            <Button type="button" variant="outline" :disabled="!selectedPackId || !selectedTagId" :aria-label="labels.removeTagFromPack" @click="removeTagFromPack">{{ labels.remove }}</Button>
+          </div>
+        </form>
+
+        <form class="flex flex-col gap-3 rounded-2xl border bg-background/45 p-4" @submit.prevent>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.subscriptionMembershipTarget }}
+            <select v-model="selectedSubscriptionGroupId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" :aria-label="labels.subscriptionMembershipTarget">
+              <option v-for="group in subscriptionGroups" :key="group.id" :value="group.id">{{ group.title }}</option>
+            </select>
+          </label>
+          <p class="text-xs text-muted-foreground">{{ labels.currentSubscriptionMembers }}: {{ subscriptionGroupPackIds.length }}</p>
+          <div class="flex flex-wrap gap-2">
+            <Button type="button" :disabled="!selectedPackId || !selectedSubscriptionGroupId" :aria-label="labels.addPackToSubscriptionGroup" @click="addPackToSubscriptionGroup">{{ labels.add }}</Button>
+            <Button type="button" variant="outline" :disabled="!selectedPackId || !selectedSubscriptionGroupId" :aria-label="labels.removePackFromSubscriptionGroup" @click="removePackFromSubscriptionGroup">{{ labels.remove }}</Button>
+          </div>
+        </form>
+      </div>
+    </section>
   </section>
 </template>

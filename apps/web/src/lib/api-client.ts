@@ -142,13 +142,39 @@ export type CreateFolderRequest = Omit<ProductMetadataFolder, "createdAt">;
 export type CreateTagRequest = Omit<ProductMetadataTag, "createdAt">;
 export type CreateSubscriptionGroupRequest = Omit<ProductMetadataSubscriptionGroup, "createdAt">;
 
+export interface FolderPackLink {
+  folderId: string;
+  packId: string;
+  sortOrder: number;
+}
+
+export interface PackTagLink {
+  packId: string;
+  tagId: string;
+}
+
+export interface SubscriptionGroupPackLink {
+  subscriptionGroupId: string;
+  packId: string;
+  sortOrder: number;
+}
+
 export interface ProductMetadataClient {
   listFolders(tenantId: string, ownerUserId: string): Promise<ProductMetadataFolder[]>;
   createFolder(request: CreateFolderRequest): Promise<ProductMetadataFolder>;
+  listFolderPacks(folderId: string): Promise<string[]>;
+  addPackToFolder(request: FolderPackLink): Promise<FolderPackLink>;
+  removePackFromFolder(folderId: string, packId: string): Promise<void>;
   listTags(tenantId: string): Promise<ProductMetadataTag[]>;
   createTag(request: CreateTagRequest): Promise<ProductMetadataTag>;
+  listPackTags(packId: string): Promise<string[]>;
+  addTagToPack(packId: string, tagId: string): Promise<PackTagLink>;
+  removeTagFromPack(packId: string, tagId: string): Promise<void>;
   listSubscriptionGroups(tenantId: string, ownerUserId: string): Promise<ProductMetadataSubscriptionGroup[]>;
   createSubscriptionGroup(request: CreateSubscriptionGroupRequest): Promise<ProductMetadataSubscriptionGroup>;
+  listSubscriptionGroupPacks(subscriptionGroupId: string): Promise<string[]>;
+  addPackToSubscriptionGroup(request: SubscriptionGroupPackLink): Promise<SubscriptionGroupPackLink>;
+  removePackFromSubscriptionGroup(subscriptionGroupId: string, packId: string): Promise<void>;
 }
 
 export function createPackClient(options: PackClientOptions = {}): PackClient {
@@ -245,6 +271,38 @@ export function createProductMetadataClient(options: PackClientOptions = {}): Pr
 
       return (await response.json()) as ProductMetadataFolder;
     },
+    async listFolderPacks(folderId) {
+      const response = await fetchOptional(fetchImpl, folderPackListUrl(baseUrl, folderId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list folder packs: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as string[];
+    },
+    async addPackToFolder(request) {
+      const response = await fetchImpl(
+        `${folderPackListUrl(baseUrl, request.folderId)}/${encodeURIComponent(request.packId)}`,
+        {
+          method: "PUT",
+          headers: jsonHeaders(options.authToken),
+          body: JSON.stringify({ sortOrder: request.sortOrder }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to add pack to folder: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as FolderPackLink;
+    },
+    async removePackFromFolder(folderId, packId) {
+      const response = await fetchImpl(`${folderPackListUrl(baseUrl, folderId)}/${encodeURIComponent(packId)}`, {
+        method: "DELETE",
+        ...authInit(options.authToken),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to remove pack from folder: HTTP ${response.status}`);
+      }
+    },
     async listTags(tenantId) {
       const response = await fetchOptional(fetchImpl, tagListUrl(baseUrl, tenantId), authInit(options.authToken));
       if (!response.ok) {
@@ -264,6 +322,34 @@ export function createProductMetadataClient(options: PackClientOptions = {}): Pr
       }
 
       return (await response.json()) as ProductMetadataTag;
+    },
+    async listPackTags(packId) {
+      const response = await fetchOptional(fetchImpl, packTagListUrl(baseUrl, packId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list pack tags: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as string[];
+    },
+    async addTagToPack(packId, tagId) {
+      const response = await fetchImpl(`${packTagListUrl(baseUrl, packId)}/${encodeURIComponent(tagId)}`, {
+        method: "PUT",
+        ...authInit(options.authToken),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to add tag to pack: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as PackTagLink;
+    },
+    async removeTagFromPack(packId, tagId) {
+      const response = await fetchImpl(`${packTagListUrl(baseUrl, packId)}/${encodeURIComponent(tagId)}`, {
+        method: "DELETE",
+        ...authInit(options.authToken),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to remove tag from pack: HTTP ${response.status}`);
+      }
     },
     async listSubscriptionGroups(tenantId, ownerUserId) {
       const response = await fetchOptional(
@@ -288,6 +374,45 @@ export function createProductMetadataClient(options: PackClientOptions = {}): Pr
       }
 
       return (await response.json()) as ProductMetadataSubscriptionGroup;
+    },
+    async listSubscriptionGroupPacks(subscriptionGroupId) {
+      const response = await fetchOptional(
+        fetchImpl,
+        subscriptionGroupPackListUrl(baseUrl, subscriptionGroupId),
+        authInit(options.authToken),
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to list subscription group packs: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as string[];
+    },
+    async addPackToSubscriptionGroup(request) {
+      const response = await fetchImpl(
+        `${subscriptionGroupPackListUrl(baseUrl, request.subscriptionGroupId)}/${encodeURIComponent(request.packId)}`,
+        {
+          method: "PUT",
+          headers: jsonHeaders(options.authToken),
+          body: JSON.stringify({ sortOrder: request.sortOrder }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to add pack to subscription group: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as SubscriptionGroupPackLink;
+    },
+    async removePackFromSubscriptionGroup(subscriptionGroupId, packId) {
+      const response = await fetchImpl(
+        `${subscriptionGroupPackListUrl(baseUrl, subscriptionGroupId)}/${encodeURIComponent(packId)}`,
+        {
+          method: "DELETE",
+          ...authInit(options.authToken),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to remove pack from subscription group: HTTP ${response.status}`);
+      }
     },
   };
 }
@@ -415,6 +540,18 @@ export function subscriptionGroupListUrl(baseUrl: string, tenantId: string, owne
   return `${path}?${query.toString()}`;
 }
 
+export function folderPackListUrl(baseUrl: string, folderId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/folders/${encodeURIComponent(folderId)}/packs`;
+}
+
+export function packTagListUrl(baseUrl: string, packId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/packs/${encodeURIComponent(packId)}/tags`;
+}
+
+export function subscriptionGroupPackListUrl(baseUrl: string, subscriptionGroupId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/subscription-groups/${encodeURIComponent(subscriptionGroupId)}/packs`;
+}
+
 function trimBaseUrl(baseUrl: string) {
   return baseUrl.trim().replace(/\/+$/, "");
 }
@@ -505,17 +642,44 @@ function mockProductMetadataClient(): ProductMetadataClient {
     async createFolder(request) {
       throw new Error(`Folder creation requires VITE_MSM_API_BASE_URL: ${request.id}`);
     },
+    async listFolderPacks() {
+      return [];
+    },
+    async addPackToFolder(request) {
+      throw new Error(`Folder membership requires VITE_MSM_API_BASE_URL: ${request.folderId}`);
+    },
+    async removePackFromFolder(folderId) {
+      throw new Error(`Folder membership removal requires VITE_MSM_API_BASE_URL: ${folderId}`);
+    },
     async listTags() {
       return [...tags];
     },
     async createTag(request) {
       throw new Error(`Tag creation requires VITE_MSM_API_BASE_URL: ${request.id}`);
     },
+    async listPackTags() {
+      return [];
+    },
+    async addTagToPack(packId) {
+      throw new Error(`Pack tag membership requires VITE_MSM_API_BASE_URL: ${packId}`);
+    },
+    async removeTagFromPack(packId) {
+      throw new Error(`Pack tag membership removal requires VITE_MSM_API_BASE_URL: ${packId}`);
+    },
     async listSubscriptionGroups() {
       return [...groups];
     },
     async createSubscriptionGroup(request) {
       throw new Error(`Subscription group creation requires VITE_MSM_API_BASE_URL: ${request.id}`);
+    },
+    async listSubscriptionGroupPacks() {
+      return [];
+    },
+    async addPackToSubscriptionGroup(request) {
+      throw new Error(`Subscription group membership requires VITE_MSM_API_BASE_URL: ${request.subscriptionGroupId}`);
+    },
+    async removePackFromSubscriptionGroup(subscriptionGroupId) {
+      throw new Error(`Subscription group membership removal requires VITE_MSM_API_BASE_URL: ${subscriptionGroupId}`);
     },
   };
 }
