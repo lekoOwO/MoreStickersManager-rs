@@ -94,9 +94,10 @@ describe("PackDashboard", () => {
     });
 
     await flushPromises();
+    await wrapper.get('[aria-label="Open import sticker pack dialog"]').trigger("click");
     await wrapper.get('[aria-label="Import pack ID"]').setValue("pack_1");
     await wrapper.get('[aria-label="Import pack JSON"]').setValue(JSON.stringify(pack));
-    await wrapper.get('[aria-label="Import sticker pack"]').trigger("click");
+    await wrapper.get('button[aria-label="Import sticker pack"]').trigger("click");
     await flushPromises();
 
     expect(client.importStickerPack).toHaveBeenCalledWith({

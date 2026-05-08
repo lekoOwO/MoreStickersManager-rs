@@ -573,3 +573,12 @@
 - Added Playwright E2E coverage for live API status, absence of mock preview when API/PAT env is present, single navigation source, section switching, sidebar collapse/expand, and narrow desktop overflow.
 - Configured Playwright to use the installed Microsoft Edge channel instead of downloaded Chromium, and removed downloaded Playwright browser artifacts from the local profile.
 - Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run web:e2e`, and confirmed `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.
+
+## 2026-05-08 Web UI QA Hardening
+
+- Moved the expanded desktop brand label out of the cramped rail header so `MoreStickersManager` is not clipped by the collapse control.
+- Replaced the collapsed runtime status text with a compact state dot, preventing Mock/API state from showing the wrong `API` label or breaking the rail layout.
+- Replaced PAT/local-login free-form scope fields with selectable scope cards and explanatory labels.
+- Translated remaining fixed zh-TW dashboard and access-token labels, including provider/status/import-dialog and scope-selection UI.
+- Extended Playwright E2E to assert brand non-clipping, collapsed runtime label behavior, selectable PAT scopes, zh-TW fixed chrome labels, and import-dialog translation on desktop, narrow desktop, and mobile where applicable.
+- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run web:e2e`, and confirmed `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.

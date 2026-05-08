@@ -47,6 +47,7 @@ Last completed:
 - Development bootstrap usability slice: the development profile now waits for API health, creates or reuses a local dev account, creates a PAT, writes `VITE_MSM_PAT` to `.env.local`, imports a sample pack, and starts Web afterward so live API-backed UI actions work immediately.
 - Web desktop/mobile UX correction slice: Vite now loads env files from the repository root, runtime status distinguishes Live API/API-needs-PAT/Mock preview, desktop uses a full-width workbench layout with an icon rail plus context panel, mobile uses separate compact pack cards, buttons expose pointer/pressed states, and light/dark blue tokens are more vivid.
 - Web native navigation correction slice: desktop navigation is now a single collapsible rail, duplicate in-content tabs are suppressed when the shell controls the active section, top-bar controls are limited to global actions, dark theme returns to a near-black Ant Design-like blue palette, and Playwright E2E uses installed Microsoft Edge instead of downloaded Chromium.
+- Web UI QA hardening slice: fixed expanded desktop brand clipping, removed the incorrect collapsed `API` runtime label, replaced free-form PAT scope text inputs with selectable scope cards, translated remaining fixed zh-TW dashboard/access-token labels, and added Edge E2E coverage for those regressions.
 
 Current task:
 - Return to post-publication mappings after the Web workspace redesign slice: initial publication populates mappings; next step is refreshing mappings after reconciliation mutation execution and using them to build fetched remote state automatically.
@@ -95,6 +96,7 @@ Last verification:
 - Development bootstrap usability slice: `node --check scripts/dev-manager.mjs`; `pnpm run dev:stop`; `node scripts/dev-manager.mjs env use development`; `pnpm run dev:start`; `pnpm run dev:status`; `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`; PAT-authenticated `GET /api/v1/packs?userId=user_1`; `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173`; `pnpm run dev:stop`; repeated `pnpm run dev:start` with existing valid PAT; repeated `pnpm run dev:stop`; `git diff --check`.
 - Web desktop/mobile UX correction slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `pnpm run dev:stop`; `pnpm run dev:start`; API health check; PAT-authenticated pack list check; Web HTTP check; Vite module env check; `pnpm run dev:stop`.
 - Web native navigation correction slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e` using installed Microsoft Edge; verified `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.
+- Web UI QA hardening slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e` using installed Microsoft Edge; verified `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.
 
 Next step:
 - Refresh Telegram sticker mappings after reconciliation mutation execution, then derive remote reconciliation state from stored mappings plus fetched Telegram metadata.

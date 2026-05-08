@@ -216,7 +216,7 @@ function visibilityVariant(visibility: PackVisibility) {
       </div>
       <div class="flex flex-wrap gap-2">
         <Button type="button" variant="outline" @click="loadPacks">{{ labels.refreshTokens }}</Button>
-        <Button type="button" aria-label="Open import sticker pack dialog" @click="importDialogOpen = true">
+        <Button type="button" :aria-label="labels.openImportDialog" @click="importDialogOpen = true">
           {{ labels.importStickerPack }}
         </Button>
       </div>
@@ -225,7 +225,7 @@ function visibilityVariant(visibility: PackVisibility) {
     <section v-if="currentSection === 'overview'" class="grid gap-5 xl:grid-cols-[0.7fr_1.3fr]">
       <div class="rounded-3xl border bg-card/90 p-5">
         <h2 class="text-lg font-semibold">{{ labels.providerCoverage }}</h2>
-        <p class="mt-1 text-sm text-muted-foreground">Telegram / LINE first, more providers planned.</p>
+        <p class="mt-1 text-sm text-muted-foreground">{{ labels.providerCoverageHelp }}</p>
         <div class="mt-5 flex flex-col divide-y rounded-2xl border bg-background/70">
           <div
             v-for="(count, provider) in providerCounts"
@@ -292,7 +292,7 @@ function visibilityVariant(visibility: PackVisibility) {
               <p class="mt-1 font-semibold">{{ pack.stickerCount }}</p>
             </div>
             <div class="rounded-xl bg-muted/60 p-3">
-              <p class="text-xs text-muted-foreground">Provider</p>
+              <p class="text-xs text-muted-foreground">{{ labels.provider }}</p>
               <p class="mt-1 font-semibold">{{ pack.provider }}</p>
             </div>
           </div>
@@ -357,7 +357,7 @@ function visibilityVariant(visibility: PackVisibility) {
               <p class="mt-2 text-xl font-semibold">{{ pack.stickerCount }}</p>
             </div>
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</p>
+              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{{ labels.status }}</p>
               <Badge class="mt-2" :variant="pack.subscriptionReady ? 'accent' : 'muted'">
                 {{ labels.subscriptionReady }}
               </Badge>
@@ -422,13 +422,13 @@ function visibilityVariant(visibility: PackVisibility) {
     </section>
 
     <div v-show="importDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
-      <section class="w-full max-w-4xl rounded-3xl border bg-card p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Import sticker pack dialog">
+      <section class="w-full max-w-4xl rounded-3xl border bg-card p-5 shadow-2xl" role="dialog" aria-modal="true" :aria-label="labels.importStickerPack">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 class="text-xl font-semibold">{{ labels.importStickerPack }}</h2>
             <p class="mt-1 text-sm text-muted-foreground">{{ labels.importStickerPackHelp }}</p>
           </div>
-          <Button type="button" variant="outline" @click="importDialogOpen = false">Close</Button>
+          <Button type="button" variant="outline" @click="importDialogOpen = false">{{ labels.close }}</Button>
         </div>
         <div class="mt-5 grid gap-4">
           <div class="grid gap-3 md:grid-cols-[1fr_12rem]">

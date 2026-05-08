@@ -52,10 +52,55 @@ test("desktop sidebar collapses and expands without duplicating top navigation",
 
   const sidebar = page.getByTestId("desktop-sidebar");
   await expect(sidebar).toHaveAttribute("data-expanded", "false");
+  await expect(page.getByTestId("runtime-status")).not.toContainText("API");
   await page.getByTestId("sidebar-collapse").click();
   await expect(sidebar).toHaveAttribute("data-expanded", "true");
-  await expect(sidebar).toContainText("MoreStickersManager");
+  const brand = page.getByTestId("sidebar-brand").getByText("MoreStickersManager");
+  await expect(brand).toBeVisible();
+  await expect(async () => {
+    const isClipped = await brand.evaluate((element) => element.scrollWidth > element.clientWidth + 1);
+    expect(isClipped).toBe(false);
+  }).toPass();
   await expect(page.getByRole("tab")).toHaveCount(0);
+});
+
+test("PAT scopes are selectable controls instead of a raw text field", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "PAT" }).click();
+  const dialog = page.getByRole("dialog", { name: "Personal Access Tokens" });
+
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("checkbox", { name: /Read packs/ })).toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: /Manage PATs/ })).toBeChecked();
+  await expect(dialog.getByRole("textbox", { name: "Scopes" })).toHaveCount(0);
+});
+
+test("zh-TW chrome translates the fixed dashboard and access-token labels", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Language" }).click();
+  await expect(page.getByRole("main").getByRole("heading", { name: "貼圖包" }).first()).toBeVisible();
+  if (testInfo.project.name === "mobile") {
+    await page.getByRole("button", { name: "導覽" }).click();
+  }
+  await expect(page.getByRole("button", { name: "匯出目標" }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "PAT" }).click();
+  const dialog = page.getByRole("dialog", { name: "個人存取權杖" });
+
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("權限範圍");
+  await expect(dialog).toContainText("讀取貼圖包");
+  await expect(dialog).not.toContainText("Personal Access Tokens");
+  await expect(dialog).not.toContainText("Scopes");
+  await dialog.getByRole("button", { name: "關閉" }).click();
+
+  await page.getByRole("button", { name: "開啟貼圖包匯入視窗" }).click();
+  const importDialog = page.getByRole("dialog", { name: "匯入貼圖包" });
+  await expect(importDialog).toBeVisible();
+  await expect(importDialog).toContainText("匯入貼圖包 JSON");
+  await expect(importDialog.getByRole("button", { name: "關閉" })).toBeVisible();
 });
 
 test("pack layout does not force horizontal page overflow on narrow desktop", async ({ page }, testInfo) => {

@@ -51,12 +51,25 @@ const authDisplayName = ref("Leko");
 const authEmail = ref("");
 const authPassword = ref("");
 const authTokenId = ref("webui");
-const authScopes = ref("pack.read import.run pat.manage export.read export.run export.target.manage");
+const defaultPatScopes = [
+  "pack.create",
+  "pack.read",
+  "pack.update",
+  "pack.delete",
+  "pack.manage_access",
+  "asset.read",
+  "import.run",
+  "export.read",
+  "export.run",
+  "export.target.manage",
+  "pat.manage",
+] as const;
+const authScopes = ref<string[]>(["pack.read", "pack.update", "pack.delete", "import.run", "export.read", "export.run"]);
 const authResult = ref<CreatedPersonalAccessTokenResponse | null>(null);
 const authError = ref("");
 const tokenId = ref("webui");
 const tokenName = ref("Web UI");
-const tokenScopes = ref("pack.read import.run pat.manage export.read export.run export.target.manage");
+const tokenScopes = ref<string[]>([...defaultPatScopes]);
 const tokens = ref<PersonalAccessTokenResponse[]>([]);
 const createdToken = ref<CreatedPersonalAccessTokenResponse | null>(null);
 const patError = ref("");
@@ -70,7 +83,7 @@ const runtimeMode = computed(() => {
       label: labels.value.apiLive,
       help: labels.value.liveApiHelp,
       badgeVariant: "secondary" as const,
-      tone: "bg-primary text-primary-foreground",
+      indicatorClass: "bg-primary",
     };
   }
 
@@ -79,7 +92,7 @@ const runtimeMode = computed(() => {
       label: labels.value.apiNeedsPat,
       help: labels.value.apiNeedsPatHelp,
       badgeVariant: "accent" as const,
-      tone: "bg-accent text-accent-foreground",
+      indicatorClass: "bg-accent-foreground",
     };
   }
 
@@ -87,9 +100,27 @@ const runtimeMode = computed(() => {
     label: labels.value.mockPreview,
     help: labels.value.mockPreviewHelp,
     badgeVariant: "muted" as const,
-    tone: "bg-muted text-muted-foreground",
+    indicatorClass: "bg-muted-foreground",
   };
 });
+
+const scopeOptions = computed(() => [
+  { key: "pack.create", label: labels.value.scopePackCreate, help: labels.value.scopePackCreateHelp },
+  { key: "pack.read", label: labels.value.scopePackRead, help: labels.value.scopePackReadHelp },
+  { key: "pack.update", label: labels.value.scopePackUpdate, help: labels.value.scopePackUpdateHelp },
+  { key: "pack.delete", label: labels.value.scopePackDelete, help: labels.value.scopePackDeleteHelp },
+  { key: "pack.manage_access", label: labels.value.scopePackManageAccess, help: labels.value.scopePackManageAccessHelp },
+  { key: "asset.read", label: labels.value.scopeAssetRead, help: labels.value.scopeAssetReadHelp },
+  { key: "import.run", label: labels.value.scopeImportRun, help: labels.value.scopeImportRunHelp },
+  { key: "export.read", label: labels.value.scopeExportRead, help: labels.value.scopeExportReadHelp },
+  { key: "export.run", label: labels.value.scopeExportRun, help: labels.value.scopeExportRunHelp },
+  {
+    key: "export.target.manage",
+    label: labels.value.scopeExportTargetManage,
+    help: labels.value.scopeExportTargetManageHelp,
+  },
+  { key: "pat.manage", label: labels.value.scopePatManage, help: labels.value.scopePatManageHelp },
+]);
 
 const navigationItems = computed<Array<{ key: WorkspaceSection; label: string; icon: Component }>>(() => [
   { key: "overview", label: labels.value.overview, icon: LayoutDashboardIcon },
@@ -163,7 +194,7 @@ async function loginLocalUser() {
       password: authPassword.value,
       tokenId: authTokenId.value.trim(),
       tokenName: "Web UI",
-      scopes: authScopes.value.split(/[,\s]+/).filter(Boolean),
+      scopes: authScopes.value,
       expiresAt: null,
     });
     emit("updatePatToken", authResult.value.token);
@@ -197,7 +228,7 @@ async function createToken() {
       id: tokenId.value.trim(),
       userId: patUserId.value,
       name: tokenName.value.trim() || "Web UI",
-      scopes: tokenScopes.value.split(/[,\s]+/).filter(Boolean),
+      scopes: tokenScopes.value,
       expiresAt: null,
     });
     await listTokens();
@@ -240,15 +271,11 @@ function requirePatClient() {
           <button
             class="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary text-sm font-black tracking-tight text-primary-foreground shadow-[0_14px_34px_-24px_color-mix(in_oklch,var(--primary)_70%,transparent)]"
             type="button"
-            aria-label="MSM overview"
+            :aria-label="labels.msmOverview"
             @click="selectSection('overview')"
           >
             MS
           </button>
-          <div v-if="sidebarExpanded" class="min-w-0">
-            <p class="truncate text-sm font-semibold tracking-tight">{{ labels.appName }}</p>
-            <p class="truncate text-xs text-muted-foreground">{{ runtimeMode.label }}</p>
-          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -256,7 +283,7 @@ function requirePatClient() {
             type="button"
             data-testid="sidebar-collapse"
             :aria-expanded="sidebarExpanded"
-            :aria-label="sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'"
+            :aria-label="sidebarExpanded ? labels.collapseSidebar : labels.expandSidebar"
             @click="sidebarExpanded = !sidebarExpanded"
           >
             <ChevronLeftIcon v-if="sidebarExpanded" data-icon="inline-start" />
@@ -264,12 +291,27 @@ function requirePatClient() {
           </Button>
         </div>
 
+        <div v-if="sidebarExpanded" class="rounded-2xl border bg-background/72 px-3 py-3" data-testid="sidebar-brand">
+          <p class="text-[0.82rem] font-semibold leading-5 tracking-tight">{{ labels.appName }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">{{ labels.desktopWorkspace }}</p>
+        </div>
+
         <div
           class="rounded-2xl border bg-background/72 p-3"
           :class="sidebarExpanded ? '' : 'grid place-items-center'"
+          :aria-label="`${labels.runtime}: ${runtimeMode.label}`"
+          :title="runtimeMode.label"
           data-testid="runtime-status"
         >
-          <Badge :variant="runtimeMode.badgeVariant">{{ sidebarExpanded ? runtimeMode.label : "API" }}</Badge>
+          <template v-if="sidebarExpanded">
+            <Badge :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
+          </template>
+          <span
+            v-else
+            class="block size-2.5 rounded-full shadow-[0_0_0_4px_color-mix(in_oklch,currentColor_14%,transparent)]"
+            :class="runtimeMode.indicatorClass"
+            aria-hidden="true"
+          />
           <p v-if="sidebarExpanded" class="mt-2 text-xs leading-5 text-muted-foreground">{{ runtimeMode.help }}</p>
         </div>
 
@@ -331,7 +373,7 @@ function requirePatClient() {
               </Button>
               <Button variant="outline" size="sm" type="button" @click="accessDialogOpen = true">
                 <KeyRoundIcon data-icon="inline-start" />
-                PAT
+                <span>{{ labels.patShortName }}</span>
               </Button>
               <Button variant="ghost" size="sm" :aria-label="labels.language" @click="emit('toggleLocale')">
                 <LanguagesIcon data-icon="inline-start" />
@@ -385,7 +427,7 @@ function requirePatClient() {
             <h2 class="text-xl font-semibold">{{ labels.localLogin }}</h2>
             <p class="mt-1 text-sm text-muted-foreground">{{ labels.localLoginHelp }}</p>
           </div>
-          <Button variant="ghost" size="icon" type="button" @click="authDialogOpen = false">
+          <Button variant="ghost" size="icon" type="button" :aria-label="labels.close" @click="authDialogOpen = false">
             <XIcon data-icon="inline-start" />
           </Button>
         </div>
@@ -410,10 +452,29 @@ function requirePatClient() {
             {{ labels.tokenId }}
             <input v-model="authTokenId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
           </label>
-          <label class="flex flex-col gap-2 text-sm font-medium">
-            {{ labels.tokenScopes }}
-            <input v-model="authScopes" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
-          </label>
+          <fieldset class="md:col-span-2">
+            <legend class="text-sm font-medium">{{ labels.tokenScopes }}</legend>
+            <p class="mt-1 text-xs text-muted-foreground">{{ labels.tokenScopesHelp }}</p>
+            <div class="mt-3 grid gap-2 md:grid-cols-2">
+              <label
+                v-for="scope in scopeOptions"
+                :key="`auth-${scope.key}`"
+                class="flex cursor-pointer items-start gap-3 rounded-xl border bg-background/72 p-3 text-sm hover:border-primary/45 hover:bg-accent/55"
+              >
+                <input
+                  v-model="authScopes"
+                  class="mt-1 size-4 cursor-pointer accent-[var(--primary)]"
+                  type="checkbox"
+                  :value="scope.key"
+                />
+                <span class="min-w-0">
+                  <span class="block font-semibold">{{ scope.label }}</span>
+                  <code class="mt-1 block truncate font-mono text-xs text-muted-foreground">{{ scope.key }}</code>
+                  <span class="mt-1 block text-xs leading-5 text-muted-foreground">{{ scope.help }}</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
         </div>
         <div class="mt-5 flex flex-wrap gap-2">
           <Button type="button" variant="outline" @click="registerLocalUser">{{ labels.registerLocalUser }}</Button>
@@ -435,7 +496,7 @@ function requirePatClient() {
             <h2 class="text-xl font-semibold">{{ labels.personalAccessTokens }}</h2>
             <p class="mt-1 text-sm text-muted-foreground">{{ labels.patTokenHelp }}</p>
           </div>
-          <Button variant="ghost" size="icon" type="button" @click="accessDialogOpen = false">
+          <Button variant="ghost" size="icon" type="button" :aria-label="labels.close" @click="accessDialogOpen = false">
             <XIcon data-icon="inline-start" />
           </Button>
         </div>
@@ -464,11 +525,30 @@ function requirePatClient() {
               {{ labels.tokenName }}
               <input v-model="tokenName" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
             </label>
-            <label class="flex flex-col gap-2 text-sm font-medium">
-              {{ labels.tokenScopes }}
-              <input v-model="tokenScopes" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
-            </label>
           </div>
+          <fieldset>
+            <legend class="text-sm font-medium">{{ labels.tokenScopes }}</legend>
+            <p class="mt-1 text-xs text-muted-foreground">{{ labels.tokenScopesHelp }}</p>
+            <div class="mt-3 grid gap-2 md:grid-cols-2">
+              <label
+                v-for="scope in scopeOptions"
+                :key="`pat-${scope.key}`"
+                class="flex cursor-pointer items-start gap-3 rounded-xl border bg-background/72 p-3 text-sm hover:border-primary/45 hover:bg-accent/55"
+              >
+                <input
+                  v-model="tokenScopes"
+                  class="mt-1 size-4 cursor-pointer accent-[var(--primary)]"
+                  type="checkbox"
+                  :value="scope.key"
+                />
+                <span class="min-w-0">
+                  <span class="block font-semibold">{{ scope.label }}</span>
+                  <code class="mt-1 block truncate font-mono text-xs text-muted-foreground">{{ scope.key }}</code>
+                  <span class="mt-1 block text-xs leading-5 text-muted-foreground">{{ scope.help }}</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
           <Button type="button" class="w-fit" @click="createToken">{{ labels.createPatToken }}</Button>
           <p v-if="createdToken" class="rounded-xl border bg-background/70 p-3 text-sm">
             {{ labels.createdTokenOnce }} <code class="font-mono">{{ createdToken.token }}</code>

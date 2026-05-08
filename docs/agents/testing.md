@@ -96,6 +96,17 @@ cargo build --locked -p msm-app
 project; the E2E suite is intended to avoid downloading browser binaries into
 the user profile.
 
+The Web E2E suite currently covers:
+
+- live API/PAT runtime mode and absence of mock-preview copy when env is set;
+- single desktop navigation source and workspace section switching;
+- collapsed/expanded desktop rail behavior, including non-clipped brand text
+  and no incorrect collapsed `API` label;
+- selectable PAT scope controls instead of raw scope text input;
+- fixed zh-TW dashboard/access-token/import-dialog labels on desktop, narrow
+  desktop, and mobile;
+- narrow desktop pack layout without horizontal page overflow.
+
 Docker image verification requires Docker:
 
 ```powershell
