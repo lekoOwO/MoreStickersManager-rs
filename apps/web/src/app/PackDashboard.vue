@@ -5,11 +5,11 @@ import ExportTargetPanel from "@/components/ExportTargetPanel.vue";
 import PackExportWizard from "@/components/PackExportWizard.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPackClient, type PackClient, type WritablePackVisibility } from "@/lib/api-client";
 import type { ExportClient } from "@/lib/exportApi";
 import { allMessages, type Locale } from "@/lib/i18n";
 import { type PackVisibility, type StickerPackSummary } from "@/lib/sticker-packs";
+import type { WorkspaceSection } from "@/lib/workspace";
 
 const props = defineProps<{
   locale: Locale;
@@ -18,19 +18,23 @@ const props = defineProps<{
   exportClient?: ExportClient;
   tenantId?: string;
   ownerUserId?: string;
+  activeSection?: WorkspaceSection;
 }>();
 
 const packs = ref<StickerPackSummary[]>([]);
 const loadError = ref("");
 const actionError = ref("");
 const importError = ref("");
+const importDialogOpen = ref(false);
 const importPackId = ref("");
 const importVisibility = ref<WritablePackVisibility>("private");
 const importJson = ref("");
+const internalSection = ref<WorkspaceSection>(props.activeSection ?? "packs");
 const drafts = ref<Record<string, { title: string; visibility: WritablePackVisibility }>>({});
 
 const labels = computed(() => allMessages()[props.locale]);
 const tenantId = computed(() => props.tenantId ?? import.meta.env.VITE_MSM_TENANT_ID ?? "tenant_1");
+const currentSection = computed(() => props.activeSection ?? internalSection.value);
 const totalStickers = computed(() => packs.value.reduce((sum, pack) => sum + pack.stickerCount, 0));
 const publicPackCount = computed(() => packs.value.filter((pack) => pack.visibility === "public").length);
 const privatePackCount = computed(() => packs.value.filter((pack) => pack.visibility === "private").length);
@@ -40,10 +44,24 @@ const providerCounts = computed(() => {
     return counts;
   }, {});
 });
+const sectionTabs = computed<Array<{ key: WorkspaceSection; label: string }>>(() => [
+  { key: "overview", label: labels.value.overview },
+  { key: "packs", label: labels.value.packs },
+  { key: "exports", label: labels.value.exportPack },
+  { key: "targets", label: labels.value.exportTargets },
+]);
 
 onMounted(loadPacks);
 watch(() => props.patToken, loadPacks);
 watch(() => props.packClient, loadPacks);
+watch(
+  () => props.activeSection,
+  (nextSection) => {
+    if (nextSection) {
+      internalSection.value = nextSection;
+    }
+  },
+);
 
 async function loadPacks() {
   loadError.value = "";
@@ -95,6 +113,7 @@ async function importPack() {
       pack,
     });
     importJson.value = "";
+    importDialogOpen.value = false;
     await loadPacks();
   } catch (error) {
     importError.value = error instanceof Error ? error.message : String(error);
@@ -109,6 +128,10 @@ async function deletePack(pack: StickerPackSummary) {
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
   }
+}
+
+function selectSection(section: WorkspaceSection) {
+  internalSection.value = section;
 }
 
 function packClient() {
@@ -145,129 +168,106 @@ function visibilityVariant(visibility: PackVisibility) {
 
 <template>
   <div class="flex flex-col gap-6">
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Metrics">
-      <Card>
-        <CardHeader>
-          <CardDescription>{{ labels.totalPacks }}</CardDescription>
-          <CardTitle class="text-3xl">{{ packs.length }}</CardTitle>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardDescription>{{ labels.managedStickers }}</CardDescription>
-          <CardTitle class="text-3xl">{{ totalStickers }}</CardTitle>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardDescription>{{ labels.publicPacks }}</CardDescription>
-          <CardTitle class="text-3xl">{{ publicPackCount }}</CardTitle>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardDescription>{{ labels.privatePacks }}</CardDescription>
-          <CardTitle class="text-3xl">{{ privatePackCount }}</CardTitle>
-        </CardHeader>
-      </Card>
+    <section class="rounded-3xl border bg-card/92 p-4 shadow-[0_18px_56px_-42px_rgba(24,56,118,0.45)]">
+      <div class="grid gap-3 md:grid-cols-4">
+        <div class="rounded-2xl bg-primary px-4 py-4 text-primary-foreground">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] opacity-80">{{ labels.totalPacks }}</p>
+          <p class="mt-3 text-4xl font-semibold tracking-tight">{{ packs.length }}</p>
+        </div>
+        <div class="rounded-2xl border bg-background/70 px-4 py-4">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{{ labels.managedStickers }}</p>
+          <p class="mt-3 text-4xl font-semibold tracking-tight">{{ totalStickers }}</p>
+        </div>
+        <div class="rounded-2xl border bg-background/70 px-4 py-4">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{{ labels.publicPacks }}</p>
+          <p class="mt-3 text-4xl font-semibold tracking-tight">{{ publicPackCount }}</p>
+        </div>
+        <div class="rounded-2xl border bg-background/70 px-4 py-4">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{{ labels.privatePacks }}</p>
+          <p class="mt-3 text-4xl font-semibold tracking-tight">{{ privatePackCount }}</p>
+        </div>
+      </div>
     </section>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>{{ labels.importStickerPack }}</CardTitle>
-        <CardDescription>{{ labels.importStickerPackHelp }}</CardDescription>
-      </CardHeader>
-      <CardContent class="grid gap-4">
-        <div class="grid gap-3 md:grid-cols-[1fr_12rem]">
-          <label class="flex flex-col gap-2 text-sm font-medium">
-            {{ labels.importPackId }}
-            <input
-              v-model="importPackId"
-              class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              :aria-label="labels.importPackId"
-            />
-          </label>
-          <label class="flex flex-col gap-2 text-sm font-medium">
-            {{ labels.importVisibility }}
-            <select
-              v-model="importVisibility"
-              class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-              :aria-label="labels.importVisibility"
-            >
-              <option value="public">{{ labels.public }}</option>
-              <option value="private">{{ labels.private }}</option>
-            </select>
-          </label>
-        </div>
-        <label class="flex flex-col gap-2 text-sm font-medium">
-          {{ labels.importPackJson }}
-          <textarea
-            v-model="importJson"
-            class="min-h-40 rounded-md border bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring"
-            :aria-label="labels.importPackJson"
-          />
-        </label>
-        <div class="flex flex-wrap items-center gap-3">
-          <Button type="button" :aria-label="labels.importStickerPack" @click="importPack">
-            {{ labels.importStickerPack }}
-          </Button>
-          <p v-if="importError" class="text-sm text-muted-foreground">{{ importError }}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+      <div class="flex flex-wrap gap-2" role="tablist" :aria-label="labels.navigation">
+        <button
+          v-for="tab in sectionTabs"
+          :key="tab.key"
+          class="rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          :class="currentSection === tab.key ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground' : ''"
+          role="tab"
+          type="button"
+          @click="selectSection(tab.key)"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" @click="loadPacks">{{ labels.refreshTokens }}</Button>
+        <Button type="button" aria-label="Open import sticker pack dialog" @click="importDialogOpen = true">
+          {{ labels.importStickerPack }}
+        </Button>
+      </div>
+    </div>
 
-    <section class="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-      <ExportTargetPanel
-        :export-client="exportClient"
-        :locale="locale"
-        :pat-token="patToken"
-        :tenant-id="tenantId"
-      />
-      <PackExportWizard
-        :export-client="exportClient"
-        :locale="locale"
-        :packs="packs"
-        :pat-token="patToken"
-        :tenant-id="tenantId"
-      />
-    </section>
-
-    <section class="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle>{{ labels.providerCoverage }}</CardTitle>
-          <CardDescription>Telegram / LINE first, more providers planned.</CardDescription>
-        </CardHeader>
-        <CardContent class="flex flex-col gap-3">
+    <section v-if="currentSection === 'overview'" class="grid gap-5 xl:grid-cols-[0.7fr_1.3fr]">
+      <div class="rounded-3xl border bg-card/90 p-5">
+        <h2 class="text-lg font-semibold">{{ labels.providerCoverage }}</h2>
+        <p class="mt-1 text-sm text-muted-foreground">Telegram / LINE first, more providers planned.</p>
+        <div class="mt-5 flex flex-col divide-y rounded-2xl border bg-background/70">
           <div
             v-for="(count, provider) in providerCounts"
             :key="provider"
-            class="flex items-center justify-between rounded-lg border bg-background/70 px-4 py-3"
+            class="flex items-center justify-between gap-3 px-4 py-3"
           >
             <span class="font-medium">{{ provider }}</span>
             <Badge variant="secondary">{{ count }}</Badge>
           </div>
-        </CardContent>
-      </Card>
+          <p v-if="Object.keys(providerCounts).length === 0" class="px-4 py-3 text-sm text-muted-foreground">
+            {{ labels.noExportEvents }}
+          </p>
+        </div>
+      </div>
+      <div class="rounded-3xl border bg-card/90 p-5">
+        <h2 class="text-lg font-semibold">{{ labels.recentPacks }}</h2>
+        <p class="mt-1 text-sm text-muted-foreground">{{ labels.dashboardSubtitle }}</p>
+        <div class="mt-5 grid gap-3 lg:grid-cols-2">
+          <article
+            v-for="pack in packs.slice(0, 6)"
+            :key="pack.id"
+            class="rounded-2xl border bg-background/70 p-4 hover:border-primary/45"
+          >
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-semibold">{{ pack.title }}</h3>
+              <Badge variant="outline">{{ pack.provider }}</Badge>
+            </div>
+            <p class="mt-2 text-sm text-muted-foreground">
+              {{ pack.stickerCount }} {{ labels.totalStickers }} · {{ labels.updated }} {{ pack.updatedAt }}
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{{ labels.recentPacks }}</CardTitle>
-          <CardDescription>{{ labels.dashboardSubtitle }}</CardDescription>
-        </CardHeader>
-        <CardContent class="flex flex-col gap-3">
-          <p v-if="loadError" class="rounded-lg border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
-            {{ loadError }}
-          </p>
-          <p v-if="actionError" class="rounded-lg border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
-            {{ actionError }}
-          </p>
+    <section v-show="currentSection === 'packs'" class="rounded-3xl border bg-card/92">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+        <div>
+          <h2 class="text-lg font-semibold">{{ labels.recentPacks }}</h2>
+          <p class="mt-1 text-sm text-muted-foreground">{{ labels.dashboardSubtitle }}</p>
+        </div>
+        <Badge variant="secondary">{{ packs.length }} {{ labels.totalPacks }}</Badge>
+      </div>
+      <div class="overflow-x-auto msm-scrollbar">
+        <div class="min-w-[980px] divide-y">
+          <p v-if="loadError" class="px-5 py-4 text-sm text-muted-foreground">{{ loadError }}</p>
+          <p v-if="actionError" class="px-5 py-4 text-sm text-muted-foreground">{{ actionError }}</p>
           <article
             v-for="pack in packs"
             :key="pack.id"
-            class="grid gap-4 rounded-xl border bg-background/80 p-4 xl:grid-cols-[1fr_18rem] xl:items-start"
+            class="grid grid-cols-[minmax(18rem,1fr)_9rem_8rem_22rem] items-start gap-4 px-5 py-4 hover:bg-accent/55"
           >
-            <div class="flex min-w-0 flex-col gap-2">
+            <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <h3 class="truncate text-base font-semibold">{{ pack.title }}</h3>
                 <Badge variant="outline">{{ pack.provider }}</Badge>
@@ -275,33 +275,40 @@ function visibilityVariant(visibility: PackVisibility) {
                   {{ visibilityLabel(pack.visibility) }}
                 </Badge>
               </div>
-              <p class="text-sm text-muted-foreground">
-                {{ pack.stickerCount }} {{ labels.totalStickers }} · {{ labels.updated }} {{ pack.updatedAt }}
+              <p class="mt-2 text-sm text-muted-foreground">
+                {{ pack.id }} · {{ labels.updated }} {{ pack.updatedAt }}
               </p>
-              <Badge class="w-fit" :variant="pack.subscriptionReady ? 'accent' : 'muted'">
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{{ labels.totalStickers }}</p>
+              <p class="mt-2 text-xl font-semibold">{{ pack.stickerCount }}</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</p>
+              <Badge class="mt-2" :variant="pack.subscriptionReady ? 'accent' : 'muted'">
                 {{ labels.subscriptionReady }}
               </Badge>
             </div>
-            <form class="grid gap-3 rounded-lg border bg-card/60 p-3" @submit.prevent>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.packTitle }}
+            <form class="grid gap-2" @submit.prevent>
+              <div class="grid grid-cols-[1fr_8rem] gap-2">
+                <label class="sr-only" :for="`title-${pack.id}`">{{ labels.packTitle }}</label>
                 <input
+                  :id="`title-${pack.id}`"
                   v-model="drafts[pack.id].title"
-                  class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  class="h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                   :aria-label="labels.packTitle"
                 />
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.packVisibility }}
+                <label class="sr-only" :for="`visibility-${pack.id}`">{{ labels.packVisibility }}</label>
                 <select
+                  :id="`visibility-${pack.id}`"
                   v-model="drafts[pack.id].visibility"
-                  class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  class="h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                   :aria-label="labels.packVisibility"
                 >
                   <option value="public">{{ labels.public }}</option>
                   <option value="private">{{ labels.private }}</option>
                 </select>
-              </label>
+              </div>
               <div class="flex flex-wrap gap-2">
                 <Button type="button" size="sm" :aria-label="labels.savePackChanges" @click="updatePack(pack)">
                   {{ labels.savePackChanges }}
@@ -318,8 +325,76 @@ function visibilityVariant(visibility: PackVisibility) {
               </div>
             </form>
           </article>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </section>
+
+    <section v-show="currentSection === 'exports'">
+      <PackExportWizard
+        :export-client="exportClient"
+        :locale="locale"
+        :packs="packs"
+        :pat-token="patToken"
+        :tenant-id="tenantId"
+      />
+    </section>
+
+    <section v-show="currentSection === 'targets'">
+      <ExportTargetPanel
+        :export-client="exportClient"
+        :locale="locale"
+        :pat-token="patToken"
+        :tenant-id="tenantId"
+      />
+    </section>
+
+    <div v-show="importDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
+      <section class="w-full max-w-4xl rounded-3xl border bg-card p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Import sticker pack dialog">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-semibold">{{ labels.importStickerPack }}</h2>
+            <p class="mt-1 text-sm text-muted-foreground">{{ labels.importStickerPackHelp }}</p>
+          </div>
+          <Button type="button" variant="outline" @click="importDialogOpen = false">Close</Button>
+        </div>
+        <div class="mt-5 grid gap-4">
+          <div class="grid gap-3 md:grid-cols-[1fr_12rem]">
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.importPackId }}
+              <input
+                v-model="importPackId"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.importPackId"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.importVisibility }}
+              <select
+                v-model="importVisibility"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.importVisibility"
+              >
+                <option value="public">{{ labels.public }}</option>
+                <option value="private">{{ labels.private }}</option>
+              </select>
+            </label>
+          </div>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.importPackJson }}
+            <textarea
+              v-model="importJson"
+              class="min-h-52 rounded-lg border bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.importPackJson"
+            />
+          </label>
+          <div class="flex flex-wrap items-center gap-3">
+            <Button type="button" :aria-label="labels.importStickerPack" @click="importPack">
+              {{ labels.importStickerPack }}
+            </Button>
+            <p v-if="importError" class="text-sm text-muted-foreground">{{ importError }}</p>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 </template>

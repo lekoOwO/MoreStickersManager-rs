@@ -22,10 +22,10 @@ only designed or planned.
 | Provider network fetch | Not implemented | Remote provider API fetch, download, and asset internalization are planned future work. |
 | Service binary | Implemented | `msm-app` composes storage migrations, API routes, local asset store, MCP route, Web static serving, and export worker foundation types. Root npm/pnpm dev scripts can start/stop/status the service with env profiles and hidden Windows process wrappers. |
 | Embedded Web dist | Implemented | `msm-app` embeds `apps/web/dist` when present and a placeholder when absent; runtime disk override remains available. |
-| Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, RWD dashboard shell, theme toggle, and i18n exist. |
+| Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, wide RWD workspace shell, Ant Design-inspired theme tokens, theme toggle, i18n, workspace tabs, and dialogs exist. |
 | Web API integration | Implemented | Web pack and export API clients can use API-backed pack/export operations with stored PAT; pack list still has mock fallback for local preview. |
-| Web auth/PAT UI | Implemented | Local register/login panel and PAT create/list/revoke panel exist. |
-| Web pack management | Implemented | Dashboard supports pack list, rename, visibility edit, delete, pasted `.stickerpack` import, export target setup, export job queue/status views, and Telegram publication history links for selected packs. |
+| Web auth/PAT UI | Implemented | Local register/login and PAT create/list/revoke are exposed through dialogs. |
+| Web pack management | Implemented | Dashboard supports tabbed pack list, rename, visibility edit, delete, pasted `.stickerpack` import dialog, export target setup, export job queue/status views, and Telegram publication history links for selected packs. |
 | Local auth bootstrap | Implemented | Register/login APIs store Argon2 password credentials and login returns a PAT. Registration can bootstrap a tenant admin. |
 | Multi-tenant model | Partially implemented | Tenant/user records and bootstrap admin path exist. Full tenant administration UI and complete RBAC management are not implemented. |
 | PAT support | Implemented | Raw token is returned once, only the secret hash is stored, and protected pack API/MCP operations enforce scopes. |

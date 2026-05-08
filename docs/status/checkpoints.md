@@ -534,3 +534,12 @@
 - Added `pnpm-workspace.yaml`, Windows-safe hidden wrapper process spawning, local runtime directory creation, split stdout/stderr logs, and direct local Vite startup for Web dev mode.
 - Documented usage in README, user docs, project map, testing guide, current status, and the implementation matrix.
 - Verified with `node scripts/dev-manager.mjs --help`, `node scripts/dev-manager.mjs env list`, `node scripts/dev-manager.mjs env init development`, `node scripts/dev-manager.mjs env use testing`, `node scripts/dev-manager.mjs status`, `npm run dev:status`, `node scripts/dev-manager.mjs env use development`, `node scripts/dev-manager.mjs stop`, `pnpm run dev:start`, `pnpm run dev:status`, API/Web HTTP checks, `pnpm run dev:stop`, `npm run dev:start`, `npm run dev:status`, API/Web HTTP checks, `npm run dev:stop`, hidden wrapper regression checks, and `git diff --check`.
+
+## 2026-05-08 Web Workspace Redesign
+
+- Reworked the Web shell into a wider desktop workspace with Ant Design-inspired blue/gray tokens and a less card-heavy visual system.
+- Replaced placeholder sidebar links with real workspace section state for overview, packs, exports, and targets.
+- Moved local login and PAT management into dialogs so authentication controls no longer dominate the main dashboard.
+- Reworked pack management into a metrics strip, tabbed workspace, table-style pack rows, and a dialog for `.stickerpack` import.
+- Kept the existing API client boundaries and injected-client tests for pack CRUD, import, export targets, export jobs, and Telegram publication history.
+- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `pnpm run dev:start`, API/Web HTTP smoke checks, and `pnpm run dev:stop`.

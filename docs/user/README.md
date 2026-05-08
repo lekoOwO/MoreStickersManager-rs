@@ -63,12 +63,14 @@ package-manager argument forwarding. On Windows, services are launched through
 hidden wrappers so Rust/Vite child processes do not open visible console
 windows.
 
-The Web UI can run against mock data or the current API. It demonstrates the app
-shell, responsive layout, theme toggle, language toggle, PAT management, local
-login/register, pack list, pack rename, visibility edit, delete, and pasted
-`.stickerpack` import. It also exposes export target settings, Telegram target
-token validation, pack export job creation, job refresh, and ordered job event
-display when the export API is available. The export wizard also shows persisted
+The Web UI can run against mock data or the current API. It uses a wide desktop
+workspace, Ant Design-inspired blue/gray theme tokens, workspace tabs, and
+dialogs for local login, PAT management, and `.stickerpack` import instead of
+placing every workflow on one page. It supports theme toggle, language toggle,
+pack list, pack rename, visibility edit, delete, and pasted `.stickerpack`
+import. It also exposes export target settings, Telegram target token
+validation, pack export job creation, job refresh, and ordered job event display
+when the export API is available. The export wizard also shows persisted
 Telegram publication history for the selected pack, including completed sticker
 set links from prior non-dry-run jobs.
 
