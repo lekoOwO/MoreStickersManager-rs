@@ -1002,6 +1002,8 @@ mod tests {
 
         assert_eq!(json["id"], "job_1");
         assert_eq!(json["status"], "queued");
+        assert_eq!(json["attemptCount"], 0);
+        assert_eq!(json["maxAttempts"], 3);
     }
 
     #[tokio::test]
@@ -1213,6 +1215,9 @@ mod tests {
             request: serde_json::json!({ "options": {} }),
             result: None,
             error_summary: None,
+            attempt_count: 0,
+            max_attempts: 3,
+            next_attempt_at: None,
             created_at: "2026-05-07T00:00:00Z".to_owned(),
             updated_at: "2026-05-07T00:00:00Z".to_owned(),
         }

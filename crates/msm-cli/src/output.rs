@@ -224,7 +224,10 @@ pub fn format_export_target(format: OutputFormat, target: &ExportTarget) -> CliR
 /// Returns an error when JSON serialization fails.
 pub fn format_export_job(format: OutputFormat, job: &ExportJob) -> CliResult<String> {
     match format {
-        OutputFormat::Human => Ok(format!("{}\t{}", job.id, job.status)),
+        OutputFormat::Human => Ok(format!(
+            "{}\t{}\t{}/{}",
+            job.id, job.status, job.attempt_count, job.max_attempts
+        )),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(job)?),
     }
 }

@@ -37,6 +37,8 @@ pub struct ExportWorkerConfig {
     pub max_concurrent_jobs: usize,
     /// Poll interval for the background worker loop.
     pub poll_interval: Duration,
+    /// Delay before a failed retryable export job becomes due again.
+    pub retry_backoff: Duration,
 }
 
 /// Export worker result type.
@@ -106,6 +108,10 @@ pub enum ExportWorkerError {
     /// Export job has too many events to assign an `i64` sequence.
     #[error("export job event sequence overflow")]
     EventSequenceOverflow,
+
+    /// Retry backoff cannot be represented as a timestamp duration.
+    #[error("retry backoff overflow")]
+    RetryBackoffOverflow,
 
     /// Published sticker count does not fit storage.
     #[error("published sticker count overflow")]
@@ -428,7 +434,7 @@ impl ExportWorker {
     pub async fn run_next_queued(&self) -> ExportWorkerResult<Option<ExportJobRecord>> {
         let Some(job) = self
             .repository
-            .find_next_export_job_by_status(ExportJobStatus::Queued)
+            .find_next_due_export_job(&chrono::Utc::now().to_rfc3339())
             .await?
         else {
             return Ok(None);
@@ -470,13 +476,25 @@ impl ExportWorker {
             }
             Err(error) => {
                 let message = error.to_string();
+                let failed_attempt_count = job.attempt_count + 1;
+                if failed_attempt_count < job.max_attempts {
+                    let next_attempt_at = next_attempt_at(self.config.retry_backoff)?;
+                    self.repository
+                        .record_export_job_retry(&job.id, &message, &next_attempt_at)
+                        .await?;
+                    self.append_event(&job.id, "warn", "retry_scheduled", &message)
+                        .await?;
+                    return self
+                        .repository
+                        .find_export_job(&job.id)
+                        .await?
+                        .ok_or_else(|| ExportWorkerError::PackNotFound {
+                            pack_id: job.id.clone(),
+                        });
+                }
+
                 self.repository
-                    .update_export_job_status(
-                        &job.id,
-                        ExportJobStatus::Failed,
-                        Some(&message),
-                        None,
-                    )
+                    .record_export_job_failure(&job.id, &message)
                     .await?;
                 self.append_event(&job.id, "error", "failed", &message)
                     .await?;
@@ -916,6 +934,12 @@ fn prepared_output_asset_key(request: &PreparedMediaRequest) -> String {
 
 fn telegram_publication_id(target_id: &str, sticker_set_name: &str) -> String {
     format!("telegram:{target_id}:{sticker_set_name}")
+}
+
+fn next_attempt_at(backoff: Duration) -> ExportWorkerResult<String> {
+    let backoff =
+        chrono::Duration::from_std(backoff).map_err(|_| ExportWorkerError::RetryBackoffOverflow)?;
+    Ok((chrono::Utc::now() + backoff).to_rfc3339())
 }
 
 const fn sticker_type_for_plan(set_type: TelegramStickerSetType) -> StickerType {

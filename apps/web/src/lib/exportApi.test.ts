@@ -78,6 +78,9 @@ describe("export API client", () => {
       request: { options: {} },
       result: null,
       errorSummary: null,
+      attemptCount: 0,
+      maxAttempts: 3,
+      nextAttemptAt: null,
       createdAt: "2026-05-07T00:00:00Z",
       updatedAt: "2026-05-07T00:00:00Z",
     };

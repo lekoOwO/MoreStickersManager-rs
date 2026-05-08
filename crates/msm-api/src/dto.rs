@@ -185,6 +185,9 @@ pub struct ExportJobResponse {
     pub request: serde_json::Value,
     pub result: Option<serde_json::Value>,
     pub error_summary: Option<String>,
+    pub attempt_count: i64,
+    pub max_attempts: i64,
+    pub next_attempt_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }

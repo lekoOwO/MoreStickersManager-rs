@@ -438,3 +438,13 @@
 - Corrected the Web publication DTO to match the API/MCP storage shape (`packId`, `jobId`, `stickerType`, `updatedAt`).
 - Added MCP tests for list/get behavior and missing `export.read` rejection.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.
+
+## 2026-05-08 Export Job Retry Policy
+
+- Added `0004_export_job_retries.sql` with `attempt_count`, `max_attempts`, and `next_attempt_at`.
+- Added storage retry helpers for due queued job selection, retry requeue, and terminal failure attempt accounting.
+- Added worker retry behavior: retryable failures requeue until `max_attempts` is exhausted, append a `retry_scheduled` event, and respect `next_attempt_at` before polling picks the job again.
+- Added `MSM_EXPORT_RETRY_BACKOFF_MS`, defaulting to 60 seconds.
+- Exposed retry metadata through API, CLI, MCP, and Web export job DTOs.
+- Added storage and worker tests for retry metadata, backoff skip behavior, and terminal failure after exhausting the attempt budget.
+- Verified with focused Rust/Web checks recorded in `docs/status/current.md`.

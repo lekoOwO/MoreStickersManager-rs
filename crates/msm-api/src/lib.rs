@@ -696,6 +696,9 @@ mod tests {
         let created: serde_json::Value = serde_json::from_slice(&job_response_bytes).unwrap();
         assert_eq!(created["status"], "queued");
         assert_eq!(created["ownerUserId"], "user_1");
+        assert_eq!(created["attemptCount"], 0);
+        assert_eq!(created["maxAttempts"], 3);
+        assert_eq!(created["nextAttemptAt"], serde_json::Value::Null);
 
         state
             .repository()
@@ -1135,6 +1138,7 @@ mod tests {
                 source_pack_id: "pack_1",
                 target_id: "target_telegram",
                 request_json: r#"{"options":{"dryRun":false}}"#,
+                max_attempts: 3,
             })
             .await
             .unwrap();

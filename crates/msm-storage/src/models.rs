@@ -114,6 +114,9 @@ pub struct ExportJobRecord {
     pub request_json: String,
     pub result_json: Option<String>,
     pub error_summary: Option<String>,
+    pub attempt_count: i64,
+    pub max_attempts: i64,
+    pub next_attempt_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -126,6 +129,7 @@ pub struct NewExportJob<'a> {
     pub source_pack_id: &'a str,
     pub target_id: &'a str,
     pub request_json: &'a str,
+    pub max_attempts: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

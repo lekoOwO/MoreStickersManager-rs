@@ -339,6 +339,7 @@ async fn create_export_job(
             source_pack_id: &args.source_pack_id,
             target_id: &args.target_id,
             request_json: &request_json,
+            max_attempts: 3,
         })
         .await
         .map_err(|error| error.to_string())?;
@@ -541,6 +542,9 @@ fn export_job_value(record: &ExportJobRecord) -> Result<Value, String> {
         "request": parse_json_value(&record.request_json)?,
         "result": record.result_json.as_deref().map(parse_json_value).transpose()?,
         "errorSummary": record.error_summary,
+        "attemptCount": record.attempt_count,
+        "maxAttempts": record.max_attempts,
+        "nextAttemptAt": record.next_attempt_at,
         "createdAt": record.created_at,
         "updatedAt": record.updated_at
     }))

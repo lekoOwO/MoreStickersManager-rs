@@ -34,10 +34,14 @@ async fn export_targets_jobs_and_events_roundtrip() {
             source_pack_id: "pack_1",
             target_id: "target_telegram",
             request_json: r#"{"mode":"create"}"#,
+            max_attempts: 3,
         })
         .await
         .unwrap();
     assert_eq!(queued.status, ExportJobStatus::Queued);
+    assert_eq!(queued.attempt_count, 0);
+    assert_eq!(queued.max_attempts, 3);
+    assert_eq!(queued.next_attempt_at, None);
     assert_eq!(queued.result_json, None);
 
     let changed = repo
@@ -78,6 +82,37 @@ async fn export_targets_jobs_and_events_roundtrip() {
 }
 
 #[tokio::test]
+async fn export_job_retry_state_tracks_attempts_and_due_time() {
+    let repo = seeded_export_job_repo().await;
+    let next_attempt_at = "2026-05-08T10:00:00Z";
+
+    let retry = repo
+        .record_export_job_retry("job_1", "telegram api down", next_attempt_at)
+        .await
+        .unwrap()
+        .expect("job should exist");
+
+    assert_eq!(retry.status, ExportJobStatus::Queued);
+    assert_eq!(retry.attempt_count, 1);
+    assert_eq!(retry.max_attempts, 3);
+    assert_eq!(retry.error_summary.as_deref(), Some("telegram api down"));
+    assert_eq!(retry.next_attempt_at.as_deref(), Some(next_attempt_at));
+    assert!(repo
+        .find_next_due_export_job("2026-05-08T09:59:59Z")
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        repo.find_next_due_export_job(next_attempt_at)
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        "job_1"
+    );
+}
+
+#[tokio::test]
 async fn export_job_status_records_success_and_failure_payloads() {
     let repo = seeded_export_job_repo().await;
 
@@ -91,6 +126,7 @@ async fn export_job_status_records_success_and_failure_payloads() {
     .unwrap();
     let succeeded = repo.find_export_job("job_1").await.unwrap().unwrap();
     assert_eq!(succeeded.status, ExportJobStatus::Succeeded);
+    assert_eq!(succeeded.next_attempt_at, None);
     assert_eq!(
         succeeded.result_json.as_deref(),
         Some(r#"{"url":"https://t.me/addstickers/sample"}"#)
@@ -231,6 +267,7 @@ async fn telegram_publication_upsert_updates_existing_target_set() {
         source_pack_id: "pack_1",
         target_id: "target_telegram",
         request_json: "{}",
+        max_attempts: 3,
     })
     .await
     .unwrap();
@@ -285,6 +322,7 @@ async fn seeded_export_job_repo() -> StorageRepository {
         source_pack_id: "pack_1",
         target_id: "target_telegram",
         request_json: "{}",
+        max_attempts: 3,
     })
     .await
     .unwrap();

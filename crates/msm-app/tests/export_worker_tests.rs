@@ -33,6 +33,7 @@ async fn worker_runs_moresticker_export_job_without_remote_calls() {
         source_pack_id: "pack_1",
         target_id: "target_morestickers",
         request_json: r#"{"options":{}}"#,
+        max_attempts: 3,
     })
     .await
     .unwrap();
@@ -71,6 +72,7 @@ async fn worker_plans_telegram_export_job_without_network_calls() {
         source_pack_id: "pack_1",
         target_id: "target_telegram",
         request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"😀"}}"#,
+        max_attempts: 3,
     })
     .await
     .unwrap();
@@ -125,6 +127,7 @@ async fn telegram_dry_run_does_not_call_publication_executor() {
         source_pack_id: "pack_1",
         target_id: "target_telegram",
         request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok"}}"#,
+        max_attempts: 3,
     })
     .await
     .unwrap();
@@ -169,6 +172,7 @@ async fn telegram_export_job_can_publish_through_injected_executor() {
         source_pack_id: "pack_1",
         target_id: "target_telegram",
         request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false}}"#,
+        max_attempts: 3,
     })
     .await
     .unwrap();
@@ -251,6 +255,7 @@ async fn telegram_publication_failure_marks_job_failed() {
         source_pack_id: "pack_1",
         target_id: "target_telegram",
         request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false}}"#,
+        max_attempts: 1,
     })
     .await
     .unwrap();
@@ -274,6 +279,107 @@ async fn telegram_publication_failure_marks_job_failed() {
         .unwrap();
     assert_eq!(stored.status, ExportJobStatus::Failed);
     assert!(stored.error_summary.unwrap().contains("telegram api down"));
+}
+
+#[tokio::test]
+async fn telegram_publication_failure_requeues_until_attempt_budget_is_exhausted() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_retry",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"ok","dryRun":false}}"#,
+        max_attempts: 2,
+    })
+    .await
+    .unwrap();
+    let worker = ExportWorker::with_media_and_telegram_executors(
+        repo.clone(),
+        worker_config(),
+        Arc::new(FakePreparedMediaExecutor),
+        Arc::new(FakeTelegramPublicationExecutor::failing()),
+    );
+
+    let retry = worker
+        .run_job("job_telegram_retry")
+        .await
+        .expect("first failed attempt should be requeued for retry");
+
+    assert_eq!(retry.status, ExportJobStatus::Queued);
+    assert_eq!(retry.attempt_count, 1);
+    assert_eq!(retry.max_attempts, 2);
+    assert!(retry.next_attempt_at.is_some());
+    assert!(retry.error_summary.unwrap().contains("telegram api down"));
+    let stages = repo
+        .list_export_job_events("job_telegram_retry")
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|event| event.stage)
+        .collect::<Vec<_>>();
+    assert!(stages.contains(&"retry_scheduled".to_owned()));
+
+    let exhausted = worker
+        .run_job("job_telegram_retry")
+        .await
+        .expect_err("second failed attempt should exhaust the retry budget");
+
+    assert!(exhausted.to_string().contains("telegram api down"));
+    let stored = repo
+        .find_export_job("job_telegram_retry")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.status, ExportJobStatus::Failed);
+    assert_eq!(stored.attempt_count, 2);
+}
+
+#[tokio::test]
+async fn worker_skips_queued_jobs_until_retry_backoff_is_due() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_morestickers",
+        tenant_id: "tenant_1",
+        kind: "morestickers",
+        name: "MoreStickers",
+        config_json: "{}",
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_retry_backoff",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_morestickers",
+        request_json: r#"{"options":{}}"#,
+        max_attempts: 2,
+    })
+    .await
+    .unwrap();
+    repo.record_export_job_retry(
+        "job_retry_backoff",
+        "transient failure",
+        "2999-01-01T00:00:00Z",
+    )
+    .await
+    .unwrap();
+    let worker = ExportWorker::new(repo, worker_config());
+
+    assert!(worker.run_next_queued().await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -342,6 +448,7 @@ fn worker_config() -> ExportWorkerConfig {
         prepared_media_dir: PathBuf::from("prepared-test"),
         max_concurrent_jobs: 1,
         poll_interval: std::time::Duration::from_millis(100),
+        retry_backoff: std::time::Duration::from_mins(1),
     }
 }
 

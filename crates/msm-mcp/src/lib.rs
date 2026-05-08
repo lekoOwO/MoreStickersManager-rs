@@ -336,6 +336,14 @@ mod tests {
             "queued"
         );
         assert_eq!(
+            response["result"]["structuredContent"]["job"]["attemptCount"],
+            0
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["job"]["maxAttempts"],
+            3
+        );
+        assert_eq!(
             response["result"]["structuredContent"]["job"]["request"]["options"]["format"],
             "stickerpack"
         );
@@ -676,6 +684,7 @@ mod tests {
                 source_pack_id: "pack_1",
                 target_id: "target_morestickers",
                 request_json: r#"{"id":"job_1","tenantId":"tenant_1","sourcePackId":"pack_1","targetId":"target_morestickers","options":{}}"#,
+                max_attempts: 3,
             })
             .await
             .unwrap();

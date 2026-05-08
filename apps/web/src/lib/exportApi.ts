@@ -43,6 +43,9 @@ export interface ExportJob {
   request: Record<string, unknown>;
   result: Record<string, unknown> | null;
   errorSummary: string | null;
+  attemptCount: number;
+  maxAttempts: number;
+  nextAttemptAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

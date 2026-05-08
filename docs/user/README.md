@@ -111,6 +111,8 @@ Telegram export setup today:
   `MSM_FFPROBE_PATH`;
 - set `MSM_EXPORT_WORKER_ENABLED=true` when you want the service process to poll
   queued export jobs.
+- optionally set `MSM_EXPORT_RETRY_BACKOFF_MS` to control how long retryable
+  failed jobs wait before the worker can pick them again. The default is 60000.
 
 The current Telegram worker path defaults to dry-run planning and media
 preparation. To execute Telegram upload and sticker set creation, queue the job
@@ -132,6 +134,9 @@ Both require `export.read` and the PAT user must own the source pack.
 Telegram bot integration now uses `teloxide` internally. Worker tests inject a
 fake publisher, so local and CI verification do not call Telegram. Real
 publication is only attempted by the worker when dry-run is explicitly disabled.
+Transient worker failures are requeued until the job's attempt budget is
+exhausted; export job reads expose `attemptCount`, `maxAttempts`, and
+`nextAttemptAt` for API/CLI/MCP/Web clients.
 
 Export API endpoints currently available:
 

@@ -571,6 +571,8 @@ These tests prove:
 - successful non-dry-run Telegram jobs persist durable publication records;
 - publisher failures mark export jobs as failed and persist an error summary;
 - startup export target bootstrap config parses, rejects invalid JSON, and idempotently creates/updates configured targets.
+- retryable worker failures requeue jobs with backoff until the configured attempt budget is exhausted;
+- queued jobs with future `next_attempt_at` values are skipped by worker polling.
 
 ## Export CLI Tests
 

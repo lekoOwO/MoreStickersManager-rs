@@ -62,7 +62,9 @@ started as an optional polling loop. The process-backed prepared media executor
 runs shell-free ffmpeg command plans and returns output metadata. Telegram
 publication remains opt-in: job options default to `"dryRun": true`, and remote
 publication only runs when options explicitly set `"dryRun": false` and the
-target config includes `botToken`, `botUsername`, and `ownerUserId`.
+target config includes `botToken`, `botUsername`, and `ownerUserId`. Retryable
+worker failures requeue jobs with bounded `attempt_count`, `max_attempts`, and
+`next_attempt_at` metadata before terminal failure.
 
 Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
 Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds

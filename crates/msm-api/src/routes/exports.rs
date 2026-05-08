@@ -272,6 +272,7 @@ pub async fn create_job(
             source_pack_id: &request.source_pack_id,
             target_id: &request.target_id,
             request_json: &request_json,
+            max_attempts: 3,
         })
         .await?;
 
@@ -479,6 +480,9 @@ fn export_job_response(record: ExportJobRecord) -> ApiResult<ExportJobResponse> 
             .map(parse_json_value)
             .transpose()?,
         error_summary: record.error_summary,
+        attempt_count: record.attempt_count,
+        max_attempts: record.max_attempts,
+        next_attempt_at: record.next_attempt_at,
         created_at: record.created_at,
         updated_at: record.updated_at,
     })

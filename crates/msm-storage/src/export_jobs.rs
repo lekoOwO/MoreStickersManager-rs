@@ -149,8 +149,9 @@ impl StorageRepository {
         sqlx::query(
             "INSERT INTO export_jobs (
                 id, tenant_id, owner_user_id, source_pack_id, target_id, status,
-                request_json, result_json, error_summary, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)",
+                request_json, result_json, error_summary, attempt_count, max_attempts,
+                next_attempt_at, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, ?, NULL, ?, ?)",
         )
         .bind(job.id)
         .bind(job.tenant_id)
@@ -159,6 +160,7 @@ impl StorageRepository {
         .bind(job.target_id)
         .bind(status.as_str())
         .bind(job.request_json)
+        .bind(job.max_attempts)
         .bind(&now)
         .bind(&now)
         .execute(self.sqlite()?)
@@ -174,6 +176,9 @@ impl StorageRepository {
             request_json: job.request_json.to_owned(),
             result_json: None,
             error_summary: None,
+            attempt_count: 0,
+            max_attempts: job.max_attempts,
+            next_attempt_at: None,
             created_at: now.clone(),
             updated_at: now,
         })
@@ -188,7 +193,8 @@ impl StorageRepository {
     pub async fn find_export_job(&self, id: &str) -> StorageResult<Option<ExportJobRecord>> {
         let row = sqlx::query(
             "SELECT id, tenant_id, owner_user_id, source_pack_id, target_id, status,
-                request_json, result_json, error_summary, created_at, updated_at
+                request_json, result_json, error_summary, attempt_count, max_attempts,
+                next_attempt_at, created_at, updated_at
             FROM export_jobs
             WHERE id = ?",
         )
@@ -211,13 +217,41 @@ impl StorageRepository {
     ) -> StorageResult<Option<ExportJobRecord>> {
         let row = sqlx::query(
             "SELECT id, tenant_id, owner_user_id, source_pack_id, target_id, status,
-                request_json, result_json, error_summary, created_at, updated_at
+                request_json, result_json, error_summary, attempt_count, max_attempts,
+                next_attempt_at, created_at, updated_at
             FROM export_jobs
             WHERE status = ?
             ORDER BY created_at, id
             LIMIT 1",
         )
         .bind(status.as_str())
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.map(|row| export_job_from_row(&row)).transpose()
+    }
+
+    /// Finds the oldest queued export job whose retry backoff has elapsed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
+    /// is invalid.
+    pub async fn find_next_due_export_job(
+        &self,
+        now: &str,
+    ) -> StorageResult<Option<ExportJobRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, source_pack_id, target_id, status,
+                request_json, result_json, error_summary, attempt_count, max_attempts,
+                next_attempt_at, created_at, updated_at
+            FROM export_jobs
+            WHERE status = ? AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+            ORDER BY created_at, id
+            LIMIT 1",
+        )
+        .bind(ExportJobStatus::Queued.as_str())
+        .bind(now)
         .fetch_optional(self.sqlite()?)
         .await?;
 
@@ -238,7 +272,7 @@ impl StorageRepository {
     ) -> StorageResult<bool> {
         let result = sqlx::query(
             "UPDATE export_jobs
-            SET status = ?, error_summary = ?, result_json = ?, updated_at = ?
+            SET status = ?, error_summary = ?, result_json = ?, next_attempt_at = NULL, updated_at = ?
             WHERE id = ?",
         )
         .bind(status.as_str())
@@ -250,6 +284,68 @@ impl StorageRepository {
         .await?;
 
         Ok(result.rows_affected() == 1)
+    }
+
+    /// Records a failed attempt and requeues the export job for a later retry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn record_export_job_retry(
+        &self,
+        id: &str,
+        error_summary: &str,
+        next_attempt_at: &str,
+    ) -> StorageResult<Option<ExportJobRecord>> {
+        let result = sqlx::query(
+            "UPDATE export_jobs
+            SET status = ?, error_summary = ?, result_json = NULL,
+                attempt_count = attempt_count + 1, next_attempt_at = ?, updated_at = ?
+            WHERE id = ?",
+        )
+        .bind(ExportJobStatus::Queued.as_str())
+        .bind(error_summary)
+        .bind(next_attempt_at)
+        .bind(now())
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            Ok(None)
+        } else {
+            self.find_export_job(id).await
+        }
+    }
+
+    /// Records a terminal failed attempt.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn record_export_job_failure(
+        &self,
+        id: &str,
+        error_summary: &str,
+    ) -> StorageResult<Option<ExportJobRecord>> {
+        let result = sqlx::query(
+            "UPDATE export_jobs
+            SET status = ?, error_summary = ?, result_json = NULL,
+                attempt_count = attempt_count + 1, next_attempt_at = NULL, updated_at = ?
+            WHERE id = ?",
+        )
+        .bind(ExportJobStatus::Failed.as_str())
+        .bind(error_summary)
+        .bind(now())
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            Ok(None)
+        } else {
+            self.find_export_job(id).await
+        }
     }
 
     /// Appends an ordered export job event.
@@ -533,6 +629,9 @@ fn export_job_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<ExportJob
         request_json: row.get("request_json"),
         result_json: row.get("result_json"),
         error_summary: row.get("error_summary"),
+        attempt_count: row.get("attempt_count"),
+        max_attempts: row.get("max_attempts"),
+        next_attempt_at: row.get("next_attempt_at"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })

@@ -86,6 +86,7 @@ impl AppConfig {
     pub const DEFAULT_EXPORT_MAX_CONCURRENT_JOBS: usize = 1;
     pub const DEFAULT_EXPORT_WORKER_ENABLED: bool = false;
     pub const DEFAULT_EXPORT_WORKER_POLL_INTERVAL_MS: u64 = 5_000;
+    pub const DEFAULT_EXPORT_RETRY_BACKOFF_MS: u64 = 60_000;
 
     /// Reads service configuration from process environment variables.
     ///
@@ -145,6 +146,11 @@ impl AppConfig {
                     vars,
                     "MSM_EXPORT_WORKER_POLL_INTERVAL_MS",
                     Self::DEFAULT_EXPORT_WORKER_POLL_INTERVAL_MS,
+                )?),
+                retry_backoff: Duration::from_millis(read_u64(
+                    vars,
+                    "MSM_EXPORT_RETRY_BACKOFF_MS",
+                    Self::DEFAULT_EXPORT_RETRY_BACKOFF_MS,
                 )?),
             },
             bootstrap_export_targets: read_bootstrap_export_targets(vars)?,
@@ -419,6 +425,10 @@ mod tests {
             config.export_worker.poll_interval,
             std::time::Duration::from_secs(5)
         );
+        assert_eq!(
+            config.export_worker.retry_backoff,
+            std::time::Duration::from_mins(1)
+        );
         assert!(config.bootstrap_export_targets.is_empty());
     }
 
@@ -444,6 +454,7 @@ mod tests {
             "MSM_EXPORT_WORKER_POLL_INTERVAL_MS".to_owned(),
             "250".to_owned(),
         );
+        vars.insert("MSM_EXPORT_RETRY_BACKOFF_MS".to_owned(), "750".to_owned());
         vars.insert(
             "MSM_BOOTSTRAP_EXPORT_TARGETS_JSON".to_owned(),
             serde_json::json!([
@@ -488,6 +499,10 @@ mod tests {
         assert_eq!(
             config.export_worker.poll_interval,
             std::time::Duration::from_millis(250)
+        );
+        assert_eq!(
+            config.export_worker.retry_backoff,
+            std::time::Duration::from_millis(750)
         );
         assert_eq!(config.bootstrap_export_targets.len(), 1);
         assert_eq!(config.bootstrap_export_targets[0].id, "target_telegram");
