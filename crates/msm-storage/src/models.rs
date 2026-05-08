@@ -54,6 +54,30 @@ pub struct StickerRecord {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct FolderRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct TagRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewTag<'a> {
+    pub id: &'a str,
+    pub tenant_id: &'a str,
+    pub name: &'a str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct SubscriptionGroupRecord {
     pub id: String,
     pub tenant_id: String,

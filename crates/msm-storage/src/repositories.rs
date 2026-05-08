@@ -7,13 +7,14 @@ use argon2::{
 use chrono::{DateTime, Utc};
 use msm_domain::{Permission, StickerPack};
 use sha2::{Digest, Sha256};
-use sqlx::{Row, SqlitePool};
+use sqlx::{sqlite::SqliteRow, Row, SqlitePool};
 use subtle::ConstantTimeEq;
 
 use crate::{
     models::{
-        CreatedPersonalAccessToken, LocalUserCredentialRecord, PackVisibility,
-        PersonalAccessTokenRecord, StickerPackRecord, UserRecord,
+        CreatedPersonalAccessToken, FolderRecord, LocalUserCredentialRecord, NewTag,
+        PackVisibility, PersonalAccessTokenRecord, StickerPackRecord, SubscriptionGroupRecord,
+        TagRecord, UserRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -285,6 +286,162 @@ impl StorageRepository {
         Ok(())
     }
 
+    /// Creates a folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    pub async fn create_folder(
+        &self,
+        id: &str,
+        tenant_id: &str,
+        owner_user_id: &str,
+        name: &str,
+    ) -> StorageResult<FolderRecord> {
+        let now = now();
+        sqlx::query(
+            "INSERT INTO folders (id, tenant_id, owner_user_id, name, created_at)
+            VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(tenant_id)
+        .bind(owner_user_id)
+        .bind(name)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(FolderRecord {
+            id: id.to_owned(),
+            tenant_id: tenant_id.to_owned(),
+            owner_user_id: owner_user_id.to_owned(),
+            name: name.to_owned(),
+            created_at: parse_rfc3339(&now)?,
+        })
+    }
+
+    /// Lists folders for one owner in one tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL/timestamp parsing fails.
+    pub async fn list_folders(
+        &self,
+        tenant_id: &str,
+        owner_user_id: &str,
+    ) -> StorageResult<Vec<FolderRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, name, created_at
+            FROM folders
+            WHERE tenant_id = ? AND owner_user_id = ?
+            ORDER BY created_at, id",
+        )
+        .bind(tenant_id)
+        .bind(owner_user_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.iter().map(folder_from_row).collect()
+    }
+
+    /// Renames a folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, the folder does
+    /// not exist, or timestamp parsing fails.
+    pub async fn rename_folder(&self, id: &str, name: &str) -> StorageResult<FolderRecord> {
+        sqlx::query("UPDATE folders SET name = ? WHERE id = ?")
+            .bind(name)
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?;
+        self.find_folder(id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
+    /// Deletes a folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn delete_folder(&self, id: &str) -> StorageResult<bool> {
+        let result = sqlx::query("DELETE FROM folders WHERE id = ?")
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    async fn find_folder(&self, id: &str) -> StorageResult<Option<FolderRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, name, created_at
+            FROM folders
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref().map(folder_from_row).transpose()
+    }
+
+    /// Creates a tag.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    pub async fn create_tag(&self, tag: NewTag<'_>) -> StorageResult<TagRecord> {
+        let now = now();
+        sqlx::query("INSERT INTO tags (id, tenant_id, name, created_at) VALUES (?, ?, ?, ?)")
+            .bind(tag.id)
+            .bind(tag.tenant_id)
+            .bind(tag.name)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+
+        Ok(TagRecord {
+            id: tag.id.to_owned(),
+            tenant_id: tag.tenant_id.to_owned(),
+            name: tag.name.to_owned(),
+            created_at: parse_rfc3339(&now)?,
+        })
+    }
+
+    /// Lists tags for one tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL/timestamp parsing fails.
+    pub async fn list_tags(&self, tenant_id: &str) -> StorageResult<Vec<TagRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, tenant_id, name, created_at
+            FROM tags
+            WHERE tenant_id = ?
+            ORDER BY name, id",
+        )
+        .bind(tenant_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.iter().map(tag_from_row).collect()
+    }
+
+    /// Deletes a tag.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn delete_tag(&self, id: &str) -> StorageResult<bool> {
+        let result = sqlx::query("DELETE FROM tags WHERE id = ?")
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
     /// Creates a subscription group.
     ///
     /// # Errors
@@ -297,7 +454,7 @@ impl StorageRepository {
         owner_user_id: &str,
         title: &str,
         visibility: PackVisibility,
-    ) -> StorageResult<()> {
+    ) -> StorageResult<SubscriptionGroupRecord> {
         let now = now();
         sqlx::query(
             "INSERT INTO subscription_groups (
@@ -309,10 +466,91 @@ impl StorageRepository {
         .bind(owner_user_id)
         .bind(title)
         .bind(visibility.as_str())
-        .bind(now)
+        .bind(&now)
         .execute(self.sqlite()?)
         .await?;
-        Ok(())
+        Ok(SubscriptionGroupRecord {
+            id: id.to_owned(),
+            tenant_id: tenant_id.to_owned(),
+            owner_user_id: owner_user_id.to_owned(),
+            title: title.to_owned(),
+            visibility,
+            created_at: parse_rfc3339(&now)?,
+        })
+    }
+
+    /// Lists subscription groups for one owner in one tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL/timestamp parsing fails.
+    pub async fn list_subscription_groups(
+        &self,
+        tenant_id: &str,
+        owner_user_id: &str,
+    ) -> StorageResult<Vec<SubscriptionGroupRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, title, visibility, created_at
+            FROM subscription_groups
+            WHERE tenant_id = ? AND owner_user_id = ?
+            ORDER BY created_at, id",
+        )
+        .bind(tenant_id)
+        .bind(owner_user_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.iter().map(subscription_group_from_row).collect()
+    }
+
+    /// Renames a subscription group.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, the group does
+    /// not exist, or timestamp parsing fails.
+    pub async fn rename_subscription_group(
+        &self,
+        id: &str,
+        title: &str,
+    ) -> StorageResult<SubscriptionGroupRecord> {
+        sqlx::query("UPDATE subscription_groups SET title = ? WHERE id = ?")
+            .bind(title)
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?;
+        self.find_subscription_group(id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
+    /// Deletes a subscription group.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn delete_subscription_group(&self, id: &str) -> StorageResult<bool> {
+        let result = sqlx::query("DELETE FROM subscription_groups WHERE id = ?")
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    async fn find_subscription_group(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<SubscriptionGroupRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, title, visibility, created_at
+            FROM subscription_groups
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref().map(subscription_group_from_row).transpose()
     }
 
     /// Adds a sticker pack to a subscription group.
@@ -662,6 +900,43 @@ fn parse_rfc3339(value: &str) -> StorageResult<DateTime<Utc>> {
             value: value.to_owned(),
             message: error.to_string(),
         })
+}
+
+fn folder_from_row(row: &SqliteRow) -> StorageResult<FolderRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(FolderRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        name: row.get("name"),
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn tag_from_row(row: &SqliteRow) -> StorageResult<TagRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(TagRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        name: row.get("name"),
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn subscription_group_from_row(row: &SqliteRow) -> StorageResult<SubscriptionGroupRecord> {
+    let visibility: String = row.get("visibility");
+    let Some(visibility) = PackVisibility::from_storage(&visibility) else {
+        return Err(StorageError::InvalidVisibility { visibility });
+    };
+    let created_at: String = row.get("created_at");
+    Ok(SubscriptionGroupRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        title: row.get("title"),
+        visibility,
+        created_at: parse_rfc3339(&created_at)?,
+    })
 }
 
 fn hash_password(password: &str) -> StorageResult<String> {

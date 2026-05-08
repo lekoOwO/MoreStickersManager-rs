@@ -38,11 +38,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - API/OpenAPI exposes a typed `TelegramExportJobOptions` schema for the generic
   export job options object.
 - Destructive mirror operation now has a user-facing runbook.
+- Product-data storage repository primitives now exist for folders, tags, and
+  subscription group metadata.
 
 ## Immediate Plan
 
-1. Start the next product-data slice: folder, tag, subscription-group, and pack
-   access-management APIs.
+1. Add product-data API routes and OpenAPI schemas for folder, tag, and
+   subscription-group metadata.
 2. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 

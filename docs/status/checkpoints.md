@@ -677,3 +677,19 @@
 - Updated roadmap, implementation matrix, project map, and current status so the
   active next slice is product-data API implementation.
 - Verified with `git diff --check`.
+
+## 2026-05-09 Product Data Storage Primitives
+
+- Added `FolderRecord`, `TagRecord`, and `NewTag` storage models.
+- Added folder create/list/rename/delete repository methods.
+- Added tag create/list/delete repository methods.
+- Changed `create_subscription_group` to return `SubscriptionGroupRecord` and
+  added subscription group list/rename/delete repository methods.
+- Added `product_data_repository_tests` coverage for folder, tag, and
+  subscription group metadata lifecycle.
+- Updated the product-data API implementation plan and status docs; next step is
+  API routes and OpenAPI schemas.
+- Verified with `cargo fmt --all -- --check`,
+  `cargo test -p msm-storage --locked`,
+  `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and
+  `git diff --check`.

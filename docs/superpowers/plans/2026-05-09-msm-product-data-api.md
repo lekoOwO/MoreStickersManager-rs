@@ -26,7 +26,7 @@
 - Modify: `crates/msm-storage/src/models.rs`
 - Modify: `crates/msm-storage/src/repositories.rs`
 
-- [ ] **Step 1: Write failing storage tests**
+- [x] **Step 1: Write failing storage tests**
 
 Add tests proving:
 
@@ -49,7 +49,7 @@ async fn folders_tags_and_subscriptions_can_be_managed() {
 }
 ```
 
-- [ ] **Step 2: Run the failing tests**
+- [x] **Step 2: Run the failing tests**
 
 Run:
 
@@ -57,9 +57,10 @@ Run:
 cargo test -p msm-storage folders_tags_and_subscriptions_can_be_managed --locked
 ```
 
-Expected: fail because repository methods or record fields are missing.
+Result: failed because `NewTag` plus folder/tag/subscription repository methods
+were missing and `create_subscription_group` returned `()`.
 
-- [ ] **Step 3: Implement minimal storage methods**
+- [x] **Step 3: Implement minimal storage methods**
 
 Add record structs with exact DB fields, then add methods using the existing SQLx style. Keep method names simple:
 
@@ -70,9 +71,11 @@ pub async fn rename_folder(&self, id: &str, name: &str) -> StorageResult<()>;
 pub async fn delete_folder(&self, id: &str) -> StorageResult<()>;
 ```
 
-Repeat the same pattern for tags and subscription groups. Do not implement Web-specific sorting or filtering yet.
+Result: implemented `FolderRecord`, `TagRecord`, `NewTag`, folder CRUD,
+tag create/list/delete, subscription group list/rename/delete, and changed
+`create_subscription_group` to return `SubscriptionGroupRecord`.
 
-- [ ] **Step 4: Verify storage**
+- [x] **Step 4: Verify storage**
 
 Run:
 
@@ -82,7 +85,10 @@ cargo test -p msm-storage folders_tags_and_subscriptions_can_be_managed --locked
 cargo clippy -p msm-storage --all-targets --locked -- -D warnings
 ```
 
-Expected: all pass.
+Result: passed with `cargo fmt --all -- --check`,
+`cargo test -p msm-storage --locked`,
+`cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and
+`git diff --check`.
 
 ## Task 2: API Routes And OpenAPI
 

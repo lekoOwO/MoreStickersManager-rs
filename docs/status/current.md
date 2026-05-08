@@ -56,12 +56,13 @@ Last completed:
 - API/OpenAPI Telegram options documentation slice: `CreateExportJobRequest.options` now points to a typed `TelegramExportJobOptions` OpenAPI schema that documents dry-run, reconciliation mode, execution guard, destructive mirror guard, remote state, and set naming fields while preserving JSON request flexibility.
 - Telegram destructive mirror operator runbook slice: added a user-facing runbook for safe dry-run review, append-missing operation, guarded mirror execution, review checklist, and recovery notes.
 - Product-data API planning slice: added the implementation plan for folder, tag, subscription-group, and pack access metadata APIs.
+- Product-data storage repository slice: added folder records and CRUD/listing methods, tag records and create/list/delete methods, subscription-group list/rename/delete methods, and a storage integration test covering the first product-data metadata lifecycle.
 
 Current task:
 - Begin the product-data API implementation slice for folders, tags,
   subscription groups, and pack access metadata. Storage/domain foundations
-  already exist; next work should add repository listing/CRUD methods, API
-  routes, OpenAPI schemas, and package tests.
+  now have folder/tag/subscription repository CRUD/listing support; next work
+  should add API routes, OpenAPI schemas, and package tests.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -119,9 +120,10 @@ Last verification:
 - CLI/MCP Telegram reconciliation affordances slice: targeted RED/GREEN tests for `cargo test -p msm-cli parses_export_job_create_telegram_reconciliation_flags --locked`, `cargo test -p msm-cli executes_export_job_create_with_telegram_reconciliation_flags --locked`, and `cargo test -p msm-mcp tools_call_creates_telegram_reconciliation_job_without_raw_options --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli -p msm-mcp --locked`, `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 - API/OpenAPI Telegram options documentation slice: targeted RED/GREEN test for `cargo test -p msm-api openapi_documents_telegram_export_job_options --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Telegram destructive mirror operator runbook and product-data API planning slice: docs-only verification with `git diff --check`.
+- Product-data storage repository slice: RED/GREEN test with `cargo test -p msm-storage folders_tags_and_subscription_groups_can_be_managed --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Execute `docs/superpowers/plans/2026-05-09-msm-product-data-api.md`, starting with storage tests for folder/tag/subscription metadata CRUD.
+- Continue `docs/superpowers/plans/2026-05-09-msm-product-data-api.md` Task 2 by adding API routes and OpenAPI schemas for folder/tag/subscription metadata.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
