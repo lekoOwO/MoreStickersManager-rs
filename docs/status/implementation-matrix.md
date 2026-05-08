@@ -1,6 +1,6 @@
 # Implementation Matrix
 
-Last updated: 2026-05-08.
+Last updated: 2026-05-09.
 
 This file is the quick truth source for what MSM can do today versus what is
 only designed or planned.

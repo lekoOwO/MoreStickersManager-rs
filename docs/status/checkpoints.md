@@ -609,3 +609,18 @@
 - Added Traditional Chinese and English labels for the reconciliation controls and guard explanations.
 - Added a Web export UI test proving append-missing execution options are queued without hand-writing JSON.
 - Verified with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
+
+## 2026-05-09 Documentation Progress And Roadmap Cleanup
+
+- Added `docs/status/roadmap.md` as the concise handoff view for current focus,
+  immediate plan, later planned work, and verification expectations.
+- Updated current status and implementation matrix dates around the P33
+  Telegram reconciliation usability focus.
+- Updated agent handoff/status protocol docs so roadmap and matrix changes are
+  part of normal pause/resume hygiene.
+- Corrected user and architecture docs to reflect implemented Telegram Web
+  controls, automatic remote-state reconciliation, and mapping refresh after
+  reconciliation mutation jobs.
+- Moved CLI/MCP reconciliation convenience affordances into the explicit
+  remaining-work list.
+- Verified with `git diff --check`.

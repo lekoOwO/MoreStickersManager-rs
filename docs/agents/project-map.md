@@ -25,11 +25,11 @@
 
 ## Not Implemented Yet
 
+- CLI/MCP convenience affordances for Telegram reconciliation options.
 - MCP auth/session/SSE hardening.
 - Folder, tag, subscription-group, and pack access-management APIs.
 - Provider network integrations and asset download orchestration.
 - Media probing through ffprobe.
-- Worker refresh of Telegram sticker mappings after reconciliation mutation execution.
 
 Do not add cross-layer dependencies to `msm-domain`.
 For feature completion status, prefer `../status/implementation-matrix.md` over

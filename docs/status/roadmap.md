@@ -1,0 +1,63 @@
+# Roadmap
+
+Last updated: 2026-05-09.
+
+This file is the short handoff view. Use `current.md` for the detailed
+chronological log and `implementation-matrix.md` for the feature truth table.
+
+## Current Focus
+
+Telegram export has moved past basic dry-run and publication. The active focus
+is now reconciliation usability and parity across Web, API, CLI, and MCP.
+
+The Web UI already exposes dry-run, reconciliation mode, execute-reconciliation,
+and destructive mirror guard controls. API, CLI, and MCP can queue the same jobs
+through raw job options today. The next implementation slice should add explicit
+CLI flags and MCP tool affordances so non-Web callers do not need to hand-write
+the worker options JSON.
+
+## Recently Completed
+
+- Web desktop/mobile UX was reworked into a native-feeling desktop rail plus a
+  separate compact mobile layout.
+- Development startup can bootstrap a local account, PAT, and sample pack so
+  the Web UI runs against the live API by default in the development profile.
+- Telegram publication jobs can run through teloxide when `dryRun:false` is
+  explicitly requested and the target contains bot credentials.
+- Telegram publication and reconciliation mutation jobs persist durable
+  publication records and refresh MSM source sticker to Telegram file mappings.
+- Telegram reconciliation can derive remote state from fetched Telegram metadata
+  plus stored mappings when callers omit `remoteSet`.
+- Mirror-mode destructive replace/delete remains guarded by
+  `allowDestructiveReconciliation:true`.
+
+## Immediate Plan
+
+1. Add CLI convenience flags for Telegram reconciliation job options.
+2. Add MCP reconciliation-specific tool affordances or schemas that expose the
+   same guarded options without requiring opaque JSON.
+3. Extend user documentation with end-to-end append-missing and guarded mirror
+   examples for Web, CLI, MCP, and API.
+4. Add focused tests for the new CLI/MCP option mapping and permission behavior.
+5. Run targeted Rust/Web verification and update this roadmap, current status,
+   implementation matrix, and checkpoints.
+
+## Later Planned Work
+
+- Folder, tag, subscription-group, and pack access-management APIs.
+- Pack and subscription-group public/private access-token model.
+- User data export/import for instance migration.
+- Provider download integrations beyond Telegram/LINE fixtures.
+- Media probing through ffprobe and richer conversion diagnostics.
+- MCP auth/session/SSE hardening.
+- Multi-tenant RBAC, OIDC/SSO controls, and richer PAT management.
+
+## Verification Expectations
+
+For docs-only changes, `git diff --check` is sufficient. For CLI/MCP feature
+work, run at least:
+
+- `cargo fmt --all -- --check`
+- `cargo test -p msm-cli -p msm-mcp --locked`
+- `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`
+- `git diff --check`

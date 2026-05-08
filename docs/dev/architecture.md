@@ -73,25 +73,26 @@ keep/add/replace, and remote-only sticker deletion. `msm-telegram` can execute
 ordered mutation sequences for title update, add, replace, and delete through a
 mockable teloxide-backed trait. Worker dry-run jobs can accept supplied remote
 state and return reconciliation operation/mutation summaries. Non-dry-run
-append-missing reconciliation can execute supplied-state mutations only when
-`executeReconciliation` is explicitly enabled. Mirror-mode replace/delete also
-requires `allowDestructiveReconciliation` before mutation execution. Remote state
-retrieval now exists in the Telegram boundary through a mockable `getStickerSet`
-adapter, but worker reconciliation still needs persisted per-sticker MSM source
-ID mapping before fetched Telegram stickers can be matched back to canonical MSM
-stickers.
+append-missing reconciliation can execute mutations when `executeReconciliation`
+is explicitly enabled. Mirror-mode replace/delete also requires
+`allowDestructiveReconciliation` before mutation execution. Remote state
+retrieval exists in the Telegram boundary through a mockable `getStickerSet`
+adapter, and the worker can derive `TelegramRemoteSet` by combining fetched
+Telegram metadata with stored MSM source sticker to Telegram file mappings when
+callers omit `remoteSet`.
 
 Storage now has a `telegram_sticker_mappings` table for MSM source sticker IDs,
 Telegram file IDs, file unique IDs, and positions per publication/target/set.
-The table is the durable bridge needed for future fetched-state reconciliation;
-successful non-dry-run publication jobs now populate it from post-publication
-`getStickerSet` results. Mapping refresh after reconciliation mutation execution
-remains pending.
+The table is the durable bridge used for fetched-state reconciliation.
+Successful non-dry-run publication jobs and reconciliation mutation jobs refresh
+it from post-operation `getStickerSet` results.
 
 Startup export targets can be bootstrapped from `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`.
 Task 10 exposes the same target/job operations through CLI and MCP. Task 11 adds
 Web export target settings, Telegram token validation, export job queueing, job
-event display, and completed sticker set URL display.
+event display, completed sticker set URL display, and Web reconciliation
+controls. CLI/MCP reconciliation convenience flags and schemas are the next
+planned parity slice; raw job options already work.
 
 Worker tests keep Telegram network access behind injected fake publishers. Local
 and CI verification must not call Telegram; live publication requires an

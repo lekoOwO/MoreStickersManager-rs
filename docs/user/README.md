@@ -102,48 +102,46 @@ packs when the stored PAT has `pack.update` and `pack.delete`.
 It can also import a pasted MoreStickers `.stickerpack` JSON export when the
 stored PAT has `import.run`.
 
-Telegram sticker set export is partially planned in backend code but not
-user-facing yet. P24/P25 document an export pipeline that will convert pack
-assets into target-specific media, use a Telegram bot to create sticker sets,
-and expose the workflow through Web, API, CLI, and MCP surfaces.
+Telegram sticker set export is user-facing through Web, API, CLI, and MCP.
+MSM converts pack assets into Telegram media profiles, uses a Telegram bot
+through teloxide to create or update sticker sets, and stores durable Telegram
+publication history for later reconciliation.
 
-P25 has started the backend media, export planning, and export API foundation.
 MSM can select Telegram static/video target profiles, build ffmpeg command
 arguments for static, video, and thumbnail outputs, normalize Telegram sticker
 set names, split create/append batches, enforce Telegram set size limits, and
 prepare teloxide `InputSticker` data. Protected API routes can manage export
 targets, queue export jobs, and read job status/events. The app worker can run
-queued MoreStickers serialization jobs, Telegram dry-run planning jobs, and
-Telegram publication jobs when job options explicitly set `"dryRun": false`.
-It can write prepared media cache records through its media executor boundary
-and then use those prepared files for teloxide sticker uploads. MSM has a
-process-backed ffmpeg executor for prepared media conversion. The CLI can manage
-export targets, queue/read export jobs, and list/read Telegram publication
-history through the API. The Web UI can configure export targets, queue jobs,
-show job status/events, surface completed Telegram sticker set URLs, and reopen
-persisted Telegram publication records for the selected pack.
+queued MoreStickers serialization jobs, Telegram dry-run planning jobs, Telegram
+publication jobs when job options explicitly set `"dryRun": false`, and guarded
+Telegram reconciliation mutation jobs. It writes prepared media cache records
+through its media executor boundary and then uses those prepared files for
+teloxide sticker uploads. MSM has a process-backed ffmpeg executor for prepared
+media conversion. The CLI can manage export targets, queue/read export jobs, and
+list/read Telegram publication history through the API. The Web UI can configure
+export targets, queue jobs, show job status/events, surface completed Telegram
+sticker set URLs, reopen persisted Telegram publication records for the selected
+pack, and choose Telegram reconciliation controls without hand-writing JSON.
 
 Telegram remote synchronization policy is now defined in backend planner code.
 MSM can model create-only, append-missing, and mirror reconciliation operations
 against known remote sticker set state, including title updates, sticker
 replacement, missing sticker additions, and remote-only sticker deletions. The
 Telegram boundary can execute ordered title/add/replace/delete mutation
-sequences through teloxide. The worker does not map jobs into those update/delete
-operations for live publication yet, but dry-run jobs may include
-`reconcileMode` plus a supplied `remoteSet` to return operation and mutation
-counts. Non-dry-run append-missing reconciliation can execute supplied-state
-mutations only when job options include `"dryRun": false`,
-`"reconcileMode": "appendMissing"`, `"executeReconciliation": true`, and a
-`remoteSet`. Mirror-mode replace/delete additionally requires
-`"allowDestructiveReconciliation": true`. Current normal live Telegram
-publication remains create/append-oriented and opt-in via `"dryRun": false`.
-The Telegram boundary can fetch remote sticker set metadata, but automatic
-worker reconciliation from fetched state is still pending until MSM persists a
-per-sticker mapping between MSM sticker IDs and Telegram file IDs.
-The storage layer now has that mapping table and repository API; worker
-population from post-publication `getStickerSet` results is implemented for
-successful non-dry-run publication jobs. Reconciliation mutation jobs still need
-mapping refresh after mutation execution.
+sequences through teloxide. Dry-run jobs may include `reconcileMode` plus an
+optional `remoteSet` to return operation and mutation counts without contacting
+Telegram for mutation. Non-dry-run append-missing reconciliation can execute
+mutations when job options include `"dryRun": false`,
+`"reconcileMode": "appendMissing"`, and `"executeReconciliation": true`. If
+`remoteSet` is omitted, the worker fetches Telegram metadata and maps Telegram
+file IDs back to MSM source sticker IDs using stored mappings from previous
+publication or reconciliation runs. Mirror-mode replace/delete additionally
+requires `"allowDestructiveReconciliation": true`. Current normal live Telegram
+publication remains opt-in via `"dryRun": false`.
+
+The storage layer persists MSM source sticker ID to Telegram file ID mappings.
+Successful non-dry-run publication jobs and reconciliation mutation jobs refresh
+those mappings from post-operation `getStickerSet` results.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
@@ -167,6 +165,33 @@ The current Telegram worker path defaults to dry-run planning and media
 preparation. To execute Telegram upload and sticker set creation, queue the job
 with options containing `"dryRun": false` and use a Telegram target config that
 contains `botToken`, `botUsername`, and `ownerUserId`.
+
+To execute an append-missing reconciliation from CLI, MCP, or direct API today,
+queue a Telegram export job with options similar to:
+
+```json
+{
+  "dryRun": false,
+  "reconcileMode": "appendMissing",
+  "executeReconciliation": true
+}
+```
+
+To execute a guarded mirror reconciliation that may replace or delete remote
+stickers, the destructive opt-in must also be present:
+
+```json
+{
+  "dryRun": false,
+  "reconcileMode": "mirror",
+  "executeReconciliation": true,
+  "allowDestructiveReconciliation": true
+}
+```
+
+The Web export wizard exposes these controls directly. CLI and MCP currently
+support the same behavior through export job options JSON; dedicated
+reconciliation flags/tools are the next planned usability slice.
 
 Export target/job API endpoints and CLI commands now exist for queueing export
 jobs and reading their status/events. CLI commands, MCP tools, and Web UI
