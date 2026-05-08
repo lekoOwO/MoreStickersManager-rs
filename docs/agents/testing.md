@@ -529,6 +529,7 @@ These tests prove:
 - regular sets cap at 120 stickers and custom emoji sets allow 200;
 - static and animated MSM stickers map to static/video teloxide sticker formats;
 - planned stickers can be converted to teloxide `InputSticker` values using prepared media files.
+- reconciliation planning creates missing sets, rejects create-only conflicts, keeps remote-only stickers in append-missing mode, and plans title update, sticker replacement, addition, and deletion in mirror mode.
 
 ## Export API Tests
 

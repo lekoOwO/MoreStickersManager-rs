@@ -96,6 +96,14 @@ history through the API. The Web UI can configure export targets, queue jobs,
 show job status/events, surface completed Telegram sticker set URLs, and reopen
 persisted Telegram publication records for the selected pack.
 
+Telegram remote synchronization policy is now defined in backend planner code.
+MSM can model create-only, append-missing, and mirror reconciliation operations
+against known remote sticker set state, including title updates, sticker
+replacement, missing sticker additions, and remote-only sticker deletions. The
+worker does not execute those update/delete operations yet; current live
+Telegram publication remains create/append-oriented and opt-in via
+`"dryRun": false`.
+
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
 targets such as a Telegram bot target before Web target settings exist.

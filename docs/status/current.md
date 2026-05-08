@@ -34,9 +34,10 @@ Last completed:
 - Web export UX/publication history slice: reviewed the current frontend, kept the existing shell instead of a full rewrite, and added persisted Telegram publication history to the export wizard for the selected pack.
 - Telegram publication MCP slice: added `msm.list_telegram_publications` and `msm.get_telegram_publication` tools with `export.read` enforcement and pack ownership checks.
 - Export job retry policy slice: added retry metadata, due-job backoff selection, worker requeue behavior for retryable failures, terminal failure after attempt budget exhaustion, and `MSM_EXPORT_RETRY_BACKOFF_MS`.
+- Telegram reconciliation policy slice: added pure exporter-level reconciliation planning for create-only, append-missing, and mirror modes, including title updates, sticker replacement, remote-only deletion, and no-network tests.
 
 Current task:
-- Continue from export retry foundation: transient worker failures can now be retried; next step is defining Telegram remote reconciliation/update/delete behavior.
+- Continue from Telegram reconciliation policy: strategy modeling exists; next step is wiring remote state fetch/update/delete execution through the Telegram boundary and worker options.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -69,9 +70,10 @@ Last verification:
 - Web export UX/publication history slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `git diff --check`.
 - Telegram publication MCP slice: `cargo fmt --all -- --check`; `cargo test -p msm-mcp --locked`; `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `git diff --check`.
 - Export job retry policy slice: `cargo fmt --all -- --check`; `cargo test -p msm-storage --test export_job_repository_tests --locked`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo test -p msm-api --locked`; `cargo test -p msm-cli --locked`; `cargo test -p msm-mcp --locked`; `cargo clippy -p msm-storage -p msm-app -p msm-api -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `git diff --check`.
+- Telegram reconciliation policy slice: `cargo fmt --all -- --check`; `cargo test -p msm-exporters --test telegram_plan_tests --locked`; `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- Define Telegram remote reconciliation/update/delete behavior.
+- Wire Telegram reconciliation execution into `msm-telegram` and the export worker without enabling destructive mirror mode by default.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

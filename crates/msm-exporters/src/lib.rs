@@ -13,5 +13,6 @@ pub use target::{
 };
 pub use telegram::{
     PlannedTelegramSticker, TelegramExportOptions, TelegramExportPlan, TelegramExportPlanner,
-    TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
+    TelegramReconcileMode, TelegramReconcileOperation, TelegramReconcilePlan, TelegramRemoteSet,
+    TelegramRemoteSticker, TelegramStickerSetType, TelegramTargetConfig, TelegramTargetError,
 };

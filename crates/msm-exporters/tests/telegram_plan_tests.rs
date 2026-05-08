@@ -1,7 +1,8 @@
 use msm_domain::{Sticker, StickerPack};
 use msm_exporters::{
-    TelegramExportOptions, TelegramExportPlanner, TelegramStickerSetType, TelegramTargetConfig,
-    TelegramTargetError,
+    TelegramExportOptions, TelegramExportPlanner, TelegramReconcileMode,
+    TelegramReconcileOperation, TelegramRemoteSet, TelegramRemoteSticker, TelegramStickerSetType,
+    TelegramTargetConfig, TelegramTargetError,
 };
 use teloxide::types::{InputFile, StickerFormat};
 
@@ -177,6 +178,128 @@ fn planned_sticker_converts_to_teloxide_input_sticker() {
     assert_eq!(input.keywords, vec!["Sample 0"]);
 }
 
+#[test]
+fn reconcile_without_remote_set_creates_the_desired_set() {
+    let export_plan =
+        TelegramExportPlanner::plan_pack(&sample_pack(51), default_options()).unwrap();
+    let reconcile_plan = TelegramExportPlanner::plan_reconciliation(
+        export_plan.clone(),
+        None,
+        TelegramReconcileMode::CreateOnly,
+    )
+    .unwrap();
+
+    assert_eq!(reconcile_plan.sticker_set_name, "sample_by_msm_bot");
+    assert_eq!(
+        reconcile_plan.operations,
+        vec![TelegramReconcileOperation::CreateSet {
+            initial_stickers: export_plan.initial_stickers,
+            append_stickers: export_plan.append_stickers,
+        }]
+    );
+}
+
+#[test]
+fn create_only_reconciliation_rejects_existing_remote_set() {
+    let export_plan = TelegramExportPlanner::plan_pack(&sample_pack(1), default_options()).unwrap();
+    let error = TelegramExportPlanner::plan_reconciliation(
+        export_plan,
+        Some(remote_set(vec![])),
+        TelegramReconcileMode::CreateOnly,
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        error,
+        TelegramTargetError::TargetSetAlreadyExists {
+            sticker_set_name: "sample_by_msm_bot".into(),
+        }
+    );
+}
+
+#[test]
+fn append_missing_reconciliation_keeps_remote_extras() {
+    let export_plan = TelegramExportPlanner::plan_pack(&sample_pack(2), default_options()).unwrap();
+    let existing = export_plan.initial_stickers[0].clone();
+    let missing = export_plan.initial_stickers[1].clone();
+    let reconcile_plan = TelegramExportPlanner::plan_reconciliation(
+        export_plan,
+        Some(remote_set(vec![
+            remote_sticker(&existing, "tg_existing"),
+            TelegramRemoteSticker {
+                sticker_id: "remote-only".into(),
+                telegram_file_id: "tg_remote_only".into(),
+                target_profile_key: "telegram.sticker.static.v1".into(),
+                emoji_list: vec!["😀".into()],
+                keywords: vec!["Remote only".into()],
+            },
+        ])),
+        TelegramReconcileMode::AppendMissing,
+    )
+    .unwrap();
+
+    assert_eq!(
+        reconcile_plan.operations,
+        vec![
+            TelegramReconcileOperation::KeepSticker {
+                sticker_id: existing.sticker_id,
+                telegram_file_id: "tg_existing".into(),
+            },
+            TelegramReconcileOperation::AddSticker { sticker: missing },
+        ]
+    );
+}
+
+#[test]
+fn mirror_reconciliation_updates_adds_and_deletes_remote_drift() {
+    let export_plan = TelegramExportPlanner::plan_pack(&sample_pack(2), default_options()).unwrap();
+    let changed = export_plan.initial_stickers[0].clone();
+    let missing = export_plan.initial_stickers[1].clone();
+    let reconcile_plan = TelegramExportPlanner::plan_reconciliation(
+        export_plan,
+        Some(TelegramRemoteSet {
+            sticker_set_name: "sample_by_msm_bot".into(),
+            title: "Old title".into(),
+            stickers: vec![
+                TelegramRemoteSticker {
+                    sticker_id: changed.sticker_id.clone(),
+                    telegram_file_id: "tg_changed".into(),
+                    target_profile_key: "telegram.sticker.video.v1".into(),
+                    emoji_list: vec!["😺".into()],
+                    keywords: vec!["old".into()],
+                },
+                TelegramRemoteSticker {
+                    sticker_id: "remote-only".into(),
+                    telegram_file_id: "tg_remote_only".into(),
+                    target_profile_key: "telegram.sticker.static.v1".into(),
+                    emoji_list: vec!["😀".into()],
+                    keywords: vec!["Remote only".into()],
+                },
+            ],
+        }),
+        TelegramReconcileMode::Mirror,
+    )
+    .unwrap();
+
+    assert_eq!(
+        reconcile_plan.operations,
+        vec![
+            TelegramReconcileOperation::SetTitle {
+                title: "Sample".into(),
+            },
+            TelegramReconcileOperation::ReplaceSticker {
+                old_telegram_file_id: "tg_changed".into(),
+                sticker: changed,
+            },
+            TelegramReconcileOperation::AddSticker { sticker: missing },
+            TelegramReconcileOperation::DeleteSticker {
+                sticker_id: "remote-only".into(),
+                telegram_file_id: "tg_remote_only".into(),
+            },
+        ]
+    );
+}
+
 fn default_options() -> TelegramExportOptions {
     TelegramExportOptions {
         target: TelegramTargetConfig {
@@ -212,5 +335,26 @@ fn sample_sticker(index: usize, animated: bool) -> Sticker {
         sticker_pack_id: "MoreStickers:Telegram:Pack:sample".to_owned(),
         filename: Some(format!("file_{index}.webp")),
         is_animated: Some(animated),
+    }
+}
+
+fn remote_set(stickers: Vec<TelegramRemoteSticker>) -> TelegramRemoteSet {
+    TelegramRemoteSet {
+        sticker_set_name: "sample_by_msm_bot".into(),
+        title: "Sample".into(),
+        stickers,
+    }
+}
+
+fn remote_sticker(
+    sticker: &msm_exporters::PlannedTelegramSticker,
+    telegram_file_id: &str,
+) -> TelegramRemoteSticker {
+    TelegramRemoteSticker {
+        sticker_id: sticker.sticker_id.clone(),
+        telegram_file_id: telegram_file_id.into(),
+        target_profile_key: sticker.target_profile_key.clone(),
+        emoji_list: sticker.emoji_list.clone(),
+        keywords: sticker.keywords.clone(),
     }
 }

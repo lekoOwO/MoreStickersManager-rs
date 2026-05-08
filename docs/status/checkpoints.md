@@ -448,3 +448,12 @@
 - Exposed retry metadata through API, CLI, MCP, and Web export job DTOs.
 - Added storage and worker tests for retry metadata, backoff skip behavior, and terminal failure after exhausting the attempt budget.
 - Verified with focused Rust/Web checks recorded in `docs/status/current.md`.
+
+## 2026-05-08 Telegram Reconciliation Policy
+
+- Added pure `msm-exporters` reconciliation types for known remote Telegram set/sticker state.
+- Added `TelegramReconcileMode` with `CreateOnly`, `AppendMissing`, and `Mirror` policies.
+- Added ordered reconciliation operations for set creation, title update, sticker keep/add/replace, and remote-only sticker deletion.
+- Added planner tests proving create-only rejection, append-missing non-destructive behavior, and mirror update/add/delete behavior without Telegram network access.
+- Documented that policy modeling exists, while remote state fetch and destructive execution remain pending worker/Telegram-boundary work.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-exporters --test telegram_plan_tests --locked`, `cargo clippy -p msm-exporters --all-targets --locked -- -D warnings`, and `git diff --check`.

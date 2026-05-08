@@ -1,5 +1,6 @@
 use msm_domain::StickerPack;
 use msm_media::{ConversionPlan, MediaKind};
+use std::collections::HashSet;
 use teloxide::types::{InputFile, InputSticker, StickerFormat};
 
 /// Telegram target configuration that is independent from stored secrets.
@@ -62,6 +63,97 @@ pub struct TelegramExportPlan {
     pub initial_stickers: Vec<PlannedTelegramSticker>,
     /// Stickers appended with `addStickerToSet`.
     pub append_stickers: Vec<PlannedTelegramSticker>,
+}
+
+/// Remote reconciliation mode for an already published Telegram sticker set.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TelegramReconcileMode {
+    /// Only create a missing set. Existing sets are rejected.
+    CreateOnly,
+    /// Add missing MSM stickers while leaving remote-only stickers untouched.
+    AppendMissing,
+    /// Make the remote set match MSM by updating changed stickers and deleting extras.
+    Mirror,
+}
+
+/// Known remote Telegram sticker set state.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TelegramRemoteSet {
+    /// Telegram sticker set name.
+    pub sticker_set_name: String,
+    /// Telegram sticker set title.
+    pub title: String,
+    /// Remote stickers mapped back to MSM sticker IDs when known.
+    pub stickers: Vec<TelegramRemoteSticker>,
+}
+
+/// Known remote Telegram sticker metadata for reconciliation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TelegramRemoteSticker {
+    /// MSM sticker compatibility ID.
+    pub sticker_id: String,
+    /// Telegram file ID needed by update/delete Bot API methods.
+    pub telegram_file_id: String,
+    /// MSM media profile key last used for this sticker.
+    pub target_profile_key: String,
+    /// Telegram emoji list.
+    pub emoji_list: Vec<String>,
+    /// Telegram search keywords.
+    pub keywords: Vec<String>,
+}
+
+/// Planned remote mutation or no-op for one Telegram reconciliation run.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TelegramReconcileOperation {
+    /// Create the set, then append the overflow stickers.
+    CreateSet {
+        /// Stickers sent to `createNewStickerSet`.
+        initial_stickers: Vec<PlannedTelegramSticker>,
+        /// Stickers sent to `addStickerToSet`.
+        append_stickers: Vec<PlannedTelegramSticker>,
+    },
+    /// Update the remote sticker set title.
+    SetTitle {
+        /// Desired title.
+        title: String,
+    },
+    /// Keep an existing remote sticker unchanged.
+    KeepSticker {
+        /// MSM sticker compatibility ID.
+        sticker_id: String,
+        /// Telegram file ID.
+        telegram_file_id: String,
+    },
+    /// Add a missing sticker to the remote set.
+    AddSticker {
+        /// Desired sticker.
+        sticker: PlannedTelegramSticker,
+    },
+    /// Replace an existing remote sticker with the desired prepared media.
+    ReplaceSticker {
+        /// Telegram file ID currently in the set.
+        old_telegram_file_id: String,
+        /// Desired sticker.
+        sticker: PlannedTelegramSticker,
+    },
+    /// Delete a remote-only sticker from the set.
+    DeleteSticker {
+        /// MSM sticker compatibility ID if previously known.
+        sticker_id: String,
+        /// Telegram file ID.
+        telegram_file_id: String,
+    },
+}
+
+/// Planned Telegram remote reconciliation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TelegramReconcilePlan {
+    /// Telegram sticker set name.
+    pub sticker_set_name: String,
+    /// Reconciliation mode used to build the operation list.
+    pub mode: TelegramReconcileMode,
+    /// Ordered remote operations.
+    pub operations: Vec<TelegramReconcileOperation>,
 }
 
 /// Target-neutral planned sticker data that can be converted to teloxide input later.
@@ -160,6 +252,94 @@ impl TelegramExportPlanner {
             set_type: options.set_type,
             initial_stickers: planned,
             append_stickers,
+        })
+    }
+
+    /// Plans remote reconciliation for an already built Telegram export plan.
+    ///
+    /// # Errors
+    ///
+    /// Returns `TargetSetAlreadyExists` when `CreateOnly` sees an existing
+    /// remote set.
+    pub fn plan_reconciliation(
+        export_plan: TelegramExportPlan,
+        remote: Option<TelegramRemoteSet>,
+        mode: TelegramReconcileMode,
+    ) -> Result<TelegramReconcilePlan, TelegramTargetError> {
+        let sticker_set_name = export_plan.sticker_set_name.clone();
+        let Some(remote) = remote else {
+            return Ok(TelegramReconcilePlan {
+                sticker_set_name,
+                mode,
+                operations: vec![TelegramReconcileOperation::CreateSet {
+                    initial_stickers: export_plan.initial_stickers,
+                    append_stickers: export_plan.append_stickers,
+                }],
+            });
+        };
+
+        if mode == TelegramReconcileMode::CreateOnly {
+            return Err(TelegramTargetError::TargetSetAlreadyExists { sticker_set_name });
+        }
+
+        let TelegramRemoteSet {
+            title: remote_title,
+            stickers: remote_stickers,
+            ..
+        } = remote;
+        let desired_stickers = export_plan
+            .initial_stickers
+            .into_iter()
+            .chain(export_plan.append_stickers)
+            .collect::<Vec<_>>();
+        let mut operations = Vec::new();
+        let mut seen_remote_sticker_ids = HashSet::new();
+
+        if mode == TelegramReconcileMode::Mirror && remote_title != export_plan.title {
+            operations.push(TelegramReconcileOperation::SetTitle {
+                title: export_plan.title,
+            });
+        }
+
+        for sticker in desired_stickers {
+            let remote_sticker = remote_stickers
+                .iter()
+                .find(|remote| remote.sticker_id == sticker.sticker_id);
+            if let Some(remote_sticker) = remote_sticker {
+                seen_remote_sticker_ids.insert(remote_sticker.sticker_id.clone());
+                if mode == TelegramReconcileMode::Mirror
+                    && !remote_sticker_matches_plan(remote_sticker, &sticker)
+                {
+                    operations.push(TelegramReconcileOperation::ReplaceSticker {
+                        old_telegram_file_id: remote_sticker.telegram_file_id.clone(),
+                        sticker,
+                    });
+                } else {
+                    operations.push(TelegramReconcileOperation::KeepSticker {
+                        sticker_id: remote_sticker.sticker_id.clone(),
+                        telegram_file_id: remote_sticker.telegram_file_id.clone(),
+                    });
+                }
+            } else {
+                operations.push(TelegramReconcileOperation::AddSticker { sticker });
+            }
+        }
+
+        if mode == TelegramReconcileMode::Mirror {
+            for remote_sticker in remote_stickers {
+                if !seen_remote_sticker_ids.contains(&remote_sticker.sticker_id) {
+                    operations.push(TelegramReconcileOperation::DeleteSticker {
+                        sticker_id: remote_sticker.sticker_id,
+                        telegram_file_id: remote_sticker.telegram_file_id,
+                    });
+                }
+            }
+        }
+
+        Ok(TelegramReconcilePlan {
+            sticker_set_name,
+            mode,
+            operations,
         })
     }
 }
@@ -274,4 +454,13 @@ fn keyword_for_sticker_title(title: &str) -> Vec<String> {
     } else {
         vec![title.chars().take(64).collect()]
     }
+}
+
+fn remote_sticker_matches_plan(
+    remote: &TelegramRemoteSticker,
+    planned: &PlannedTelegramSticker,
+) -> bool {
+    remote.target_profile_key == planned.target_profile_key
+        && remote.emoji_list == planned.emoji_list
+        && remote.keywords == planned.keywords
 }
