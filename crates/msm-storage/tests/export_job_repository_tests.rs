@@ -2,7 +2,7 @@ use msm_domain::{Sticker, StickerPack};
 use msm_storage::{
     models::{
         ExportJobStatus, NewExportJob, NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset,
-        NewTelegramPublication, PackVisibility,
+        NewTelegramPublication, NewTelegramStickerMapping, PackVisibility,
     },
     DatabaseConfig, DbPool, StorageRepository,
 };
@@ -301,6 +301,80 @@ async fn telegram_publication_upsert_updates_existing_target_set() {
             .len(),
         1
     );
+}
+
+#[tokio::test]
+async fn telegram_sticker_mappings_upsert_and_list_for_publication() {
+    let repo = seeded_export_job_repo().await;
+    repo.upsert_telegram_publication(NewTelegramPublication {
+        id: "telegram_pub_1",
+        pack_id: "pack_1",
+        target_id: "target_telegram",
+        job_id: "job_1",
+        sticker_set_name: "sample_by_msm_bot",
+        sticker_set_url: "https://t.me/addstickers/sample_by_msm_bot",
+        sticker_count: 1,
+        sticker_type: "regular",
+    })
+    .await
+    .unwrap();
+
+    let created = repo
+        .upsert_telegram_sticker_mapping(NewTelegramStickerMapping {
+            publication_id: "telegram_pub_1",
+            target_id: "target_telegram",
+            sticker_set_name: "sample_by_msm_bot",
+            source_sticker_id: "MoreStickers:Telegram:Sticker:sample:file",
+            telegram_file_id: "tg_file_1",
+            telegram_file_unique_id: "tg_unique_1",
+            position: 0,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(created.publication_id, "telegram_pub_1");
+    assert_eq!(
+        created.source_sticker_id,
+        "MoreStickers:Telegram:Sticker:sample:file"
+    );
+    assert_eq!(created.telegram_file_id, "tg_file_1");
+    assert_eq!(created.telegram_file_unique_id, "tg_unique_1");
+    assert_eq!(created.position, 0);
+
+    let updated = repo
+        .upsert_telegram_sticker_mapping(NewTelegramStickerMapping {
+            publication_id: "telegram_pub_1",
+            target_id: "target_telegram",
+            sticker_set_name: "sample_by_msm_bot",
+            source_sticker_id: "MoreStickers:Telegram:Sticker:sample:file",
+            telegram_file_id: "tg_file_2",
+            telegram_file_unique_id: "tg_unique_2",
+            position: 2,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(updated.id, created.id);
+    assert_eq!(updated.telegram_file_id, "tg_file_2");
+    assert_eq!(updated.telegram_file_unique_id, "tg_unique_2");
+    assert_eq!(updated.position, 2);
+
+    let found = repo
+        .find_telegram_sticker_mapping_by_source(
+            "target_telegram",
+            "sample_by_msm_bot",
+            "MoreStickers:Telegram:Sticker:sample:file",
+        )
+        .await
+        .unwrap()
+        .expect("mapping should be found by source sticker");
+    assert_eq!(found, updated);
+
+    let list = repo
+        .list_telegram_sticker_mappings_for_publication("telegram_pub_1")
+        .await
+        .unwrap();
+    assert_eq!(list, vec![updated]);
 }
 
 async fn seeded_export_job_repo() -> StorageRepository {

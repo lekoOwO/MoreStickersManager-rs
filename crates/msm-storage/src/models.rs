@@ -193,6 +193,20 @@ pub struct TelegramPublicationRecord {
     pub updated_at: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct TelegramStickerMappingRecord {
+    pub id: String,
+    pub publication_id: String,
+    pub target_id: String,
+    pub sticker_set_name: String,
+    pub source_sticker_id: String,
+    pub telegram_file_id: String,
+    pub telegram_file_unique_id: String,
+    pub position: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NewTelegramPublication<'a> {
     pub id: &'a str,
@@ -203,6 +217,17 @@ pub struct NewTelegramPublication<'a> {
     pub sticker_set_url: &'a str,
     pub sticker_count: i64,
     pub sticker_type: &'a str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewTelegramStickerMapping<'a> {
+    pub publication_id: &'a str,
+    pub target_id: &'a str,
+    pub sticker_set_name: &'a str,
+    pub source_sticker_id: &'a str,
+    pub telegram_file_id: &'a str,
+    pub telegram_file_unique_id: &'a str,
+    pub position: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

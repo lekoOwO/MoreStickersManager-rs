@@ -40,9 +40,10 @@ Last completed:
 - Telegram guarded reconciliation execution slice: non-dry-run `appendMissing` reconciliation can execute planned Telegram mutations through an injected executor when `executeReconciliation:true` and `remoteSet` are supplied; regular publication remains unchanged.
 - Telegram mirror safety slice: mirror reconciliation replace/delete operations now require `allowDestructiveReconciliation:true` in addition to `executeReconciliation:true`.
 - Telegram remote fetch boundary slice: `msm-telegram` can fetch remote sticker set metadata through a mockable `getStickerSet` boundary backed by teloxide, with no-network tests.
+- Telegram sticker mapping storage slice: added durable storage for MSM source sticker ID to Telegram file ID mappings per publication/target/sticker set.
 
 Current task:
-- Continue from Telegram remote fetch boundary: remote sticker set metadata can be fetched, but worker reconciliation still needs a source-sticker ID mapping strategy before automatic remote state use.
+- Continue from Telegram sticker mapping storage: mappings can be persisted and queried; next step is wiring worker publication/reconciliation to populate mappings from fetched remote state.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -81,9 +82,10 @@ Last verification:
 - Telegram guarded reconciliation execution slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`; `git diff --check`.
 - Telegram mirror safety slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`; `git diff --check`.
 - Telegram remote fetch boundary slice: `cargo fmt --all -- --check`; `cargo test -p msm-telegram --locked`; `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`; `git diff --check`.
+- Telegram sticker mapping storage slice: `cargo fmt --all -- --check`; `cargo test -p msm-storage --test export_job_repository_tests --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`; `git diff --check`.
 
 Next step:
-- Design and persist Telegram per-sticker source ID mapping so fetched remote state can be reconciled automatically.
+- Populate Telegram sticker mappings from fetched remote state after publication/reconciliation.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

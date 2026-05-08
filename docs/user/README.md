@@ -113,6 +113,9 @@ publication remains create/append-oriented and opt-in via `"dryRun": false`.
 The Telegram boundary can fetch remote sticker set metadata, but automatic
 worker reconciliation from fetched state is still pending until MSM persists a
 per-sticker mapping between MSM sticker IDs and Telegram file IDs.
+The storage layer now has that mapping table and repository API; worker
+population from post-publication `getStickerSet` results is the next integration
+step.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant

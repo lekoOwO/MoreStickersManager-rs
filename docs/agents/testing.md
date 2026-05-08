@@ -464,6 +464,7 @@ These tests prove:
 - export job success/failure payload updates are persisted;
 - prepared media cache records upsert by source asset hash and profile key;
 - Telegram publication records can be upserted, found by ID, found by target/set, and listed by pack.
+- Telegram sticker mappings can be upserted by target/set/source sticker, found by source sticker, and listed by publication order.
 
 ## Exporter Registry Tests
 

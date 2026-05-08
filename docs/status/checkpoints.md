@@ -505,3 +505,12 @@
 - Added `fetch_sticker_set` orchestration function with a no-network recording fake test.
 - Documented that fetched Telegram metadata still needs persisted per-sticker MSM source ID mapping before worker reconciliation can use it automatically.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-telegram --locked`, `cargo clippy -p msm-telegram --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Telegram Sticker Mapping Storage
+
+- Added migration `0005_telegram_sticker_mappings.sql` with durable mappings from MSM source sticker IDs to Telegram file IDs per publication, target, and sticker set.
+- Added `TelegramStickerMappingRecord` and `NewTelegramStickerMapping` storage models.
+- Added repository methods to upsert mappings, find a mapping by target/set/source sticker, and list mappings for a publication.
+- Added repository tests proving upsert updates retain stable IDs and ordered publication listing works.
+- Documented that worker publication/reconciliation still needs to populate mappings from fetched remote state.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-storage --test export_job_repository_tests --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
