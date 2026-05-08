@@ -740,3 +740,17 @@
   `cargo test -p msm-mcp --locked`,
   `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and
   `git diff --check`.
+
+## 2026-05-09 Product Data Web Management
+
+- Added product metadata API client functions for folder, tag, and
+  subscription-group create/list workflows.
+- Added a Web Organize workspace section with desktop-friendly three-column
+  management for folders, tags, and subscription groups.
+- Added navigation, Traditional Chinese/English labels, and selectable
+  subscription PAT scopes for Web local-login/PAT dialogs.
+- Added API client and Vue component tests for the metadata surface.
+- Updated README, user docs, roadmap, implementation matrix, and current
+  status.
+- Verified with `npm run web:typecheck`, `npm run web:test`, and
+  `npm run web:build`.

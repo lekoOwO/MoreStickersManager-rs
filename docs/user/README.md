@@ -85,7 +85,9 @@ import. It also exposes export target settings, Telegram target token
 validation, pack export job creation, job refresh, and ordered job event display
 when the export API is available. The export wizard also shows persisted
 Telegram publication history for the selected pack, including completed sticker
-set links from prior non-dry-run jobs.
+set links from prior non-dry-run jobs. The Organize workspace can create and
+list folders, tags, and subscription groups through the live API when the PAT
+has `pack.update`, `subscription.create`, and `subscription.read`.
 
 With the default development profile, `npm run dev:start` points the dashboard
 at the local API and seeds `VITE_MSM_PAT` automatically. To override the live API
@@ -288,7 +290,7 @@ Folder and tag endpoints currently require `pack.update`. Subscription group
 creation requires `subscription.create`; subscription group listing requires
 `subscription.read`. The CLI and MCP endpoint can create/list folders, tags,
 and subscription groups through the protected API. Web management controls are
-still a future slice.
+available in the Organize workspace.
 
 Current service binary example:
 

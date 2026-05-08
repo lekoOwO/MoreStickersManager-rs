@@ -1,1 +1,1 @@
-export type WorkspaceSection = "overview" | "packs" | "exports" | "targets";
+export type WorkspaceSection = "overview" | "packs" | "metadata" | "exports" | "targets";

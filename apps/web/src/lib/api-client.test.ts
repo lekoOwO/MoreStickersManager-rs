@@ -4,8 +4,12 @@ import {
   createPackClient,
   createLocalAuthClient,
   createPatClient,
+  createProductMetadataClient,
+  folderListUrl,
   mapApiPackRecord,
   packListUrl,
+  subscriptionGroupListUrl,
+  tagListUrl,
   type ApiStickerPackRecord,
 } from "./api-client";
 
@@ -360,5 +364,131 @@ describe("local auth API client", () => {
       }),
     });
     expect(login.token).toBe("msm_pat_webui_secret");
+  });
+});
+
+describe("product metadata API client", () => {
+  it("constructs metadata list URLs with encoded tenant and owner IDs", () => {
+    expect(folderListUrl("https://msm.example.test/", "tenant 1", "user 1")).toBe(
+      "https://msm.example.test/api/v1/folders?tenantId=tenant+1&ownerUserId=user+1",
+    );
+    expect(tagListUrl("https://msm.example.test/", "tenant 1")).toBe(
+      "https://msm.example.test/api/v1/tags?tenantId=tenant+1",
+    );
+    expect(subscriptionGroupListUrl("https://msm.example.test/", "tenant 1", "user 1")).toBe(
+      "https://msm.example.test/api/v1/subscription-groups?tenantId=tenant+1&ownerUserId=user+1",
+    );
+  });
+
+  it("lists and creates folders, tags, and subscription groups with bearer auth", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST" && url.endsWith("/api/v1/folders")) {
+        return new Response(
+          JSON.stringify({
+            id: "folder_1",
+            tenantId: "tenant_1",
+            ownerUserId: "user_1",
+            name: "Favorites",
+            createdAt: "2026-05-09T00:00:00Z",
+          }),
+          { status: 201 },
+        );
+      }
+      if (init?.method === "POST" && url.endsWith("/api/v1/tags")) {
+        return new Response(
+          JSON.stringify({ id: "tag_1", tenantId: "tenant_1", name: "cute", createdAt: "2026-05-09T00:00:00Z" }),
+          { status: 201 },
+        );
+      }
+      if (init?.method === "POST" && url.endsWith("/api/v1/subscription-groups")) {
+        return new Response(
+          JSON.stringify({
+            id: "sub_1",
+            tenantId: "tenant_1",
+            ownerUserId: "user_1",
+            title: "Weekly",
+            visibility: "private",
+            createdAt: "2026-05-09T00:00:00Z",
+          }),
+          { status: 201 },
+        );
+      }
+      if (url.includes("/api/v1/folders?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "folder_1",
+              tenantId: "tenant_1",
+              ownerUserId: "user_1",
+              name: "Favorites",
+              createdAt: "2026-05-09T00:00:00Z",
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/v1/tags?")) {
+        return new Response(
+          JSON.stringify([{ id: "tag_1", tenantId: "tenant_1", name: "cute", createdAt: "2026-05-09T00:00:00Z" }]),
+          { status: 200 },
+        );
+      }
+      return new Response(
+        JSON.stringify([
+          {
+            id: "sub_1",
+            tenantId: "tenant_1",
+            ownerUserId: "user_1",
+            title: "Weekly",
+            visibility: "private",
+            createdAt: "2026-05-09T00:00:00Z",
+          },
+        ]),
+        { status: 200 },
+      );
+    });
+    const client = createProductMetadataClient({
+      baseUrl: "https://msm.example.test/",
+      authToken: "msm_pat_web_secret",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const folder = await client.createFolder({
+      id: "folder_1",
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      name: "Favorites",
+    });
+    const folders = await client.listFolders("tenant_1", "user_1");
+    const tag = await client.createTag({ id: "tag_1", tenantId: "tenant_1", name: "cute" });
+    const tags = await client.listTags("tenant_1");
+    const group = await client.createSubscriptionGroup({
+      id: "sub_1",
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      title: "Weekly",
+      visibility: "private",
+    });
+    const groups = await client.listSubscriptionGroups("tenant_1", "user_1");
+
+    expect(folder.name).toBe("Favorites");
+    expect(folders[0]?.id).toBe("folder_1");
+    expect(tag.name).toBe("cute");
+    expect(tags[0]?.id).toBe("tag_1");
+    expect(group.visibility).toBe("private");
+    expect(groups[0]?.title).toBe("Weekly");
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/folders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_web_secret",
+      },
+      body: JSON.stringify({
+        id: "folder_1",
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        name: "Favorites",
+      }),
+    });
   });
 });

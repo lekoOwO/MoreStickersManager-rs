@@ -726,6 +726,25 @@ These tests prove:
 - the pack export wizard loads persisted Telegram publication history for the selected pack;
 - the Web app still typechecks and builds after wiring export workflow components into the dashboard.
 
+## Product Metadata Web Tests
+
+Run:
+
+```powershell
+npm run web:test -- api-client
+npm run web:test -- product-metadata-ui
+npm run web:typecheck
+npm run web:build
+```
+
+These tests prove:
+
+- the Web product metadata client constructs folder, tag, and subscription-group
+  URLs and forwards Bearer PATs;
+- the Organize workspace component can create/list folders, tags, and
+  subscription groups through an injected client;
+- Web navigation and i18n types still compile after adding the metadata section.
+
 ## Telegram Publish Boundary Tests
 
 Run:

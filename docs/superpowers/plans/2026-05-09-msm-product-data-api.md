@@ -189,6 +189,52 @@ git diff --check
 
 Expected: all pass.
 
+## Task 6: Web Product Metadata Management
+
+**Files:**
+- Modify: `apps/web/src/lib/api-client.ts`
+- Modify: `apps/web/src/lib/api-client.test.ts`
+- Add: `apps/web/src/components/ProductMetadataPanel.vue`
+- Add: `apps/web/src/components/__tests__/product-metadata-ui.test.ts`
+- Modify: `apps/web/src/app/AppShell.vue`
+- Modify: `apps/web/src/app/PackDashboard.vue`
+- Modify: `apps/web/src/lib/i18n.ts`
+- Modify: `apps/web/src/lib/workspace.ts`
+- Modify: `README.md`
+- Modify: `docs/user/README.md`
+- Modify: status and agent handoff docs.
+
+- [x] **Step 1: Add failing Web client and component tests**
+
+Added RED tests for metadata API client URL/request behavior and a
+`ProductMetadataPanel` workflow.
+
+```powershell
+npm run web:test -- api-client
+npm run web:test -- product-metadata-ui
+```
+
+Result: failed because the metadata API client helpers and Web component did
+not exist.
+
+- [x] **Step 2: Implement metadata client and Organize workspace**
+
+Added `createProductMetadataClient`, folder/tag/subscription group DTOs, list
+URL helpers, an Organize workspace section, navigation entry, i18n labels, and
+subscription PAT scope options.
+
+- [x] **Step 3: Verify Web surface**
+
+```powershell
+npm run web:test -- api-client
+npm run web:test -- product-metadata-ui
+npm run web:typecheck
+npm run web:test
+npm run web:build
+```
+
+Result: all passed.
+
 ## Task 5: MCP Product Metadata Tools
 
 **Files:**

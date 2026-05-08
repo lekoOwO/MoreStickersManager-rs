@@ -3,9 +3,15 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import ExportTargetPanel from "@/components/ExportTargetPanel.vue";
 import PackExportWizard from "@/components/PackExportWizard.vue";
+import ProductMetadataPanel from "@/components/ProductMetadataPanel.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { createPackClient, type PackClient, type WritablePackVisibility } from "@/lib/api-client";
+import {
+  createPackClient,
+  type PackClient,
+  type ProductMetadataClient,
+  type WritablePackVisibility,
+} from "@/lib/api-client";
 import type { ExportClient } from "@/lib/exportApi";
 import { allMessages, type Locale } from "@/lib/i18n";
 import { type PackVisibility, type StickerPackSummary } from "@/lib/sticker-packs";
@@ -15,6 +21,7 @@ const props = defineProps<{
   locale: Locale;
   patToken?: string;
   packClient?: PackClient;
+  metadataClient?: ProductMetadataClient;
   exportClient?: ExportClient;
   tenantId?: string;
   ownerUserId?: string;
@@ -34,15 +41,18 @@ const drafts = ref<Record<string, { title: string; visibility: WritablePackVisib
 
 const labels = computed(() => allMessages()[props.locale]);
 const tenantId = computed(() => props.tenantId ?? import.meta.env.VITE_MSM_TENANT_ID ?? "tenant_1");
+const ownerUserId = computed(() => props.ownerUserId ?? import.meta.env.VITE_MSM_USER_ID ?? "user_1");
 const currentSection = computed(() => props.activeSection ?? internalSection.value);
 const currentSectionLabel = computed(() =>
   currentSection.value === "overview"
     ? labels.value.overview
     : currentSection.value === "packs"
       ? labels.value.packs
-      : currentSection.value === "exports"
-        ? labels.value.exportPack
-        : labels.value.exportTargets,
+      : currentSection.value === "metadata"
+        ? labels.value.productMetadata
+        : currentSection.value === "exports"
+          ? labels.value.exportPack
+          : labels.value.exportTargets,
 );
 const totalStickers = computed(() => packs.value.reduce((sum, pack) => sum + pack.stickerCount, 0));
 const publicPackCount = computed(() => packs.value.filter((pack) => pack.visibility === "public").length);
@@ -56,6 +66,7 @@ const providerCounts = computed(() => {
 const sectionTabs = computed<Array<{ key: WorkspaceSection; label: string }>>(() => [
   { key: "overview", label: labels.value.overview },
   { key: "packs", label: labels.value.packs },
+  { key: "metadata", label: labels.value.productMetadata },
   { key: "exports", label: labels.value.exportPack },
   { key: "targets", label: labels.value.exportTargets },
 ]);
@@ -409,6 +420,16 @@ function visibilityVariant(visibility: PackVisibility) {
         :packs="packs"
         :pat-token="patToken"
         :tenant-id="tenantId"
+      />
+    </section>
+
+    <section v-show="currentSection === 'metadata'">
+      <ProductMetadataPanel
+        :metadata-client="metadataClient"
+        :locale="locale"
+        :pat-token="patToken"
+        :tenant-id="tenantId"
+        :owner-user-id="ownerUserId"
       />
     </section>
 

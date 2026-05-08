@@ -60,11 +60,12 @@ Last completed:
 - Product-data API route slice: added protected folder create/list, tag create/list, and subscription-group create/list API routes plus DTOs and OpenAPI registration.
 - Product-data CLI surface slice: added `msm metadata folders`, `msm metadata tags`, and `msm metadata subscription-groups` create/list commands backed by the protected API client, with human/JSON output and fake-client tests.
 - Product-data MCP surface slice: added `msm.list_folders`, `msm.create_folder`, `msm.list_tags`, `msm.create_tag`, `msm.list_subscription_groups`, and `msm.create_subscription_group` tools with PAT scope enforcement.
+- Product-data Web surface slice: added an Organize workspace section with API-backed folder, tag, and subscription-group create/list management, navigation integration, i18n labels, and selectable subscription PAT scopes.
 
 Current task:
-- Continue product-data management by adding Web management UI for folders,
-  tags, and subscription groups, then broaden pack access metadata controls
-  beyond basic visibility.
+- Continue product-data management by broadening pack access metadata controls
+  beyond basic visibility, including pack-folder/tag membership and subscription
+  group pack membership/link semantics.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -126,9 +127,10 @@ Last verification:
 - Product-data API route slice: RED/GREEN test with `cargo test -p msm-api metadata_routes_manage_folders_tags_and_subscriptions --locked`; OpenAPI path check with `cargo test -p msm-api openapi_endpoint_contains_health_path --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data CLI surface slice: RED/GREEN tests with `cargo test -p msm-cli parses_metadata_commands --locked` and `cargo test -p msm-cli executes_metadata_commands --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data MCP surface slice: RED/GREEN tests with `cargo test -p msm-mcp tools_call_manages_folders --locked`, `cargo test -p msm-mcp tools_call_manages_tags --locked`, `cargo test -p msm-mcp tools_call_manages_subscription_groups --locked`, `cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked`, `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`, and `cargo test -p msm-mcp pat_enforcement_metadata_tools_require_expected_scopes --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Product-data Web surface slice: RED/GREEN tests with `npm run web:test -- api-client` and `npm run web:test -- product-metadata-ui`; full verification with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
 
 Next step:
-- Continue product-data metadata by adding Web management UI for the new folder/tag/subscription API routes.
+- Continue product-data metadata by adding pack-folder/tag membership and subscription-group pack membership/link APIs.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

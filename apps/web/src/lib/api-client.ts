@@ -114,6 +114,43 @@ export interface LocalAuthClient {
   loginLocalUser(request: LoginLocalUserRequest): Promise<CreatedPersonalAccessTokenResponse>;
 }
 
+export interface ProductMetadataFolder {
+  id: string;
+  tenantId: string;
+  ownerUserId: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ProductMetadataTag {
+  id: string;
+  tenantId: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ProductMetadataSubscriptionGroup {
+  id: string;
+  tenantId: string;
+  ownerUserId: string;
+  title: string;
+  visibility: WritablePackVisibility;
+  createdAt: string;
+}
+
+export type CreateFolderRequest = Omit<ProductMetadataFolder, "createdAt">;
+export type CreateTagRequest = Omit<ProductMetadataTag, "createdAt">;
+export type CreateSubscriptionGroupRequest = Omit<ProductMetadataSubscriptionGroup, "createdAt">;
+
+export interface ProductMetadataClient {
+  listFolders(tenantId: string, ownerUserId: string): Promise<ProductMetadataFolder[]>;
+  createFolder(request: CreateFolderRequest): Promise<ProductMetadataFolder>;
+  listTags(tenantId: string): Promise<ProductMetadataTag[]>;
+  createTag(request: CreateTagRequest): Promise<ProductMetadataTag>;
+  listSubscriptionGroups(tenantId: string, ownerUserId: string): Promise<ProductMetadataSubscriptionGroup[]>;
+  createSubscriptionGroup(request: CreateSubscriptionGroupRequest): Promise<ProductMetadataSubscriptionGroup>;
+}
+
 export function createPackClient(options: PackClientOptions = {}): PackClient {
   const baseUrl = options.baseUrl?.trim();
   if (!baseUrl) {
@@ -175,6 +212,82 @@ export function createPackClient(options: PackClientOptions = {}): PackClient {
       if (!response.ok) {
         throw new Error(`Failed to delete sticker pack: HTTP ${response.status}`);
       }
+    },
+  };
+}
+
+export function createProductMetadataClient(options: PackClientOptions = {}): ProductMetadataClient {
+  const baseUrl = options.baseUrl?.trim();
+  if (!baseUrl) {
+    return mockProductMetadataClient();
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  return {
+    async listFolders(tenantId, ownerUserId) {
+      const response = await fetchOptional(fetchImpl, folderListUrl(baseUrl, tenantId, ownerUserId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list folders: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProductMetadataFolder[];
+    },
+    async createFolder(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/folders`, {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to create folder: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProductMetadataFolder;
+    },
+    async listTags(tenantId) {
+      const response = await fetchOptional(fetchImpl, tagListUrl(baseUrl, tenantId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list tags: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProductMetadataTag[];
+    },
+    async createTag(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/tags`, {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to create tag: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProductMetadataTag;
+    },
+    async listSubscriptionGroups(tenantId, ownerUserId) {
+      const response = await fetchOptional(
+        fetchImpl,
+        subscriptionGroupListUrl(baseUrl, tenantId, ownerUserId),
+        authInit(options.authToken),
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to list subscription groups: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProductMetadataSubscriptionGroup[];
+    },
+    async createSubscriptionGroup(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/subscription-groups`, {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to create subscription group: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProductMetadataSubscriptionGroup;
     },
   };
 }
@@ -284,6 +397,24 @@ export function patListUrl(baseUrl: string, userId: string) {
   return `${path}?${query.toString()}`;
 }
 
+export function folderListUrl(baseUrl: string, tenantId: string, ownerUserId: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/folders`;
+  const query = new URLSearchParams({ tenantId, ownerUserId });
+  return `${path}?${query.toString()}`;
+}
+
+export function tagListUrl(baseUrl: string, tenantId: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/tags`;
+  const query = new URLSearchParams({ tenantId });
+  return `${path}?${query.toString()}`;
+}
+
+export function subscriptionGroupListUrl(baseUrl: string, tenantId: string, ownerUserId: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/subscription-groups`;
+  const query = new URLSearchParams({ tenantId, ownerUserId });
+  return `${path}?${query.toString()}`;
+}
+
 function trimBaseUrl(baseUrl: string) {
   return baseUrl.trim().replace(/\/+$/, "");
 }
@@ -336,4 +467,55 @@ function mapVisibility(visibility: string | undefined): PackVisibility {
 
 function mapUpdatedDate(updatedAt: string | undefined) {
   return updatedAt?.split("T")[0] ?? "unknown";
+}
+
+function mockProductMetadataClient(): ProductMetadataClient {
+  const folders: ProductMetadataFolder[] = [
+    {
+      id: "folder_favorites",
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      name: "Favorites",
+      createdAt: "2026-05-09T00:00:00Z",
+    },
+  ];
+  const tags: ProductMetadataTag[] = [
+    {
+      id: "tag_reaction",
+      tenantId: "tenant_1",
+      name: "reaction",
+      createdAt: "2026-05-09T00:00:00Z",
+    },
+  ];
+  const groups: ProductMetadataSubscriptionGroup[] = [
+    {
+      id: "sub_weekly",
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      title: "Weekly sync",
+      visibility: "private",
+      createdAt: "2026-05-09T00:00:00Z",
+    },
+  ];
+
+  return {
+    async listFolders() {
+      return [...folders];
+    },
+    async createFolder(request) {
+      throw new Error(`Folder creation requires VITE_MSM_API_BASE_URL: ${request.id}`);
+    },
+    async listTags() {
+      return [...tags];
+    },
+    async createTag(request) {
+      throw new Error(`Tag creation requires VITE_MSM_API_BASE_URL: ${request.id}`);
+    },
+    async listSubscriptionGroups() {
+      return [...groups];
+    },
+    async createSubscriptionGroup(request) {
+      throw new Error(`Subscription group creation requires VITE_MSM_API_BASE_URL: ${request.id}`);
+    },
+  };
 }

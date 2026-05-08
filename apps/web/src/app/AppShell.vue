@@ -11,6 +11,7 @@ import {
   MoonIcon,
   SettingsIcon,
   SunIcon,
+  TagsIcon,
   XIcon,
 } from "lucide-vue-next";
 import { computed, ref, watch, type Component } from "vue";
@@ -62,9 +63,20 @@ const defaultPatScopes = [
   "export.read",
   "export.run",
   "export.target.manage",
+  "subscription.create",
+  "subscription.read",
   "pat.manage",
 ] as const;
-const authScopes = ref<string[]>(["pack.read", "pack.update", "pack.delete", "import.run", "export.read", "export.run"]);
+const authScopes = ref<string[]>([
+  "pack.read",
+  "pack.update",
+  "pack.delete",
+  "import.run",
+  "export.read",
+  "export.run",
+  "subscription.create",
+  "subscription.read",
+]);
 const authResult = ref<CreatedPersonalAccessTokenResponse | null>(null);
 const authError = ref("");
 const tokenId = ref("webui");
@@ -119,12 +131,15 @@ const scopeOptions = computed(() => [
     label: labels.value.scopeExportTargetManage,
     help: labels.value.scopeExportTargetManageHelp,
   },
+  { key: "subscription.create", label: labels.value.scopeSubscriptionCreate, help: labels.value.scopeSubscriptionCreateHelp },
+  { key: "subscription.read", label: labels.value.scopeSubscriptionRead, help: labels.value.scopeSubscriptionReadHelp },
   { key: "pat.manage", label: labels.value.scopePatManage, help: labels.value.scopePatManageHelp },
 ]);
 
 const navigationItems = computed<Array<{ key: WorkspaceSection; label: string; icon: Component }>>(() => [
   { key: "overview", label: labels.value.overview, icon: LayoutDashboardIcon },
   { key: "packs", label: labels.value.packs, icon: DatabaseIcon },
+  { key: "metadata", label: labels.value.productMetadata, icon: TagsIcon },
   { key: "exports", label: labels.value.exportPack, icon: SettingsIcon },
   { key: "targets", label: labels.value.exportTargets, icon: KeyRoundIcon },
 ]);
@@ -156,9 +171,11 @@ function currentSectionLabel() {
     ? labels.value.overview
     : activeSection.value === "packs"
       ? labels.value.packs
-      : activeSection.value === "exports"
-        ? labels.value.exportPack
-        : labels.value.exportTargets;
+      : activeSection.value === "metadata"
+        ? labels.value.productMetadata
+        : activeSection.value === "exports"
+          ? labels.value.exportPack
+          : labels.value.exportTargets;
 }
 
 function saveToken() {
