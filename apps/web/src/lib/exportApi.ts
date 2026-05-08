@@ -65,6 +65,20 @@ export interface ExportJobEvent {
   createdAt: string;
 }
 
+export interface TelegramPublication {
+  id: string;
+  tenantId: string;
+  sourcePackId: string;
+  targetId: string;
+  stickerSetName: string;
+  stickerSetTitle: string;
+  stickerSetUrl: string;
+  stickerCount: number;
+  lastPublishedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export function exportJobResultLink(result: Record<string, unknown> | null | undefined) {
   if (!result) {
     return "";
@@ -96,6 +110,8 @@ export interface ExportClient {
   createExportJob(request: CreateExportJobRequest): Promise<ExportJob>;
   getExportJob(jobId: string): Promise<ExportJob>;
   listExportJobEvents(jobId: string): Promise<ExportJobEvent[]>;
+  listTelegramPublications(packId: string): Promise<TelegramPublication[]>;
+  getTelegramPublication(publicationId: string): Promise<TelegramPublication>;
 }
 
 function readString(value: unknown) {
@@ -187,12 +203,35 @@ export function createExportClient(options: ExportClientOptions = {}): ExportCli
       await requireOk(response, "list export job events");
       return (await response.json()) as ExportJobEvent[];
     },
+    async listTelegramPublications(packId) {
+      const response = await fetchOptional(
+        fetchImpl,
+        telegramPublicationListUrl(baseUrl, packId),
+        authInit(options.authToken),
+      );
+      await requireOk(response, "list Telegram publications");
+      return (await response.json()) as TelegramPublication[];
+    },
+    async getTelegramPublication(publicationId) {
+      const response = await fetchOptional(
+        fetchImpl,
+        `${trimBaseUrl(baseUrl)}/api/v1/telegram-publications/${encodeURIComponent(publicationId)}`,
+        authInit(options.authToken),
+      );
+      await requireOk(response, "get Telegram publication");
+      return (await response.json()) as TelegramPublication;
+    },
   };
 }
 
 export function exportTargetListUrl(baseUrl: string, tenantId: string) {
   const query = new URLSearchParams({ tenantId });
   return `${trimBaseUrl(baseUrl)}/api/v1/export-targets?${query.toString()}`;
+}
+
+export function telegramPublicationListUrl(baseUrl: string, packId: string) {
+  const query = new URLSearchParams({ packId });
+  return `${trimBaseUrl(baseUrl)}/api/v1/telegram-publications?${query.toString()}`;
 }
 
 function trimBaseUrl(baseUrl: string) {

@@ -588,6 +588,7 @@ These tests prove:
 - target creation preserves JSON config and enabled/disabled state;
 - export job creation supports JSON output;
 - export job event reads render ordered event information.
+- Telegram publication list/get commands call the publication history API and format sticker set links.
 
 ## Export MCP Tests
 
@@ -619,12 +620,14 @@ npm run web:build
 These tests prove:
 
 - the Web export API client builds target/job URLs and forwards Bearer PATs;
+- the Web export API client builds Telegram publication history URLs and forwards Bearer PATs;
 - export result-link extraction recognizes completed Telegram publication URLs;
 - export target CRUD client methods call the expected API endpoints;
 - the export target panel validates Telegram bot token shape before target creation;
 - redacted export target config values remain redacted in the UI;
 - the pack export wizard queues jobs, renders job events, and surfaces conflict errors;
 - the pack export wizard and job timeline render completed Telegram sticker set URLs;
+- the pack export wizard loads persisted Telegram publication history for the selected pack;
 - the Web app still typechecks and builds after wiring export workflow components into the dashboard.
 
 ## Telegram Publish Boundary Tests

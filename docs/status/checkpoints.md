@@ -413,3 +413,19 @@
 - Registered publication routes and schemas in OpenAPI.
 - Added API tests for missing scope, owner mismatch, list response shape, get response shape, and OpenAPI path registration.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Telegram Publication CLI
+
+- Added `msm exports publications list --pack-id <pack_id>`.
+- Added `msm exports publications get --publication-id <publication_id>`.
+- Added CLI DTOs, reqwest calls, fake-client execution tests, and human/JSON formatting for Telegram publication records.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
+
+## 2026-05-08 Web Export UX Publication History
+
+- Reviewed the current Web UI implementation and kept the existing RWD shell because the immediate UX gap was in the export workflow, not the app frame.
+- Added Web export API client methods for Telegram publication history list/get with Bearer PAT forwarding.
+- Added a persisted Telegram publication history panel to the pack export wizard, scoped to the selected source pack.
+- Added Traditional Chinese and English labels for loading, empty, error, refresh, and publication metadata states.
+- Added Web tests for API URL construction, Bearer auth forwarding, and wizard history rendering.
+- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.

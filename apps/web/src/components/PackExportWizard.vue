@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 
 import ExportJobTimeline from "@/components/ExportJobTimeline.vue";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -10,6 +11,7 @@ import {
   type ExportJob,
   type ExportJobEvent,
   type ExportTarget,
+  type TelegramPublication,
   exportJobResultLink,
 } from "@/lib/exportApi";
 import { allMessages, type Locale } from "@/lib/i18n";
@@ -30,6 +32,9 @@ const jobId = ref("job_web_export");
 const optionsJson = ref("{}");
 const activeJob = ref<ExportJob | null>(null);
 const events = ref<ExportJobEvent[]>([]);
+const publications = ref<TelegramPublication[]>([]);
+const publicationLoading = ref(false);
+const publicationError = ref("");
 const loadError = ref("");
 const actionError = ref("");
 const labels = computed(() => allMessages()[props.locale]);
@@ -42,6 +47,9 @@ const resultLink = computed(() => {
 onMounted(loadTargets);
 watch(() => props.patToken, loadTargets);
 watch(() => props.exportClient, loadTargets);
+watch(() => props.patToken, loadPublications);
+watch(() => props.exportClient, loadPublications);
+watch(() => selectedPackId.value, loadPublications);
 watch(
   () => props.packs,
   () => {
@@ -73,6 +81,7 @@ async function queueExportJob() {
       options,
     });
     events.value = await exportClient().listExportJobEvents(activeJob.value.id);
+    await loadPublications();
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
   }
@@ -87,8 +96,27 @@ async function refreshExportJob() {
   try {
     activeJob.value = await exportClient().getExportJob(activeJob.value.id);
     events.value = await exportClient().listExportJobEvents(activeJob.value.id);
+    await loadPublications();
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function loadPublications() {
+  publicationError.value = "";
+  if (!selectedPackId.value) {
+    publications.value = [];
+    return;
+  }
+
+  publicationLoading.value = true;
+  try {
+    publications.value = await exportClient().listTelegramPublications(selectedPackId.value);
+  } catch (error) {
+    publications.value = [];
+    publicationError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    publicationLoading.value = false;
   }
 }
 
@@ -158,6 +186,57 @@ function exportClient() {
           </p>
           <p class="mt-2 text-muted-foreground">{{ labels.exportPrivacyNotice }}</p>
         </article>
+        <section class="rounded-xl border bg-background/70 p-3 text-sm" :aria-label="labels.telegramPublicationHistory">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="font-semibold">{{ labels.telegramPublicationHistory }}</p>
+                <Badge variant="secondary">{{ publications.length }}</Badge>
+              </div>
+              <p class="mt-1 text-muted-foreground">{{ labels.telegramPublicationHistoryHelp }}</p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              :aria-label="labels.refreshPublicationHistory"
+              @click="loadPublications"
+            >
+              {{ labels.refreshPublicationHistory }}
+            </Button>
+          </div>
+          <p v-if="publicationLoading" class="mt-3 rounded-lg border bg-card/60 p-3 text-muted-foreground">
+            {{ labels.loadingPublicationHistory }}
+          </p>
+          <p v-else-if="publicationError" class="mt-3 rounded-lg border bg-card/60 p-3 text-muted-foreground">
+            {{ publicationError }}
+          </p>
+          <p v-else-if="publications.length === 0" class="mt-3 rounded-lg border bg-card/60 p-3 text-muted-foreground">
+            {{ labels.noTelegramPublications }}
+          </p>
+          <div v-else class="mt-3 flex flex-col gap-2">
+            <article
+              v-for="publication in publications"
+              :key="publication.id"
+              class="grid gap-3 rounded-lg border bg-card/60 p-3 md:grid-cols-[1fr_auto]"
+            >
+              <div class="min-w-0">
+                <a
+                  class="font-medium text-primary"
+                  :href="publication.stickerSetUrl"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {{ publication.stickerSetName }}
+                </a>
+                <p class="mt-1 text-muted-foreground">
+                  {{ labels.lastPublished }} {{ publication.lastPublishedAt.split("T")[0] }}
+                </p>
+              </div>
+              <Badge variant="outline">{{ publication.stickerCount }} {{ labels.publicationStickers }}</Badge>
+            </article>
+          </div>
+        </section>
         <div class="flex flex-wrap items-center gap-3">
           <Button type="button" :aria-label="labels.queueExportJob" @click="queueExportJob">
             {{ labels.queueExportJob }}

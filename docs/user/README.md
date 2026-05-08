@@ -28,6 +28,8 @@ cargo run -p msm-cli -- exports targets create --id target_telegram --tenant-id 
 cargo run -p msm-cli -- exports jobs create --id job_1 --tenant-id tenant_1 --source-pack-id pack_1 --target-id target_telegram --options-json '{"setNameSlug":"sample"}'
 cargo run -p msm-cli -- exports jobs get --job-id job_1
 cargo run -p msm-cli -- exports jobs events --job-id job_1
+cargo run -p msm-cli -- exports publications list --pack-id pack_1
+cargo run -p msm-cli -- exports publications get --publication-id telegram_pub_1
 ```
 
 Protected API-backed CLI commands accept a PAT through `--pat` or `MSM_PAT`:
@@ -50,7 +52,9 @@ shell, responsive layout, theme toggle, language toggle, PAT management, local
 login/register, pack list, pack rename, visibility edit, delete, and pasted
 `.stickerpack` import. It also exposes export target settings, Telegram target
 token validation, pack export job creation, job refresh, and ordered job event
-display when the export API is available.
+display when the export API is available. The export wizard also shows persisted
+Telegram publication history for the selected pack, including completed sticker
+set links from prior non-dry-run jobs.
 
 To point the dashboard at the current pack-list API:
 
@@ -87,9 +91,10 @@ Telegram publication jobs when job options explicitly set `"dryRun": false`.
 It can write prepared media cache records through its media executor boundary
 and then use those prepared files for teloxide sticker uploads. MSM has a
 process-backed ffmpeg executor for prepared media conversion. The CLI can manage
-export targets and queue/read export jobs through the API. The Web UI can
-configure export targets, queue jobs, show job status/events, and surface
-completed Telegram sticker set URLs.
+export targets, queue/read export jobs, and list/read Telegram publication
+history through the API. The Web UI can configure export targets, queue jobs,
+show job status/events, surface completed Telegram sticker set URLs, and reopen
+persisted Telegram publication records for the selected pack.
 
 Service startup can bootstrap configured export targets with
 `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`. This is intended for system or tenant
@@ -113,8 +118,9 @@ with options containing `"dryRun": false` and use a Telegram target config that
 contains `botToken`, `botUsername`, and `ownerUserId`.
 
 Export target/job API endpoints and CLI commands now exist for queueing export
-jobs and reading their status/events. MCP tools and Web UI controls are also
-available for export targets and jobs.
+jobs and reading their status/events. CLI commands and Web UI controls can also
+read persisted Telegram publication history. MCP tools are available for export
+targets and jobs; publication-history MCP tools remain future work.
 
 Telegram publication history API endpoints are available for completed
 non-dry-run publication records:
@@ -204,6 +210,8 @@ Export CLI commands:
 - `msm exports jobs create --id <job_id> --tenant-id <tenant_id> --source-pack-id <pack_id> --target-id <target_id> --options-json <json>`
 - `msm exports jobs get --job-id <job_id>`
 - `msm exports jobs events --job-id <job_id>`
+- `msm exports publications list --pack-id <pack_id>`
+- `msm exports publications get --publication-id <publication_id>`
 
 `msm pats create` prints the raw token once. Store it immediately outside MSM if
 you need to use it later.

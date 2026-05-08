@@ -27,6 +27,8 @@ describe("export UI", () => {
       createExportJob: vi.fn(),
       getExportJob: vi.fn(),
       listExportJobEvents: vi.fn(),
+      listTelegramPublications: vi.fn(),
+      getTelegramPublication: vi.fn(),
     };
     const wrapper = mount(ExportTargetPanel, {
       props: {
@@ -72,6 +74,8 @@ describe("export UI", () => {
       createExportJob: vi.fn(),
       getExportJob: vi.fn(),
       listExportJobEvents: vi.fn(),
+      listTelegramPublications: vi.fn(),
+      getTelegramPublication: vi.fn(),
     };
     const wrapper = mount(ExportTargetPanel, {
       props: {
@@ -122,6 +126,8 @@ describe("export UI", () => {
           createdAt: "2026-05-07T00:00:00Z",
         },
       ]),
+      listTelegramPublications: vi.fn(async () => []),
+      getTelegramPublication: vi.fn(),
     };
     const wrapper = mount(PackExportWizard, {
       props: {
@@ -169,6 +175,8 @@ describe("export UI", () => {
       createExportJob: vi.fn(async () => publishedJob),
       getExportJob: vi.fn(async () => publishedJob),
       listExportJobEvents: vi.fn(async () => []),
+      listTelegramPublications: vi.fn(async () => []),
+      getTelegramPublication: vi.fn(),
     };
     const wrapper = mount(PackExportWizard, {
       props: {
@@ -210,6 +218,8 @@ describe("export UI", () => {
       }),
       getExportJob: vi.fn(),
       listExportJobEvents: vi.fn(),
+      listTelegramPublications: vi.fn(async () => []),
+      getTelegramPublication: vi.fn(),
     };
     const wrapper = mount(PackExportWizard, {
       props: {
@@ -225,6 +235,61 @@ describe("export UI", () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain("Telegram set already exists");
+  });
+
+  it("loads persisted Telegram publication history for the selected pack", async () => {
+    const packs: StickerPackSummary[] = [
+      {
+        id: "pack_1",
+        title: "Cats",
+        provider: "Telegram",
+        visibility: "private",
+        stickerCount: 2,
+        subscriptionReady: true,
+        updatedAt: "2026-05-07",
+      },
+    ];
+    const client: ExportClient = {
+      listExportTargetKinds: vi.fn(),
+      listExportTargets: vi.fn(async () => [sampleTarget()]),
+      createExportTarget: vi.fn(),
+      updateExportTarget: vi.fn(),
+      deleteExportTarget: vi.fn(),
+      createExportJob: vi.fn(async () => sampleJob()),
+      getExportJob: vi.fn(async () => sampleJob()),
+      listExportJobEvents: vi.fn(async () => []),
+      listTelegramPublications: vi.fn(async () => [
+        {
+          id: "telegram_pub_1",
+          tenantId: "tenant_1",
+          sourcePackId: "pack_1",
+          targetId: "target_telegram",
+          stickerSetName: "sample_pack_by_msm_bot",
+          stickerSetTitle: "Sample Pack",
+          stickerSetUrl: "https://t.me/addstickers/sample_pack_by_msm_bot",
+          stickerCount: 2,
+          lastPublishedAt: "2026-05-08T00:00:00Z",
+          createdAt: "2026-05-08T00:00:00Z",
+          updatedAt: "2026-05-08T00:00:00Z",
+        },
+      ]),
+      getTelegramPublication: vi.fn(),
+    };
+    const wrapper = mount(PackExportWizard, {
+      props: {
+        locale: "en",
+        tenantId: "tenant_1",
+        packs,
+        exportClient: client,
+      },
+    });
+
+    await flushPromises();
+
+    expect(client.listTelegramPublications).toHaveBeenCalledWith("pack_1");
+    const link = wrapper.get('a[href="https://t.me/addstickers/sample_pack_by_msm_bot"]');
+    expect(link.text()).toContain("sample_pack_by_msm_bot");
+    expect(wrapper.text()).toContain("Telegram publication history");
   });
 
   it("renders export job timelines", () => {

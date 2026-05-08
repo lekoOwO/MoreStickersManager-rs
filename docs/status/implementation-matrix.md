@@ -15,7 +15,7 @@ only designed or planned.
 | Storage foundation | Implemented | SQLite storage primitives, migrations, local asset storage, pack/sticker records, PAT storage, local credentials, export target/job tables, prepared media cache records, Telegram publication records, and portable user export/import exist. |
 | PostgreSQL support | Not implemented | SQLx is used, but current migrations/repositories are SQLite-focused. |
 | API/OpenAPI | Implemented | Axum API has health, OpenAPI, asset read, pack import/list/export/update/delete, PAT lifecycle, local auth bootstrap, export target/job routes, and Telegram publication history routes. |
-| CLI | Implemented | `msm-cli` supports health, pack list/import/export/rename/delete, PAT create/list/revoke, export target kinds, export target list/create, export job create/get/events, and Bearer PAT forwarding. |
+| CLI | Implemented | `msm-cli` supports health, pack list/import/export/rename/delete, PAT create/list/revoke, export target kinds, export target list/create, export job create/get/events, Telegram publication history list/get, and Bearer PAT forwarding. |
 | MCP endpoint | Implemented | `/mcp` supports JSON-RPC initialize, ping, tools/list, pack list/export/import/update/delete tools, and export target/job tools. |
 | MCP auth | Partially implemented | Pack and export tool calls enforce Bearer PAT scopes. SSE/session hardening is not implemented. |
 | Provider normalization | Implemented | `msm-providers` normalizes already-fetched Telegram, LINE sticker, and LINE emoji fixtures into MoreStickers-compatible packs. |
@@ -25,7 +25,7 @@ only designed or planned.
 | Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, RWD dashboard shell, theme toggle, and i18n exist. |
 | Web API integration | Implemented | Web pack and export API clients can use API-backed pack/export operations with stored PAT; pack list still has mock fallback for local preview. |
 | Web auth/PAT UI | Implemented | Local register/login panel and PAT create/list/revoke panel exist. |
-| Web pack management | Implemented | Dashboard supports pack list, rename, visibility edit, delete, pasted `.stickerpack` import, export target setup, and export job queue/status views. |
+| Web pack management | Implemented | Dashboard supports pack list, rename, visibility edit, delete, pasted `.stickerpack` import, export target setup, export job queue/status views, and Telegram publication history links for selected packs. |
 | Local auth bootstrap | Implemented | Register/login APIs store Argon2 password credentials and login returns a PAT. Registration can bootstrap a tenant admin. |
 | Multi-tenant model | Partially implemented | Tenant/user records and bootstrap admin path exist. Full tenant administration UI and complete RBAC management are not implemented. |
 | PAT support | Implemented | Raw token is returned once, only the secret hash is stored, and protected pack API/MCP operations enforce scopes. |
@@ -38,8 +38,8 @@ only designed or planned.
 | Media conversion pipeline | P25 | Partially implemented: `msm-media` now has source media kinds, Telegram static/video/thumbnail profiles, prepared output specs, conversion plan selection, and shell-free ffmpeg command planning. Probing, converter execution, and cache persistence are not implemented. |
 | Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, a concrete `morestickers` target, and Telegram sticker set planning. Remote execution is not wired. |
 | Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, builds `teloxide::Bot`, and exposes mockable sticker set create/append execution through teloxide requester methods. |
-| Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, builds teloxide `InputSticker` data, exposes Web/API/CLI/MCP job surfaces, the app worker can publish when job options explicitly set `"dryRun": false`, successful publication jobs persist durable records, API routes expose publication history, and the Web export wizard/timeline surface completed sticker set URLs. Remote reconciliation is not implemented. |
-| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, CLI commands, MCP tools, Web target/job views, prepared media cache writes, Telegram publication repository APIs and API routes, process-backed ffmpeg executor, target bootstrap config, optional app worker loop, Telegram dry-run jobs, Telegram publication jobs, and worker persistence into `telegram_publications` exist. Retries and publication-history CLI/MCP/Web surfaces are not implemented. |
+| Telegram sticker set export | P29-P32 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, builds teloxide `InputSticker` data, exposes Web/API/CLI/MCP job surfaces, the app worker can publish when job options explicitly set `"dryRun": false`, successful publication jobs persist durable records, API/CLI/Web routes expose publication history, and the Web export wizard/timeline surface completed sticker set URLs. Remote reconciliation is not implemented. |
+| Export jobs | P29-P30 | Partially implemented: storage tables/repositories, protected API/OpenAPI routes, CLI commands, MCP tools, Web target/job views, prepared media cache writes, Telegram publication repository APIs and API/CLI/Web read surfaces, process-backed ffmpeg executor, target bootstrap config, optional app worker loop, Telegram dry-run jobs, Telegram publication jobs, and worker persistence into `telegram_publications` exist. Retries and publication-history MCP tools are not implemented. |
 | Folder/tag management | Future phase | User-managed pack folders and tags are not implemented. |
 | Subscription groups | Future phase | Pack/group subscription links and moreStickers auto-update integration are not implemented. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |
@@ -53,4 +53,4 @@ only designed or planned.
 
 ## Current Next Phase
 
-Continue by exposing Telegram publication history through CLI/MCP/Web or by defining remote update/delete reconciliation.
+Continue by exposing Telegram publication history through MCP or by defining remote update/delete reconciliation.

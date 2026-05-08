@@ -46,12 +46,12 @@
 - Modify: `docs/status/implementation-matrix.md`
 - Modify: `docs/agents/testing.md`
 
-- [ ] Document CLI publication list/get commands and remaining MCP/Web work.
-- [ ] Run `cargo fmt --all -- --check`.
-- [ ] Run `cargo test -p msm-cli --locked`.
-- [ ] Run `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`.
-- [ ] Run `git diff --check`.
-- [ ] Commit with message `docs: document Telegram publication CLI`.
+- [x] Document CLI publication list/get commands and remaining MCP work.
+- [x] Run `cargo fmt --all -- --check`.
+- [x] Run `cargo test -p msm-cli --locked`.
+- [x] Run `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`.
+- [x] Run `git diff --check`.
+- [x] Commit publication-history documentation with the Web publication history slice.
 
 ## Self-Review
 
