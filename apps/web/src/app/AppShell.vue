@@ -58,7 +58,35 @@ const tokens = ref<PersonalAccessTokenResponse[]>([]);
 const createdToken = ref<CreatedPersonalAccessTokenResponse | null>(null);
 const patError = ref("");
 const labels = computed(() => allMessages()[props.locale]);
-const isConnected = computed(() => Boolean(import.meta.env.VITE_MSM_API_BASE_URL));
+const apiBaseUrl = computed(() => import.meta.env.VITE_MSM_API_BASE_URL?.trim() ?? "");
+const isConnected = computed(() => Boolean(apiBaseUrl.value));
+const hasPat = computed(() => Boolean(props.patToken.trim()));
+const runtimeMode = computed(() => {
+  if (isConnected.value && hasPat.value) {
+    return {
+      label: labels.value.apiLive,
+      help: labels.value.liveApiHelp,
+      badgeVariant: "secondary" as const,
+      tone: "bg-primary text-primary-foreground",
+    };
+  }
+
+  if (isConnected.value) {
+    return {
+      label: labels.value.apiNeedsPat,
+      help: labels.value.apiNeedsPatHelp,
+      badgeVariant: "accent" as const,
+      tone: "bg-accent text-accent-foreground",
+    };
+  }
+
+  return {
+    label: labels.value.mockPreview,
+    help: labels.value.mockPreviewHelp,
+    badgeVariant: "muted" as const,
+    tone: "bg-muted text-muted-foreground",
+  };
+});
 
 const navigationItems = computed<Array<{ key: WorkspaceSection; label: string; icon: Component }>>(() => [
   { key: "overview", label: labels.value.overview, icon: LayoutDashboardIcon },
@@ -68,11 +96,11 @@ const navigationItems = computed<Array<{ key: WorkspaceSection; label: string; i
 ]);
 
 const patClient = computed(() => {
-  const baseUrl = import.meta.env.VITE_MSM_API_BASE_URL;
+  const baseUrl = apiBaseUrl.value;
   return baseUrl ? createPatClient({ baseUrl, authToken: props.patToken }) : null;
 });
 const localAuthClient = computed(() => {
-  const baseUrl = import.meta.env.VITE_MSM_API_BASE_URL;
+  const baseUrl = apiBaseUrl.value;
   return baseUrl ? createLocalAuthClient({ baseUrl }) : null;
 });
 const patUserId = computed(() => import.meta.env.VITE_MSM_USER_ID || "demo");
@@ -186,45 +214,90 @@ function requirePatClient() {
 
 <template>
   <div class="min-h-svh bg-background text-foreground">
-    <div class="mx-auto grid min-h-svh w-full max-w-[1760px] lg:grid-cols-[18rem_1fr]">
-      <aside class="hidden border-r bg-card/90 px-4 py-5 backdrop-blur lg:flex lg:flex-col lg:gap-5">
-        <div class="rounded-2xl bg-primary px-4 py-5 text-primary-foreground shadow-[0_18px_42px_-28px_rgba(22,72,180,0.8)]">
-          <p class="text-xs font-semibold uppercase tracking-[0.26em] opacity-80">MSM</p>
-          <h1 class="mt-3 text-2xl font-semibold tracking-tight">{{ labels.appName }}</h1>
-          <p class="mt-2 max-w-[18rem] text-sm opacity-80">{{ labels.dashboardSubtitle }}</p>
+    <div class="grid min-h-svh w-full lg:grid-cols-[5.25rem_22rem_minmax(0,1fr)]">
+      <aside class="hidden border-r bg-card/80 px-3 py-5 backdrop-blur-xl lg:flex lg:flex-col lg:items-center lg:gap-4">
+        <button
+          class="grid size-12 place-items-center rounded-2xl bg-primary text-base font-black tracking-tight text-primary-foreground shadow-[0_18px_44px_-26px_color-mix(in_oklch,var(--primary)_70%,transparent)]"
+          type="button"
+          @click="selectSection('overview')"
+        >
+          MS
+        </button>
+
+        <nav class="mt-4 flex flex-col gap-2" :aria-label="labels.navigation">
+          <button
+            v-for="item in navigationItems"
+            :key="item.key"
+            class="grid size-11 place-items-center rounded-2xl text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            :class="activeSection === item.key ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground' : ''"
+            type="button"
+            @click="selectSection(item.key)"
+          >
+            <component :is="item.icon" class="size-5" />
+            <span class="sr-only">{{ item.label }}</span>
+          </button>
+        </nav>
+
+        <div class="mt-auto flex flex-col gap-2">
+          <Button variant="ghost" size="icon" :aria-label="labels.language" @click="emit('toggleLocale')">
+            <LanguagesIcon data-icon="inline-start" />
+          </Button>
+          <Button variant="outline" size="icon" :aria-label="labels.theme" @click="emit('toggleTheme')">
+            <MoonIcon v-if="theme === 'light'" data-icon="inline-start" />
+            <SunIcon v-else data-icon="inline-start" />
+          </Button>
+        </div>
+      </aside>
+
+      <aside class="hidden border-r bg-card/72 px-5 py-6 backdrop-blur-xl lg:flex lg:flex-col lg:gap-6">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">MSM</p>
+          <h1 class="mt-3 break-words text-[1.7rem] font-semibold leading-none tracking-[-0.05em]">
+            {{ labels.appName }}
+          </h1>
+          <p class="mt-4 text-sm leading-6 text-muted-foreground">{{ labels.dashboardSubtitle }}</p>
+        </div>
+
+        <div class="rounded-[1.35rem] border bg-background/78 p-4 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--foreground)_8%,transparent)]">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Runtime</span>
+            <Badge :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
+          </div>
+          <p class="mt-3 text-xs leading-5 text-muted-foreground">{{ runtimeMode.help }}</p>
+          <p v-if="apiBaseUrl" class="mt-3 truncate font-mono text-[0.7rem] text-muted-foreground">{{ apiBaseUrl }}</p>
         </div>
 
         <nav class="flex flex-col gap-1" :aria-label="labels.navigation">
           <button
             v-for="item in navigationItems"
             :key="item.key"
-            class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            class="group flex items-center justify-between gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             :class="activeSection === item.key ? 'bg-accent text-accent-foreground shadow-sm' : ''"
             type="button"
             @click="selectSection(item.key)"
           >
-            <component :is="item.icon" class="size-4" />
-            <span>{{ item.label }}</span>
+            <span class="flex min-w-0 items-center gap-3">
+              <component :is="item.icon" class="size-4 shrink-0" />
+              <span class="truncate">{{ item.label }}</span>
+            </span>
+            <span class="size-1.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-45" :class="activeSection === item.key ? 'opacity-70' : ''" />
           </button>
         </nav>
 
-        <div class="mt-auto rounded-2xl border bg-background/80 p-3">
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {{ isConnected ? "API" : "Preview" }}
-            </span>
-            <Badge :variant="isConnected ? 'secondary' : 'muted'">
-              {{ isConnected ? "Connected" : "Mock" }}
-            </Badge>
-          </div>
-          <p class="mt-2 text-xs leading-5 text-muted-foreground">
-            {{ isConnected ? "Protected actions use the browser-local PAT." : "Set VITE_MSM_API_BASE_URL to use live data." }}
-          </p>
+        <div class="mt-auto grid gap-3">
+          <Button variant="outline" type="button" class="w-full justify-start" @click="authDialogOpen = true">
+            <LogInIcon data-icon="inline-start" />
+            {{ labels.localLogin }}
+          </Button>
+          <Button variant="secondary" type="button" class="w-full justify-start" @click="accessDialogOpen = true">
+            <KeyRoundIcon data-icon="inline-start" />
+            {{ labels.personalAccessTokens }}
+          </Button>
         </div>
       </aside>
 
       <div class="flex min-w-0 flex-col">
-        <header class="sticky top-0 z-20 border-b bg-background/88 px-4 py-3 backdrop-blur md:px-8">
+        <header class="sticky top-0 z-20 border-b bg-background/88 px-4 py-3 backdrop-blur md:px-8 lg:px-10">
           <div class="flex items-center justify-between gap-3">
             <div class="flex min-w-0 items-center gap-3">
               <Button
@@ -240,14 +313,17 @@ function requirePatClient() {
               </Button>
               <div class="min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:hidden">MSM</p>
-                <h2 class="truncate text-xl font-semibold tracking-tight md:text-2xl">{{ labels.dashboardTitle }}</h2>
+                <h2 class="truncate text-xl font-semibold tracking-tight md:text-2xl lg:text-lg">
+                  {{ activeSection === "overview" ? labels.overview : activeSection === "packs" ? labels.packs : activeSection === "exports" ? labels.exportPack : labels.exportTargets }}
+                </h2>
               </div>
             </div>
 
             <div class="flex items-center gap-2">
+              <Badge class="hidden md:inline-flex" :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
               <Button variant="outline" size="sm" type="button" @click="authDialogOpen = true">
                 <LogInIcon data-icon="inline-start" />
-                {{ labels.localLogin }}
+                <span class="hidden sm:inline">{{ labels.localLogin }}</span>
               </Button>
               <Button variant="outline" size="sm" type="button" @click="accessDialogOpen = true">
                 <KeyRoundIcon data-icon="inline-start" />
@@ -283,25 +359,46 @@ function requirePatClient() {
           </nav>
         </header>
 
-        <main class="flex-1 px-4 py-6 md:px-8 md:py-8">
-          <section class="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem] xl:items-end">
+        <main class="flex-1 px-4 py-5 md:px-8 md:py-7 lg:px-10 xl:px-12">
+          <section class="mb-7 hidden grid-cols-[minmax(0,1.35fr)_minmax(24rem,0.65fr)] gap-6 lg:grid">
             <div>
-              <Badge :variant="isConnected ? 'secondary' : 'muted'">
-                {{ isConnected ? "Live API" : "Mock preview" }}
-              </Badge>
-              <h1 class="mt-4 max-w-5xl text-4xl font-semibold tracking-[-0.04em] md:text-6xl">
+              <div class="flex flex-wrap items-center gap-3">
+                <Badge :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
+                <span class="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  {{ labels.desktopWorkspace }}
+                </span>
+              </div>
+              <h1 class="mt-4 max-w-[12ch] text-5xl font-semibold leading-[0.92] tracking-[-0.06em] xl:text-7xl">
                 {{ labels.dashboardTitle }}
               </h1>
-              <p class="mt-4 max-w-3xl text-base leading-7 text-muted-foreground md:text-lg">
+              <p class="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
                 {{ labels.dashboardSubtitle }}
               </p>
             </div>
-            <div class="rounded-2xl border bg-card/88 p-4">
-              <p class="text-sm font-semibold">{{ props.patToken ? labels.currentPat : labels.patTokenHelp }}</p>
-              <p class="mt-2 text-sm text-muted-foreground">
-                {{ props.patToken ? "Token is stored in this browser session." : "Create or paste a PAT before running protected actions." }}
-              </p>
+            <div class="grid content-end gap-4">
+              <div class="rounded-[1.6rem] border bg-card/86 p-5 shadow-[0_28px_80px_-56px_color-mix(in_oklch,var(--primary)_55%,transparent)]">
+                <p class="text-sm font-semibold">{{ hasPat ? labels.currentPat : labels.patTokenHelp }}</p>
+                <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                  {{ runtimeMode.help }}
+                </p>
+                <div class="mt-5 flex flex-wrap gap-2">
+                  <Button variant="secondary" size="sm" type="button" @click="accessDialogOpen = true">PAT</Button>
+                  <Button variant="outline" size="sm" type="button" @click="authDialogOpen = true">{{ labels.localLogin }}</Button>
+                </div>
+              </div>
+              <div class="h-2 rounded-full bg-muted">
+                <div class="h-full rounded-full transition-all" :class="runtimeMode.tone" :style="{ width: hasPat && isConnected ? '100%' : isConnected ? '62%' : '32%' }" />
+              </div>
             </div>
+          </section>
+
+          <section class="mb-5 rounded-[1.4rem] border bg-card/84 p-4 shadow-[0_18px_56px_-44px_color-mix(in_oklch,var(--primary)_48%,transparent)] lg:hidden">
+            <div class="flex items-center justify-between gap-3">
+              <Badge :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
+              <span class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{{ labels.mobileWorkspace }}</span>
+            </div>
+            <h1 class="mt-4 text-3xl font-semibold leading-tight tracking-[-0.045em]">{{ labels.dashboardTitle }}</h1>
+            <p class="mt-3 text-sm leading-6 text-muted-foreground">{{ runtimeMode.help }}</p>
           </section>
 
           <PackDashboard :active-section="activeSection" :locale="locale" :pat-token="patToken" />

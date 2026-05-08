@@ -22,8 +22,8 @@ only designed or planned.
 | Provider network fetch | Not implemented | Remote provider API fetch, download, and asset internalization are planned future work. |
 | Service binary | Implemented | `msm-app` composes storage migrations, API routes, local asset store, MCP route, Web static serving, and export worker foundation types. Root npm/pnpm dev scripts can start/stop/status the service with env profiles, hidden Windows process wrappers, and development bootstrap that gives Web a valid PAT before Vite starts. |
 | Embedded Web dist | Implemented | `msm-app` embeds `apps/web/dist` when present and a placeholder when absent; runtime disk override remains available. |
-| Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, wide RWD workspace shell, Ant Design-inspired theme tokens, theme toggle, i18n, workspace tabs, and dialogs exist. |
-| Web API integration | Implemented | Web pack and export API clients can use API-backed pack/export operations with stored PAT; pack list still has mock fallback for local preview. |
+| Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, full-width desktop workbench shell, separate mobile pack-card layout, Ant Design-inspired vivid blue/gray theme tokens, theme toggle, i18n, workspace tabs, and dialogs exist. |
+| Web API integration | Implemented | Web pack and export API clients can use API-backed pack/export operations with stored PAT; Vite reads repository-root env files for development, and pack list still has mock fallback when API base URL is intentionally absent. |
 | Web auth/PAT UI | Implemented | Local register/login and PAT create/list/revoke are exposed through dialogs. |
 | Web pack management | Implemented | Dashboard supports tabbed pack list, rename, visibility edit, delete, pasted `.stickerpack` import dialog, export target setup, export job queue/status views, and Telegram publication history links for selected packs. |
 | Local auth bootstrap | Implemented | Register/login APIs store Argon2 password credentials and login returns a PAT. Registration can bootstrap a tenant admin. |

@@ -50,6 +50,7 @@ const sectionTabs = computed<Array<{ key: WorkspaceSection; label: string }>>(()
   { key: "exports", label: labels.value.exportPack },
   { key: "targets", label: labels.value.exportTargets },
 ]);
+const usesMockData = computed(() => !props.packClient && !import.meta.env.VITE_MSM_API_BASE_URL);
 
 onMounted(loadPacks);
 watch(() => props.patToken, loadPacks);
@@ -167,26 +168,25 @@ function visibilityVariant(visibility: PackVisibility) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <section class="rounded-3xl border bg-card/92 p-4 shadow-[0_18px_56px_-42px_rgba(24,56,118,0.45)]">
-      <div class="grid gap-3 md:grid-cols-4">
-        <div class="rounded-2xl bg-primary px-4 py-4 text-primary-foreground">
+  <div class="flex flex-col gap-7 lg:gap-8">
+    <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr]">
+        <div class="rounded-[1.45rem] bg-primary px-5 py-5 text-primary-foreground shadow-[0_24px_72px_-48px_color-mix(in_oklch,var(--primary)_80%,transparent)]">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] opacity-80">{{ labels.totalPacks }}</p>
           <p class="mt-3 text-4xl font-semibold tracking-tight">{{ packs.length }}</p>
+          <p class="mt-3 text-xs opacity-75">{{ usesMockData ? labels.mockPreview : labels.apiLive }}</p>
         </div>
-        <div class="rounded-2xl border bg-background/70 px-4 py-4">
+        <div class="rounded-[1.45rem] border bg-card/76 px-5 py-5">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{{ labels.managedStickers }}</p>
           <p class="mt-3 text-4xl font-semibold tracking-tight">{{ totalStickers }}</p>
         </div>
-        <div class="rounded-2xl border bg-background/70 px-4 py-4">
+        <div class="rounded-[1.45rem] border bg-card/76 px-5 py-5">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{{ labels.publicPacks }}</p>
           <p class="mt-3 text-4xl font-semibold tracking-tight">{{ publicPackCount }}</p>
         </div>
-        <div class="rounded-2xl border bg-background/70 px-4 py-4">
+        <div class="rounded-[1.45rem] border bg-card/76 px-5 py-5">
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{{ labels.privatePacks }}</p>
           <p class="mt-3 text-4xl font-semibold tracking-tight">{{ privatePackCount }}</p>
         </div>
-      </div>
     </section>
 
     <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
@@ -250,7 +250,7 @@ function visibilityVariant(visibility: PackVisibility) {
       </div>
     </section>
 
-    <section v-show="currentSection === 'packs'" class="rounded-3xl border bg-card/92">
+    <section v-show="currentSection === 'packs'" class="overflow-hidden rounded-[1.6rem] border bg-card/88">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
         <div>
           <h2 class="text-lg font-semibold">{{ labels.recentPacks }}</h2>
@@ -258,7 +258,69 @@ function visibilityVariant(visibility: PackVisibility) {
         </div>
         <Badge variant="secondary">{{ packs.length }} {{ labels.totalPacks }}</Badge>
       </div>
-      <div class="overflow-x-auto msm-scrollbar">
+      <div class="grid gap-3 p-3 lg:hidden">
+        <p v-if="loadError" class="rounded-2xl border bg-background/70 px-4 py-3 text-sm text-muted-foreground">{{ loadError }}</p>
+        <p v-if="actionError" class="rounded-2xl border bg-background/70 px-4 py-3 text-sm text-muted-foreground">{{ actionError }}</p>
+        <article
+          v-for="pack in packs"
+          :key="pack.id"
+          class="rounded-[1.25rem] border bg-background/76 p-4"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h3 class="truncate text-base font-semibold">{{ pack.title }}</h3>
+              <p class="mt-1 truncate text-xs text-muted-foreground">{{ pack.id }}</p>
+            </div>
+            <Badge :variant="visibilityVariant(pack.visibility)">
+              {{ visibilityLabel(pack.visibility) }}
+            </Badge>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <div class="rounded-xl bg-muted/60 p-3">
+              <p class="text-xs text-muted-foreground">{{ labels.totalStickers }}</p>
+              <p class="mt-1 font-semibold">{{ pack.stickerCount }}</p>
+            </div>
+            <div class="rounded-xl bg-muted/60 p-3">
+              <p class="text-xs text-muted-foreground">Provider</p>
+              <p class="mt-1 font-semibold">{{ pack.provider }}</p>
+            </div>
+          </div>
+          <form class="mt-4 grid gap-2" @submit.prevent>
+            <label class="sr-only" :for="`mobile-title-${pack.id}`">{{ labels.packTitle }}</label>
+            <input
+              :id="`mobile-title-${pack.id}`"
+              v-model="drafts[pack.id].title"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.packTitle"
+            />
+            <label class="sr-only" :for="`mobile-visibility-${pack.id}`">{{ labels.packVisibility }}</label>
+            <select
+              :id="`mobile-visibility-${pack.id}`"
+              v-model="drafts[pack.id].visibility"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.packVisibility"
+            >
+              <option value="public">{{ labels.public }}</option>
+              <option value="private">{{ labels.private }}</option>
+            </select>
+            <div class="mt-1 grid grid-cols-2 gap-2">
+              <Button type="button" size="sm" :aria-label="labels.savePackChanges" @click="updatePack(pack)">
+                {{ labels.savePackChanges }}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                :aria-label="labels.deletePack"
+                @click="deletePack(pack)"
+              >
+                {{ labels.deletePack }}
+              </Button>
+            </div>
+          </form>
+        </article>
+      </div>
+      <div class="hidden overflow-x-auto msm-scrollbar lg:block">
         <div class="min-w-[980px] divide-y">
           <p v-if="loadError" class="px-5 py-4 text-sm text-muted-foreground">{{ loadError }}</p>
           <p v-if="actionError" class="px-5 py-4 text-sm text-muted-foreground">{{ actionError }}</p>

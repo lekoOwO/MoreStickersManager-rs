@@ -551,3 +551,14 @@
 - Updated development/testing env examples so development bootstraps by default and testing remains isolated by default.
 - Documented the bootstrap behavior in README, user docs, agent docs, project map, testing guide, implementation matrix, and current status.
 - Verified with `node --check scripts/dev-manager.mjs`, `pnpm run dev:stop`, `node scripts/dev-manager.mjs env use development`, `pnpm run dev:start`, `pnpm run dev:status`, `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`, PAT-authenticated `GET /api/v1/packs?userId=user_1`, `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173`, `pnpm run dev:stop`, repeated `pnpm run dev:start` with an existing valid PAT, repeated `pnpm run dev:stop`, and `git diff --check`.
+
+## 2026-05-08 Web Desktop/Mobile UX Correction
+
+- Set Vite `envDir` to the repository root so `web:dev` and dev-manager Vite both see `.env.development` and `.env.local`.
+- Replaced binary Connected/Mock status with Live API, API needs PAT, and Mock preview states based on API base URL plus browser PAT.
+- Reworked the desktop shell into a full-width product workbench with an icon rail, context panel, and content area instead of a centered widened app.
+- Added a separate compact mobile pack-card layout while preserving the desktop table-style pack management layout.
+- Fixed the `MoreStickersManager` brand overflow with constrained context-panel typography.
+- Added pointer cursor and pressed/hover motion states for interactive buttons and controls.
+- Increased blue accent chroma in both light and dark themes.
+- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `pnpm run dev:stop`, `pnpm run dev:start`, API health check, PAT-authenticated pack list check, Web HTTP check, Vite module env check, and `pnpm run dev:stop`.

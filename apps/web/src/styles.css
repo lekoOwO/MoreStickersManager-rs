@@ -30,41 +30,41 @@
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.982 0.006 253);
-  --foreground: oklch(0.22 0.04 255);
-  --card: oklch(1 0 0 / 0.94);
+  --background: oklch(0.984 0.012 247);
+  --foreground: oklch(0.21 0.045 255);
+  --card: oklch(1 0 0 / 0.96);
   --card-foreground: var(--foreground);
-  --primary: oklch(0.56 0.19 257);
-  --primary-foreground: oklch(0.99 0.004 253);
-  --secondary: oklch(0.94 0.018 253);
+  --primary: oklch(0.59 0.215 248);
+  --primary-foreground: oklch(0.99 0.006 248);
+  --secondary: oklch(0.94 0.024 246);
   --secondary-foreground: oklch(0.29 0.048 255);
-  --muted: oklch(0.95 0.012 253);
+  --muted: oklch(0.95 0.018 246);
   --muted-foreground: oklch(0.54 0.045 255);
-  --accent: oklch(0.91 0.052 251);
-  --accent-foreground: oklch(0.31 0.11 257);
+  --accent: oklch(0.9 0.073 240);
+  --accent-foreground: oklch(0.28 0.13 248);
   --destructive: oklch(0.58 0.2 25);
-  --border: oklch(0.88 0.018 253);
+  --border: oklch(0.87 0.025 246);
   --input: var(--border);
-  --ring: oklch(0.56 0.19 257);
+  --ring: oklch(0.59 0.215 248);
 }
 
 .dark {
-  --background: oklch(0.18 0.036 255);
-  --foreground: oklch(0.96 0.01 253);
-  --card: oklch(0.23 0.042 255 / 0.92);
+  --background: oklch(0.16 0.05 252);
+  --foreground: oklch(0.97 0.014 245);
+  --card: oklch(0.22 0.055 252 / 0.94);
   --card-foreground: var(--foreground);
-  --primary: oklch(0.68 0.16 257);
-  --primary-foreground: oklch(0.13 0.032 255);
-  --secondary: oklch(0.29 0.044 255);
+  --primary: oklch(0.75 0.19 238);
+  --primary-foreground: oklch(0.12 0.05 252);
+  --secondary: oklch(0.3 0.06 252);
   --secondary-foreground: oklch(0.93 0.012 253);
-  --muted: oklch(0.27 0.034 255);
-  --muted-foreground: oklch(0.74 0.03 253);
-  --accent: oklch(0.33 0.08 257);
-  --accent-foreground: oklch(0.94 0.024 253);
+  --muted: oklch(0.28 0.045 252);
+  --muted-foreground: oklch(0.76 0.035 245);
+  --accent: oklch(0.4 0.12 240);
+  --accent-foreground: oklch(0.97 0.018 240);
   --destructive: oklch(0.66 0.18 25);
-  --border: oklch(0.35 0.044 255);
+  --border: oklch(0.37 0.06 252);
   --input: var(--border);
-  --ring: oklch(0.68 0.16 257);
+  --ring: oklch(0.75 0.19 238);
 }
 
 * {
@@ -84,6 +84,19 @@ body {
 
 button,
 a,
+select,
+summary,
+[role="button"] {
+  cursor: pointer;
+}
+
+input,
+textarea {
+  cursor: text;
+}
+
+button,
+a,
 input,
 select,
 textarea {
@@ -98,6 +111,11 @@ textarea {
 button:active,
 a:active {
   transform: translateY(1px);
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 .msm-scrollbar {
