@@ -374,6 +374,16 @@ impl StorageRepository {
         Ok(result.rows_affected() == 1)
     }
 
+    /// Finds a folder by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamp
+    /// parsing fails.
+    pub async fn find_folder_record(&self, id: &str) -> StorageResult<Option<FolderRecord>> {
+        self.find_folder(id).await
+    }
+
     async fn find_folder(&self, id: &str) -> StorageResult<Option<FolderRecord>> {
         let row = sqlx::query(
             "SELECT id, tenant_id, owner_user_id, name, created_at
@@ -492,6 +502,25 @@ impl StorageRepository {
         .await?;
 
         rows.iter().map(tag_from_row).collect()
+    }
+
+    /// Finds a tag by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamp
+    /// parsing fails.
+    pub async fn find_tag_record(&self, id: &str) -> StorageResult<Option<TagRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, name, created_at
+            FROM tags
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref().map(tag_from_row).transpose()
     }
 
     /// Deletes a tag.
@@ -657,6 +686,19 @@ impl StorageRepository {
             .execute(self.sqlite()?)
             .await?;
         Ok(result.rows_affected() == 1)
+    }
+
+    /// Finds a subscription group by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, visibility is
+    /// invalid, or timestamp parsing fails.
+    pub async fn find_subscription_group_record(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<SubscriptionGroupRecord>> {
+        self.find_subscription_group(id).await
     }
 
     async fn find_subscription_group(

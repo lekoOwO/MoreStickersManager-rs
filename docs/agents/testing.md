@@ -760,6 +760,23 @@ These tests prove:
 - folder-pack, pack-tag, and subscription-group pack links can be added,
   listed in deterministic order, and removed.
 
+## Product Metadata API Membership Tests
+
+Run:
+
+```powershell
+cargo test -p msm-api metadata_routes_manage_pack_memberships --locked
+cargo test -p msm-api openapi_endpoint_contains_health_path --locked
+cargo clippy -p msm-api -p msm-storage --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- folder-pack, pack-tag, and subscription-group pack membership routes can add,
+  list, and remove links through the protected API;
+- membership API routes are registered in `/openapi.json`;
+- route handlers enforce ownership and same-tenant checks before writing links.
+
 ## Telegram Publish Boundary Tests
 
 Run:

@@ -770,3 +770,18 @@
   `cargo test -p msm-storage --test product_data_repository_tests --locked`,
   `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and
   `git diff --check`.
+
+## 2026-05-09 Product Data Membership API
+
+- Added protected folder-pack membership API routes for ordered list, upsert,
+  and remove operations.
+- Added protected pack-tag membership API routes for list, assign, and remove
+  operations.
+- Added protected subscription-group pack membership API routes for ordered
+  list, upsert, and remove operations.
+- Added DTOs and OpenAPI path/schema registration for membership request and
+  response payloads.
+- Added ownership and tenant checks so membership routes require the PAT user to
+  own the pack and folder or subscription group being linked.
+- Added API integration coverage for membership add/list/remove behavior and
+  OpenAPI path registration.

@@ -7,53 +7,106 @@ pub mod openapi;
 pub mod routes;
 pub mod state;
 
-use axum::{routing::get, Router};
+use axum::{
+    routing::{delete, get, patch, post, put},
+    Router,
+};
 
 pub use error::{ApiError, ApiResult};
 pub use state::ApiState;
 
 pub fn build_router(state: ApiState) -> Router {
     Router::new()
+        .merge(system_routes())
+        .merge(auth_routes())
+        .merge(pack_routes())
+        .merge(metadata_routes())
+        .merge(export_routes())
+        .merge(pat_routes())
+        .with_state(state)
+}
+
+fn system_routes() -> Router<ApiState> {
+    Router::new()
         .route("/healthz", get(routes::health::healthz))
         .route("/openapi.json", get(openapi::openapi_json))
-        .route(
-            "/api/v1/auth/local/register",
-            axum::routing::post(routes::auth::register_local_user),
-        )
-        .route(
-            "/api/v1/auth/local/login",
-            axum::routing::post(routes::auth::login_local_user),
-        )
         .route(
             "/assets/packs/{pack_public_id}/{filename}",
             get(routes::assets::read_asset),
         )
+}
+
+fn auth_routes() -> Router<ApiState> {
+    Router::new()
+        .route(
+            "/api/v1/auth/local/register",
+            post(routes::auth::register_local_user),
+        )
+        .route(
+            "/api/v1/auth/local/login",
+            post(routes::auth::login_local_user),
+        )
+}
+
+fn pack_routes() -> Router<ApiState> {
+    Router::new()
         .route("/api/v1/packs", get(routes::packs::list_packs))
         .route(
             "/api/v1/packs/{pack_id}",
-            axum::routing::patch(routes::packs::update_pack).delete(routes::packs::delete_pack),
+            patch(routes::packs::update_pack).delete(routes::packs::delete_pack),
         )
-        .route(
-            "/api/v1/packs/import",
-            axum::routing::post(routes::packs::import_pack),
-        )
+        .route("/api/v1/packs/import", post(routes::packs::import_pack))
         .route(
             "/api/v1/packs/{pack_id}/stickerpack",
             get(routes::packs::export_pack),
         )
+}
+
+fn metadata_routes() -> Router<ApiState> {
+    Router::new()
         .route(
             "/api/v1/folders",
             get(routes::metadata::list_folders).post(routes::metadata::create_folder),
+        )
+        .route(
+            "/api/v1/folders/{folder_id}/packs",
+            get(routes::metadata::list_folder_pack_ids),
+        )
+        .route(
+            "/api/v1/folders/{folder_id}/packs/{pack_id}",
+            put(routes::metadata::add_pack_to_folder)
+                .delete(routes::metadata::remove_pack_from_folder),
         )
         .route(
             "/api/v1/tags",
             get(routes::metadata::list_tags).post(routes::metadata::create_tag),
         )
         .route(
+            "/api/v1/packs/{pack_id}/tags",
+            get(routes::metadata::list_pack_tag_ids),
+        )
+        .route(
+            "/api/v1/packs/{pack_id}/tags/{tag_id}",
+            put(routes::metadata::add_tag_to_pack).delete(routes::metadata::remove_tag_from_pack),
+        )
+        .route(
             "/api/v1/subscription-groups",
             get(routes::metadata::list_subscription_groups)
                 .post(routes::metadata::create_subscription_group),
         )
+        .route(
+            "/api/v1/subscription-groups/{subscription_group_id}/packs",
+            get(routes::metadata::list_subscription_group_pack_ids),
+        )
+        .route(
+            "/api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}",
+            put(routes::metadata::add_pack_to_subscription_group)
+                .delete(routes::metadata::remove_pack_from_subscription_group),
+        )
+}
+
+fn export_routes() -> Router<ApiState> {
+    Router::new()
         .route(
             "/api/v1/export-target-kinds",
             get(routes::exports::list_target_kinds),
@@ -64,13 +117,9 @@ pub fn build_router(state: ApiState) -> Router {
         )
         .route(
             "/api/v1/export-targets/{target_id}",
-            axum::routing::patch(routes::exports::update_target)
-                .delete(routes::exports::delete_target),
+            patch(routes::exports::update_target).delete(routes::exports::delete_target),
         )
-        .route(
-            "/api/v1/export-jobs",
-            axum::routing::post(routes::exports::create_job),
-        )
+        .route("/api/v1/export-jobs", post(routes::exports::create_job))
         .route(
             "/api/v1/export-jobs/{job_id}",
             get(routes::exports::get_job),
@@ -87,15 +136,15 @@ pub fn build_router(state: ApiState) -> Router {
             "/api/v1/telegram-publications/{publication_id}",
             get(routes::exports::get_telegram_publication),
         )
+}
+
+fn pat_routes() -> Router<ApiState> {
+    Router::new()
         .route(
             "/api/v1/pats",
             get(routes::pats::list_pats).post(routes::pats::create_pat),
         )
-        .route(
-            "/api/v1/pats/{token_id}",
-            axum::routing::delete(routes::pats::revoke_pat),
-        )
-        .with_state(state)
+        .route("/api/v1/pats/{token_id}", delete(routes::pats::revoke_pat))
 }
 
 #[cfg(test)]
@@ -108,7 +157,7 @@ mod tests {
 
     use msm_domain::{Permission, Sticker};
     use msm_storage::{
-        models::{NewExportJobEvent, NewExportTarget, NewTelegramPublication},
+        models::{NewExportJobEvent, NewExportTarget, NewTag, NewTelegramPublication},
         DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
     };
     use tower::ServiceExt;
@@ -155,8 +204,24 @@ mod tests {
         assert!(json["paths"].get("/api/v1/export-targets").is_some());
         assert!(json["paths"].get("/api/v1/export-jobs").is_some());
         assert!(json["paths"].get("/api/v1/folders").is_some());
+        assert!(json["paths"]
+            .get("/api/v1/folders/{folder_id}/packs")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/v1/folders/{folder_id}/packs/{pack_id}")
+            .is_some());
         assert!(json["paths"].get("/api/v1/tags").is_some());
+        assert!(json["paths"].get("/api/v1/packs/{pack_id}/tags").is_some());
+        assert!(json["paths"]
+            .get("/api/v1/packs/{pack_id}/tags/{tag_id}")
+            .is_some());
         assert!(json["paths"].get("/api/v1/subscription-groups").is_some());
+        assert!(json["paths"]
+            .get("/api/v1/subscription-groups/{subscription_group_id}/packs")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}")
+            .is_some());
         assert!(json["paths"].get("/api/v1/telegram-publications").is_some());
         assert!(json["paths"]
             .get("/api/v1/telegram-publications/{publication_id}")
@@ -921,6 +986,176 @@ mod tests {
         let subscriptions: serde_json::Value = serde_json::from_slice(&subscription_body).unwrap();
         assert_eq!(subscriptions[0]["title"], "Weekly");
         assert_eq!(subscriptions[0]["visibility"], "private");
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn metadata_routes_manage_pack_memberships() {
+        let state = seeded_state().await;
+        state
+            .repository()
+            .create_folder("folder_1", "tenant_1", "user_1", "Favorites")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_tag(NewTag {
+                id: "tag_1",
+                tenant_id: "tenant_1",
+                name: "cute",
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_1",
+                "tenant_1",
+                "user_1",
+                "Weekly",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+
+        let token = create_pat(
+            &state,
+            "metadata",
+            "user_1",
+            [
+                Permission::PackUpdate,
+                Permission::SubscriptionCreate,
+                Permission::SubscriptionRead,
+            ],
+        )
+        .await;
+
+        let folder_add_body = serde_json::json!({ "sortOrder": 10 });
+        let folder_add = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/folders/folder_1/packs/pack_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(folder_add_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(folder_add.status(), StatusCode::OK);
+        let folder_add_body = to_bytes(folder_add.into_body(), usize::MAX).await.unwrap();
+        let folder_link: serde_json::Value = serde_json::from_slice(&folder_add_body).unwrap();
+        assert_eq!(folder_link["folderId"], "folder_1");
+        assert_eq!(folder_link["packId"], "pack_1");
+        assert_eq!(folder_link["sortOrder"], 10);
+
+        let folder_list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/folders/folder_1/packs")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(folder_list.status(), StatusCode::OK);
+        let folder_list_body = to_bytes(folder_list.into_body(), usize::MAX).await.unwrap();
+        let folder_pack_ids: serde_json::Value = serde_json::from_slice(&folder_list_body).unwrap();
+        assert_eq!(folder_pack_ids, serde_json::json!(["pack_1"]));
+
+        let tag_add = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/packs/pack_1/tags/tag_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tag_add.status(), StatusCode::OK);
+        let tag_add_body = to_bytes(tag_add.into_body(), usize::MAX).await.unwrap();
+        let tag_link: serde_json::Value = serde_json::from_slice(&tag_add_body).unwrap();
+        assert_eq!(tag_link["packId"], "pack_1");
+        assert_eq!(tag_link["tagId"], "tag_1");
+
+        let tag_list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs/pack_1/tags")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tag_list.status(), StatusCode::OK);
+        let tag_list_body = to_bytes(tag_list.into_body(), usize::MAX).await.unwrap();
+        let tag_ids: serde_json::Value = serde_json::from_slice(&tag_list_body).unwrap();
+        assert_eq!(tag_ids, serde_json::json!(["tag_1"]));
+
+        let subscription_add_body = serde_json::json!({ "sortOrder": 20 });
+        let subscription_add = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/subscription-groups/sub_1/packs/pack_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(subscription_add_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_add.status(), StatusCode::OK);
+        let subscription_add_body = to_bytes(subscription_add.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let subscription_link: serde_json::Value =
+            serde_json::from_slice(&subscription_add_body).unwrap();
+        assert_eq!(subscription_link["subscriptionGroupId"], "sub_1");
+        assert_eq!(subscription_link["packId"], "pack_1");
+        assert_eq!(subscription_link["sortOrder"], 20);
+
+        let subscription_list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/subscription-groups/sub_1/packs")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_list.status(), StatusCode::OK);
+        let subscription_list_body = to_bytes(subscription_list.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let subscription_pack_ids: serde_json::Value =
+            serde_json::from_slice(&subscription_list_body).unwrap();
+        assert_eq!(subscription_pack_ids, serde_json::json!(["pack_1"]));
+
+        for uri in [
+            "/api/v1/folders/folder_1/packs/pack_1",
+            "/api/v1/packs/pack_1/tags/tag_1",
+            "/api/v1/subscription-groups/sub_1/packs/pack_1",
+        ] {
+            let response = build_router(state.clone())
+                .oneshot(
+                    Request::builder()
+                        .method("DELETE")
+                        .uri(uri)
+                        .header("authorization", format!("Bearer {token}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        }
     }
 
     #[tokio::test]

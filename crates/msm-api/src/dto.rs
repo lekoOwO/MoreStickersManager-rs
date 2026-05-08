@@ -61,6 +61,20 @@ pub struct FolderResponse {
     pub created_at: String,
 }
 
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertPackMembershipRequest {
+    pub sort_order: i64,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderPackResponse {
+    pub folder_id: String,
+    pub pack_id: String,
+    pub sort_order: i64,
+}
+
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
@@ -83,6 +97,13 @@ pub struct TagResponse {
     pub tenant_id: String,
     pub name: String,
     pub created_at: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PackTagResponse {
+    pub pack_id: String,
+    pub tag_id: String,
 }
 
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
@@ -112,6 +133,14 @@ pub struct SubscriptionGroupResponse {
     pub title: String,
     pub visibility: PackVisibilityDto,
     pub created_at: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionGroupPackResponse {
+    pub subscription_group_id: String,
+    pub pack_id: String,
+    pub sort_order: i64,
 }
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
@@ -362,6 +391,16 @@ impl From<msm_storage::models::FolderRecord> for FolderResponse {
     }
 }
 
+impl From<msm_storage::models::FolderPackRecord> for FolderPackResponse {
+    fn from(record: msm_storage::models::FolderPackRecord) -> Self {
+        Self {
+            folder_id: record.folder_id,
+            pack_id: record.pack_id,
+            sort_order: record.sort_order,
+        }
+    }
+}
+
 impl From<msm_storage::models::TagRecord> for TagResponse {
     fn from(record: msm_storage::models::TagRecord) -> Self {
         Self {
@@ -369,6 +408,15 @@ impl From<msm_storage::models::TagRecord> for TagResponse {
             tenant_id: record.tenant_id,
             name: record.name,
             created_at: record.created_at.to_rfc3339(),
+        }
+    }
+}
+
+impl From<msm_storage::models::PackTagRecord> for PackTagResponse {
+    fn from(record: msm_storage::models::PackTagRecord) -> Self {
+        Self {
+            pack_id: record.pack_id,
+            tag_id: record.tag_id,
         }
     }
 }
@@ -382,6 +430,16 @@ impl From<msm_storage::models::SubscriptionGroupRecord> for SubscriptionGroupRes
             title: record.title,
             visibility: record.visibility.into(),
             created_at: record.created_at.to_rfc3339(),
+        }
+    }
+}
+
+impl From<msm_storage::models::SubscriptionGroupPackRecord> for SubscriptionGroupPackResponse {
+    fn from(record: msm_storage::models::SubscriptionGroupPackRecord) -> Self {
+        Self {
+            subscription_group_id: record.subscription_group_id,
+            pack_id: record.pack_id,
+            sort_order: record.sort_order,
         }
     }
 }

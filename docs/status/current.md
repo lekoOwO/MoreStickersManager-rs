@@ -130,9 +130,10 @@ Last verification:
 - Product-data MCP surface slice: RED/GREEN tests with `cargo test -p msm-mcp tools_call_manages_folders --locked`, `cargo test -p msm-mcp tools_call_manages_tags --locked`, `cargo test -p msm-mcp tools_call_manages_subscription_groups --locked`, `cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked`, `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`, and `cargo test -p msm-mcp pat_enforcement_metadata_tools_require_expected_scopes --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data Web surface slice: RED/GREEN tests with `npm run web:test -- api-client` and `npm run web:test -- product-metadata-ui`; full verification with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.
 - Product-data membership storage slice: RED/GREEN test with `cargo test -p msm-storage pack_memberships_can_be_managed --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --test product_data_repository_tests --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Product-data membership API slice: RED/GREEN test with `cargo test -p msm-api metadata_routes_manage_pack_memberships --locked`; OpenAPI path check with `cargo test -p msm-api openapi_endpoint_contains_health_path --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Continue product-data metadata by adding pack-folder/tag membership and subscription-group pack membership/link APIs.
+- Continue product-data metadata by adding CLI/MCP/Web controls for pack-folder/tag membership and subscription-group pack membership/link operations.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

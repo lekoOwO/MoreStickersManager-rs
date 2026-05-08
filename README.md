@@ -2,7 +2,7 @@
 
 MoreStickersManager-rs, abbreviated MSM, is a Rust self-hosted manager for MoreStickers-compatible sticker packs.
 
-Current phase: product-data management surfaces after P33 Telegram reconciliation parity.
+Current phase: product-data membership controls after P33 Telegram reconciliation parity.
 
 For a concise implemented-versus-planned feature map, see
 `docs/status/implementation-matrix.md`.
@@ -161,7 +161,9 @@ npm run web:build
 The Web UI includes a wide desktop workspace with Ant Design-inspired blue/gray
 tokens, real workspace tabs, PAT and local login dialogs, pack management,
 pack import dialog, folder/tag/subscription-group metadata management, export
-target settings, and a pack export wizard. It can rename packs, change
+target settings, and a pack export wizard. API/OpenAPI routes now also expose
+folder-pack, pack-tag, and subscription-group pack membership links; CLI/MCP/Web
+membership controls are the next product-data surface slice. It can rename packs, change
 public/private visibility, and delete packs when
 `VITE_MSM_API_BASE_URL` is configured and the stored PAT has the required
 scopes. It can also import a pasted MoreStickers `.stickerpack` JSON export

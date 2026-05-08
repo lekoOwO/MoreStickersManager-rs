@@ -1,19 +1,22 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     Json,
 };
 use msm_domain::Permission;
-use msm_storage::models::NewTag;
+use msm_storage::models::{
+    FolderRecord, NewTag, StickerPackRecord, SubscriptionGroupRecord, TagRecord,
+};
 
 use crate::{
     auth::require_pat,
     dto::{
-        CreateFolderRequest, CreateSubscriptionGroupRequest, CreateTagRequest, FolderResponse,
-        ListFoldersQuery, ListSubscriptionGroupsQuery, ListTagsQuery, SubscriptionGroupResponse,
-        TagResponse,
+        CreateFolderRequest, CreateSubscriptionGroupRequest, CreateTagRequest, FolderPackResponse,
+        FolderResponse, ListFoldersQuery, ListSubscriptionGroupsQuery, ListTagsQuery,
+        PackTagResponse, SubscriptionGroupPackResponse, SubscriptionGroupResponse, TagResponse,
+        UpsertPackMembershipRequest,
     },
-    ApiResult, ApiState,
+    ApiError, ApiResult, ApiState,
 };
 
 #[utoipa::path(
@@ -81,6 +84,96 @@ pub async fn list_folders(
 }
 
 #[utoipa::path(
+    get,
+    path = "/api/v1/folders/{folder_id}/packs",
+    tag = "metadata",
+    params(("folder_id" = String, Path, description = "Folder ID")),
+    responses((status = 200, description = "Pack IDs in folder", body = Vec<String>))
+)]
+/// Lists pack IDs assigned to a folder owned by the PAT user.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, or storage fails.
+pub async fn list_folder_pack_ids(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(folder_id): Path<String>,
+) -> ApiResult<Json<Vec<String>>> {
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let _folder = require_owned_folder(&state, &folder_id, &pat.user_id).await?;
+    let pack_ids = state.repository().list_folder_pack_ids(&folder_id).await?;
+    Ok(Json(pack_ids))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/folders/{folder_id}/packs/{pack_id}",
+    tag = "metadata",
+    params(
+        ("folder_id" = String, Path, description = "Folder ID"),
+        ("pack_id" = String, Path, description = "Sticker pack ID")
+    ),
+    request_body = UpsertPackMembershipRequest,
+    responses((status = 200, description = "Folder-pack membership", body = FolderPackResponse))
+)]
+/// Adds or updates a pack assignment in a folder.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, tenants differ, or
+/// storage fails.
+pub async fn add_pack_to_folder(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((folder_id, pack_id)): Path<(String, String)>,
+    Json(request): Json<UpsertPackMembershipRequest>,
+) -> ApiResult<Json<FolderPackResponse>> {
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let folder = require_owned_folder(&state, &folder_id, &pat.user_id).await?;
+    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    require_same_tenant(&folder.tenant_id, &pack.tenant_id)?;
+    let link = state
+        .repository()
+        .add_pack_to_folder(&folder_id, &pack_id, request.sort_order)
+        .await?;
+    Ok(Json(link.into()))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/folders/{folder_id}/packs/{pack_id}",
+    tag = "metadata",
+    params(
+        ("folder_id" = String, Path, description = "Folder ID"),
+        ("pack_id" = String, Path, description = "Sticker pack ID")
+    ),
+    responses((status = 204, description = "Folder-pack membership removed"))
+)]
+/// Removes a pack assignment from a folder.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, tenants differ,
+/// storage fails, or the membership does not exist.
+pub async fn remove_pack_from_folder(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((folder_id, pack_id)): Path<(String, String)>,
+) -> ApiResult<StatusCode> {
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let folder = require_owned_folder(&state, &folder_id, &pat.user_id).await?;
+    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    require_same_tenant(&folder.tenant_id, &pack.tenant_id)?;
+    let removed = state
+        .repository()
+        .remove_pack_from_folder(&folder_id, &pack_id)
+        .await?;
+    require_removed(removed)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
     post,
     path = "/api/v1/tags",
     tag = "metadata",
@@ -135,6 +228,92 @@ pub async fn list_tags(
         .map(Into::into)
         .collect();
     Ok(Json(tags))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/packs/{pack_id}/tags",
+    tag = "metadata",
+    params(("pack_id" = String, Path, description = "Sticker pack ID")),
+    responses((status = 200, description = "Tag IDs assigned to pack", body = Vec<String>))
+)]
+/// Lists tag IDs assigned to a pack owned by the PAT user.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, or storage fails.
+pub async fn list_pack_tag_ids(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(pack_id): Path<String>,
+) -> ApiResult<Json<Vec<String>>> {
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let _pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let tag_ids = state.repository().list_pack_tag_ids(&pack_id).await?;
+    Ok(Json(tag_ids))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/packs/{pack_id}/tags/{tag_id}",
+    tag = "metadata",
+    params(
+        ("pack_id" = String, Path, description = "Sticker pack ID"),
+        ("tag_id" = String, Path, description = "Tag ID")
+    ),
+    responses((status = 200, description = "Pack-tag membership", body = PackTagResponse))
+)]
+/// Assigns a tag to a pack.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, tenants differ, or
+/// storage fails.
+pub async fn add_tag_to_pack(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((pack_id, tag_id)): Path<(String, String)>,
+) -> ApiResult<Json<PackTagResponse>> {
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let tag = require_tag(&state, &tag_id).await?;
+    require_same_tenant(&tag.tenant_id, &pack.tenant_id)?;
+    let link = state
+        .repository()
+        .add_tag_to_pack(&pack_id, &tag_id)
+        .await?;
+    Ok(Json(link.into()))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/packs/{pack_id}/tags/{tag_id}",
+    tag = "metadata",
+    params(
+        ("pack_id" = String, Path, description = "Sticker pack ID"),
+        ("tag_id" = String, Path, description = "Tag ID")
+    ),
+    responses((status = 204, description = "Pack-tag membership removed"))
+)]
+/// Removes a tag from a pack.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, storage fails, or
+/// the membership does not exist.
+pub async fn remove_tag_from_pack(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((pack_id, tag_id)): Path<(String, String)>,
+) -> ApiResult<StatusCode> {
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let _pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let removed = state
+        .repository()
+        .remove_tag_from_pack(&pack_id, &tag_id)
+        .await?;
+    require_removed(removed)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(
@@ -196,4 +375,184 @@ pub async fn list_subscription_groups(
         .map(Into::into)
         .collect();
     Ok(Json(groups))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/subscription-groups/{subscription_group_id}/packs",
+    tag = "metadata",
+    params(("subscription_group_id" = String, Path, description = "Subscription group ID")),
+    responses((status = 200, description = "Pack IDs in subscription group", body = Vec<String>))
+)]
+/// Lists pack IDs in a subscription group owned by the PAT user.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, or storage fails.
+pub async fn list_subscription_group_pack_ids(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(subscription_group_id): Path<String>,
+) -> ApiResult<Json<Vec<String>>> {
+    let pat = require_pat(&headers, &state, Permission::SubscriptionRead).await?;
+    let _group =
+        require_owned_subscription_group(&state, &subscription_group_id, &pat.user_id).await?;
+    let pack_ids = state
+        .repository()
+        .list_subscription_pack_ids(&subscription_group_id)
+        .await?;
+    Ok(Json(pack_ids))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}",
+    tag = "metadata",
+    params(
+        ("subscription_group_id" = String, Path, description = "Subscription group ID"),
+        ("pack_id" = String, Path, description = "Sticker pack ID")
+    ),
+    request_body = UpsertPackMembershipRequest,
+    responses((status = 200, description = "Subscription group-pack membership", body = SubscriptionGroupPackResponse))
+)]
+/// Adds or updates a pack assignment in a subscription group.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, tenants differ, or
+/// storage fails.
+pub async fn add_pack_to_subscription_group(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((subscription_group_id, pack_id)): Path<(String, String)>,
+    Json(request): Json<UpsertPackMembershipRequest>,
+) -> ApiResult<Json<SubscriptionGroupPackResponse>> {
+    let pat = require_pat(&headers, &state, Permission::SubscriptionCreate).await?;
+    let group =
+        require_owned_subscription_group(&state, &subscription_group_id, &pat.user_id).await?;
+    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    require_same_tenant(&group.tenant_id, &pack.tenant_id)?;
+    let link = state
+        .repository()
+        .add_pack_to_subscription_group(&subscription_group_id, &pack_id, request.sort_order)
+        .await?;
+    Ok(Json(link.into()))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}",
+    tag = "metadata",
+    params(
+        ("subscription_group_id" = String, Path, description = "Subscription group ID"),
+        ("pack_id" = String, Path, description = "Sticker pack ID")
+    ),
+    responses((status = 204, description = "Subscription group-pack membership removed"))
+)]
+/// Removes a pack assignment from a subscription group.
+///
+/// # Errors
+///
+/// Returns an API error when authorization fails, ownership validation fails, tenants differ,
+/// storage fails, or the membership does not exist.
+pub async fn remove_pack_from_subscription_group(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((subscription_group_id, pack_id)): Path<(String, String)>,
+) -> ApiResult<StatusCode> {
+    let pat = require_pat(&headers, &state, Permission::SubscriptionCreate).await?;
+    let group =
+        require_owned_subscription_group(&state, &subscription_group_id, &pat.user_id).await?;
+    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    require_same_tenant(&group.tenant_id, &pack.tenant_id)?;
+    let removed = state
+        .repository()
+        .remove_pack_from_subscription_group(&subscription_group_id, &pack_id)
+        .await?;
+    require_removed(removed)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn require_owned_folder(
+    state: &ApiState,
+    folder_id: &str,
+    user_id: &str,
+) -> ApiResult<FolderRecord> {
+    let folder = state
+        .repository()
+        .find_folder_record(folder_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("folder `{folder_id}` not found")))?;
+    if folder.owner_user_id != user_id {
+        return Err(ApiError::Forbidden(
+            "PAT user does not own folder".to_owned(),
+        ));
+    }
+    Ok(folder)
+}
+
+async fn require_owned_pack(
+    state: &ApiState,
+    pack_id: &str,
+    user_id: &str,
+) -> ApiResult<StickerPackRecord> {
+    let pack = state
+        .repository()
+        .find_sticker_pack_record(pack_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("sticker pack `{pack_id}` not found")))?;
+    if pack.owner_user_id != user_id {
+        return Err(ApiError::Forbidden(
+            "PAT user does not own sticker pack".to_owned(),
+        ));
+    }
+    Ok(pack)
+}
+
+async fn require_tag(state: &ApiState, tag_id: &str) -> ApiResult<TagRecord> {
+    state
+        .repository()
+        .find_tag_record(tag_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("tag `{tag_id}` not found")))
+}
+
+async fn require_owned_subscription_group(
+    state: &ApiState,
+    subscription_group_id: &str,
+    user_id: &str,
+) -> ApiResult<SubscriptionGroupRecord> {
+    let group = state
+        .repository()
+        .find_subscription_group_record(subscription_group_id)
+        .await?
+        .ok_or_else(|| {
+            ApiError::NotFound(format!(
+                "subscription group `{subscription_group_id}` not found"
+            ))
+        })?;
+    if group.owner_user_id != user_id {
+        return Err(ApiError::Forbidden(
+            "PAT user does not own subscription group".to_owned(),
+        ));
+    }
+    Ok(group)
+}
+
+fn require_same_tenant(left: &str, right: &str) -> ApiResult<()> {
+    if left == right {
+        Ok(())
+    } else {
+        Err(ApiError::BadRequest(
+            "membership resources must belong to the same tenant".to_owned(),
+        ))
+    }
+}
+
+fn require_removed(removed: bool) -> ApiResult<()> {
+    if removed {
+        Ok(())
+    } else {
+        Err(ApiError::NotFound("membership not found".to_owned()))
+    }
 }

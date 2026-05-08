@@ -168,13 +168,17 @@ and `git diff --check`.
 - Modify: `docs/status/roadmap.md`
 - Modify: `docs/user/README.md`
 
-- [ ] **Step 1: Update user-facing docs**
+- [x] **Step 1: Update user-facing docs**
 
-Document that folder/tag/subscription APIs exist, while CLI/MCP/Web controls remain future slices.
+Documented folder/tag/subscription APIs plus CLI/MCP/Web create/list controls.
+Updated later after membership API routes landed, noting that CLI/MCP/Web
+membership controls remain follow-up slices.
 
-- [ ] **Step 2: Update status docs**
+- [x] **Step 2: Update status docs**
 
-Move the current focus from P33 Telegram reconciliation to the new product-data API slice after the route work lands.
+Moved the active focus from P33 Telegram reconciliation to product-data
+management, then from base metadata routes to membership controls after the API
+membership slice landed.
 
 - [ ] **Step 3: Run final verification**
 
@@ -188,6 +192,9 @@ git diff --check
 ```
 
 Expected: all pass.
+
+Result: passed during the base API route slice and updated again during
+membership API documentation.
 
 ## Task 6: Web Product Metadata Management
 
@@ -272,6 +279,80 @@ git diff --check
 ```
 
 Expected: all pass.
+
+Result: passed with `cargo fmt --all -- --check`,
+`cargo test -p msm-storage --test product_data_repository_tests --locked`,
+`cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and
+`git diff --check`.
+
+## Task 8: API Pack Membership Links
+
+**Files:**
+- Modify: `crates/msm-api/src/dto.rs`
+- Modify: `crates/msm-api/src/routes/metadata.rs`
+- Modify: `crates/msm-api/src/lib.rs`
+- Modify: `crates/msm-api/src/openapi.rs`
+- Modify: `crates/msm-storage/src/repositories.rs`
+- Modify: `docs/user/README.md`
+- Modify: status and agent handoff docs.
+
+- [x] **Step 1: Add failing API tests**
+
+Added RED coverage for folder-pack, pack-tag, and subscription-group pack
+membership add/list/remove behavior through HTTP routes, plus OpenAPI path
+registration.
+
+```powershell
+cargo test -p msm-api metadata_routes_manage_pack_memberships --locked
+cargo test -p msm-api openapi_endpoint_contains_health_path --locked
+```
+
+Result: failed with route `404` and missing `/openapi.json` paths.
+
+- [x] **Step 2: Implement membership routes**
+
+Added:
+
+- `GET /api/v1/folders/{folder_id}/packs`
+- `PUT /api/v1/folders/{folder_id}/packs/{pack_id}`
+- `DELETE /api/v1/folders/{folder_id}/packs/{pack_id}`
+- `GET /api/v1/packs/{pack_id}/tags`
+- `PUT /api/v1/packs/{pack_id}/tags/{tag_id}`
+- `DELETE /api/v1/packs/{pack_id}/tags/{tag_id}`
+- `GET /api/v1/subscription-groups/{subscription_group_id}/packs`
+- `PUT /api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}`
+- `DELETE /api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}`
+
+Routes require PAT scopes, pack ownership, folder/subscription-group ownership,
+and same-tenant resources before mutating links.
+
+- [x] **Step 3: Register OpenAPI**
+
+Registered membership DTO schemas and routes in `ApiDoc`.
+
+- [x] **Step 4: Update handoff docs**
+
+Updated user docs, roadmap, implementation matrix, current status, checkpoints,
+project map, and testing handoff.
+
+- [x] **Step 5: Run final verification**
+
+Run:
+
+```powershell
+cargo fmt --all -- --check
+cargo test -p msm-api --locked
+cargo clippy -p msm-api -p msm-storage --all-targets --locked -- -D warnings
+git diff --check
+```
+
+Expected: all pass.
+
+Result: passed with `cargo fmt --all -- --check`,
+`cargo test -p msm-api --locked`,
+`cargo test -p msm-storage --test product_data_repository_tests --locked`,
+`cargo clippy -p msm-api -p msm-storage --all-targets --locked -- -D warnings`,
+and `git diff --check`.
 
 ## Task 5: MCP Product Metadata Tools
 

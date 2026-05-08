@@ -281,16 +281,31 @@ Product metadata API endpoints currently available:
 
 - `POST /api/v1/folders`
 - `GET /api/v1/folders?tenantId=...&ownerUserId=...`
+- `GET /api/v1/folders/{folder_id}/packs`
+- `PUT /api/v1/folders/{folder_id}/packs/{pack_id}`
+- `DELETE /api/v1/folders/{folder_id}/packs/{pack_id}`
 - `POST /api/v1/tags`
 - `GET /api/v1/tags?tenantId=...`
+- `GET /api/v1/packs/{pack_id}/tags`
+- `PUT /api/v1/packs/{pack_id}/tags/{tag_id}`
+- `DELETE /api/v1/packs/{pack_id}/tags/{tag_id}`
 - `POST /api/v1/subscription-groups`
 - `GET /api/v1/subscription-groups?tenantId=...&ownerUserId=...`
+- `GET /api/v1/subscription-groups/{subscription_group_id}/packs`
+- `PUT /api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}`
+- `DELETE /api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}`
 
 Folder and tag endpoints currently require `pack.update`. Subscription group
 creation requires `subscription.create`; subscription group listing requires
-`subscription.read`. The CLI and MCP endpoint can create/list folders, tags,
-and subscription groups through the protected API. Web management controls are
-available in the Organize workspace.
+`subscription.read`. Folder-pack and pack-tag membership operations require
+`pack.update`; subscription-group pack listing requires `subscription.read`;
+subscription-group pack add/remove uses `subscription.create` until dedicated
+`subscription.update` support is added. Membership endpoints enforce that the
+PAT user owns the referenced pack and folder or subscription group and that the
+linked resources share a tenant. The CLI and MCP endpoint can create/list
+folders, tags, and subscription groups through the protected API. Web
+management controls are available in the Organize workspace; CLI/MCP/Web
+membership controls are planned follow-up slices.
 
 Current service binary example:
 

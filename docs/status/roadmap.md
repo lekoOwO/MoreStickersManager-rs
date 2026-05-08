@@ -50,18 +50,21 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   groups in the Organize workspace.
 - Product-data storage primitives now exist for folder-pack, pack-tag, and
   subscription-group pack membership links.
+- Product-data API/OpenAPI routes now exist for folder-pack, pack-tag, and
+  subscription-group pack membership links.
 
 ## Immediate Plan
 
-1. Expose pack-folder/tag membership and subscription group pack membership/link
-   semantics through API/OpenAPI.
-2. Add CLI/MCP/Web controls for those membership operations.
+1. Add CLI/MCP/Web controls for pack-folder/tag membership and subscription
+   group pack membership/link operations.
+2. Add subscription link generation and access policy enforcement after the
+   membership controls are visible across all surfaces.
 3. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 
 ## Later Planned Work
 
-- Folder, tag, subscription-group, and pack access-management APIs.
+- Pack and subscription-group access-management APIs beyond membership links.
 - Pack and subscription-group public/private access-token model.
 - User data export/import for instance migration.
 - Provider download integrations beyond Telegram/LINE fixtures.
