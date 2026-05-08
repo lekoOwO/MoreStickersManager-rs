@@ -59,12 +59,16 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   and subscription-group pack membership links.
 - Product-data Web controls now exist in the Organize workspace for
   folder-pack, pack-tag, and subscription-group pack membership links.
+- Domain subscription payload helpers now build MoreStickers dynamic pack-set
+  metadata for public and protected subscription links.
 
 ## Immediate Plan
 
-1. Add subscription link generation and access policy enforcement now that
+1. Add per-pack and subscription-group public/protected subscription endpoints
+   using the domain dynamic payload contract.
+2. Add subscription link generation and access policy enforcement now that
    product membership controls are visible across API, CLI, MCP, and Web.
-2. Run targeted Rust/Web verification and update this roadmap, current status,
+3. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 
 ## Later Planned Work

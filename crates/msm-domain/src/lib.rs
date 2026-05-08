@@ -4,6 +4,7 @@ pub mod authz;
 pub mod error;
 pub mod ids;
 pub mod stickerpack;
+pub mod subscription;
 pub mod url;
 
 pub use authz::{
@@ -18,5 +19,9 @@ pub use ids::{
 };
 pub use stickerpack::{
     Author, DynamicInfo, DynamicPackSetMeta, DynamicStickerPackMeta, Sticker, StickerPack,
+};
+pub use subscription::{
+    build_dynamic_subscription_payload, subscription_bearer_headers, SubscriptionPackInput,
+    SubscriptionPayloadInput,
 };
 pub use url::{resolve_asset_url, AssetUrlConfig, AssetUrlInput};

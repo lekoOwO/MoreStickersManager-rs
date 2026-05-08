@@ -66,10 +66,11 @@ Last completed:
 - Product-data membership CLI slice: added `msm metadata folders packs`, `msm metadata pack-tags`, and `msm metadata subscription-groups packs` add/list/remove commands.
 - Product-data membership MCP slice: added `msm.list_folder_packs`, `msm.add_pack_to_folder`, `msm.remove_pack_from_folder`, `msm.list_pack_tags`, `msm.add_tag_to_pack`, `msm.remove_tag_from_pack`, `msm.list_subscription_group_packs`, `msm.add_pack_to_subscription_group`, and `msm.remove_pack_from_subscription_group` tools with PAT scope, ownership, and tenant checks.
 - Product-data membership Web slice: added ProductMetadataClient membership methods and an Organize workspace membership console for folder-pack, pack-tag, and subscription-group pack add/remove operations.
+- Subscription payload contract slice: added pure domain helpers for MoreStickers dynamic subscription payloads, including public payloads without auth headers and protected payloads with shared subscription Bearer headers.
 
 Current task:
-- Continue with subscription link generation, subscription payload contracts,
-  and access-policy enforcement for packs and subscription groups.
+- Continue with per-pack and subscription-group subscription endpoints plus
+  access-policy enforcement for public/protected payload delivery.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -137,11 +138,12 @@ Last verification:
 - Product-data membership CLI slice: RED/GREEN tests with `cargo test -p msm-cli parses_metadata_membership_commands --locked`, `cargo test -p msm-cli executes_metadata_folder_membership_commands --locked`, `cargo test -p msm-cli executes_metadata_pack_tag_membership_commands --locked`, and `cargo test -p msm-cli executes_metadata_subscription_group_membership_commands --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data membership MCP slice: RED/GREEN tests with `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`, `cargo test -p msm-mcp tools_call_manages_folder_pack_memberships --locked`, `cargo test -p msm-mcp tools_call_manages_pack_tag_memberships --locked`, `cargo test -p msm-mcp tools_call_manages_subscription_group_pack_memberships --locked`, and `cargo test -p msm-mcp pat_enforcement_membership_tools_require_expected_scopes --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data membership Web slice: RED/GREEN tests with `npm run web:test -- api-client` and `npm run web:test -- product-metadata-ui`; full verification with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.
+- Subscription payload contract slice: RED/GREEN test with `cargo test -p msm-domain subscription_payload --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-domain --locked`, `cargo clippy -p msm-domain --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Documentation consolidation slice: added `docs/PRD.md` as the living product requirements, roadmap, progress, and completion source; reduced active Agent docs to `docs/agents/README.md`; removed legacy per-phase `docs/superpowers` plans/specs and duplicated Agent handoff files; verification with `git diff --check`.
 - PRD self-review hardening: clarified PRD status semantics, current implementation queue, current surface parity gaps, open product questions, and per-slice definition of done; verification with `git diff --check`.
 
 Next step:
-- Continue with subscription link generation, subscription payload contracts, and access-policy enforcement.
+- Continue with per-pack and subscription-group subscription endpoints plus access-policy enforcement.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

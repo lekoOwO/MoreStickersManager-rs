@@ -821,6 +821,18 @@
   status to mark product organization parity complete across API, CLI, MCP, and
   Web.
 
+## 2026-05-09 Subscription Payload Contract
+
+- Added pure domain input types and a builder for MoreStickers dynamic
+  subscription pack-set metadata.
+- Added a subscription Bearer auth-header helper so protected group payloads
+  and per-pack refresh entries share the same credential contract.
+- Added compatibility tests proving public payloads omit auth headers and
+  protected payloads include the expected `Authorization` header at both group
+  and pack-refresh levels.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice starts from API endpoints instead of re-designing the payload shape.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,

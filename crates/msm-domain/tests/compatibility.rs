@@ -1,7 +1,8 @@
 use msm_domain::{
-    line_emoji_id, line_emoji_pack_id, line_sticker_id, line_sticker_pack_id, resolve_asset_url,
-    telegram_pack_id, telegram_sticker_id, AssetUrlConfig, AssetUrlInput, DynamicPackSetMeta,
-    StickerPack,
+    build_dynamic_subscription_payload, line_emoji_id, line_emoji_pack_id, line_sticker_id,
+    line_sticker_pack_id, resolve_asset_url, subscription_bearer_headers, telegram_pack_id,
+    telegram_sticker_id, AssetUrlConfig, AssetUrlInput, DynamicPackSetMeta, StickerPack,
+    SubscriptionPackInput, SubscriptionPayloadInput,
 };
 
 #[test]
@@ -135,6 +136,61 @@ fn dynamic_pack_set_fixture_roundtrips() {
 }
 
 #[test]
+fn public_subscription_payload_omits_auth_headers() {
+    let payload = build_dynamic_subscription_payload(SubscriptionPayloadInput {
+        id: "sub_public".to_owned(),
+        version: Some("1".to_owned()),
+        title: Some("Public Feed".to_owned()),
+        author: None,
+        refresh_url: "https://msm.example/api/public/subscriptions/sub_public".to_owned(),
+        auth_headers: None,
+        packs: vec![SubscriptionPackInput {
+            pack: minimal_pack("public"),
+            refresh_url: "https://msm.example/api/public/packs/pack_public/stickerpack".to_owned(),
+        }],
+    });
+
+    assert_eq!(payload.id, "sub_public");
+    assert!(payload.auth_headers.is_none());
+    assert_eq!(payload.packs.len(), 1);
+    assert!(payload.packs[0].dynamic.auth_headers.is_none());
+    assert_eq!(
+        payload.packs[0].dynamic.refresh_url,
+        "https://msm.example/api/public/packs/pack_public/stickerpack"
+    );
+}
+
+#[test]
+fn protected_subscription_payload_reuses_bearer_auth_headers() {
+    let auth_headers = subscription_bearer_headers("sub_secret_123");
+    let payload = build_dynamic_subscription_payload(SubscriptionPayloadInput {
+        id: "sub_private".to_owned(),
+        version: Some("1".to_owned()),
+        title: Some("Private Feed".to_owned()),
+        author: None,
+        refresh_url: "https://msm.example/api/public/subscriptions/sub_private".to_owned(),
+        auth_headers: Some(auth_headers.clone()),
+        packs: vec![SubscriptionPackInput {
+            pack: minimal_pack("private"),
+            refresh_url: "https://msm.example/api/public/packs/pack_private/stickerpack".to_owned(),
+        }],
+    });
+
+    assert_eq!(
+        payload
+            .auth_headers
+            .as_ref()
+            .unwrap()
+            .get("Authorization")
+            .unwrap(),
+        "Bearer sub_secret_123"
+    );
+    assert_eq!(payload.packs[0].dynamic.auth_headers, Some(auth_headers));
+    assert_eq!(payload.packs[0].id, "MoreStickers:Telegram:Pack:private");
+    assert_eq!(payload.packs[0].logo.sticker_pack_id, payload.packs[0].id);
+}
+
+#[test]
 fn optional_fields_are_skipped_when_absent() {
     let pack = StickerPack {
         id: "MoreStickers:Telegram:Pack:minimal".to_owned(),
@@ -155,4 +211,24 @@ fn optional_fields_are_skipped_when_absent() {
     assert!(!output.contains("\"author\""));
     assert!(!output.contains("\"filename\""));
     assert!(!output.contains("\"isAnimated\""));
+}
+
+fn minimal_pack(id_suffix: &str) -> StickerPack {
+    let pack_id = format!("MoreStickers:Telegram:Pack:{id_suffix}");
+    let sticker = msm_domain::Sticker {
+        id: format!("MoreStickers:Telegram:Sticker:{id_suffix}:file"),
+        image: format!("https://msm.example/assets/packs/{id_suffix}/file.webp"),
+        title: "file".to_owned(),
+        sticker_pack_id: pack_id.clone(),
+        filename: Some("file.webp".to_owned()),
+        is_animated: Some(false),
+    };
+
+    StickerPack {
+        id: pack_id,
+        title: format!("Pack {id_suffix}"),
+        author: None,
+        logo: sticker.clone(),
+        stickers: vec![sticker],
+    }
 }
