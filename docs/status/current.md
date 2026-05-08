@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: P33 Telegram reconciliation usability and parity.
+Phase: Product-data management surfaces after P33 Telegram reconciliation parity.
 
 Last completed:
 - P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
@@ -58,12 +58,12 @@ Last completed:
 - Product-data API planning slice: added the implementation plan for folder, tag, subscription-group, and pack access metadata APIs.
 - Product-data storage repository slice: added folder records and CRUD/listing methods, tag records and create/list/delete methods, subscription-group list/rename/delete methods, and a storage integration test covering the first product-data metadata lifecycle.
 - Product-data API route slice: added protected folder create/list, tag create/list, and subscription-group create/list API routes plus DTOs and OpenAPI registration.
+- Product-data CLI surface slice: added `msm metadata folders`, `msm metadata tags`, and `msm metadata subscription-groups` create/list commands backed by the protected API client, with human/JSON output and fake-client tests.
 
 Current task:
-- Begin the product-data API implementation slice for folders, tags,
-  subscription groups, and pack access metadata. Storage/API foundations now
-  exist; next work should add CLI/MCP surfaces, Web management UI, and broader
-  pack access metadata controls.
+- Continue product-data management by adding MCP tools and Web management UI
+  for folders, tags, and subscription groups, then broaden pack access metadata
+  controls beyond basic visibility.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -123,9 +123,10 @@ Last verification:
 - Telegram destructive mirror operator runbook and product-data API planning slice: docs-only verification with `git diff --check`.
 - Product-data storage repository slice: RED/GREEN test with `cargo test -p msm-storage folders_tags_and_subscription_groups_can_be_managed --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Product-data API route slice: RED/GREEN test with `cargo test -p msm-api metadata_routes_manage_folders_tags_and_subscriptions --locked`; OpenAPI path check with `cargo test -p msm-api openapi_endpoint_contains_health_path --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Product-data CLI surface slice: RED/GREEN tests with `cargo test -p msm-cli parses_metadata_commands --locked` and `cargo test -p msm-cli executes_metadata_commands --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Continue product-data metadata by adding CLI/MCP surfaces or Web management UI for the new folder/tag/subscription API routes.
+- Continue product-data metadata by adding MCP tools or Web management UI for the new folder/tag/subscription API routes.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

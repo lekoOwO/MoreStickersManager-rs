@@ -709,3 +709,19 @@
   `cargo test -p msm-storage -p msm-api --locked`,
   `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`,
   and `git diff --check`.
+
+## 2026-05-09 Product Data CLI Commands
+
+- Added CLI client DTOs and reqwest calls for folder create/list, tag
+  create/list, and subscription-group create/list API routes.
+- Added `msm metadata folders`, `msm metadata tags`, and
+  `msm metadata subscription-groups` command groups.
+- Added human/JSON formatting for folder, tag, and subscription-group
+  responses.
+- Added parser and fake-client execution tests for the new metadata commands.
+- Updated README, user docs, roadmap, implementation matrix, current status,
+  project map, and agent testing notes.
+- Verified with `cargo fmt --all -- --check`,
+  `cargo test -p msm-cli --locked`,
+  `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and
+  `git diff --check`.

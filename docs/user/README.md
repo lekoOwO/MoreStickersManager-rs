@@ -22,6 +22,12 @@ cargo run -p msm-cli -- packs delete --pack-id pack_1
 cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
+cargo run -p msm-cli -- metadata folders create --id folder_1 --tenant-id tenant_1 --owner-user-id user_1 --name Favorites
+cargo run -p msm-cli -- metadata folders list --tenant-id tenant_1 --owner-user-id user_1
+cargo run -p msm-cli -- metadata tags create --id tag_1 --tenant-id tenant_1 --name cute
+cargo run -p msm-cli -- metadata tags list --tenant-id tenant_1
+cargo run -p msm-cli -- metadata subscription-groups create --id sub_1 --tenant-id tenant_1 --owner-user-id user_1 --title Weekly --visibility private
+cargo run -p msm-cli -- metadata subscription-groups list --tenant-id tenant_1 --owner-user-id user_1
 cargo run -p msm-cli -- exports kinds
 cargo run -p msm-cli -- exports targets list --tenant-id tenant_1
 cargo run -p msm-cli -- exports targets create --id target_telegram --tenant-id tenant_1 --kind telegram --name Telegram --config-json '{"botUsername":"msm_bot","botToken":"123:token"}'
@@ -280,7 +286,9 @@ Product metadata API endpoints currently available:
 
 Folder and tag endpoints currently require `pack.update`. Subscription group
 creation requires `subscription.create`; subscription group listing requires
-`subscription.read`. CLI/MCP/Web management surfaces are still future slices.
+`subscription.read`. The CLI can create/list folders, tags, and subscription
+groups through the protected API. MCP/Web management surfaces are still future
+slices.
 
 Current service binary example:
 
@@ -349,6 +357,15 @@ Export CLI commands:
 - `msm exports jobs events --job-id <job_id>`
 - `msm exports publications list --pack-id <pack_id>`
 - `msm exports publications get --publication-id <publication_id>`
+
+Product metadata CLI commands:
+
+- `msm metadata folders create --id <folder_id> --tenant-id <tenant_id> --owner-user-id <user_id> --name <name>`
+- `msm metadata folders list --tenant-id <tenant_id> --owner-user-id <user_id>`
+- `msm metadata tags create --id <tag_id> --tenant-id <tenant_id> --name <name>`
+- `msm metadata tags list --tenant-id <tenant_id>`
+- `msm metadata subscription-groups create --id <group_id> --tenant-id <tenant_id> --owner-user-id <user_id> --title <title> --visibility <public|private>`
+- `msm metadata subscription-groups list --tenant-id <tenant_id> --owner-user-id <user_id>`
 
 `msm pats create` prints the raw token once. Store it immediately outside MSM if
 you need to use it later.

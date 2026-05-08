@@ -6,7 +6,7 @@
 - `crates/msm-domain/src/authz.rs`: pure authorization policy primitives and evaluators.
 - `crates/msm-storage`: SQL storage primitives, local asset storage, portable export/import, PAT/local credential storage, and export target/job/retry/prepared media/Telegram sticker mapping persistence.
 - `crates/msm-api`: Axum API routes and utoipa OpenAPI generation, including export target/job routes.
-- `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete, PAT lifecycle commands, export target/job commands, and Telegram publication history reads.
+- `crates/msm-cli`: HTTP CLI client for MSM API operations, including pack list/import/export/rename/delete, PAT lifecycle commands, product metadata create/list commands, export target/job commands, and Telegram publication history reads.
 - `crates/msm-providers`: provider registry plus Telegram and LINE fixture normalizers.
 - `crates/msm-exporters`: export target trait, target kind keys, capability metadata, request/plan types, duplicate-safe registry, concrete `morestickers` export target, Telegram sticker set planner, and Telegram reconciliation policy planner.
 - `crates/msm-app`: runnable Axum service binary composing storage, API, assets, Web UI static serving, prepared media conversion, export worker execution, bounded export job retry handling, Telegram reconciliation dry-run summaries, guarded append-missing mutation execution, mirror destructive-operation guards, and post-publication Telegram sticker mapping population.
@@ -25,9 +25,10 @@
 
 ## Not Implemented Yet
 
-- Product-data API slice for folders, tags, subscription groups, and pack access metadata.
+- MCP/Web product metadata management surfaces for folders, tags, subscription
+  groups, and broader pack access metadata controls.
 - MCP auth/session/SSE hardening.
-- Folder, tag, subscription-group, and pack access-management APIs.
+- Pack access-management APIs beyond basic visibility.
 - Provider network integrations and asset download orchestration.
 - Media probing through ffprobe.
 

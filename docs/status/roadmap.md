@@ -9,7 +9,7 @@ chronological log and `implementation-matrix.md` for the feature truth table.
 
 Telegram export has moved past basic dry-run and publication. The P33
 reconciliation usability slice is functionally covered across Web, API, CLI,
-and MCP; the active handoff focus is moving into product-data APIs.
+and MCP; the active handoff focus is product-data management surfaces.
 
 Web, CLI, and MCP now expose dry-run, reconciliation mode,
 execute-reconciliation, and destructive mirror guard controls without requiring
@@ -42,10 +42,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   subscription group metadata.
 - Product-data API routes and OpenAPI schemas now exist for folder, tag, and
   subscription group create/list workflows.
+- Product-data CLI create/list commands now exist for folders, tags, and
+  subscription groups.
 
 ## Immediate Plan
 
-1. Add CLI/MCP surfaces or Web management UI for folder, tag, and subscription
+1. Add MCP surfaces or Web management UI for folder, tag, and subscription
    group metadata.
 2. Continue pack access-management API design beyond basic visibility.
 3. Run targeted Rust/Web verification and update this roadmap, current status,

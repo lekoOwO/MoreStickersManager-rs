@@ -188,3 +188,62 @@ git diff --check
 ```
 
 Expected: all pass.
+
+## Task 4: CLI Product Metadata Commands
+
+**Files:**
+- Modify: `crates/msm-cli/src/client.rs`
+- Modify: `crates/msm-cli/src/command.rs`
+- Modify: `crates/msm-cli/src/output.rs`
+- Modify: `README.md`
+- Modify: `docs/user/README.md`
+- Modify: `docs/status/current.md`
+- Modify: `docs/status/implementation-matrix.md`
+- Modify: `docs/status/checkpoints.md`
+- Modify: `docs/status/roadmap.md`
+- Modify: `docs/agents/project-map.md`
+- Modify: `docs/agents/testing.md`
+
+- [x] **Step 1: Add failing CLI parser/execution tests**
+
+Added RED tests for `msm metadata folders`, `msm metadata tags`, and
+`msm metadata subscription-groups`.
+
+```powershell
+cargo test -p msm-cli parses_metadata_commands --locked
+```
+
+Result: failed because metadata CLI payloads, response models, command enums,
+and client methods did not exist yet.
+
+- [x] **Step 2: Implement CLI metadata client and commands**
+
+Added folder/tag/subscription-group payload and response DTOs, reqwest client
+methods, Clap command groups, command dispatch, fake-client coverage, and
+human/JSON output formatting.
+
+- [x] **Step 3: Verify focused tests**
+
+```powershell
+cargo test -p msm-cli parses_metadata_commands --locked
+cargo test -p msm-cli executes_metadata_commands --locked
+```
+
+Result: both passed.
+
+- [x] **Step 4: Update handoff and user docs**
+
+Documented the new metadata CLI commands and updated status/agent handoff docs.
+
+- [x] **Step 5: Run full CLI verification**
+
+Run:
+
+```powershell
+cargo fmt --all -- --check
+cargo test -p msm-cli --locked
+cargo clippy -p msm-cli --all-targets --locked -- -D warnings
+git diff --check
+```
+
+Expected: all pass.

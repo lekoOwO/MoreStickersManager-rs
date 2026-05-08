@@ -32,6 +32,63 @@ pub struct CreatePersonalAccessTokenPayload {
     pub expires_at: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateFolderPayload {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Folder {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub name: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTagPayload {
+    pub id: String,
+    pub tenant_id: String,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tag {
+    pub id: String,
+    pub tenant_id: String,
+    pub name: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSubscriptionGroupPayload {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub title: String,
+    pub visibility: PackVisibility,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionGroup {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub title: String,
+    pub visibility: PackVisibility,
+    pub created_at: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatedPersonalAccessToken {
@@ -161,6 +218,19 @@ pub trait MsmClient {
     ) -> CliResult<CreatedPersonalAccessToken>;
     async fn list_pats(&self, user_id: &str) -> CliResult<Vec<PersonalAccessToken>>;
     async fn revoke_pat(&self, token_id: &str) -> CliResult<()>;
+    async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder>;
+    async fn list_folders(&self, tenant_id: &str, owner_user_id: &str) -> CliResult<Vec<Folder>>;
+    async fn create_tag(&self, payload: CreateTagPayload) -> CliResult<Tag>;
+    async fn list_tags(&self, tenant_id: &str) -> CliResult<Vec<Tag>>;
+    async fn create_subscription_group(
+        &self,
+        payload: CreateSubscriptionGroupPayload,
+    ) -> CliResult<SubscriptionGroup>;
+    async fn list_subscription_groups(
+        &self,
+        tenant_id: &str,
+        owner_user_id: &str,
+    ) -> CliResult<Vec<SubscriptionGroup>>;
     async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>>;
     async fn list_export_targets(&self, tenant_id: &str) -> CliResult<Vec<ExportTarget>>;
     async fn create_export_target(
@@ -342,6 +412,82 @@ impl MsmClient for ReqwestMsmClient {
         .await?
         .error_for_status()?;
         Ok(())
+    }
+
+    async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder> {
+        Ok(self
+            .authorize(self.http.post(self.endpoint("/api/v1/folders")?))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_folders(&self, tenant_id: &str, owner_user_id: &str) -> CliResult<Vec<Folder>> {
+        Ok(self
+            .authorize(self.http.get(self.endpoint("/api/v1/folders")?))
+            .query(&[("tenantId", tenant_id), ("ownerUserId", owner_user_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn create_tag(&self, payload: CreateTagPayload) -> CliResult<Tag> {
+        Ok(self
+            .authorize(self.http.post(self.endpoint("/api/v1/tags")?))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_tags(&self, tenant_id: &str) -> CliResult<Vec<Tag>> {
+        Ok(self
+            .authorize(self.http.get(self.endpoint("/api/v1/tags")?))
+            .query(&[("tenantId", tenant_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn create_subscription_group(
+        &self,
+        payload: CreateSubscriptionGroupPayload,
+    ) -> CliResult<SubscriptionGroup> {
+        Ok(self
+            .authorize(
+                self.http
+                    .post(self.endpoint("/api/v1/subscription-groups")?),
+            )
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_subscription_groups(
+        &self,
+        tenant_id: &str,
+        owner_user_id: &str,
+    ) -> CliResult<Vec<SubscriptionGroup>> {
+        Ok(self
+            .authorize(self.http.get(self.endpoint("/api/v1/subscription-groups")?))
+            .query(&[("tenantId", tenant_id), ("ownerUserId", owner_user_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
     }
 
     async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>> {

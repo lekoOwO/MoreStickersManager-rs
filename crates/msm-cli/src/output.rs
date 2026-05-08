@@ -3,7 +3,7 @@ use msm_domain::StickerPack;
 use crate::{
     client::{
         CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
-        PersonalAccessToken, TelegramPublication,
+        Folder, PersonalAccessToken, SubscriptionGroup, Tag, TelegramPublication,
     },
     command::OutputFormat,
     CliResult,
@@ -163,6 +163,88 @@ pub fn format_pat_revoke(format: OutputFormat, token_id: &str) -> CliResult<Stri
     }
 }
 
+/// Formats folder list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_folders(format: OutputFormat, folders: &[Folder]) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(folders
+            .iter()
+            .map(folder_line)
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(folders)?),
+    }
+}
+
+/// Formats one folder response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_folder(format: OutputFormat, folder: &Folder) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(folder_line(folder)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(folder)?),
+    }
+}
+
+/// Formats tag list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tags(format: OutputFormat, tags: &[Tag]) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(tags.iter().map(tag_line).collect::<Vec<_>>().join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(tags)?),
+    }
+}
+
+/// Formats one tag response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tag(format: OutputFormat, tag: &Tag) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(tag_line(tag)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(tag)?),
+    }
+}
+
+/// Formats subscription group list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_subscription_groups(
+    format: OutputFormat,
+    groups: &[SubscriptionGroup],
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(groups.iter().map(group_line).collect::<Vec<_>>().join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(groups)?),
+    }
+}
+
+/// Formats one subscription group response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_subscription_group(
+    format: OutputFormat,
+    group: &SubscriptionGroup,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(group_line(group)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(group)?),
+    }
+}
+
 /// Formats export target kind responses.
 ///
 /// # Errors
@@ -294,5 +376,22 @@ fn telegram_publication_line(publication: &TelegramPublication) -> String {
     format!(
         "{}\t{}\t{}",
         publication.id, publication.sticker_set_name, publication.sticker_set_url
+    )
+}
+
+fn folder_line(folder: &Folder) -> String {
+    format!("{}\t{}", folder.id, folder.name)
+}
+
+fn tag_line(tag: &Tag) -> String {
+    format!("{}\t{}", tag.id, tag.name)
+}
+
+fn group_line(group: &SubscriptionGroup) -> String {
+    format!(
+        "{}\t{}\t{}",
+        group.id,
+        group.title,
+        group.visibility.as_str()
     )
 }

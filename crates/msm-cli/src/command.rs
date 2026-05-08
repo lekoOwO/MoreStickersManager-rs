@@ -5,14 +5,16 @@ use msm_domain::StickerPack;
 
 use crate::{
     client::{
-        CreateExportJobPayload, CreateExportTargetPayload, CreatePersonalAccessTokenPayload,
+        CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
+        CreatePersonalAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
         ImportPackPayload, MsmClient, ReqwestMsmClient, UpdatePackPayload,
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
-        format_export_target_kinds, format_export_targets, format_health, format_import,
-        format_pack_delete, format_pack_list, format_pack_rename, format_pat_create,
-        format_pat_list, format_pat_revoke, format_telegram_publication,
+        format_export_target_kinds, format_export_targets, format_folder, format_folders,
+        format_health, format_import, format_pack_delete, format_pack_list, format_pack_rename,
+        format_pat_create, format_pat_list, format_pat_revoke, format_subscription_group,
+        format_subscription_groups, format_tag, format_tags, format_telegram_publication,
         format_telegram_publications,
     },
     CliError, CliResult,
@@ -44,6 +46,10 @@ pub enum Command {
     Pats {
         #[command(subcommand)]
         command: PatCommand,
+    },
+    Metadata {
+        #[command(subcommand)]
+        command: MetadataCommand,
     },
     Exports {
         #[command(subcommand)]
@@ -110,6 +116,80 @@ pub enum PatCommand {
     Revoke {
         #[arg(long)]
         token_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum MetadataCommand {
+    Folders {
+        #[command(subcommand)]
+        command: FolderCommand,
+    },
+    Tags {
+        #[command(subcommand)]
+        command: TagCommand,
+    },
+    SubscriptionGroups {
+        #[command(subcommand)]
+        command: SubscriptionGroupCommand,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum FolderCommand {
+    List {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        owner_user_id: String,
+    },
+    Create {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        owner_user_id: String,
+        #[arg(long)]
+        name: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum TagCommand {
+    List {
+        #[arg(long)]
+        tenant_id: String,
+    },
+    Create {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        name: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum SubscriptionGroupCommand {
+    List {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        owner_user_id: String,
+    },
+    Create {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        owner_user_id: String,
+        #[arg(long)]
+        title: String,
+        #[arg(long, value_enum)]
+        visibility: PackVisibility,
     },
 }
 
@@ -225,7 +305,7 @@ impl TelegramReconcileModeArg {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PackVisibility {
     Public,
@@ -332,6 +412,82 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                 client.revoke_pat(&token_id).await?;
                 format_pat_revoke(cli.output_format, &token_id)
             }
+        },
+        Command::Metadata { command } => match command {
+            MetadataCommand::Folders { command } => match command {
+                FolderCommand::List {
+                    tenant_id,
+                    owner_user_id,
+                } => {
+                    let folders = client.list_folders(&tenant_id, &owner_user_id).await?;
+                    format_folders(cli.output_format, &folders)
+                }
+                FolderCommand::Create {
+                    id,
+                    tenant_id,
+                    owner_user_id,
+                    name,
+                } => {
+                    let folder = client
+                        .create_folder(CreateFolderPayload {
+                            id,
+                            tenant_id,
+                            owner_user_id,
+                            name,
+                        })
+                        .await?;
+                    format_folder(cli.output_format, &folder)
+                }
+            },
+            MetadataCommand::Tags { command } => match command {
+                TagCommand::List { tenant_id } => {
+                    let tags = client.list_tags(&tenant_id).await?;
+                    format_tags(cli.output_format, &tags)
+                }
+                TagCommand::Create {
+                    id,
+                    tenant_id,
+                    name,
+                } => {
+                    let tag = client
+                        .create_tag(CreateTagPayload {
+                            id,
+                            tenant_id,
+                            name,
+                        })
+                        .await?;
+                    format_tag(cli.output_format, &tag)
+                }
+            },
+            MetadataCommand::SubscriptionGroups { command } => match command {
+                SubscriptionGroupCommand::List {
+                    tenant_id,
+                    owner_user_id,
+                } => {
+                    let groups = client
+                        .list_subscription_groups(&tenant_id, &owner_user_id)
+                        .await?;
+                    format_subscription_groups(cli.output_format, &groups)
+                }
+                SubscriptionGroupCommand::Create {
+                    id,
+                    tenant_id,
+                    owner_user_id,
+                    title,
+                    visibility,
+                } => {
+                    let group = client
+                        .create_subscription_group(CreateSubscriptionGroupPayload {
+                            id,
+                            tenant_id,
+                            owner_user_id,
+                            title,
+                            visibility,
+                        })
+                        .await?;
+                    format_subscription_group(cli.output_format, &group)
+                }
+            },
         },
         Command::Exports { command } => match command {
             ExportCommand::Kinds => {
@@ -551,14 +707,17 @@ mod tests {
 
     use crate::{
         client::{
-            CreateExportJobPayload, CreateExportTargetPayload, CreatePersonalAccessTokenPayload,
+            CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
+            CreatePersonalAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
             CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
-            ImportPackPayload, MsmClient, PersonalAccessToken, TelegramPublication,
+            Folder, ImportPackPayload, MsmClient, PersonalAccessToken, SubscriptionGroup, Tag,
+            TelegramPublication,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
-            ExportPublicationCommand, ExportTargetCommand, OutputFormat, PackCommand,
-            PackVisibility, PatCommand,
+            ExportPublicationCommand, ExportTargetCommand, FolderCommand, MetadataCommand,
+            OutputFormat, PackCommand, PackVisibility, PatCommand, SubscriptionGroupCommand,
+            TagCommand,
         },
         output::HealthResponse,
         CliResult,
@@ -886,6 +1045,76 @@ mod tests {
                     command: ExportPublicationCommand::Get { ref publication_id }
                 }
             } if publication_id == "telegram_pub_1"
+        ));
+    }
+
+    #[test]
+    fn parses_metadata_commands() {
+        let folder_create = Cli::parse_from([
+            "msm",
+            "metadata",
+            "folders",
+            "create",
+            "--id",
+            "folder_1",
+            "--tenant-id",
+            "tenant_1",
+            "--owner-user-id",
+            "user_1",
+            "--name",
+            "Favorites",
+        ]);
+        assert!(matches!(
+            folder_create.command,
+            Command::Metadata {
+                command: MetadataCommand::Folders {
+                    command: FolderCommand::Create {
+                        ref id,
+                        ref name,
+                        ..
+                    }
+                }
+            } if id == "folder_1" && name == "Favorites"
+        ));
+
+        let tag_list =
+            Cli::parse_from(["msm", "metadata", "tags", "list", "--tenant-id", "tenant_1"]);
+        assert!(matches!(
+            tag_list.command,
+            Command::Metadata {
+                command: MetadataCommand::Tags {
+                    command: TagCommand::List { ref tenant_id }
+                }
+            } if tenant_id == "tenant_1"
+        ));
+
+        let group_create = Cli::parse_from([
+            "msm",
+            "metadata",
+            "subscription-groups",
+            "create",
+            "--id",
+            "sub_1",
+            "--tenant-id",
+            "tenant_1",
+            "--owner-user-id",
+            "user_1",
+            "--title",
+            "Weekly",
+            "--visibility",
+            "private",
+        ]);
+        assert!(matches!(
+            group_create.command,
+            Command::Metadata {
+                command: MetadataCommand::SubscriptionGroups {
+                    command: SubscriptionGroupCommand::Create {
+                        ref id,
+                        visibility: PackVisibility::Private,
+                        ..
+                    }
+                }
+            } if id == "sub_1"
         ));
     }
 
@@ -1267,6 +1496,77 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn executes_metadata_commands() {
+        let client = FakeClient::default();
+
+        let folder_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "metadata",
+                "folders",
+                "create",
+                "--id",
+                "folder_1",
+                "--tenant-id",
+                "tenant_1",
+                "--owner-user-id",
+                "user_1",
+                "--name",
+                "Favorites",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(folder_output, "folder_1\tFavorites");
+        assert_eq!(
+            client.created_folder.lock().unwrap().as_ref().unwrap().name,
+            "Favorites"
+        );
+
+        let tags_output = execute_with_client(
+            Cli::parse_from(["msm", "metadata", "tags", "list", "--tenant-id", "tenant_1"]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(tags_output, "tag_1\tcute");
+
+        let group_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "metadata",
+                "subscription-groups",
+                "create",
+                "--id",
+                "sub_1",
+                "--tenant-id",
+                "tenant_1",
+                "--owner-user-id",
+                "user_1",
+                "--title",
+                "Weekly",
+                "--visibility",
+                "private",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(group_output, "sub_1\tWeekly\tprivate");
+        assert_eq!(
+            client
+                .created_subscription_group
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .title,
+            "Weekly"
+        );
+    }
+
     #[derive(Default)]
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
@@ -1274,6 +1574,9 @@ mod tests {
         deleted_pack: Mutex<Option<String>>,
         created_pat: Mutex<Option<CreatePersonalAccessTokenPayload>>,
         revoked_pat: Mutex<Option<String>>,
+        created_folder: Mutex<Option<CreateFolderPayload>>,
+        created_tag: Mutex<Option<CreateTagPayload>>,
+        created_subscription_group: Mutex<Option<CreateSubscriptionGroupPayload>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
         created_export_job: Mutex<Option<CreateExportJobPayload>>,
     }
@@ -1341,6 +1644,44 @@ mod tests {
         async fn revoke_pat(&self, token_id: &str) -> CliResult<()> {
             *self.revoked_pat.lock().unwrap() = Some(token_id.to_owned());
             Ok(())
+        }
+
+        async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder> {
+            *self.created_folder.lock().unwrap() = Some(payload);
+            Ok(sample_folder())
+        }
+
+        async fn list_folders(
+            &self,
+            _tenant_id: &str,
+            _owner_user_id: &str,
+        ) -> CliResult<Vec<Folder>> {
+            Ok(vec![sample_folder()])
+        }
+
+        async fn create_tag(&self, payload: CreateTagPayload) -> CliResult<Tag> {
+            *self.created_tag.lock().unwrap() = Some(payload);
+            Ok(sample_tag())
+        }
+
+        async fn list_tags(&self, _tenant_id: &str) -> CliResult<Vec<Tag>> {
+            Ok(vec![sample_tag()])
+        }
+
+        async fn create_subscription_group(
+            &self,
+            payload: CreateSubscriptionGroupPayload,
+        ) -> CliResult<SubscriptionGroup> {
+            *self.created_subscription_group.lock().unwrap() = Some(payload);
+            Ok(sample_subscription_group())
+        }
+
+        async fn list_subscription_groups(
+            &self,
+            _tenant_id: &str,
+            _owner_user_id: &str,
+        ) -> CliResult<Vec<SubscriptionGroup>> {
+            Ok(vec![sample_subscription_group()])
         }
 
         async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>> {
@@ -1411,6 +1752,36 @@ mod tests {
             is_enabled: true,
             created_at: "2026-05-07T00:00:00Z".to_owned(),
             updated_at: "2026-05-07T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_folder() -> Folder {
+        Folder {
+            id: "folder_1".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            owner_user_id: "user_1".to_owned(),
+            name: "Favorites".to_owned(),
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_tag() -> Tag {
+        Tag {
+            id: "tag_1".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            name: "cute".to_owned(),
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_subscription_group() -> SubscriptionGroup {
+        SubscriptionGroup {
+            id: "sub_1".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            owner_user_id: "user_1".to_owned(),
+            title: "Weekly".to_owned(),
+            visibility: PackVisibility::Private,
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
         }
     }
 

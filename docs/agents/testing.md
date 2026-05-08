@@ -661,6 +661,23 @@ These tests prove:
 - export job event reads render ordered event information.
 - Telegram publication list/get commands call the publication history API and format sticker set links.
 
+## Product Metadata CLI Tests
+
+Run:
+
+```powershell
+cargo test -p msm-cli parses_metadata_commands --locked
+cargo test -p msm-cli executes_metadata_commands --locked
+cargo clippy -p msm-cli --all-targets --locked -- -D warnings
+```
+
+These tests prove:
+
+- CLI arguments parse for folder, tag, and subscription-group create/list commands;
+- metadata commands call the API client boundary with tenant, owner, title/name,
+  and visibility fields preserved;
+- human output formats folders, tags, and subscription groups predictably.
+
 ## Export MCP Tests
 
 Run:
