@@ -88,13 +88,11 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Implement per-pack default subscription endpoint using the domain dynamic
-   subscription payload contract.
-2. Implement user-created subscription group public/protected endpoints.
-3. Implement the pack/group access model for public, private, subscription
-   secret, PAT, and Web session access.
-4. Add API/CLI/MCP/Web controls for subscription link rotation and visibility.
-5. Start tenant administration and RBAC management surfaces.
+1. Add persistent subscription secret/link rotation storage and controls.
+2. Extend the pack/group access model for subscription secret and Web session
+   access beyond the current public/private/PAT endpoint checks.
+3. Add CLI/MCP/Web controls for subscription link rotation and visibility.
+4. Start tenant administration and RBAC management surfaces.
 
 Each queue item must update this section when completed or reordered.
 
@@ -120,9 +118,9 @@ tests and docs are updated.
 
 - [ ] Define final permission model for pack visibility, group visibility,
   subscription secrets, PAT access, and authenticated Web credentials.
-- [ ] Implement per-pack default subscription endpoint.
-- [ ] Implement user-created subscription group public/protected endpoints.
-- [ ] Ensure private packs do not leak assets through public groups.
+- [x] Implement per-pack default subscription endpoint.
+- [x] Implement user-created subscription group public/protected endpoints.
+- [x] Ensure private packs do not leak assets through public groups.
 - [x] Add moreStickers-compatible subscription payload contract.
 - [ ] Add API/CLI/MCP/Web controls for subscription link rotation and visibility.
 

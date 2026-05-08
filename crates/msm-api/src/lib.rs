@@ -34,6 +34,18 @@ fn system_routes() -> Router<ApiState> {
             "/assets/packs/{pack_public_id}/{filename}",
             get(routes::assets::read_asset),
         )
+        .route(
+            "/api/public/packs/{pack_id}/stickerpack",
+            get(routes::subscriptions::public_pack_stickerpack),
+        )
+        .route(
+            "/api/public/packs/{pack_id}/subscription",
+            get(routes::subscriptions::public_pack_subscription),
+        )
+        .route(
+            "/api/public/subscriptions/{subscription_group_id}",
+            get(routes::subscriptions::public_subscription_group),
+        )
 }
 
 fn auth_routes() -> Router<ApiState> {
@@ -198,6 +210,15 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
         assert!(json["paths"].get("/healthz").is_some());
+        assert!(json["paths"]
+            .get("/api/public/packs/{pack_id}/stickerpack")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/public/packs/{pack_id}/subscription")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/public/subscriptions/{subscription_group_id}")
+            .is_some());
         assert!(json["paths"].get("/api/v1/pats").is_some());
         assert!(json["paths"].get("/api/v1/auth/local/login").is_some());
         assert!(json["paths"].get("/api/v1/export-target-kinds").is_some());
@@ -1160,6 +1181,207 @@ mod tests {
 
     #[tokio::test]
     #[allow(clippy::too_many_lines)]
+    async fn public_subscription_routes_emit_accessible_dynamic_payloads() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_public",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Public,
+                Some("telegram"),
+                &sample_pack_with_suffix("public"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_private",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("private"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_public",
+                "tenant_1",
+                "user_1",
+                "Public Feed",
+                msm_storage::models::PackVisibility::Public,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_private",
+                "tenant_1",
+                "user_1",
+                "Private Feed",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_pack_to_subscription_group("sub_public", "pack_public", 0)
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_pack_to_subscription_group("sub_public", "pack_private", 1)
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_pack_to_subscription_group("sub_private", "pack_private", 0)
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "subscription-read",
+            "user_1",
+            [Permission::PackRead, Permission::SubscriptionRead],
+        )
+        .await;
+
+        let public_pack = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_public/stickerpack")
+                    .header("host", "msm.example")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(public_pack.status(), StatusCode::OK);
+
+        let private_pack = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_private/stickerpack")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(private_pack.status(), StatusCode::UNAUTHORIZED);
+
+        let private_pack_with_pat = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_private/stickerpack")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(private_pack_with_pat.status(), StatusCode::OK);
+
+        let public_pack_subscription = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_public/subscription")
+                    .header("host", "msm.example")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(public_pack_subscription.status(), StatusCode::OK);
+        let body = to_bytes(public_pack_subscription.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(payload["id"], "pack_public");
+        assert_eq!(payload["packs"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            payload["packs"][0]["dynamic"]["refreshUrl"],
+            "http://msm.example/api/public/packs/pack_public/stickerpack"
+        );
+
+        let private_pack_subscription = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_private/subscription")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(private_pack_subscription.status(), StatusCode::UNAUTHORIZED);
+
+        let subscription = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/subscriptions/sub_public")
+                    .header("host", "msm.example")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription.status(), StatusCode::OK);
+        let body = to_bytes(subscription.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(payload["id"], "sub_public");
+        assert_eq!(payload["title"], "Public Feed");
+        assert!(payload.get("authHeaders").is_none());
+        assert_eq!(payload["packs"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            payload["packs"][0]["dynamic"]["refreshUrl"],
+            "http://msm.example/api/public/packs/pack_public/stickerpack"
+        );
+
+        let private_subscription = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/subscriptions/sub_private")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(private_subscription.status(), StatusCode::UNAUTHORIZED);
+
+        let protected_subscription = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/subscriptions/sub_private")
+                    .header("host", "msm.example")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(protected_subscription.status(), StatusCode::OK);
+        let body = to_bytes(protected_subscription.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(payload["id"], "sub_private");
+        assert_eq!(payload["packs"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            payload["packs"][0]["dynamic"]["refreshUrl"],
+            "http://msm.example/api/public/packs/pack_private/stickerpack"
+        );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
     async fn telegram_publication_routes_require_export_read_and_pack_owner() {
         let state = seeded_state_with_publication().await;
         state
@@ -1614,18 +1836,22 @@ mod tests {
     }
 
     fn sample_pack() -> msm_domain::StickerPack {
+        sample_pack_with_suffix("sample")
+    }
+
+    fn sample_pack_with_suffix(suffix: &str) -> msm_domain::StickerPack {
         let sticker = Sticker {
-            id: "MoreStickers:Telegram:Sticker:sample:file".to_owned(),
-            image: "https://msm.example/assets/packs/sample/file.webp".to_owned(),
+            id: format!("MoreStickers:Telegram:Sticker:{suffix}:file"),
+            image: format!("https://msm.example/assets/packs/{suffix}/file.webp"),
             title: "file".to_owned(),
-            sticker_pack_id: "MoreStickers:Telegram:Pack:sample".to_owned(),
+            sticker_pack_id: format!("MoreStickers:Telegram:Pack:{suffix}"),
             filename: Some("file.webp".to_owned()),
             is_animated: Some(false),
         };
 
         msm_domain::StickerPack {
-            id: "MoreStickers:Telegram:Pack:sample".to_owned(),
-            title: "Sample".to_owned(),
+            id: format!("MoreStickers:Telegram:Pack:{suffix}"),
+            title: format!("Sample {suffix}"),
             author: None,
             logo: sticker.clone(),
             stickers: vec![sticker],

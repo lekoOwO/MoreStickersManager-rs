@@ -16,7 +16,7 @@ use crate::{
         UpdateExportTargetRequest, UpdatePackRequest, UpsertPackMembershipRequest,
     },
     error::ApiErrorBody,
-    routes::{assets, auth, exports, health, metadata, packs, pats},
+    routes::{assets, auth, exports, health, metadata, packs, pats, subscriptions},
 };
 
 #[derive(OpenApi)]
@@ -26,6 +26,9 @@ use crate::{
         auth::register_local_user,
         auth::login_local_user,
         assets::read_asset,
+        subscriptions::public_pack_stickerpack,
+        subscriptions::public_pack_subscription,
+        subscriptions::public_subscription_group,
         packs::import_pack,
         packs::list_packs,
         packs::update_pack,

@@ -833,6 +833,20 @@
 - Updated PRD, roadmap, implementation matrix, and current status so the next
   slice starts from API endpoints instead of re-designing the payload shape.
 
+## 2026-05-09 Subscription Endpoint API
+
+- Added public API routes for per-pack dynamic subscription payloads, per-pack
+  stickerpack refresh payloads, and subscription-group dynamic payloads.
+- Added owner PAT fallback for private pack and private subscription-group
+  payload reads while keeping anonymous access limited to public resources.
+- Public subscription-group payloads now filter private packs for anonymous
+  callers so public groups do not leak private pack entries.
+- Registered the new routes in OpenAPI and added API integration coverage for
+  anonymous public access, private anonymous rejection, owner PAT access, and
+  dynamic refresh URLs.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice can focus on persistent subscription secrets and link rotation.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,

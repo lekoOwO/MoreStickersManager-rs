@@ -5,3 +5,4 @@ pub mod health;
 pub mod metadata;
 pub mod packs;
 pub mod pats;
+pub mod subscriptions;

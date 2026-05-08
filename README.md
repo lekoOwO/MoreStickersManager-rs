@@ -178,6 +178,13 @@ public/private visibility, and delete packs when
 scopes. It can also import a pasted MoreStickers `.stickerpack` JSON export
 when the stored PAT has `import.run`.
 
+Subscription payload endpoints are available at
+`/api/public/packs/{pack_id}/subscription`,
+`/api/public/packs/{pack_id}/stickerpack`, and
+`/api/public/subscriptions/{subscription_group_id}`. Anonymous callers can read
+public packs/groups; private payloads currently require an owner PAT until
+dedicated subscription-secret rotation is implemented.
+
 With the default development profile, `npm run dev:start` automatically points
 the dashboard at `http://127.0.0.1:3000`, writes a development PAT to
 `.env.local`, and imports a small sample sticker pack. To override those values

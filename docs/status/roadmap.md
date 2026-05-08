@@ -61,13 +61,16 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   folder-pack, pack-tag, and subscription-group pack membership links.
 - Domain subscription payload helpers now build MoreStickers dynamic pack-set
   metadata for public and protected subscription links.
+- Public API subscription endpoints now expose per-pack dynamic subscription
+  payloads, pack refresh payloads, and subscription-group dynamic payloads.
+- Public subscription-group payloads filter out private packs for anonymous
+  callers; owner PAT access can read private packs and private groups.
 
 ## Immediate Plan
 
-1. Add per-pack and subscription-group public/protected subscription endpoints
-   using the domain dynamic payload contract.
-2. Add subscription link generation and access policy enforcement now that
-   product membership controls are visible across API, CLI, MCP, and Web.
+1. Add persistent subscription secret/link rotation storage and controls.
+2. Extend subscription access policy enforcement beyond public/private/PAT to
+   subscription secrets and Web session credentials.
 3. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 

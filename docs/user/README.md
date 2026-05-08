@@ -307,6 +307,18 @@ folders, tags, and subscription groups and add/list/remove membership links.
 The Web Organize workspace provides the same membership controls through a
 pack-focused console for folder, tag, and subscription-group assignments.
 
+Public subscription endpoints currently available:
+
+- `GET /api/public/packs/{pack_id}/subscription`
+- `GET /api/public/packs/{pack_id}/stickerpack`
+- `GET /api/public/subscriptions/{subscription_group_id}`
+
+Public packs and public subscription groups are readable without credentials.
+Private packs and private subscription groups require an owner PAT for now.
+Anonymous public subscription-group payloads only include public packs; private
+packs linked into the same group are filtered until subscription-secret access
+is implemented.
+
 Current service binary example:
 
 ```powershell
