@@ -698,6 +698,7 @@ These tests prove:
 - the export target panel validates Telegram bot token shape before target creation;
 - redacted export target config values remain redacted in the UI;
 - the pack export wizard queues jobs, renders job events, and surfaces conflict errors;
+- the pack export wizard can queue Telegram reconciliation options from explicit controls without hand-writing JSON;
 - the pack export wizard and job timeline render completed Telegram sticker set URLs;
 - the pack export wizard loads persisted Telegram publication history for the selected pack;
 - the Web app still typechecks and builds after wiring export workflow components into the dashboard.

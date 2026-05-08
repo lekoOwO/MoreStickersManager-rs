@@ -153,6 +153,61 @@ describe("export UI", () => {
     expect(wrapper.text()).toContain("job queued");
   });
 
+  it("queues Telegram reconciliation options from explicit controls", async () => {
+    const job = sampleJob();
+    const packs: StickerPackSummary[] = [
+      {
+        id: "pack_1",
+        title: "Cats",
+        provider: "Telegram",
+        visibility: "private",
+        stickerCount: 2,
+        subscriptionReady: true,
+        updatedAt: "2026-05-07",
+      },
+    ];
+    const client: ExportClient = {
+      listExportTargetKinds: vi.fn(),
+      listExportTargets: vi.fn(async () => [sampleTarget()]),
+      createExportTarget: vi.fn(),
+      updateExportTarget: vi.fn(),
+      deleteExportTarget: vi.fn(),
+      createExportJob: vi.fn(async () => job),
+      getExportJob: vi.fn(async () => job),
+      listExportJobEvents: vi.fn(async () => []),
+      listTelegramPublications: vi.fn(async () => []),
+      getTelegramPublication: vi.fn(),
+    };
+    const wrapper = mount(PackExportWizard, {
+      props: {
+        locale: "en",
+        tenantId: "tenant_1",
+        packs,
+        exportClient: client,
+      },
+    });
+
+    await flushPromises();
+    await wrapper.get('[aria-label="Export job ID"]').setValue("job_reconcile");
+    await wrapper.get('[aria-label="Dry run"]').setValue(false);
+    await wrapper.get('[aria-label="Reconciliation mode"]').setValue("appendMissing");
+    await wrapper.get('[aria-label="Execute reconciliation"]').setValue(true);
+    await wrapper.get('[aria-label="Queue export job"]').trigger("click");
+    await flushPromises();
+
+    expect(client.createExportJob).toHaveBeenCalledWith({
+      id: "job_reconcile",
+      tenantId: "tenant_1",
+      sourcePackId: "pack_1",
+      targetId: "target_telegram",
+      options: {
+        dryRun: false,
+        reconcileMode: "appendMissing",
+        executeReconciliation: true,
+      },
+    });
+  });
+
   it("renders Telegram publication links from completed export jobs", async () => {
     const publishedJob = sampleTelegramPublishedJob();
     const packs: StickerPackSummary[] = [

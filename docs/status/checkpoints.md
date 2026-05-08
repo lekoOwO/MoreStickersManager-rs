@@ -600,3 +600,12 @@
 - Zero-mutation reconciliation no longer calls the mutation executor; it still persists the publication record and reports a reconciled result.
 - Added a no-network worker test proving append-missing reconciliation can use stored mappings plus fetched metadata without caller-supplied `remoteSet`.
 - Verified with `cargo fmt --all -- --check`, `cargo test -p msm-app --test export_worker_tests --locked`, and `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+
+## 2026-05-09 Web Telegram Reconciliation Controls
+
+- Added explicit Telegram export controls for dry-run, reconciliation mode, execute-reconciliation, and destructive mirror opt-in.
+- Kept the advanced export options JSON field available for extra worker options while avoiding default payload changes unless the new controls are touched.
+- Wired selected controls into export job options as `dryRun`, `reconcileMode`, `executeReconciliation`, and `allowDestructiveReconciliation`.
+- Added Traditional Chinese and English labels for the reconciliation controls and guard explanations.
+- Added a Web export UI test proving append-missing execution options are queued without hand-writing JSON.
+- Verified with `npm run web:typecheck`, `npm run web:test`, and `npm run web:build`.

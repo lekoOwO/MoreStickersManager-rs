@@ -30,6 +30,11 @@ const selectedPackId = ref("");
 const selectedTargetId = ref("");
 const jobId = ref("job_web_export");
 const optionsJson = ref("{}");
+const dryRun = ref(true);
+const reconciliationMode = ref<"none" | "createOnly" | "appendMissing" | "mirror">("none");
+const executeReconciliation = ref(false);
+const allowDestructiveReconciliation = ref(false);
+const telegramOptionsTouched = ref(false);
 const activeJob = ref<ExportJob | null>(null);
 const events = ref<ExportJobEvent[]>([]);
 const publications = ref<TelegramPublication[]>([]);
@@ -40,6 +45,7 @@ const actionError = ref("");
 const labels = computed(() => allMessages()[props.locale]);
 const selectedPack = computed(() => props.packs.find((pack) => pack.id === selectedPackId.value) ?? null);
 const selectedTarget = computed(() => targets.value.find((target) => target.id === selectedTargetId.value) ?? null);
+const isTelegramTarget = computed(() => selectedTarget.value?.kind === "telegram");
 const resultLink = computed(() => {
   return exportJobResultLink(activeJob.value?.result);
 });
@@ -72,7 +78,7 @@ async function loadTargets() {
 async function queueExportJob() {
   actionError.value = "";
   try {
-    const options = JSON.parse(optionsJson.value) as Record<string, unknown>;
+    const options = exportOptions();
     activeJob.value = await exportClient().createExportJob({
       id: jobId.value.trim(),
       tenantId: props.tenantId,
@@ -129,6 +135,21 @@ function exportClient() {
     })
   );
 }
+
+function exportOptions() {
+  const advancedOptions = JSON.parse(optionsJson.value) as Record<string, unknown>;
+  if (!isTelegramTarget.value || !telegramOptionsTouched.value) {
+    return advancedOptions;
+  }
+
+  return {
+    ...advancedOptions,
+    dryRun: dryRun.value,
+    ...(reconciliationMode.value === "none" ? {} : { reconcileMode: reconciliationMode.value }),
+    ...(executeReconciliation.value ? { executeReconciliation: true } : {}),
+    ...(allowDestructiveReconciliation.value ? { allowDestructiveReconciliation: true } : {}),
+  };
+}
 </script>
 
 <template>
@@ -170,6 +191,70 @@ function exportClient() {
             :aria-label="labels.exportJobId"
           />
         </label>
+        <section v-if="isTelegramTarget" class="rounded-xl border bg-background/70 p-3 text-sm" :aria-label="labels.telegramReconciliation">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="font-semibold">{{ labels.telegramReconciliation }}</p>
+              <p class="mt-1 text-muted-foreground">{{ labels.telegramReconciliationHelp }}</p>
+            </div>
+            <Badge variant="secondary">{{ selectedTarget?.name ?? "Telegram" }}</Badge>
+          </div>
+          <div class="mt-4 grid gap-3 md:grid-cols-2">
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.reconciliationMode }}
+              <select
+                v-model="reconciliationMode"
+                class="h-10 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.reconciliationMode"
+                @change="telegramOptionsTouched = true"
+              >
+                <option value="none">{{ labels.reconciliationModeNone }}</option>
+                <option value="createOnly">{{ labels.reconciliationModeCreateOnly }}</option>
+                <option value="appendMissing">{{ labels.reconciliationModeAppendMissing }}</option>
+                <option value="mirror">{{ labels.reconciliationModeMirror }}</option>
+              </select>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border bg-card/60 p-3">
+              <input
+                v-model="dryRun"
+                class="mt-1 size-4 cursor-pointer accent-[var(--primary)]"
+                type="checkbox"
+                :aria-label="labels.dryRun"
+                @change="telegramOptionsTouched = true"
+              />
+              <span>
+                <span class="block font-semibold">{{ labels.dryRun }}</span>
+                <span class="mt-1 block text-xs leading-5 text-muted-foreground">{{ labels.dryRunHelp }}</span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border bg-card/60 p-3">
+              <input
+                v-model="executeReconciliation"
+                class="mt-1 size-4 cursor-pointer accent-[var(--primary)]"
+                type="checkbox"
+                :aria-label="labels.executeReconciliation"
+                @change="telegramOptionsTouched = true"
+              />
+              <span>
+                <span class="block font-semibold">{{ labels.executeReconciliation }}</span>
+                <span class="mt-1 block text-xs leading-5 text-muted-foreground">{{ labels.executeReconciliationHelp }}</span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border bg-card/60 p-3">
+              <input
+                v-model="allowDestructiveReconciliation"
+                class="mt-1 size-4 cursor-pointer accent-[var(--primary)]"
+                type="checkbox"
+                :aria-label="labels.allowDestructiveReconciliation"
+                @change="telegramOptionsTouched = true"
+              />
+              <span>
+                <span class="block font-semibold">{{ labels.allowDestructiveReconciliation }}</span>
+                <span class="mt-1 block text-xs leading-5 text-muted-foreground">{{ labels.allowDestructiveReconciliationHelp }}</span>
+              </span>
+            </label>
+          </div>
+        </section>
         <label class="flex flex-col gap-2 text-sm font-medium">
           {{ labels.exportOptionsJson }}
           <textarea

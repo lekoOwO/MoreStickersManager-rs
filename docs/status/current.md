@@ -51,9 +51,10 @@ Last completed:
 - Web rail containment follow-up: collapsed desktop rail header now stacks the MS logo and expand control vertically, keeping both controls inside the rail with E2E bounding-box coverage.
 - Telegram reconciliation mapping refresh slice: successful non-dry-run reconciliation mutation jobs now fetch remote Telegram sticker set state after mutation execution and refresh per-sticker MSM-to-Telegram file mappings.
 - Telegram automatic remote-state reconciliation slice: non-dry-run reconciliation jobs can omit `remoteSet`; the worker fetches Telegram remote metadata, maps Telegram file IDs through stored sticker mappings, and builds the planner's `TelegramRemoteSet` automatically.
+- Web Telegram reconciliation controls slice: export wizard now exposes Telegram dry-run, reconciliation mode, execute-reconciliation, and destructive mirror guard controls, merging them into export job options without requiring hand-written JSON.
 
 Current task:
-- Continue Telegram reconciliation hardening after automatic remote-state construction: next step is broader API/CLI/MCP/Web option documentation and user-facing controls for reconciliation modes.
+- Continue Telegram reconciliation hardening after Web controls: next step is adding equivalent explicit CLI/MCP affordances and deeper user documentation for append-missing and guarded mirror flows.
 
 Last verification:
 - P23 full verification passed before P24 docs.
@@ -102,9 +103,10 @@ Last verification:
 - Web UI QA hardening slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e` using installed Microsoft Edge; verified `%LOCALAPPDATA%\ms-playwright` does not exist after E2E.
 - Web rail containment and Telegram reconciliation mapping refresh slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e` using installed Microsoft Edge; verified `%LOCALAPPDATA%\ms-playwright` does not exist after E2E; `git diff --check`.
 - Telegram automatic remote-state reconciliation slice: `cargo fmt --all -- --check`; `cargo test -p msm-app --test export_worker_tests --locked`; `cargo clippy -p msm-app --all-targets --locked -- -D warnings`.
+- Web Telegram reconciliation controls slice: `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
 
 Next step:
-- Document and expose reconciliation mode options consistently across API/CLI/MCP/Web so users can opt into append-missing or guarded mirror flows without hand-writing worker JSON.
+- Add explicit CLI/MCP affordances and user documentation for Telegram reconciliation modes so non-Web callers do not need to hand-write worker JSON.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
