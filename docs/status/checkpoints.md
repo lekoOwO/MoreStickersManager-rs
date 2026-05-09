@@ -997,3 +997,18 @@
 - Updated PRD, roadmap, implementation matrix, current status, README, and user
   docs; next slice should extend tenant administration APIs for settings, role
   templates, and user status controls.
+
+## 2026-05-09 Tenant Settings API
+
+- Added `tenant.manage_settings` as a distinct PAT scope for tenant settings
+  administration.
+- Added storage helpers to read tenant records and replace editable tenant
+  settings, including `public_asset_url` for CDN/public asset URL support.
+- Added protected API/OpenAPI routes:
+  `GET /api/v1/tenants/{tenant_id}/settings` and
+  `PUT /api/v1/tenants/{tenant_id}/settings`.
+- Tenant settings routes require a PAT with `tenant.manage_settings` and require
+  the PAT user to be an `admin` member of the target tenant.
+- Updated PRD, roadmap, implementation matrix, and current status; next slice
+  should continue tenant administration API coverage for role templates and user
+  status controls before adding parity surfaces.

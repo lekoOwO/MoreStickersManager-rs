@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 pub enum Permission {
     SystemConfigure,
     TenantManageMembers,
+    TenantManageSettings,
     TenantViewAuditLog,
     PackCreate,
     PackRead,
@@ -32,6 +33,7 @@ impl Permission {
         match self {
             Self::SystemConfigure => "system.configure",
             Self::TenantManageMembers => "tenant.manage_members",
+            Self::TenantManageSettings => "tenant.manage_settings",
             Self::TenantViewAuditLog => "tenant.view_audit_log",
             Self::PackCreate => "pack.create",
             Self::PackRead => "pack.read",
@@ -58,6 +60,7 @@ impl Permission {
         match key {
             "system.configure" => Some(Self::SystemConfigure),
             "tenant.manage_members" => Some(Self::TenantManageMembers),
+            "tenant.manage_settings" => Some(Self::TenantManageSettings),
             "tenant.view_audit_log" => Some(Self::TenantViewAuditLog),
             "pack.create" => Some(Self::PackCreate),
             "pack.read" => Some(Self::PackRead),
@@ -510,6 +513,7 @@ mod tests {
         vec![
             Permission::SystemConfigure,
             Permission::TenantManageMembers,
+            Permission::TenantManageSettings,
             Permission::TenantViewAuditLog,
             Permission::PackCreate,
             Permission::PackRead,

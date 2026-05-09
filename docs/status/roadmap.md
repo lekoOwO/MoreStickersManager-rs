@@ -99,11 +99,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   same tenant member administration contract.
 - Web now has a Tenant admin workspace for listing members and assigning
   `admin` or `user` roles.
+- Tenant settings now have storage helpers plus protected API/OpenAPI read and
+  replace routes guarded by `tenant.manage_settings` and an admin tenant
+  membership check.
 
 ## Immediate Plan
 
-1. Extend tenant admin API coverage to tenant settings, role templates, and
-   user status controls.
+1. Extend tenant admin API coverage to role templates and user status controls.
+2. Add CLI/MCP/Web parity for tenant settings.
 
 ## Later Planned Work
 

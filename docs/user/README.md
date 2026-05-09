@@ -460,6 +460,8 @@ PAT enforcement status:
 - `tenant.manage_members` is required for tenant member administration
   API/CLI/MCP surfaces, and the PAT user must be an `admin` member of the
   target tenant.
+- `tenant.manage_settings` is required for tenant settings API routes, and the
+  PAT user must be an `admin` member of the target tenant.
 - user-scoped list/import/update/delete operations reject PATs belonging to
   another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
@@ -523,3 +525,19 @@ Tenant member administration Web surface:
 - Enter a user ID and choose `admin` or `user` to add or update a tenant member.
 
 Valid roles are currently `admin` and `user`.
+
+Tenant settings administration API endpoints:
+
+- `GET /api/v1/tenants/{tenant_id}/settings`
+- `PUT /api/v1/tenants/{tenant_id}/settings`
+
+The `PUT` body replaces editable settings:
+
+```json
+{
+  "name": "Production Tenant",
+  "publicAssetUrl": "https://cdn.example.test/msm"
+}
+```
+
+Use `null` for `publicAssetUrl` to clear the tenant-level CDN/public asset URL.

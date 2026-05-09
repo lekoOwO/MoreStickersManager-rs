@@ -15,8 +15,8 @@ use crate::{
         SubscriptionAccessResourceTypeDto, SubscriptionAccessTokenResponse,
         SubscriptionGroupPackResponse, SubscriptionGroupResponse, TagResponse,
         TelegramExportJobOptions, TelegramPublicationResponse, TelegramReconcileModeOption,
-        TenantMemberResponse, UpdateExportTargetRequest, UpdatePackRequest,
-        UpsertPackMembershipRequest, UpsertTenantMemberRequest,
+        TenantMemberResponse, TenantSettingsResponse, UpdateExportTargetRequest, UpdatePackRequest,
+        UpdateTenantSettingsRequest, UpsertPackMembershipRequest, UpsertTenantMemberRequest,
     },
     error::ApiErrorBody,
     routes::{
@@ -72,6 +72,8 @@ use crate::{
         subscription_access_tokens::list_subscription_access_tokens,
         subscription_access_tokens::rotate_subscription_access_token,
         subscription_access_tokens::revoke_subscription_access_token,
+        tenants::get_tenant_settings,
+        tenants::update_tenant_settings,
         tenants::list_tenant_members,
         tenants::upsert_tenant_member
     ),
@@ -111,7 +113,9 @@ use crate::{
         SubscriptionAccessTokenResponse,
         CreatedSubscriptionAccessTokenResponse,
         UpsertTenantMemberRequest,
-        TenantMemberResponse
+        TenantMemberResponse,
+        UpdateTenantSettingsRequest,
+        TenantSettingsResponse
     )),
     tags((name = "system", description = "System endpoints"))
 )]

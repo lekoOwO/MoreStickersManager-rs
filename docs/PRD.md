@@ -79,7 +79,7 @@ Status meanings:
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, and tenant member list/upsert exist in API/CLI/MCP/Web. Full tenant settings, role management, user status controls, and OIDC/SSO remain incomplete. |
+| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, tenant member list/upsert exists in API/CLI/MCP/Web, and tenant settings read/update exists in API/OpenAPI. Role management, user status controls, and OIDC/SSO remain incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack asset reads require owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -88,8 +88,9 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Extend tenant administration APIs to tenant settings, role templates, and
-   user status controls.
+1. Extend tenant administration APIs to role templates and user status
+   controls.
+2. Add CLI/MCP/Web parity for tenant settings.
 
 Each queue item must update this section when completed or reordered.
 
@@ -133,8 +134,8 @@ tests and docs are updated.
 ### Phase C: Multi-Tenant Administration
 
 - [ ] Tenant admin API for users, roles, memberships, and tenant settings.
-  Progress: member list/upsert API exists with CLI/MCP/Web parity; users,
-  roles, status controls, and settings remain.
+  Progress: member list/upsert API exists with CLI/MCP/Web parity; tenant
+  settings read/update API exists; users, roles, and status controls remain.
 - [ ] Web tenant admin console.
 - [ ] Fine-grained RBAC checks for all resource-owning operations.
 - [ ] PAT creation policy and scope templates by role.
@@ -229,7 +230,8 @@ Current parity gaps:
 - User data migration: storage helpers exist; API, CLI, and Web workflows are
   missing.
 - Tenant/RBAC administration: tenant member storage and API/CLI/MCP/Web
-  list/upsert exist; tenant settings, role templates, and user status controls
+  list/upsert exist; tenant settings API/OpenAPI read/update exists; role
+  templates, user status controls, and tenant settings CLI/MCP/Web parity
   are incomplete.
 
 ## Open Product Questions

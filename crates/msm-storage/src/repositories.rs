@@ -16,7 +16,8 @@ use crate::{
         FolderPackRecord, FolderRecord, LocalUserCredentialRecord, NewTag, PackTagRecord,
         PackVisibility, PersonalAccessTokenRecord, StickerPackRecord,
         SubscriptionAccessResourceType, SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord,
-        SubscriptionGroupRecord, TagRecord, TenantMemberRecord, UserRecord, WebSessionRecord,
+        SubscriptionGroupRecord, TagRecord, TenantMemberRecord, TenantRecord, UserRecord,
+        WebSessionRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -46,6 +47,57 @@ impl StorageRepository {
             .execute(self.sqlite()?)
             .await?;
         Ok(())
+    }
+
+    /// Finds a tenant by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn find_tenant(&self, id: &str) -> StorageResult<Option<TenantRecord>> {
+        let row = sqlx::query(
+            "SELECT id, name, public_asset_url, created_at
+            FROM tenants
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref().map(tenant_from_row).transpose()
+    }
+
+    /// Replaces editable tenant settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, the tenant does
+    /// not exist, or timestamps are invalid.
+    pub async fn update_tenant_settings(
+        &self,
+        id: &str,
+        name: &str,
+        public_asset_url: Option<&str>,
+    ) -> StorageResult<TenantRecord> {
+        let result = sqlx::query(
+            "UPDATE tenants
+            SET name = ?, public_asset_url = ?
+            WHERE id = ?",
+        )
+        .bind(name)
+        .bind(public_asset_url)
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(StorageError::Sqlx(sqlx::Error::RowNotFound));
+        }
+
+        self.find_tenant(id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
     }
 
     /// Creates a local user row.
@@ -1508,6 +1560,16 @@ fn tenant_member_from_row(row: &SqliteRow) -> StorageResult<TenantMemberRecord> 
     })
 }
 
+fn tenant_from_row(row: &SqliteRow) -> StorageResult<TenantRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(TenantRecord {
+        id: row.get("id"),
+        name: row.get("name"),
+        public_asset_url: row.get("public_asset_url"),
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
 fn subscription_group_from_row(row: &SqliteRow) -> StorageResult<SubscriptionGroupRecord> {
     let visibility: String = row.get("visibility");
     let Some(visibility) = PackVisibility::from_storage(&visibility) else {
@@ -1766,6 +1828,36 @@ mod tests {
                 .role,
             "admin"
         );
+    }
+
+    #[tokio::test]
+    async fn tenant_settings_can_be_read_and_updated() {
+        let repo = test_repo().await;
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+
+        let initial = repo.find_tenant("tenant_1").await.unwrap().unwrap();
+        assert_eq!(initial.name, "Tenant");
+        assert_eq!(initial.public_asset_url, None);
+
+        let updated = repo
+            .update_tenant_settings(
+                "tenant_1",
+                "Production Tenant",
+                Some("https://cdn.example.test/msm"),
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.name, "Production Tenant");
+        assert_eq!(
+            updated.public_asset_url.as_deref(),
+            Some("https://cdn.example.test/msm")
+        );
+
+        let cleared = repo
+            .update_tenant_settings("tenant_1", "Production Tenant", None)
+            .await
+            .unwrap();
+        assert_eq!(cleared.public_asset_url, None);
     }
 
     #[tokio::test]

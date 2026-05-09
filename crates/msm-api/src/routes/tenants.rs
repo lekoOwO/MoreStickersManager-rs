@@ -7,7 +7,10 @@ use msm_domain::Permission;
 
 use crate::{
     auth::require_pat,
-    dto::{TenantMemberResponse, UpsertTenantMemberRequest},
+    dto::{
+        TenantMemberResponse, TenantSettingsResponse, UpdateTenantSettingsRequest,
+        UpsertTenantMemberRequest,
+    },
     ApiError, ApiResult, ApiState,
 };
 
@@ -31,7 +34,13 @@ pub async fn list_tenant_members(
     headers: HeaderMap,
     Path(tenant_id): Path<String>,
 ) -> ApiResult<Json<Vec<TenantMemberResponse>>> {
-    require_tenant_admin(&state, &headers, &tenant_id).await?;
+    require_tenant_admin(
+        &state,
+        &headers,
+        &tenant_id,
+        Permission::TenantManageMembers,
+    )
+    .await?;
     let members = state.repository().list_tenant_members(&tenant_id).await?;
     Ok(Json(
         members
@@ -68,7 +77,13 @@ pub async fn upsert_tenant_member(
     Path((tenant_id, user_id)): Path<(String, String)>,
     Json(request): Json<UpsertTenantMemberRequest>,
 ) -> ApiResult<(StatusCode, Json<TenantMemberResponse>)> {
-    require_tenant_admin(&state, &headers, &tenant_id).await?;
+    require_tenant_admin(
+        &state,
+        &headers,
+        &tenant_id,
+        Permission::TenantManageMembers,
+    )
+    .await?;
     let role = normalize_role(&request.role)?;
     let member = state
         .repository()
@@ -78,12 +93,93 @@ pub async fn upsert_tenant_member(
     Ok((StatusCode::OK, Json(TenantMemberResponse::from(member))))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/tenants/{tenant_id}/settings",
+    tag = "tenants",
+    params(("tenant_id" = String, Path, description = "Tenant ID")),
+    responses(
+        (status = 200, description = "Tenant settings", body = TenantSettingsResponse),
+        (status = 403, description = "Not a tenant admin", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Tenant not found", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Reads editable tenant settings.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks tenant admin access, the tenant does not exist, or
+/// storage fails.
+pub async fn get_tenant_settings(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(tenant_id): Path<String>,
+) -> ApiResult<Json<TenantSettingsResponse>> {
+    require_tenant_admin(
+        &state,
+        &headers,
+        &tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let tenant = state
+        .repository()
+        .find_tenant(&tenant_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound("tenant not found".to_owned()))?;
+
+    Ok(Json(TenantSettingsResponse::from(tenant)))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/tenants/{tenant_id}/settings",
+    tag = "tenants",
+    params(("tenant_id" = String, Path, description = "Tenant ID")),
+    request_body = UpdateTenantSettingsRequest,
+    responses(
+        (status = 200, description = "Tenant settings updated", body = TenantSettingsResponse),
+        (status = 400, description = "Invalid tenant settings", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Not a tenant admin", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Tenant not found", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Replaces editable tenant settings.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks tenant admin access, input is invalid, the tenant
+/// does not exist, or storage fails.
+pub async fn update_tenant_settings(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(tenant_id): Path<String>,
+    Json(request): Json<UpdateTenantSettingsRequest>,
+) -> ApiResult<(StatusCode, Json<TenantSettingsResponse>)> {
+    require_tenant_admin(
+        &state,
+        &headers,
+        &tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let name = normalize_tenant_name(&request.name)?;
+    let public_asset_url = normalize_public_asset_url(request.public_asset_url.as_deref())?;
+    let tenant = state
+        .repository()
+        .update_tenant_settings(&tenant_id, name, public_asset_url)
+        .await?;
+
+    Ok((StatusCode::OK, Json(TenantSettingsResponse::from(tenant))))
+}
+
 async fn require_tenant_admin(
     state: &ApiState,
     headers: &HeaderMap,
     tenant_id: &str,
+    required: Permission,
 ) -> ApiResult<()> {
-    let pat = require_pat(headers, state, Permission::TenantManageMembers).await?;
+    let pat = require_pat(headers, state, required).await?;
     let member = state
         .repository()
         .find_tenant_member(tenant_id, &pat.user_id)
@@ -96,6 +192,33 @@ async fn require_tenant_admin(
             "tenant admin membership required".to_owned(),
         ))
     }
+}
+
+fn normalize_tenant_name(name: &str) -> ApiResult<&str> {
+    let name = name.trim();
+    if name.is_empty() {
+        Err(ApiError::BadRequest(
+            "tenant name must not be empty".to_owned(),
+        ))
+    } else {
+        Ok(name)
+    }
+}
+
+fn normalize_public_asset_url(value: Option<&str>) -> ApiResult<Option<&str>> {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| {
+            if value.starts_with("https://") || value.starts_with("http://") {
+                Ok(value)
+            } else {
+                Err(ApiError::BadRequest(
+                    "public asset URL must start with http:// or https://".to_owned(),
+                ))
+            }
+        })
+        .transpose()
 }
 
 fn normalize_role(role: &str) -> ApiResult<&'static str> {
