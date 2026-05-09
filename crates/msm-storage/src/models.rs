@@ -38,6 +38,34 @@ pub struct RoleRecord {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct OidcProviderConfigRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub display_name: String,
+    pub issuer_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub scopes: BTreeSet<String>,
+    pub is_enabled: bool,
+    pub allow_registration: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewOidcProviderConfig<'a> {
+    pub id: &'a str,
+    pub tenant_id: &'a str,
+    pub display_name: &'a str,
+    pub issuer_url: &'a str,
+    pub client_id: &'a str,
+    pub client_secret: &'a str,
+    pub scopes: &'a BTreeSet<String>,
+    pub is_enabled: bool,
+    pub allow_registration: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct LocalUserCredentialRecord {
     pub user_id: String,
     pub password_hash: String,

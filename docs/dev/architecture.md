@@ -163,3 +163,9 @@ tenant-admin slice. Role templates, tenant settings, local-registration
 enable/disable, tenant user status, and UI/CLI/MCP parity are implemented for
 the current tenant administration surface; OIDC/SSO provider administration is
 still future work.
+
+OIDC provider configuration storage lives in `oidc_provider_configs`. It is scoped
+per tenant and stores issuer URL, client ID/secret, requested scopes, enabled
+state, and whether the provider may create local MSM users during callback. The
+current slice is storage-only; OAuth state, callback verification, discovery, and
+admin API/UI surfaces are intentionally left to the Phase D login/callback work.

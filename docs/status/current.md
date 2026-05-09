@@ -105,9 +105,10 @@ Last completed:
 - Subscription link list tenant membership slice: same-owner subscription-link metadata listing now filters out token records whose owner is no longer a member of the token tenant, while cross-user admin listing still uses tenant permission gates.
 - Fine-grained RBAC audit closure: API route scan found no remaining tenant/resource-owning routes without a membership, ownership, tenant-admin/custom-role, pack/subscription policy, or explicit subscription-secret gate; Phase C fine-grained RBAC is marked complete in the PRD.
 - Local registration tenant setting slice: added tenant-level `localRegistrationEnabled` storage/API/CLI/MCP/Web controls and enforcement for existing-tenant local registration.
+- OIDC provider configuration storage slice: added per-tenant OIDC provider config migration and repository upsert/list/find/delete helpers.
 
 Current task:
-- Implement OIDC provider configuration storage.
+- Implement OIDC login/callback flow.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -215,10 +216,11 @@ Last verification:
 - Pack list tenant membership slice: RED/GREEN test with `cargo test -p msm-api pack_list_filters_packs_outside_user_tenant_memberships --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`, `CARGO_INCREMENTAL=0`, and `CARGO_TARGET_DIR=target\msm-api-rbac-check` due to locked files in the shared target directory.
 - Subscription link list tenant membership slice: RED/GREEN test with `cargo test -p msm-api subscription_link_list_filters_tokens_outside_user_tenant_memberships --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-api-rbac-check`.
 - Fine-grained RBAC audit closure: docs-only verification with `git diff --check`.
-- Local registration tenant setting slice: RED/GREEN tests with `cargo test -p msm-storage tenant_settings_can_be_read_and_updated --locked` and `cargo test -p msm-api local_auth_register_rejects_disabled_tenant_registration --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api -p msm-cli -p msm-mcp --locked`, `cargo clippy -p msm-storage -p msm-api -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`, `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-api-rbac-check`.
+- Local registration tenant setting slice: added tenant-level `localRegistrationEnabled` storage/API/CLI/MCP/Web controls and enforcement for existing-tenant local registration.
+- OIDC provider configuration storage slice: RED/GREEN test with `cargo test -p msm-storage oidc_provider_configs_can_be_upserted_listed_and_deleted --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-api-rbac-check`.
 
 Next step:
-- Continue Phase D by implementing OIDC provider configuration storage.
+- Continue Phase D by implementing OIDC login/callback flow.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

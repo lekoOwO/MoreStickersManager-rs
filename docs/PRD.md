@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Implement OIDC provider configuration storage.
+1. Implement OIDC login/callback flow.
 
 Each queue item must update this section when completed or reordered.
 
@@ -183,7 +183,10 @@ tests and docs are updated.
   SQLite storage, API/OpenAPI DTOs, CLI, MCP, and Web tenant administration.
   Existing tenants can reject local registrations while existing accounts
   continue to log in; new-tenant bootstrap remains available.
-- [ ] OIDC provider configuration storage.
+- [x] OIDC provider configuration storage.
+  Progress: SQLite migration and repository methods now store per-tenant OIDC
+  provider configs with issuer, client credentials, scopes, enabled state,
+  and registration policy.
 - [ ] OIDC login/callback flow.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.

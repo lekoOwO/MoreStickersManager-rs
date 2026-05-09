@@ -80,11 +80,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   rotate.
 - MCP `msm.create_subscription_link`, `msm.list_subscription_links`,
   `msm.rotate_subscription_link`, and `msm.revoke_subscription_link` tools now
-- Fine-grained RBAC audit for tenant/resource-owning API routes is closed in
-  the PRD.
-- Tenant settings now include a local-registration enable/disable switch across
-  storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
-  new local registrations.
+  expose the same link management controls with raw secrets returned only for
   create/rotate.
 - Web Organize now lists subscription links and can create, rotate, and revoke
   links with one-time secret display after create/rotate.
@@ -141,6 +137,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Tenant settings now include a local-registration enable/disable switch across
   storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
   new local registrations.
+- OIDC provider configuration storage now exists for per-tenant issuer, client,
+  scope, enabled-state, and registration-policy settings; login/callback flow is next.
   role-allowed PAT scopes for the current user.
 - CLI now exposes `msm pats scope-policy --user-id ...` with human/JSON output
   backed by the same protected API endpoint.
@@ -173,7 +171,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Implement OIDC provider configuration storage.
+1. Implement OIDC login/callback flow.
 
 ## Later Planned Work
 

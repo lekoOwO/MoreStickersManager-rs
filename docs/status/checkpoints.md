@@ -1315,3 +1315,12 @@
   tenant bootstrap paths remain available.
 - Updated the PRD, current status, and implementation matrix; next work should
   continue Phase D with OIDC provider configuration storage.
+
+## 2026-05-10 OIDC Provider Configuration Storage
+
+- Added the `oidc_provider_configs` SQLite migration for per-tenant OIDC issuer,
+  client credential, scope, enabled-state, and registration-policy settings.
+- Added typed storage models plus upsert/list/find/delete repository methods and
+  a storage integration test covering update and deletion behavior.
+- Updated the PRD and status docs; next work should implement OIDC
+  login/callback flow against this stored configuration.

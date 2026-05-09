@@ -13,11 +13,11 @@ use subtle::ConstantTimeEq;
 use crate::{
     models::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, CreatedWebSession,
-        FolderPackRecord, FolderRecord, LocalUserCredentialRecord, NewTag, PackTagRecord,
-        PackVisibility, PersonalAccessTokenRecord, RoleRecord, StickerPackRecord,
-        SubscriptionAccessResourceType, SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord,
-        SubscriptionGroupRecord, TagRecord, TenantMemberRecord, TenantRecord, UserRecord,
-        WebSessionRecord,
+        FolderPackRecord, FolderRecord, LocalUserCredentialRecord, NewOidcProviderConfig, NewTag,
+        OidcProviderConfigRecord, PackTagRecord, PackVisibility, PersonalAccessTokenRecord,
+        RoleRecord, StickerPackRecord, SubscriptionAccessResourceType,
+        SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord, SubscriptionGroupRecord,
+        TagRecord, TenantMemberRecord, TenantRecord, UserRecord, WebSessionRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -100,6 +100,126 @@ impl StorageRepository {
         self.find_tenant(id)
             .await?
             .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
+    /// Creates or replaces an OIDC provider configuration for a tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, JSON serialization fails,
+    /// the referenced tenant does not exist, SQL fails, or timestamps are invalid.
+    pub async fn upsert_oidc_provider_config(
+        &self,
+        config: NewOidcProviderConfig<'_>,
+    ) -> StorageResult<OidcProviderConfigRecord> {
+        let now = now();
+        let scopes_json =
+            serde_json::to_string(&config.scopes.iter().map(String::as_str).collect::<Vec<_>>())?;
+        sqlx::query(
+            "INSERT INTO oidc_provider_configs (
+                id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                is_enabled, allow_registration, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                tenant_id = excluded.tenant_id,
+                display_name = excluded.display_name,
+                issuer_url = excluded.issuer_url,
+                client_id = excluded.client_id,
+                client_secret = excluded.client_secret,
+                scopes_json = excluded.scopes_json,
+                is_enabled = excluded.is_enabled,
+                allow_registration = excluded.allow_registration,
+                updated_at = excluded.updated_at",
+        )
+        .bind(config.id)
+        .bind(config.tenant_id)
+        .bind(config.display_name)
+        .bind(config.issuer_url)
+        .bind(config.client_id)
+        .bind(config.client_secret)
+        .bind(scopes_json)
+        .bind(config.is_enabled)
+        .bind(config.allow_registration)
+        .bind(&now)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        self.find_oidc_provider_config(config.tenant_id, config.id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
+    /// Lists OIDC provider configurations for a tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, JSON is invalid,
+    /// or timestamps are invalid.
+    pub async fn list_oidc_provider_configs(
+        &self,
+        tenant_id: &str,
+    ) -> StorageResult<Vec<OidcProviderConfigRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                is_enabled, allow_registration, created_at, updated_at
+            FROM oidc_provider_configs
+            WHERE tenant_id = ?
+            ORDER BY display_name, id",
+        )
+        .bind(tenant_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.iter().map(oidc_provider_config_from_row).collect()
+    }
+
+    /// Finds one OIDC provider configuration by tenant and ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, JSON is invalid,
+    /// or timestamps are invalid.
+    pub async fn find_oidc_provider_config(
+        &self,
+        tenant_id: &str,
+        id: &str,
+    ) -> StorageResult<Option<OidcProviderConfigRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                is_enabled, allow_registration, created_at, updated_at
+            FROM oidc_provider_configs
+            WHERE tenant_id = ? AND id = ?",
+        )
+        .bind(tenant_id)
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref().map(oidc_provider_config_from_row).transpose()
+    }
+
+    /// Deletes one OIDC provider configuration by tenant and ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn delete_oidc_provider_config(
+        &self,
+        tenant_id: &str,
+        id: &str,
+    ) -> StorageResult<bool> {
+        let result = sqlx::query(
+            "DELETE FROM oidc_provider_configs
+            WHERE tenant_id = ? AND id = ?",
+        )
+        .bind(tenant_id)
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
     }
 
     /// Creates a local user row.
@@ -1857,6 +1977,28 @@ fn role_from_row(row: &SqliteRow, permissions: BTreeSet<Permission>) -> StorageR
     })
 }
 
+fn oidc_provider_config_from_row(row: &SqliteRow) -> StorageResult<OidcProviderConfigRecord> {
+    let scopes_json: String = row.get("scopes_json");
+    let scope_keys: Vec<String> = serde_json::from_str(&scopes_json)?;
+    let is_enabled: i64 = row.get("is_enabled");
+    let allow_registration: i64 = row.get("allow_registration");
+    let created_at: String = row.get("created_at");
+    let updated_at: String = row.get("updated_at");
+    Ok(OidcProviderConfigRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        display_name: row.get("display_name"),
+        issuer_url: row.get("issuer_url"),
+        client_id: row.get("client_id"),
+        client_secret: row.get("client_secret"),
+        scopes: scope_keys.into_iter().collect(),
+        is_enabled: is_enabled != 0,
+        allow_registration: allow_registration != 0,
+        created_at: parse_rfc3339(&created_at)?,
+        updated_at: parse_rfc3339(&updated_at)?,
+    })
+}
+
 fn subscription_group_from_row(row: &SqliteRow) -> StorageResult<SubscriptionGroupRecord> {
     let visibility: String = row.get("visibility");
     let Some(visibility) = PackVisibility::from_storage(&visibility) else {
@@ -2027,7 +2169,10 @@ mod tests {
     use msm_domain::Sticker;
 
     use crate::{
-        db::DbPool, models::PackVisibility, repositories::StorageRepository, DatabaseConfig,
+        db::DbPool,
+        models::{NewOidcProviderConfig, PackVisibility},
+        repositories::StorageRepository,
+        DatabaseConfig,
     };
 
     #[tokio::test]
@@ -2194,6 +2339,80 @@ mod tests {
         let roles = repo.list_role_templates("tenant_1").await.unwrap();
         assert_eq!(roles.len(), 1);
         assert_eq!(roles[0].name, "Readers");
+    }
+
+    #[tokio::test]
+    async fn oidc_provider_configs_can_be_upserted_listed_and_deleted() {
+        let repo = test_repo().await;
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+        let scopes = BTreeSet::from(["email".to_owned(), "openid".to_owned()]);
+
+        let created = repo
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_google",
+                tenant_id: "tenant_1",
+                display_name: "Google",
+                issuer_url: "https://accounts.google.com",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: false,
+            })
+            .await
+            .unwrap();
+        assert_eq!(created.display_name, "Google");
+        assert_eq!(created.scopes, scopes);
+        assert!(created.is_enabled);
+        assert!(!created.allow_registration);
+
+        let updated_scopes = BTreeSet::from([
+            "email".to_owned(),
+            "openid".to_owned(),
+            "profile".to_owned(),
+        ]);
+        let updated = repo
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_google",
+                tenant_id: "tenant_1",
+                display_name: "Google Workspace",
+                issuer_url: "https://accounts.google.com",
+                client_id: "new-client-id",
+                client_secret: "new-client-secret",
+                scopes: &updated_scopes,
+                is_enabled: false,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+        assert_eq!(updated.display_name, "Google Workspace");
+        assert_eq!(updated.client_id, "new-client-id");
+        assert_eq!(updated.client_secret, "new-client-secret");
+        assert_eq!(updated.scopes, updated_scopes);
+        assert!(!updated.is_enabled);
+        assert!(updated.allow_registration);
+        assert!(updated.updated_at >= updated.created_at);
+
+        let listed = repo.list_oidc_provider_configs("tenant_1").await.unwrap();
+        assert_eq!(listed, vec![updated.clone()]);
+        let found = repo
+            .find_oidc_provider_config("tenant_1", "oidc_google")
+            .await
+            .unwrap();
+        assert_eq!(found, Some(updated));
+        assert!(repo
+            .delete_oidc_provider_config("tenant_1", "oidc_google")
+            .await
+            .unwrap());
+        assert!(repo
+            .find_oidc_provider_config("tenant_1", "oidc_google")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(!repo
+            .delete_oidc_provider_config("tenant_1", "oidc_google")
+            .await
+            .unwrap());
     }
 
     #[tokio::test]

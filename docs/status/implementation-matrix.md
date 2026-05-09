@@ -46,7 +46,7 @@ roadmap, and completion definition.
 | Subscription payload contract | Next phase | Domain helpers can build MoreStickers dynamic pack-set metadata for public or protected subscription links. Public API endpoints expose per-pack dynamic subscriptions, pack refresh payloads, and subscription-group payloads. Storage can persist, verify, rotate, list, and revoke pack/subscription-group access tokens. Public endpoints accept matching subscription access tokens and embed refresh auth headers for protected dynamic links. API/OpenAPI, CLI, MCP, and Web link management controls exist. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |
 | Asset privacy enforcement | Future phase | Private pack asset and subscription paths reject anonymous reads and accept owner PATs, pack subscription tokens, subscription-group tokens containing the pack, or an owner `msm_session` Web session cookie. Final read-access rules are recorded in `docs/status/decisions.md`. |
-| OIDC/SSO | Future phase | Local auth bootstrap and tenant-level local-registration disable controls exist; OIDC/SSO provider configuration and login flow are not implemented. |
+| OIDC/SSO | Future phase | Local auth bootstrap and tenant-level local-registration disable controls exist; OIDC/SSO provider configuration storage exists in SQLite, but login/callback flow and admin surfaces are not implemented. |
 | System-wide CDN public asset URL | Future phase | Domain URL resolver supports CDN preference; admin configuration UI/API is not implemented. |
 | Tenant admin console | Current phase | Bootstrap admin plus tenant member/settings/local-registration/user-status/role-template API/CLI/MCP/Web surfaces exist, and route-by-route fine-grained RBAC audit/closure is complete for current API tenant/resource-owning routes. Remaining work is role assignment semantics beyond templates and OIDC/SSO integration. |
 | Full user migration UI/API | Future phase | Storage portability helpers exist; complete Web/API/CLI migration workflow is not implemented. |
@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue Phase D by implementing OIDC provider configuration storage.
+Continue Phase D by implementing OIDC login/callback flow.
