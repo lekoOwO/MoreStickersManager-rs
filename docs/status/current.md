@@ -93,9 +93,10 @@ Last completed:
 - Subscription-link RBAC slice: subscription access token create/list/rotate/revoke routes now use pack, subscription-group, and tenant RBAC helpers, allowing same-tenant admins to manage non-owned pack/group links while retaining owner behavior.
 - PAT role policy enforcement slice: PAT create/list/revoke routes now require a same-user `pat.manage` Bearer PAT, PAT creation and local login reject scopes outside the user's built-in/admin/custom role permissions, and dev bootstrap obtains PATs through local login.
 - PAT scope policy API slice: API/OpenAPI now exposes `GET /api/v1/pats/scope-policy?userId=...` so clients can fetch the current user's role-allowed PAT scopes.
+- PAT scope policy CLI slice: CLI now exposes `msm pats scope-policy --user-id ...` backed by the protected API endpoint, with human/JSON output through the shared client boundary.
 
 Current task:
-- Add CLI/MCP/Web discovery for role-allowed PAT scope templates.
+- Add MCP/Web discovery for role-allowed PAT scope templates.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -192,9 +193,10 @@ Last verification:
 - Subscription-link RBAC slice: RED/GREEN test with `cargo test -p msm-api tenant_admin_pat_can_manage_subscription_links_for_other_user_resources --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - PAT role policy enforcement slice: RED/GREEN tests with `cargo test -p msm-api pat_routes_require_pat_manage_and_role_allowed_scopes --locked` and `cargo test -p msm-api local_auth_rejects_login_scopes_outside_role_policy --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, `node --check scripts/dev-manager.mjs`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - PAT scope policy API slice: RED/GREEN test with `cargo test -p msm-api pat_scope_policy_route_lists_role_allowed_scopes --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
+- PAT scope policy CLI slice: RED/GREEN tests with `cargo test -p msm-cli parses_pats_scope_policy_command --locked` and `cargo test -p msm-cli executes_pats_scope_policy_command --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 
 Next step:
-- Add CLI/MCP/Web scope-template discovery surfaces so clients can present role-allowed PAT scopes without trial-and-error.
+- Add MCP/Web scope-template discovery surfaces so clients can present role-allowed PAT scopes without trial-and-error.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -3,9 +3,9 @@ use msm_domain::StickerPack;
 use crate::{
     client::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
-        ExportTarget, ExportTargetKind, Folder, FolderPack, PackTag, PersonalAccessToken,
-        SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
-        TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
+        ExportTarget, ExportTargetKind, Folder, FolderPack, PackTag, PatScopePolicy,
+        PersonalAccessToken, SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack,
+        Tag, TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
     },
     command::OutputFormat,
     CliResult,
@@ -162,6 +162,22 @@ pub fn format_pat_list(format: OutputFormat, tokens: &[PersonalAccessToken]) -> 
             .collect::<Vec<_>>()
             .join("\n")),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(tokens)?),
+    }
+}
+
+/// Formats a PAT scope policy response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_pat_scope_policy(format: OutputFormat, policy: &PatScopePolicy) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!(
+            "{}\t{}",
+            policy.user_id,
+            policy.allowed_scopes.join(",")
+        )),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(policy)?),
     }
 }
 

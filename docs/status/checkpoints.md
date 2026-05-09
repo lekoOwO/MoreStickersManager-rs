@@ -1175,3 +1175,16 @@
 - Registered the endpoint and response schema in OpenAPI.
 - Updated PRD and status docs; next work should wire CLI/MCP/Web discovery to
   this endpoint.
+
+## 2026-05-09 PAT Scope Policy CLI
+
+- Added `msm pats scope-policy --user-id ...`.
+- Added CLI client DTO and reqwest call for
+  `GET /api/v1/pats/scope-policy?userId=...`.
+- Added human and JSON output formatting for role-allowed PAT scopes.
+- Verified parser and execution behavior with targeted RED/GREEN tests, then
+  ran `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`,
+  `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and
+  `git diff --check` with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD and status docs; next work should wire MCP/Web discovery to this
+  endpoint.

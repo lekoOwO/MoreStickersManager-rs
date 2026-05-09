@@ -187,6 +187,13 @@ pub struct PersonalAccessToken {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PatScopePolicy {
+    pub user_id: String,
+    pub allowed_scopes: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TenantMember {
     pub tenant_id: String,
     pub user_id: String,
@@ -352,6 +359,7 @@ pub trait MsmClient {
         payload: CreatePersonalAccessTokenPayload,
     ) -> CliResult<CreatedPersonalAccessToken>;
     async fn list_pats(&self, user_id: &str) -> CliResult<Vec<PersonalAccessToken>>;
+    async fn get_pat_scope_policy(&self, user_id: &str) -> CliResult<PatScopePolicy>;
     async fn revoke_pat(&self, token_id: &str) -> CliResult<()>;
     async fn list_tenant_members(&self, tenant_id: &str) -> CliResult<Vec<TenantMember>>;
     async fn set_tenant_member_role(
@@ -595,6 +603,17 @@ impl MsmClient for ReqwestMsmClient {
     async fn list_pats(&self, user_id: &str) -> CliResult<Vec<PersonalAccessToken>> {
         Ok(self
             .authorize(self.http.get(self.endpoint("/api/v1/pats")?))
+            .query(&[("userId", user_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn get_pat_scope_policy(&self, user_id: &str) -> CliResult<PatScopePolicy> {
+        Ok(self
+            .authorize(self.http.get(self.endpoint("/api/v1/pats/scope-policy")?))
             .query(&[("userId", user_id)])
             .send()
             .await?

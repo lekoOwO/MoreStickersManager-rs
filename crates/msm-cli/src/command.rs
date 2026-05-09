@@ -16,7 +16,7 @@ use crate::{
         format_export_target_kinds, format_export_targets, format_folder, format_folder_pack,
         format_folders, format_health, format_import, format_membership_remove, format_pack_delete,
         format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag, format_pat_create,
-        format_pat_list, format_pat_revoke, format_subscription_group,
+        format_pat_list, format_pat_revoke, format_pat_scope_policy, format_subscription_group,
         format_subscription_group_pack, format_subscription_groups,
         format_subscription_link_revoke, format_subscription_link_secret,
         format_subscription_links, format_tag, format_tag_ids, format_tags,
@@ -125,6 +125,10 @@ pub enum PatCommand {
         expires_at: Option<String>,
     },
     List {
+        #[arg(long)]
+        user_id: String,
+    },
+    ScopePolicy {
         #[arg(long)]
         user_id: String,
     },
@@ -635,6 +639,10 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                 let tokens = client.list_pats(&user_id).await?;
                 format_pat_list(cli.output_format, &tokens)
             }
+            PatCommand::ScopePolicy { user_id } => {
+                let policy = client.get_pat_scope_policy(&user_id).await?;
+                format_pat_scope_policy(cli.output_format, &policy)
+            }
             PatCommand::Revoke { token_id } => {
                 client.revoke_pat(&token_id).await?;
                 format_pat_revoke(cli.output_format, &token_id)
@@ -1117,10 +1125,10 @@ mod tests {
             CreateSubscriptionGroupPayload, CreateTagPayload, CreatedPersonalAccessToken,
             CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent, ExportTarget,
             ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, PackTag,
-            PersonalAccessToken, SubscriptionAccessResourceType, SubscriptionAccessToken,
-            SubscriptionGroup, SubscriptionGroupPack, Tag, TelegramPublication, TenantMember,
-            TenantRole, TenantSettings, TenantUser, UpdateTenantSettingsPayload,
-            UpdateTenantUserStatusPayload, UpsertTenantRolePayload,
+            PatScopePolicy, PersonalAccessToken, SubscriptionAccessResourceType,
+            SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
+            TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
+            UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertTenantRolePayload,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
@@ -1302,6 +1310,18 @@ mod tests {
             cli.command,
             Command::Pats {
                 command: PatCommand::List { ref user_id }
+            } if user_id == "user_1"
+        ));
+    }
+
+    #[test]
+    fn parses_pats_scope_policy_command() {
+        let cli = Cli::parse_from(["msm", "pats", "scope-policy", "--user-id", "user_1"]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Pats {
+                command: PatCommand::ScopePolicy { ref user_id }
             } if user_id == "user_1"
         ));
     }
@@ -2004,6 +2024,18 @@ mod tests {
         .unwrap();
 
         assert_eq!(output, "cli1\tCLI\tpack.read,asset.read");
+    }
+
+    #[tokio::test]
+    async fn executes_pats_scope_policy_command() {
+        let output = execute_with_client(
+            Cli::parse_from(["msm", "pats", "scope-policy", "--user-id", "user_1"]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "user_1\tpack.read,pat.manage");
     }
 
     #[tokio::test]
@@ -2741,6 +2773,13 @@ mod tests {
                 expires_at: None,
                 revoked_at: None,
             }])
+        }
+
+        async fn get_pat_scope_policy(&self, user_id: &str) -> CliResult<PatScopePolicy> {
+            Ok(PatScopePolicy {
+                user_id: user_id.to_owned(),
+                allowed_scopes: vec!["pack.read".to_owned(), "pat.manage".to_owned()],
+            })
         }
 
         async fn revoke_pat(&self, token_id: &str) -> CliResult<()> {

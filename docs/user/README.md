@@ -19,6 +19,7 @@ cargo run -p msm-cli -- packs list --user-id user_1
 cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
 cargo run -p msm-cli -- packs rename --pack-id pack_1 --title "Renamed Pack" --visibility public
 cargo run -p msm-cli -- packs delete --pack-id pack_1
+cargo run -p msm-cli -- --pat msm_pat_with_pat_manage pats scope-policy --user-id user_1
 cargo run -p msm-cli -- --pat msm_pat_with_pat_manage pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- --pat msm_pat_with_pat_manage pats list --user-id user_1
 cargo run -p msm-cli -- --pat msm_pat_with_pat_manage pats revoke --token-id cli1
@@ -415,6 +416,7 @@ PAT API endpoints:
 
 PAT CLI commands:
 
+- `msm pats scope-policy --user-id <user_id>`
 - `msm pats create --id <token_id> --user-id <user_id> --name <name> --scope <scope>`
 - `msm pats list --user-id <user_id>`
 - `msm pats revoke --token-id <token_id>`

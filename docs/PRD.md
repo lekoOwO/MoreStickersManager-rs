@@ -72,14 +72,14 @@ Status meanings:
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
 | Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
-| CLI | Partially complete | Pack, PAT, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, and role template administration commands exist. |
+| CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, and role template administration commands exist. |
 | MCP | Partially complete | Pack, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, and role template administration tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login, pack CRUD/import, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, and tenant member/settings/user-status/role-template administration exist. Scope-template discovery surfaces and OIDC/SSO remain incomplete. |
+| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI scope-policy discovery, and tenant member/settings/user-status/role-template administration exist. MCP/Web scope-template discovery surfaces and OIDC/SSO remain incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add CLI/MCP/Web discovery for role-allowed PAT scope templates.
+1. Add MCP/Web discovery for role-allowed PAT scope templates.
 
 Each queue item must update this section when completed or reordered.
 
@@ -150,8 +150,9 @@ tests and docs are updated.
   Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
   PAT for the same user, PAT creation and local login reject scopes outside the
   user's built-in role, tenant admin role, or custom role-template permissions,
-  dev bootstrap obtains PATs through local login, and API/OpenAPI exposes
-  `GET /api/v1/pats/scope-policy`. CLI/MCP/Web discovery surfaces remain
+  dev bootstrap obtains PATs through local login, API/OpenAPI exposes
+  `GET /api/v1/pats/scope-policy`, and CLI exposes
+  `msm pats scope-policy --user-id ...`. MCP/Web discovery surfaces remain
   incomplete.
 - [ ] Audit tests for cross-tenant isolation.
 
