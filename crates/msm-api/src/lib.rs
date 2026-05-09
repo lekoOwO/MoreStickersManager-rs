@@ -2520,6 +2520,148 @@ mod tests {
 
     #[tokio::test]
     #[allow(clippy::too_many_lines)]
+    async fn tenant_admin_pat_can_manage_subscription_links_for_other_user_resources() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "owner@example.com", "Owner")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_other",
+                "tenant_1",
+                "user_2",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("subscription-link-other"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_other",
+                "tenant_1",
+                "user_2",
+                "Other Feed",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+
+        let pack_manage_token = create_pat(
+            &state,
+            "adminpacklink",
+            "user_1",
+            [Permission::PackManageAccess],
+        )
+        .await;
+        let subscription_manage_token = create_pat(
+            &state,
+            "adminsublink",
+            "user_1",
+            [Permission::SubscriptionManageAccess],
+        )
+        .await;
+
+        let create_pack_body = serde_json::json!({
+            "id": "packlinkother",
+            "resourceType": "pack",
+            "resourceId": "pack_other"
+        });
+        let create_pack = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/subscription-access-tokens")
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {pack_manage_token}"))
+                    .body(Body::from(create_pack_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_pack.status(), StatusCode::CREATED);
+
+        let create_group_body = serde_json::json!({
+            "id": "grouplinkother",
+            "resourceType": "subscriptionGroup",
+            "resourceId": "sub_other"
+        });
+        let create_group = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/subscription-access-tokens")
+                    .header("content-type", "application/json")
+                    .header(
+                        "authorization",
+                        format!("Bearer {subscription_manage_token}"),
+                    )
+                    .body(Body::from(create_group_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_group.status(), StatusCode::CREATED);
+
+        let list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/subscription-access-tokens?userId=user_2")
+                    .header(
+                        "authorization",
+                        format!("Bearer {subscription_manage_token}"),
+                    )
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list.status(), StatusCode::OK);
+        let body = to_bytes(list.into_body(), usize::MAX).await.unwrap();
+        let links: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(links.as_array().unwrap().len(), 2);
+
+        let rotate = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/v1/subscription-access-tokens/packlinkother/rotate")
+                    .header("authorization", format!("Bearer {pack_manage_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(rotate.status(), StatusCode::OK);
+
+        let delete = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/subscription-access-tokens/grouplinkother")
+                    .header(
+                        "authorization",
+                        format!("Bearer {subscription_manage_token}"),
+                    )
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(delete.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
     async fn telegram_publication_routes_require_export_read_and_pack_owner() {
         let state = seeded_state_with_publication().await;
         state

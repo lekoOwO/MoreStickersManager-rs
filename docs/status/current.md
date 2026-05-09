@@ -90,9 +90,10 @@ Last completed:
 - Pack RBAC delegation slice: pack update/delete/export routes now use the domain policy evaluator; same-tenant admins with matching PAT scopes can manage non-owned packs, while regular non-owner PATs are denied.
 - Product metadata membership RBAC slice: folder-pack, pack-tag, and subscription-group pack membership routes now use shared RBAC helpers; same-tenant admins can manage non-owned metadata memberships while regular non-owner PATs are denied.
 - Export and publication RBAC slice: export target management now requires tenant admin/custom-role authorization, export jobs can be created/read by same-tenant admins for non-owned packs/jobs, and Telegram publication reads use pack RBAC.
+- Subscription-link RBAC slice: subscription access token create/list/rotate/revoke routes now use pack, subscription-group, and tenant RBAC helpers, allowing same-tenant admins to manage non-owned pack/group links while retaining owner behavior.
 
 Current task:
-- Continue fine-grained RBAC checks for remaining resource-owning operations: subscription-link management.
+- Implement PAT creation policy and scope templates by role.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -186,9 +187,10 @@ Last verification:
 - Pack RBAC delegation slice: RED/GREEN test with `cargo test -p msm-api tenant_admin_pat_can_manage_pack_owned_by_another_user --locked` plus regression coverage with `cargo test -p msm-api non_owner_pat_cannot_export_private_pack_without_delegated_access --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Product metadata membership RBAC slice: RED/GREEN test with `cargo test -p msm-api tenant_admin_pat_can_manage_metadata_memberships_for_other_user --locked` plus regression coverage with `cargo test -p msm-api regular_non_owner_pat_cannot_manage_metadata_memberships --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Export and publication RBAC slice: RED/GREEN tests with `cargo test -p msm-api regular_tenant_member_cannot_manage_export_targets --locked`, `cargo test -p msm-api tenant_admin_pat_can_run_and_read_export_jobs_for_other_user_pack --locked`, and `cargo test -p msm-api tenant_admin_pat_can_read_telegram_publications_for_other_user_pack --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
+- Subscription-link RBAC slice: RED/GREEN test with `cargo test -p msm-api tenant_admin_pat_can_manage_subscription_links_for_other_user_resources --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 
 Next step:
-- Apply the same RBAC policy approach to subscription-link management routes.
+- Add tenant-aware PAT creation policy and role-based scope templates.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

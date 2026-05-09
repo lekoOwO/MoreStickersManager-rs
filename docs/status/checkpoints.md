@@ -1140,3 +1140,15 @@
   create/read/events, and admin non-owner Telegram publication reads.
 - Updated PRD, roadmap, implementation matrix, and current status; remaining
   RBAC work should cover subscription-link management.
+
+## 2026-05-09 Subscription-Link RBAC
+
+- Subscription access token creation now authorizes pack links through pack
+  manage-access RBAC and subscription-group links through subscription-group
+  manage-access RBAC.
+- Subscription access token list/rotate/revoke routes now support same-tenant
+  admin delegation while preserving owner behavior.
+- Added a test covering admin create/list/rotate/revoke for another user's
+  pack and subscription-group links.
+- Updated PRD, roadmap, implementation matrix, and current status; next Phase C
+  work should add PAT creation policy and role-based scope templates.

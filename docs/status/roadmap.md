@@ -127,10 +127,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Export target management now requires tenant admin/custom-role authorization,
   export job create/read/event routes support same-tenant admin delegation, and
   Telegram publication reads use pack RBAC.
+- Subscription access token create/list/rotate/revoke routes now use
+  pack/subscription-group/tenant RBAC and support same-tenant admin delegation.
 
 ## Immediate Plan
 
-1. Continue fine-grained RBAC checks for subscription-link management.
+1. Add tenant-aware PAT creation policy and role-based scope templates.
 
 ## Later Planned Work
 

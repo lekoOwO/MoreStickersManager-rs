@@ -1,10 +1,11 @@
 use std::collections::BTreeSet;
 
 use msm_domain::{
-    evaluate_pack_access, AccessContext, MemberAccess, PackAction, PackResource, Permission,
-    PolicyReason, Principal, Role, Visibility,
+    evaluate_pack_access, evaluate_subscription_access, AccessContext, MemberAccess, PackAction,
+    PackResource, Permission, PolicyReason, Principal, Role, SubscriptionAction,
+    SubscriptionResource, Visibility,
 };
-use msm_storage::models::{PackVisibility, StickerPackRecord};
+use msm_storage::models::{PackVisibility, StickerPackRecord, SubscriptionGroupRecord};
 
 use crate::{auth::VerifiedPat, ApiError, ApiResult, ApiState};
 
@@ -65,6 +66,56 @@ pub async fn require_tenant_resource_access(
     }
 
     require_tenant_permission(state, pat, tenant_id, required, false, denied_message).await
+}
+
+pub async fn require_subscription_group_access(
+    state: &ApiState,
+    pat: &VerifiedPat,
+    action: SubscriptionAction,
+    subscription_group_id: &str,
+) -> ApiResult<SubscriptionGroupRecord> {
+    let record = state
+        .repository()
+        .find_subscription_group_record(subscription_group_id)
+        .await?
+        .ok_or_else(|| {
+            ApiError::NotFound(format!(
+                "subscription group `{subscription_group_id}` not found"
+            ))
+        })?;
+    let (role, permissions) =
+        tenant_role_permissions(state, &record.tenant_id, &pat.user_id).await?;
+    let principal = Principal::User {
+        user_id: pat.user_id.clone(),
+        tenant_id: record.tenant_id.clone(),
+        role,
+        permissions,
+    };
+    let decision = evaluate_subscription_access(
+        &principal,
+        action,
+        &SubscriptionResource {
+            id: record.id.clone(),
+            tenant_id: record.tenant_id.clone(),
+            owner_user_id: record.owner_user_id.clone(),
+            visibility: pack_visibility(&record.visibility),
+            pack_ids: BTreeSet::new(),
+        },
+        &AccessContext::default(),
+    );
+
+    if decision.allowed {
+        Ok(record)
+    } else if decision.reason == PolicyReason::DeniedCrossTenant {
+        Err(ApiError::NotFound(format!(
+            "subscription group `{subscription_group_id}` not found"
+        )))
+    } else {
+        Err(ApiError::Forbidden(format!(
+            "subscription group access denied: {:?}",
+            decision.reason
+        )))
+    }
 }
 
 pub async fn require_tenant_permission(

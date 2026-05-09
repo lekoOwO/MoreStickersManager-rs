@@ -3,11 +3,8 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use msm_domain::Permission;
-use msm_storage::models::{
-    StickerPackRecord, SubscriptionAccessResourceType, SubscriptionAccessTokenRecord,
-    SubscriptionGroupRecord,
-};
+use msm_domain::{PackAction, Permission, SubscriptionAction};
+use msm_storage::models::{SubscriptionAccessResourceType, SubscriptionAccessTokenRecord};
 
 use crate::{
     auth::require_pat,
@@ -15,6 +12,10 @@ use crate::{
         CreateSubscriptionAccessTokenRequest, CreatedSubscriptionAccessTokenResponse,
         ListSubscriptionAccessTokensQuery, SubscriptionAccessResourceTypeDto,
         SubscriptionAccessTokenResponse,
+    },
+    rbac::{
+        require_pack_access, require_subscription_group_access, require_tenant_permission,
+        require_tenant_resource_access,
     },
     ApiError, ApiResult, ApiState,
 };
@@ -83,11 +84,29 @@ pub async fn list_subscription_access_tokens(
     Query(query): Query<ListSubscriptionAccessTokensQuery>,
 ) -> ApiResult<Json<Vec<SubscriptionAccessTokenResponse>>> {
     let pat = require_pat(&headers, &state, Permission::SubscriptionManageAccess).await?;
-    pat.require_user(&query.user_id)?;
     let tokens = state
         .repository()
         .list_subscription_access_tokens(&query.user_id)
-        .await?
+        .await?;
+    if pat.user_id != query.user_id {
+        if tokens.is_empty() {
+            return Err(ApiError::Forbidden(
+                "PAT user cannot list subscription access tokens for this user".to_owned(),
+            ));
+        }
+        for token in &tokens {
+            require_tenant_permission(
+                &state,
+                &pat,
+                &token.tenant_id,
+                Permission::SubscriptionManageAccess,
+                false,
+                "PAT user cannot list subscription access tokens for this user",
+            )
+            .await?;
+        }
+    }
+    let tokens = tokens
         .into_iter()
         .map(SubscriptionAccessTokenResponse::from)
         .collect();
@@ -158,8 +177,8 @@ async fn authorize_create(
     match resource_type {
         SubscriptionAccessResourceTypeDto::Pack => {
             let pat = require_pat(headers, state, Permission::PackManageAccess).await?;
-            let record = load_pack(state, resource_id).await?;
-            pat.require_user(&record.owner_user_id)?;
+            let record =
+                require_pack_access(state, &pat, PackAction::ManageAccess, resource_id).await?;
             Ok((
                 record.tenant_id,
                 record.owner_user_id,
@@ -168,8 +187,13 @@ async fn authorize_create(
         }
         SubscriptionAccessResourceTypeDto::SubscriptionGroup => {
             let pat = require_pat(headers, state, Permission::SubscriptionManageAccess).await?;
-            let record = load_subscription_group(state, resource_id).await?;
-            pat.require_user(&record.owner_user_id)?;
+            let record = require_subscription_group_access(
+                state,
+                &pat,
+                SubscriptionAction::ManageAccess,
+                resource_id,
+            )
+            .await?;
             Ok((
                 record.tenant_id,
                 record.owner_user_id,
@@ -189,7 +213,15 @@ async fn authorize_existing(
         SubscriptionAccessResourceType::SubscriptionGroup => Permission::SubscriptionManageAccess,
     };
     let pat = require_pat(headers, state, permission).await?;
-    pat.require_user(&record.owner_user_id)
+    require_tenant_resource_access(
+        state,
+        &pat,
+        &record.tenant_id,
+        &record.owner_user_id,
+        permission,
+        "PAT user cannot manage this subscription access token",
+    )
+    .await
 }
 
 async fn load_subscription_access_token(
@@ -202,28 +234,5 @@ async fn load_subscription_access_token(
         .await?
         .ok_or_else(|| {
             ApiError::NotFound(format!("subscription access token `{token_id}` not found"))
-        })
-}
-
-async fn load_pack(state: &ApiState, pack_id: &str) -> ApiResult<StickerPackRecord> {
-    state
-        .repository()
-        .find_sticker_pack_record(pack_id)
-        .await?
-        .ok_or_else(|| ApiError::NotFound(format!("pack `{pack_id}` not found")))
-}
-
-async fn load_subscription_group(
-    state: &ApiState,
-    subscription_group_id: &str,
-) -> ApiResult<SubscriptionGroupRecord> {
-    state
-        .repository()
-        .find_subscription_group_record(subscription_group_id)
-        .await?
-        .ok_or_else(|| {
-            ApiError::NotFound(format!(
-                "subscription group `{subscription_group_id}` not found"
-            ))
         })
 }
