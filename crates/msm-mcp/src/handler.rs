@@ -14,12 +14,13 @@ use msm_exporters::{
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
-    NewExportTarget, NewTag, PackVisibility, StickerPackRecord, SubscriptionAccessResourceType,
-    SubscriptionAccessTokenRecord, SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord,
-    TenantMemberRecord,
+    NewExportTarget, NewTag, PackVisibility, RoleRecord, StickerPackRecord,
+    SubscriptionAccessResourceType, SubscriptionAccessTokenRecord, SubscriptionGroupRecord,
+    TagRecord, TelegramPublicationRecord, TenantMemberRecord, TenantRecord, UserRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 
 use crate::{
     protocol::{initialize_result, CallToolResult, JsonRpcRequest, JsonRpcResponse},
@@ -28,12 +29,14 @@ use crate::{
         ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
         CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG,
         DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION,
-        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
-        LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS,
-        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
-        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, REMOVE_PACK_FROM_FOLDER,
-        REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK,
-        ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE, UPDATE_STICKER_PACK,
+        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
+        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS,
+        LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS,
+        LIST_SUBSCRIPTION_LINKS, LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS,
+        LIST_TENANT_ROLES, REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP,
+        REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
+        SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK,
+        UPDATE_TENANT_SETTINGS, UPSERT_TENANT_ROLE,
     },
 };
 
@@ -116,6 +119,11 @@ async fn call_tool(
         REVOKE_SUBSCRIPTION_LINK => revoke_subscription_link(&state, headers, arguments).await,
         LIST_TENANT_MEMBERS => list_tenant_members(&state, headers, arguments).await,
         SET_TENANT_MEMBER_ROLE => set_tenant_member_role(&state, headers, arguments).await,
+        GET_TENANT_SETTINGS => get_tenant_settings(&state, headers, arguments).await,
+        UPDATE_TENANT_SETTINGS => update_tenant_settings(&state, headers, arguments).await,
+        SET_TENANT_USER_STATUS => set_tenant_user_status(&state, headers, arguments).await,
+        LIST_TENANT_ROLES => list_tenant_roles(&state, headers, arguments).await,
+        UPSERT_TENANT_ROLE => upsert_tenant_role(&state, headers, arguments).await,
         LIST_EXPORT_TARGET_KINDS => list_export_target_kinds(&state, headers, arguments).await,
         LIST_EXPORT_TARGETS => list_export_targets(&state, headers, arguments).await,
         CREATE_EXPORT_TARGET => create_export_target(&state, headers, arguments).await,
@@ -759,7 +767,13 @@ async fn list_tenant_members(
     arguments: Value,
 ) -> Result<CallToolResult, String> {
     let args = parse_arguments::<ListTenantMembersArgs>(arguments)?;
-    let _pat = require_tenant_admin(state, headers, &args.tenant_id).await?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageMembers,
+    )
+    .await?;
     let members = state
         .repository()
         .list_tenant_members(&args.tenant_id)
@@ -781,7 +795,13 @@ async fn set_tenant_member_role(
     arguments: Value,
 ) -> Result<CallToolResult, String> {
     let args = parse_arguments::<SetTenantMemberRoleArgs>(arguments)?;
-    let _pat = require_tenant_admin(state, headers, &args.tenant_id).await?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageMembers,
+    )
+    .await?;
     if !matches!(args.role.as_str(), "admin" | "user") {
         return Err("role must be `admin` or `user`".to_owned());
     }
@@ -797,6 +817,150 @@ async fn set_tenant_member_role(
             args.user_id, args.role
         ),
         json!({ "member": tenant_member_value(&member) }),
+    ))
+}
+
+async fn get_tenant_settings(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<TenantIdArgs>(arguments)?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let settings = state
+        .repository()
+        .find_tenant(&args.tenant_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "tenant not found".to_owned())?;
+
+    Ok(success_result(
+        format!("Read tenant settings `{}`.", args.tenant_id),
+        json!({ "settings": tenant_settings_value(&settings) }),
+    ))
+}
+
+async fn update_tenant_settings(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<UpdateTenantSettingsArgs>(arguments)?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let settings = state
+        .repository()
+        .update_tenant_settings(
+            &args.tenant_id,
+            &args.name,
+            args.public_asset_url.as_deref(),
+        )
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Updated tenant settings `{}`.", args.tenant_id),
+        json!({ "settings": tenant_settings_value(&settings) }),
+    ))
+}
+
+async fn set_tenant_user_status(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<SetTenantUserStatusArgs>(arguments)?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageUsers,
+    )
+    .await?;
+    state
+        .repository()
+        .find_tenant_member(&args.tenant_id, &args.user_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "tenant user not found".to_owned())?;
+    let user = state
+        .repository()
+        .set_user_disabled(&args.user_id, args.is_disabled)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Updated tenant user `{}` status.", args.user_id),
+        json!({ "user": tenant_user_value(&user) }),
+    ))
+}
+
+async fn list_tenant_roles(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<TenantIdArgs>(arguments)?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageRoles,
+    )
+    .await?;
+    let roles = state
+        .repository()
+        .list_role_templates(&args.tenant_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .iter()
+        .map(tenant_role_value)
+        .collect::<Vec<_>>();
+
+    Ok(success_result(
+        format!("Found {} tenant role template(s).", roles.len()),
+        json!({ "roles": roles }),
+    ))
+}
+
+async fn upsert_tenant_role(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<UpsertTenantRoleArgs>(arguments)?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageRoles,
+    )
+    .await?;
+    let permissions = args
+        .permissions
+        .iter()
+        .map(|key| Permission::from_key(key).ok_or_else(|| format!("unknown permission `{key}`")))
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    let role = state
+        .repository()
+        .upsert_role_template(&args.role_id, &args.tenant_id, &args.name, &permissions)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Upserted tenant role `{}`.", args.role_id),
+        json!({ "role": tenant_role_value(&role) }),
     ))
 }
 
@@ -1028,8 +1192,9 @@ async fn require_tenant_admin(
     state: &ApiState,
     headers: &HeaderMap,
     tenant_id: &str,
+    required: Permission,
 ) -> Result<VerifiedPat, String> {
-    let pat = require_tool_pat(state, headers, Permission::TenantManageMembers).await?;
+    let pat = require_tool_pat(state, headers, required).await?;
     let member = state
         .repository()
         .find_tenant_member(tenant_id, &pat.user_id)
@@ -1202,6 +1367,40 @@ fn tenant_member_value(record: &TenantMemberRecord) -> Value {
         "tenantId": record.tenant_id,
         "userId": record.user_id,
         "role": record.role,
+        "createdAt": record.created_at
+    })
+}
+
+fn tenant_settings_value(record: &TenantRecord) -> Value {
+    json!({
+        "tenantId": record.id,
+        "name": record.name,
+        "publicAssetUrl": record.public_asset_url,
+        "createdAt": record.created_at
+    })
+}
+
+fn tenant_user_value(record: &UserRecord) -> Value {
+    json!({
+        "id": record.id,
+        "email": record.email,
+        "displayName": record.display_name,
+        "isDisabled": record.is_disabled,
+        "createdAt": record.created_at
+    })
+}
+
+fn tenant_role_value(record: &RoleRecord) -> Value {
+    let permissions = record
+        .permissions
+        .iter()
+        .map(|permission| permission.as_key())
+        .collect::<Vec<_>>();
+    json!({
+        "id": record.id,
+        "tenantId": record.tenant_id,
+        "name": record.name,
+        "permissions": permissions,
         "createdAt": record.created_at
     })
 }
@@ -1580,6 +1779,37 @@ struct SetTenantMemberRoleArgs {
     tenant_id: String,
     user_id: String,
     role: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TenantIdArgs {
+    tenant_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateTenantSettingsArgs {
+    tenant_id: String,
+    name: String,
+    public_asset_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetTenantUserStatusArgs {
+    tenant_id: String,
+    user_id: String,
+    is_disabled: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpsertTenantRoleArgs {
+    tenant_id: String,
+    role_id: String,
+    name: String,
+    permissions: Vec<String>,
 }
 
 #[derive(Deserialize)]

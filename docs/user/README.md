@@ -536,6 +536,8 @@ Tenant settings administration API endpoints:
 - `PUT /api/v1/tenants/{tenant_id}/settings`
 - `msm tenants settings get --tenant-id <tenant_id>`
 - `msm tenants settings update --tenant-id <tenant_id> --name <name> [--public-asset-url <url>]`
+- `msm.get_tenant_settings`
+- `msm.update_tenant_settings`
 
 The `PUT` body replaces editable settings:
 
@@ -552,6 +554,7 @@ Tenant user status administration API endpoint:
 
 - `PUT /api/v1/tenants/{tenant_id}/users/{user_id}/status`
 - `msm tenants users set-status --tenant-id <tenant_id> --user-id <user_id> --disabled`
+- `msm.set_tenant_user_status`
 
 The `PUT` body toggles whether the local user can authenticate:
 
@@ -569,6 +572,8 @@ Tenant role template administration API endpoints:
 - `PUT /api/v1/tenants/{tenant_id}/roles/{role_id}`
 - `msm tenants roles list --tenant-id <tenant_id>`
 - `msm tenants roles upsert --tenant-id <tenant_id> --role-id <role_id> --name <name> --permission <permission_key>`
+- `msm.list_tenant_roles`
+- `msm.upsert_tenant_role`
 
 The `PUT` body replaces the role template name and permission list:
 

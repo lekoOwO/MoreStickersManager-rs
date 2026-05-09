@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 34);
+        assert_eq!(tools.len(), 39);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools.iter().any(|tool| tool["name"] == "msm.create_folder"
             && tool["inputSchema"]["required"].as_array().unwrap().len() == 4));
@@ -113,6 +113,26 @@ mod tests {
                     .unwrap()
                     .len()
                     == 2));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.get_tenant_settings"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.update_tenant_settings"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 2));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.set_tenant_user_status"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 3));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.list_tenant_roles"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.upsert_tenant_role"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 4));
         assert!(tools
             .iter()
             .any(|tool| tool["name"] == "msm.create_export_job"
@@ -1003,6 +1023,156 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("tenant admin"));
+    }
+
+    #[tokio::test]
+    async fn tools_call_manages_tenant_settings() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(
+            &state,
+            "tenantsettings",
+            "user_1",
+            [Permission::TenantManageSettings],
+        )
+        .await;
+
+        let update_settings = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 14,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.update_tenant_settings",
+                    "arguments": {
+                        "tenantId": "tenant_1",
+                        "name": "Production",
+                        "publicAssetUrl": "https://cdn.example.test/msm"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            update_settings["result"]["structuredContent"]["settings"]["publicAssetUrl"],
+            "https://cdn.example.test/msm"
+        );
+
+        let get_settings = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 15,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.get_tenant_settings",
+                    "arguments": { "tenantId": "tenant_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            get_settings["result"]["structuredContent"]["settings"]["name"],
+            "Production"
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_sets_tenant_user_status() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "member@example.com", "Member")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "tenantuserstatus",
+            "user_1",
+            [Permission::TenantManageUsers],
+        )
+        .await;
+
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 16,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.set_tenant_user_status",
+                    "arguments": { "tenantId": "tenant_1", "userId": "user_2", "isDisabled": true }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            response["result"]["structuredContent"]["user"]["isDisabled"],
+            true
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_manages_tenant_roles() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(
+            &state,
+            "tenantroles",
+            "user_1",
+            [Permission::TenantManageRoles],
+        )
+        .await;
+
+        let upsert_role = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 17,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.upsert_tenant_role",
+                    "arguments": {
+                        "tenantId": "tenant_1",
+                        "roleId": "role_editor",
+                        "name": "Editors",
+                        "permissions": ["pack.read", "pack.update"]
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            upsert_role["result"]["structuredContent"]["role"]["permissions"][1],
+            "pack.update"
+        );
+
+        let list_roles = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 18,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_tenant_roles",
+                    "arguments": { "tenantId": "tenant_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            list_roles["result"]["structuredContent"]["roles"][0]["id"],
+            "role_editor"
+        );
     }
 
     #[tokio::test]

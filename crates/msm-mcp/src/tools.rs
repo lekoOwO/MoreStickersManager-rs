@@ -30,6 +30,11 @@ pub const ROTATE_SUBSCRIPTION_LINK: &str = "msm.rotate_subscription_link";
 pub const REVOKE_SUBSCRIPTION_LINK: &str = "msm.revoke_subscription_link";
 pub const LIST_TENANT_MEMBERS: &str = "msm.list_tenant_members";
 pub const SET_TENANT_MEMBER_ROLE: &str = "msm.set_tenant_member_role";
+pub const GET_TENANT_SETTINGS: &str = "msm.get_tenant_settings";
+pub const UPDATE_TENANT_SETTINGS: &str = "msm.update_tenant_settings";
+pub const SET_TENANT_USER_STATUS: &str = "msm.set_tenant_user_status";
+pub const LIST_TENANT_ROLES: &str = "msm.list_tenant_roles";
+pub const UPSERT_TENANT_ROLE: &str = "msm.upsert_tenant_role";
 pub const LIST_EXPORT_TARGET_KINDS: &str = "msm.list_export_target_kinds";
 pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
 pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
@@ -69,6 +74,11 @@ pub fn list_tools_result() -> ListToolsResult {
             revoke_subscription_link_tool(),
             list_tenant_members_tool(),
             set_tenant_member_role_tool(),
+            get_tenant_settings_tool(),
+            update_tenant_settings_tool(),
+            set_tenant_user_status_tool(),
+            list_tenant_roles_tool(),
+            upsert_tenant_role_tool(),
             list_export_target_kinds_tool(),
             list_export_targets_tool(),
             create_export_target_tool(),
@@ -606,6 +616,103 @@ fn set_tenant_member_role_tool() -> ToolDefinition {
     }
 }
 
+fn get_tenant_settings_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: GET_TENANT_SETTINGS,
+        title: "Get tenant settings",
+        description: "Read editable tenant settings. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" }
+            }),
+            &["tenantId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn update_tenant_settings_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: UPDATE_TENANT_SETTINGS,
+        title: "Update tenant settings",
+        description: "Replace editable tenant settings. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "name": { "type": "string" },
+                "publicAssetUrl": { "type": ["string", "null"] }
+            }),
+            &["tenantId", "name"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn set_tenant_user_status_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: SET_TENANT_USER_STATUS,
+        title: "Set tenant user status",
+        description: "Enable or disable a tenant user. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "userId": { "type": "string" },
+                "isDisabled": { "type": "boolean" }
+            }),
+            &["tenantId", "userId", "isDisabled"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: true,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn list_tenant_roles_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_TENANT_ROLES,
+        title: "List tenant role templates",
+        description: "List role templates for one MSM tenant. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" }
+            }),
+            &["tenantId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn upsert_tenant_role_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: UPSERT_TENANT_ROLE,
+        title: "Upsert tenant role template",
+        description: "Add or update a tenant role template. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "roleId": { "type": "string" },
+                "name": { "type": "string" },
+                "permissions": { "type": "array", "items": { "type": "string" } }
+            }),
+            &["tenantId", "roleId", "name", "permissions"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
 fn list_export_target_kinds_tool() -> ToolDefinition {
     ToolDefinition {
         name: LIST_EXPORT_TARGET_KINDS,
@@ -773,13 +880,14 @@ mod tests {
         list_tools_result, ADD_PACK_TO_FOLDER, ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK,
         CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP,
         CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK,
-        GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
-        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
-        LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK,
+        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS,
+        LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
         LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
-        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, REMOVE_PACK_FROM_FOLDER,
-        REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK,
-        ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE, UPDATE_STICKER_PACK,
+        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
+        REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
+        SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_TENANT_ROLE,
     };
 
     #[test]
@@ -816,6 +924,11 @@ mod tests {
                 REVOKE_SUBSCRIPTION_LINK,
                 LIST_TENANT_MEMBERS,
                 SET_TENANT_MEMBER_ROLE,
+                GET_TENANT_SETTINGS,
+                UPDATE_TENANT_SETTINGS,
+                SET_TENANT_USER_STATUS,
+                LIST_TENANT_ROLES,
+                UPSERT_TENANT_ROLE,
                 LIST_EXPORT_TARGET_KINDS,
                 LIST_EXPORT_TARGETS,
                 CREATE_EXPORT_TARGET,

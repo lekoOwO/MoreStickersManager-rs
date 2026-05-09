@@ -1055,3 +1055,14 @@
 - Updated PRD, roadmap, implementation matrix, current status, README, and user
   docs; next slice should add MCP/Web parity for tenant settings, user status
   controls, and role templates.
+
+## 2026-05-09 Tenant Administration MCP Parity
+
+- Added MCP `msm.get_tenant_settings` and `msm.update_tenant_settings`.
+- Added MCP `msm.set_tenant_user_status`.
+- Added MCP `msm.list_tenant_roles` and `msm.upsert_tenant_role`.
+- The new tools require their matching PAT scopes and an admin tenant
+  membership, mirroring API/CLI authorization semantics.
+- Updated PRD, roadmap, implementation matrix, and current status; next slice
+  should add Web parity for tenant settings, user status controls, and role
+  templates.
