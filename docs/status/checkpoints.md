@@ -1239,3 +1239,15 @@
   tenant membership plus the matching `pack.update` role permission.
 - Updated PRD and status docs; next work should continue the route-by-route
   fine-grained RBAC audit for remaining tenant/resource-owning operations.
+
+## 2026-05-09 Owner-Scoped Metadata Tenant Guard
+
+- Added a RED/GREEN API test proving a user PAT cannot create or list folders
+  or subscription groups in a tenant where that user is not a member, even when
+  `ownerUserId` matches the PAT user.
+- Folder and subscription-group create/list routes now call the shared
+  tenant-resource guard before touching storage.
+- The shared tenant-resource guard now validates tenant membership for owners
+  as well as delegated administrators/custom roles.
+- Updated PRD and status docs; next work should continue the route-by-route
+  fine-grained RBAC audit.

@@ -146,6 +146,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Tenant tag create/list routes now require target-tenant membership and the
   matching `pack.update` role permission, closing a cross-tenant metadata gap
   found during the RBAC route audit.
+- Owner-scoped folder and subscription-group create/list routes now require
+  target-tenant membership even when the PAT user matches `ownerUserId`.
 
 ## Immediate Plan
 

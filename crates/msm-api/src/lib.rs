@@ -1766,6 +1766,111 @@ mod tests {
 
     #[tokio::test]
     #[allow(clippy::too_many_lines)]
+    async fn owner_scoped_metadata_routes_require_target_tenant_membership() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_tenant("tenant_2", "Other")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_1", "user@example.com", "User")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_1", "user")
+            .await
+            .unwrap();
+
+        let pack_token = create_pat(&state, "packupdate", "user_1", [Permission::PackUpdate]).await;
+        let subscription_create_token = create_pat(
+            &state,
+            "subcreate",
+            "user_1",
+            [Permission::SubscriptionCreate],
+        )
+        .await;
+        let subscription_read_token =
+            create_pat(&state, "subread", "user_1", [Permission::SubscriptionRead]).await;
+
+        let folder_body = serde_json::json!({
+            "id": "folder_cross",
+            "tenantId": "tenant_2",
+            "ownerUserId": "user_1",
+            "name": "Cross"
+        });
+        let folder_create = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/folders")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(folder_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(folder_create.status(), StatusCode::FORBIDDEN);
+
+        let folder_list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/folders?tenantId=tenant_2&ownerUserId=user_1")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(folder_list.status(), StatusCode::FORBIDDEN);
+
+        let subscription_body = serde_json::json!({
+            "id": "sub_cross",
+            "tenantId": "tenant_2",
+            "ownerUserId": "user_1",
+            "title": "Cross",
+            "visibility": "private"
+        });
+        let subscription_create = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/subscription-groups")
+                    .header(
+                        "authorization",
+                        format!("Bearer {subscription_create_token}"),
+                    )
+                    .header("content-type", "application/json")
+                    .body(Body::from(subscription_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_create.status(), StatusCode::FORBIDDEN);
+
+        let subscription_list = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/subscription-groups?tenantId=tenant_2&ownerUserId=user_1")
+                    .header("authorization", format!("Bearer {subscription_read_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_list.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
     async fn metadata_routes_manage_pack_memberships() {
         let state = seeded_state().await;
         state

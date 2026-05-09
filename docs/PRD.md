@@ -149,6 +149,8 @@ tests and docs are updated.
   subscription-link management routes support same-tenant admin delegation.
   Tenant tag create/list routes now require membership in the target tenant,
   preventing scoped PATs from creating or enumerating tags across tenants.
+  Owner-scoped folder and subscription-group create/list routes now also
+  require target-tenant membership instead of trusting `ownerUserId` alone.
 - [x] PAT creation policy and scope templates by role.
   Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
   PAT for the same user, PAT creation and local login reject scopes outside the

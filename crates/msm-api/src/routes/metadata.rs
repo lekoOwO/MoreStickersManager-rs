@@ -41,6 +41,15 @@ pub async fn create_folder(
 ) -> ApiResult<(StatusCode, Json<FolderResponse>)> {
     let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
     pat.require_user(&request.owner_user_id)?;
+    require_tenant_resource_access(
+        &state,
+        &pat,
+        &request.tenant_id,
+        &request.owner_user_id,
+        Permission::PackUpdate,
+        "PAT user cannot create folders in this tenant",
+    )
+    .await?;
     let folder = state
         .repository()
         .create_folder(
@@ -72,6 +81,15 @@ pub async fn list_folders(
 ) -> ApiResult<Json<Vec<FolderResponse>>> {
     let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
     pat.require_user(&query.owner_user_id)?;
+    require_tenant_resource_access(
+        &state,
+        &pat,
+        &query.tenant_id,
+        &query.owner_user_id,
+        Permission::PackUpdate,
+        "PAT user cannot list folders in this tenant",
+    )
+    .await?;
     let folders = state
         .repository()
         .list_folders(&query.tenant_id, &query.owner_user_id)
@@ -352,6 +370,15 @@ pub async fn create_subscription_group(
 ) -> ApiResult<(StatusCode, Json<SubscriptionGroupResponse>)> {
     let pat = require_pat(&headers, &state, Permission::SubscriptionCreate).await?;
     pat.require_user(&request.owner_user_id)?;
+    require_tenant_resource_access(
+        &state,
+        &pat,
+        &request.tenant_id,
+        &request.owner_user_id,
+        Permission::SubscriptionCreate,
+        "PAT user cannot create subscription groups in this tenant",
+    )
+    .await?;
     let group = state
         .repository()
         .create_subscription_group(
@@ -384,6 +411,15 @@ pub async fn list_subscription_groups(
 ) -> ApiResult<Json<Vec<SubscriptionGroupResponse>>> {
     let pat = require_pat(&headers, &state, Permission::SubscriptionRead).await?;
     pat.require_user(&query.owner_user_id)?;
+    require_tenant_resource_access(
+        &state,
+        &pat,
+        &query.tenant_id,
+        &query.owner_user_id,
+        Permission::SubscriptionRead,
+        "PAT user cannot list subscription groups in this tenant",
+    )
+    .await?;
     let groups = state
         .repository()
         .list_subscription_groups(&query.tenant_id, &query.owner_user_id)

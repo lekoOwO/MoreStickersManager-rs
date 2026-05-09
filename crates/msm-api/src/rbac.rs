@@ -61,11 +61,16 @@ pub async fn require_tenant_resource_access(
     required: Permission,
     denied_message: &'static str,
 ) -> ApiResult<()> {
-    if pat.user_id == owner_user_id {
-        return Ok(());
-    }
-
-    require_tenant_permission(state, pat, tenant_id, required, false, denied_message).await
+    let allow_regular_user = pat.user_id == owner_user_id;
+    require_tenant_permission(
+        state,
+        pat,
+        tenant_id,
+        required,
+        allow_regular_user,
+        denied_message,
+    )
+    .await
 }
 
 pub async fn require_subscription_group_access(
