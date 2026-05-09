@@ -424,6 +424,97 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn private_assets_require_owner_pat_or_subscription_token() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_1",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack(),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_1",
+                "tenant_1",
+                "user_1",
+                "Private Feed",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_pack_to_subscription_group("sub_1", "pack_1", 0)
+            .await
+            .unwrap();
+        let key = msm_storage::AssetKey::new("pack_1", "sticker.webp").unwrap();
+        state
+            .asset_store()
+            .write(&key, b"private-webp")
+            .await
+            .unwrap();
+        let asset_token = create_pat(&state, "patasset", "user_1", [Permission::AssetRead]).await;
+        let pack_link = state
+            .repository()
+            .create_subscription_access_token(
+                "packlink",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::SubscriptionAccessResourceType::Pack,
+                "pack_1",
+            )
+            .await
+            .unwrap()
+            .token;
+        let group_link = state
+            .repository()
+            .create_subscription_access_token(
+                "grouplink",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::SubscriptionAccessResourceType::SubscriptionGroup,
+                "sub_1",
+            )
+            .await
+            .unwrap()
+            .token;
+
+        let anonymous = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/packs/pack_1/sticker.webp")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(anonymous.status(), StatusCode::UNAUTHORIZED);
+
+        for token in [asset_token, pack_link, group_link] {
+            let response = build_router(state.clone())
+                .oneshot(
+                    Request::builder()
+                        .uri("/assets/packs/pack_1/sticker.webp")
+                        .header("authorization", format!("Bearer {token}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            assert_eq!(&body[..], b"private-webp");
+        }
+    }
+
+    #[tokio::test]
     async fn pat_enforcement_requires_bearer_for_pack_list() {
         let response = build_router(test_state().await)
             .oneshot(

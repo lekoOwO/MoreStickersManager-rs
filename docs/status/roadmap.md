@@ -84,11 +84,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   create/rotate.
 - Web Organize now lists subscription links and can create, rotate, and revoke
   links with one-time secret display after create/rotate.
+- Private asset reads now require authorization when an asset path maps to a
+  private pack. Owner `asset.read` PATs, pack subscription tokens, and
+  subscription-group tokens containing the pack can read the asset; anonymous
+  callers cannot.
 
 ## Immediate Plan
 
-1. Extend subscription access policy enforcement beyond public/private/PAT to
-   subscription secrets and Web session credentials.
+1. Extend subscription access policy enforcement to Web session credentials.
 2. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 

@@ -88,8 +88,8 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Extend the pack/group access model for Web session
-   access beyond the current public/private/PAT endpoint checks.
+1. Extend the pack/group access model for Web session access beyond PAT and
+   subscription-token endpoint checks.
 2. Start tenant administration and RBAC management surfaces.
 
 Each queue item must update this section when completed or reordered.
@@ -180,9 +180,10 @@ tests and docs are updated.
 
 - [ ] Tenant/system setting for public asset URL.
 - [ ] Admin UI/API for CDN URL configuration.
-- [ ] Private asset authorization through pack secret, subscription secret, PAT,
-  or Web session.
-- [ ] Tests proving private images cannot be fetched anonymously.
+- [x] Private asset authorization through pack subscription secret,
+  subscription-group secret, or owner PAT.
+- [ ] Private asset authorization through Web session credentials.
+- [x] Tests proving private images cannot be fetched anonymously.
 
 ### Phase I: Data Portability
 

@@ -74,10 +74,11 @@ Last completed:
 - Subscription access token CLI slice: added `msm subscription-links create/list/rotate/revoke`, CLI client models and methods, one-time secret output for create/rotate, metadata-only list output, and revoke confirmation output.
 - Subscription access token MCP slice: added `msm.create_subscription_link`, `msm.list_subscription_links`, `msm.rotate_subscription_link`, and `msm.revoke_subscription_link` tools with matching resource-specific PAT enforcement, metadata-only list responses, and one-time raw secret responses for create/rotate.
 - Subscription access token Web slice: added ProductMetadataClient subscription link methods and Organize UI controls for list/create/rotate/revoke with one-time secret display after create/rotate.
+- Private asset authorization API slice: private pack asset paths now reject anonymous reads and accept owner `asset.read` PATs, matching pack subscription tokens, or subscription-group tokens that include the pack. Asset paths without a pack record remain readable for backward compatibility.
 
 Current task:
 - Continue by extending pack/group access policy for Web session credentials
-  and private asset authorization.
+  beyond PAT and subscription-token endpoint checks.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -153,11 +154,12 @@ Last verification:
 - Subscription access token CLI slice: targeted test with `cargo test -p msm-cli subscription_link --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, and `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`.
 - Subscription access token MCP slice: targeted test with `cargo test -p msm-mcp subscription_links --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Subscription access token Web slice: targeted test with `npm run web:test -- api-client product-metadata-ui`; full verification with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.
+- Private asset authorization API slice: RED/GREEN test with `cargo test -p msm-api private_assets_require_owner_pat_or_subscription_token --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Documentation consolidation slice: added `docs/PRD.md` as the living product requirements, roadmap, progress, and completion source; reduced active Agent docs to `docs/agents/README.md`; removed legacy per-phase `docs/superpowers` plans/specs and duplicated Agent handoff files; verification with `git diff --check`.
 - PRD self-review hardening: clarified PRD status semantics, current implementation queue, current surface parity gaps, open product questions, and per-slice definition of done; verification with `git diff --check`.
 
 Next step:
-- Continue by extending pack/group access policy for Web session credentials and private asset authorization.
+- Continue by extending pack/group access policy for Web session credentials beyond PAT and subscription-token endpoint checks.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -921,6 +921,17 @@
 - Updated PRD, roadmap, implementation matrix, and current status so the next
   slice can focus on Web-session access and private asset authorization.
 
+## 2026-05-09 Private Asset Authorization API
+
+- Private pack asset paths now require authorization before reading bytes from
+  the local asset store.
+- Owner `asset.read` PATs, matching pack subscription access tokens, and
+  subscription-group tokens containing the pack can read private assets.
+- Anonymous callers are rejected for private pack assets; asset paths without a
+  pack record remain readable for backward compatibility.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice can focus on Web-session credential access.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,
