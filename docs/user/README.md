@@ -526,12 +526,12 @@ Successful Web login stores the returned PAT in browser localStorage and keeps
 the API-issued cookie for Web-session protected asset reads.
 
 OIDC provider login is partially implemented. The login start endpoint returns
-an authorization URL plus a one-time state. The callback endpoint currently
-expects already-validated provider claims, consumes the state, links or creates
-a tenant user when the provider allows registration, returns a PAT, and sets an
-`msm_session` cookie. Full authorization-code exchange, ID-token/JWKS
-validation, userinfo fetching, and Web SSO controls remain planned Phase D
-work.
+an authorization URL plus one-time state and nonce values. The callback endpoint
+currently expects already-validated provider claims, verifies state, nonce,
+issuer, and audience, then consumes the state, links or creates a tenant user
+when the provider allows registration, returns a PAT, and sets an `msm_session`
+cookie. Full authorization-code exchange, ID-token/JWKS validation, userinfo
+fetching, and Web SSO controls remain planned Phase D work.
 
 Local register can also bootstrap a tenant admin:
 

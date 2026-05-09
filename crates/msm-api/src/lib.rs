@@ -3898,6 +3898,8 @@ mod tests {
         assert_eq!(started["providerId"], "oidc_google");
         let state_token = started["state"].as_str().unwrap();
         assert!(state_token.starts_with("msm_oidc_state_"));
+        let nonce = started["nonce"].as_str().unwrap();
+        assert!(nonce.starts_with("msm_oidc_nonce_"));
         let authorization_url = started["authorizationUrl"].as_str().unwrap();
         assert!(authorization_url.starts_with("https://accounts.google.com/authorize?"));
         assert!(authorization_url.contains("response_type=code"));
@@ -3907,6 +3909,7 @@ mod tests {
             authorization_url.contains("redirect_uri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
         );
         assert!(authorization_url.contains(&format!("state={state_token}")));
+        assert!(authorization_url.contains(&format!("nonce={nonce}")));
     }
 
     #[tokio::test]
@@ -3948,8 +3951,12 @@ mod tests {
             .unwrap();
         let started: serde_json::Value = serde_json::from_slice(&start_body).unwrap();
         let state_token = started["state"].as_str().unwrap();
+        let nonce = started["nonce"].as_str().unwrap();
         let callback_body = serde_json::json!({
             "state": state_token,
+            "nonce": nonce,
+            "issuer": "https://accounts.google.com",
+            "audience": "client-id",
             "providerSubject": "google-subject-1",
             "email": "leko@example.com",
             "displayName": "Leko",
@@ -3994,10 +4001,112 @@ mod tests {
             .is_some());
         assert!(state
             .repository()
-            .consume_oidc_login_state(state_token)
+            .consume_oidc_login_state(state_token, nonce)
             .await
             .unwrap()
             .is_none());
+    }
+
+    #[tokio::test]
+    async fn oidc_callback_rejects_nonce_and_provider_claim_mismatches() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from(["email".to_owned(), "openid".to_owned()]);
+        state
+            .repository()
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_google",
+                tenant_id: "tenant_1",
+                display_name: "Google",
+                issuer_url: "https://accounts.google.com",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+
+        let start_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/auth/oidc/tenant_1/oidc_google/login?redirectUri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let start_body = to_bytes(start_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&start_body).unwrap();
+        let state_token = started["state"].as_str().unwrap();
+        let valid_nonce = started["nonce"].as_str().unwrap();
+        let base_body = serde_json::json!({
+            "state": state_token,
+            "nonce": "msm_oidc_nonce_wrong_secret",
+            "issuer": "https://accounts.google.com",
+            "audience": "client-id",
+            "providerSubject": "google-subject-1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "tokenId": "oidcweb",
+            "tokenName": "OIDC Web",
+            "scopes": ["pack.read"],
+            "expiresAt": null
+        });
+
+        let wrong_nonce = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/oidc/callback")
+                    .header("content-type", "application/json")
+                    .body(Body::from(base_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(wrong_nonce.status(), StatusCode::UNAUTHORIZED);
+
+        let wrong_issuer_body = serde_json::json!({
+            "state": state_token,
+            "nonce": valid_nonce,
+            "issuer": "https://evil.example",
+            "audience": "client-id",
+            "providerSubject": "google-subject-1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "tokenId": "oidcweb",
+            "tokenName": "OIDC Web",
+            "scopes": ["pack.read"],
+            "expiresAt": null
+        });
+        let wrong_issuer = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/oidc/callback")
+                    .header("content-type", "application/json")
+                    .body(Body::from(wrong_issuer_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(wrong_issuer.status(), StatusCode::UNAUTHORIZED);
+
+        assert!(state
+            .repository()
+            .consume_oidc_login_state(state_token, valid_nonce)
+            .await
+            .unwrap()
+            .is_some());
     }
 
     #[tokio::test]

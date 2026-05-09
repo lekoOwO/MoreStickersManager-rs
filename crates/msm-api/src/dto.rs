@@ -335,6 +335,7 @@ pub struct OidcLoginStartResponse {
     pub provider_id: String,
     pub authorization_url: String,
     pub state: String,
+    pub nonce: String,
     pub expires_at: String,
 }
 
@@ -342,6 +343,9 @@ pub struct OidcLoginStartResponse {
 #[serde(rename_all = "camelCase")]
 pub struct CompleteOidcLoginRequest {
     pub state: String,
+    pub nonce: String,
+    pub issuer: String,
+    pub audience: String,
     pub provider_subject: String,
     pub email: String,
     pub display_name: String,

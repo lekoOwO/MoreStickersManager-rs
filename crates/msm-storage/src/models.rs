@@ -71,6 +71,7 @@ pub struct OidcLoginStateRecord {
     pub tenant_id: String,
     pub provider_id: String,
     pub state_hash: String,
+    pub nonce_hash: String,
     pub redirect_uri: String,
     pub expires_at: String,
     pub consumed_at: Option<String>,
@@ -81,6 +82,7 @@ pub struct OidcLoginStateRecord {
 pub struct CreatedOidcLoginState {
     pub record: OidcLoginStateRecord,
     pub state: String,
+    pub nonce: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

@@ -239,17 +239,22 @@ impl StorageRepository {
         let secret = generate_pat_secret()?;
         let state = format!("msm_oidc_state_{id}_{secret}");
         let state_hash = hash_pat_secret(&secret);
+        let nonce_secret = generate_pat_secret()?;
+        let nonce = format!("msm_oidc_nonce_{id}_{nonce_secret}");
+        let nonce_hash = hash_pat_secret(&nonce_secret);
         let now = now();
         sqlx::query(
             "INSERT INTO oidc_login_states (
-                id, tenant_id, provider_id, state_hash, redirect_uri, expires_at, created_at
+                id, tenant_id, provider_id, state_hash, nonce_hash, redirect_uri, expires_at,
+                created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)",
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&id)
         .bind(tenant_id)
         .bind(provider_id)
         .bind(&state_hash)
+        .bind(&nonce_hash)
         .bind(redirect_uri)
         .bind(expires_at)
         .bind(&now)
@@ -262,13 +267,28 @@ impl StorageRepository {
                 tenant_id: tenant_id.to_owned(),
                 provider_id: provider_id.to_owned(),
                 state_hash,
+                nonce_hash,
                 redirect_uri: redirect_uri.to_owned(),
                 expires_at: expires_at.to_owned(),
                 consumed_at: None,
                 created_at: now,
             },
             state,
+            nonce,
         })
+    }
+
+    /// Verifies and consumes an OIDC state token once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when SQL fails or timestamps are invalid.
+    pub async fn verify_oidc_login_state(
+        &self,
+        state: &str,
+        nonce: &str,
+    ) -> StorageResult<Option<OidcLoginStateRecord>> {
+        self.valid_oidc_login_state(state, nonce).await
     }
 
     /// Verifies and consumes an OIDC state token once.
@@ -279,10 +299,42 @@ impl StorageRepository {
     pub async fn consume_oidc_login_state(
         &self,
         state: &str,
+        nonce: &str,
+    ) -> StorageResult<Option<OidcLoginStateRecord>> {
+        let Some(record) = self.valid_oidc_login_state(state, nonce).await? else {
+            return Ok(None);
+        };
+        let consumed_at = now();
+        sqlx::query(
+            "UPDATE oidc_login_states
+            SET consumed_at = ?
+            WHERE id = ? AND consumed_at IS NULL",
+        )
+        .bind(&consumed_at)
+        .bind(&record.id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(Some(OidcLoginStateRecord {
+            consumed_at: Some(consumed_at),
+            ..record
+        }))
+    }
+
+    async fn valid_oidc_login_state(
+        &self,
+        state: &str,
+        nonce: &str,
     ) -> StorageResult<Option<OidcLoginStateRecord>> {
         let Some((id, secret)) = parse_oidc_login_state(state) else {
             return Ok(None);
         };
+        let Some((nonce_id, nonce_secret)) = parse_oidc_nonce(nonce) else {
+            return Ok(None);
+        };
+        if nonce_id != id {
+            return Ok(None);
+        }
         let Some(record) = self.find_oidc_login_state_by_id(id).await? else {
             return Ok(None);
         };
@@ -298,21 +350,16 @@ impl StorageRepository {
         {
             return Ok(None);
         }
-        let consumed_at = now();
-        sqlx::query(
-            "UPDATE oidc_login_states
-            SET consumed_at = ?
-            WHERE id = ? AND consumed_at IS NULL",
-        )
-        .bind(&consumed_at)
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
-
-        Ok(Some(OidcLoginStateRecord {
-            consumed_at: Some(consumed_at),
-            ..record
-        }))
+        let presented_nonce_hash = hash_pat_secret(nonce_secret);
+        if presented_nonce_hash
+            .as_bytes()
+            .ct_eq(record.nonce_hash.as_bytes())
+            .unwrap_u8()
+            == 0
+        {
+            return Ok(None);
+        }
+        Ok(Some(record))
     }
 
     /// Finds an OIDC user link by provider subject.
@@ -2167,6 +2214,7 @@ fn oidc_login_state_from_row(row: &SqliteRow) -> OidcLoginStateRecord {
         tenant_id: row.get("tenant_id"),
         provider_id: row.get("provider_id"),
         state_hash: row.get("state_hash"),
+        nonce_hash: row.get("nonce_hash"),
         redirect_uri: row.get("redirect_uri"),
         expires_at: row.get("expires_at"),
         consumed_at: row.get("consumed_at"),
@@ -2354,14 +2402,19 @@ fn parse_oidc_login_state(token: &str) -> Option<(&str, &str)> {
     rest.rsplit_once('_')
 }
 
+fn parse_oidc_nonce(token: &str) -> Option<(&str, &str)> {
+    let rest = token.strip_prefix("msm_oidc_nonce_")?;
+    rest.rsplit_once('_')
+}
+
 impl StorageRepository {
     async fn find_oidc_login_state_by_id(
         &self,
         id: &str,
     ) -> StorageResult<Option<OidcLoginStateRecord>> {
         let row = sqlx::query(
-            "SELECT id, tenant_id, provider_id, state_hash, redirect_uri, expires_at, consumed_at,
-                created_at
+            "SELECT id, tenant_id, provider_id, state_hash, nonce_hash, redirect_uri, expires_at,
+                consumed_at, created_at
             FROM oidc_login_states
             WHERE id = ?",
         )
@@ -2658,9 +2711,11 @@ mod tests {
             .unwrap();
 
         assert!(created.state.starts_with("msm_oidc_state_"));
+        assert!(created.nonce.starts_with("msm_oidc_nonce_"));
         assert_ne!(created.record.state_hash, created.state);
+        assert_ne!(created.record.nonce_hash, created.nonce);
         let consumed = repo
-            .consume_oidc_login_state(&created.state)
+            .consume_oidc_login_state(&created.state, &created.nonce)
             .await
             .unwrap()
             .expect("state should verify");
@@ -2668,12 +2723,17 @@ mod tests {
         assert_eq!(consumed.provider_id, "oidc_google");
         assert!(consumed.consumed_at.is_some());
         assert!(repo
-            .consume_oidc_login_state(&created.state)
+            .consume_oidc_login_state(&created.state, &created.nonce)
             .await
             .unwrap()
             .is_none());
         assert!(repo
-            .consume_oidc_login_state(&created.state.replace('a', "b"))
+            .consume_oidc_login_state(&created.state.replace('a', "b"), &created.nonce)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(repo
+            .consume_oidc_login_state(&created.state, &created.nonce.replace('a', "b"))
             .await
             .unwrap()
             .is_none());

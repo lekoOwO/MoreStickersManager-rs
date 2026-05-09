@@ -1344,3 +1344,13 @@
   `clientSecret` in all responses.
 - Updated PRD/status/user docs; CLI/MCP/Web parity and full OIDC token
   validation remain planned Phase D work.
+
+## 2026-05-10 OIDC Nonce And Trusted Claim Validation
+
+- Added nonce generation and hash-only nonce storage for OIDC login state.
+- OIDC authorization URLs now include nonce, and callback completion verifies
+  state, nonce, issuer, and audience before consuming the one-time state.
+- Added regression coverage proving wrong nonce or provider claims are rejected
+  without burning a valid state token.
+- Updated PRD/status docs; next work should implement real authorization-code
+  exchange, discovery/JWKS validation, and userinfo/ID-token validation.

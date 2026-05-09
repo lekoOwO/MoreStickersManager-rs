@@ -189,12 +189,13 @@ tests and docs are updated.
   credentials, scopes, enabled state, and registration policy. CLI/MCP/Web
   parity remains future work.
 - [ ] OIDC login/callback flow.
-  Progress: API now starts OIDC login by creating one-time hashed state tokens
-  and building provider authorization URLs. The callback endpoint consumes
-  state, links or creates tenant users when provider registration is enabled,
-  issues PATs, and creates Web sessions for already-validated provider claims.
-  Remaining work: authorization-code exchange, discovery/JWKS validation,
-  nonce checks, and userinfo/ID-token claim validation.
+  Progress: API now starts OIDC login by creating one-time hashed state and
+  nonce tokens and building provider authorization URLs. The callback endpoint
+  verifies state/nonce, validates trusted issuer and audience claims, then
+  consumes state, links or creates tenant users when provider registration is
+  enabled, issues PATs, and creates Web sessions for already-validated provider
+  claims. Remaining work: authorization-code exchange, discovery/JWKS
+  validation, and userinfo/ID-token signature/expiry validation.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
 

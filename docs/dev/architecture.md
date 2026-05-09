@@ -176,3 +176,9 @@ and one-time state. The current callback endpoint consumes that state and can
 link/create a user from already-validated provider claims; production-grade code
 exchange, discovery, JWKS/ID-token validation, nonce handling, and userinfo
 fetching remain the next Phase D hardening slice.
+
+OIDC start now generates both state and nonce tokens. `oidc_login_states` stores
+hashes for both values; callback verification checks state, nonce, expected
+issuer, and expected audience before consuming state. This prevents a failed
+trusted-claim callback from burning a valid state token. Network token exchange,
+JWKS signature validation, and userinfo fetching remain future work.

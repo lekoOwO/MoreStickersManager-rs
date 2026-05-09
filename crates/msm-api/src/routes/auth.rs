@@ -166,6 +166,7 @@ pub async fn start_oidc_login(
         &provider.client_id,
         &query.redirect_uri,
         &created.state,
+        &created.nonce,
         provider.scopes.iter().map(String::as_str),
     )?;
 
@@ -174,6 +175,7 @@ pub async fn start_oidc_login(
         provider_id,
         authorization_url,
         state: created.state,
+        nonce: created.nonce,
         expires_at,
     }))
 }
@@ -201,7 +203,7 @@ pub async fn complete_oidc_login(
 ) -> ApiResult<impl IntoResponse> {
     let login_state = state
         .repository()
-        .consume_oidc_login_state(&request.state)
+        .verify_oidc_login_state(&request.state, &request.nonce)
         .await?
         .ok_or_else(|| ApiError::Unauthorized("invalid OIDC state".to_owned()))?;
     let provider = state
@@ -212,6 +214,12 @@ pub async fn complete_oidc_login(
     if !provider.is_enabled {
         return Err(ApiError::Unauthorized("OIDC provider not found".to_owned()));
     }
+    validate_oidc_claims(&provider.issuer_url, &provider.client_id, &request)?;
+    state
+        .repository()
+        .consume_oidc_login_state(&request.state, &request.nonce)
+        .await?
+        .ok_or_else(|| ApiError::Unauthorized("invalid OIDC state".to_owned()))?;
     let user_id = if let Some(link) = state
         .repository()
         .find_oidc_user_link(
@@ -310,6 +318,7 @@ fn build_authorization_url<'a>(
     client_id: &str,
     redirect_uri: &str,
     state: &str,
+    nonce: &str,
     scopes: impl Iterator<Item = &'a str>,
 ) -> ApiResult<String> {
     let mut url = Url::parse(issuer_url)
@@ -321,8 +330,31 @@ fn build_authorization_url<'a>(
         .append_pair("client_id", client_id)
         .append_pair("redirect_uri", redirect_uri)
         .append_pair("scope", &scopes.collect::<Vec<_>>().join(" "))
-        .append_pair("state", state);
+        .append_pair("state", state)
+        .append_pair("nonce", nonce);
     Ok(url.to_string())
+}
+
+fn validate_oidc_claims(
+    expected_issuer: &str,
+    expected_audience: &str,
+    request: &CompleteOidcLoginRequest,
+) -> ApiResult<()> {
+    if normalize_url_claim(&request.issuer) != normalize_url_claim(expected_issuer) {
+        return Err(ApiError::Unauthorized(
+            "OIDC issuer claim mismatch".to_owned(),
+        ));
+    }
+    if request.audience != expected_audience {
+        return Err(ApiError::Unauthorized(
+            "OIDC audience claim mismatch".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn normalize_url_claim(value: &str) -> String {
+    value.trim_end_matches('/').to_owned()
 }
 
 fn oidc_user_id(tenant_id: &str, provider_id: &str, provider_subject: &str) -> String {

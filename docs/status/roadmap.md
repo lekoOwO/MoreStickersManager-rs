@@ -138,7 +138,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
   new local registrations.
 - OIDC provider configuration storage now exists for per-tenant issuer, client,
-  scope, enabled-state, and registration-policy settings. API OIDC start/state and trusted callback completion now exist; authorization-code exchange and claim validation are next.
+  scope, enabled-state, and registration-policy settings. API OIDC start/state and trusted callback completion now exist with nonce plus issuer/audience checks; authorization-code exchange and signed claim validation are next.
   role-allowed PAT scopes for the current user.
 - CLI now exposes `msm pats scope-policy --user-id ...` with human/JSON output
   backed by the same protected API endpoint.
@@ -171,7 +171,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Implement OIDC authorization-code exchange and ID-token/userinfo validation.
+1. Implement OIDC authorization-code exchange plus discovery/JWKS/userinfo validation.
 
 ## Later Planned Work
 
