@@ -97,9 +97,10 @@ Last completed:
 - PAT scope policy MCP slice: MCP now exposes `msm.get_pat_scope_policy` with `pat.manage` and same-user enforcement, backed by the shared API RBAC evaluator.
 - PAT scope policy Web slice: Web PAT/local-login dialogs load role-allowed scopes from the protected scope-policy endpoint when a `pat.manage` PAT is available, filter selectable cards, preserve fallback behavior, and cover the live-policy state in unit and Edge E2E tests.
 - Cross-tenant RBAC audit slice: API tests now verify a tenant_1 admin PAT cannot manage tenant_2 pack metadata, export targets, subscription access tokens, Telegram publication history, PAT listing, or tenant settings even when it carries the relevant scopes.
+- Tenant tag RBAC guard slice: tenant tag create/list routes now require membership and the matching `pack.update` role permission in the target tenant, closing the audited cross-tenant tag metadata gap.
 
 Current task:
-- Review and close remaining fine-grained RBAC gaps for resource-owning operations.
+- Continue route-by-route review and closure of remaining fine-grained RBAC gaps for tenant/resource-owning operations.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -200,9 +201,10 @@ Last verification:
 - PAT scope policy MCP slice: RED/GREEN tests with `cargo test -p msm-mcp tools_call_gets_pat_scope_policy --locked`, `cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked`, and `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api -p msm-mcp --locked`, `cargo clippy -p msm-api -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - PAT scope policy Web slice: RED/GREEN tests with `npm run web:test -- api-client` and `npm run web:test -- AppShell`; full verification with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run web:e2e` using installed Microsoft Edge, `%LOCALAPPDATA%\ms-playwright` absence check, and `git diff --check`.
 - Cross-tenant RBAC audit slice: coverage-only API test with `cargo test -p msm-api cross_tenant_admin_pat_cannot_manage_other_tenant_resources --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
+- Tenant tag RBAC guard slice: RED/GREEN test with `cargo test -p msm-api cross_tenant_pat_cannot_manage_tags_for_other_tenant --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 
 Next step:
-- Review remaining resource-owning routes against the PRD permission model and implement the next missing fine-grained RBAC guard with tests.
+- Continue reviewing remaining tenant/resource-owning routes against the PRD permission model and implement the next missing fine-grained RBAC guard with tests.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -143,11 +143,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Cross-tenant API audit coverage now verifies tenant-scoped admin PATs cannot
   cross into another tenant's pack, export, subscription-link, publication,
   PAT, or tenant-settings operations.
+- Tenant tag create/list routes now require target-tenant membership and the
+  matching `pack.update` role permission, closing a cross-tenant metadata gap
+  found during the RBAC route audit.
 
 ## Immediate Plan
 
-1. Review and close remaining fine-grained RBAC gaps for resource-owning
-   operations.
+1. Continue route-by-route review and closure of remaining fine-grained RBAC
+   gaps for tenant/resource-owning operations.
 
 ## Later Planned Work
 

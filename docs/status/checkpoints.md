@@ -1230,3 +1230,12 @@
   and `git diff --check` with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD and status docs; next work should review and close any remaining
   fine-grained RBAC gaps for resource-owning operations.
+
+## 2026-05-09 Tenant Tag RBAC Guard
+
+- Added a RED/GREEN API test proving a PAT scoped in tenant_1 cannot create or
+  list tags in tenant_2.
+- `POST /api/v1/tags` and `GET /api/v1/tags?tenantId=...` now require target
+  tenant membership plus the matching `pack.update` role permission.
+- Updated PRD and status docs; next work should continue the route-by-route
+  fine-grained RBAC audit for remaining tenant/resource-owning operations.

@@ -1708,6 +1708,63 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cross_tenant_pat_cannot_manage_tags_for_other_tenant() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_tenant("tenant_2", "Other")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("admin_1", "admin@example.com", "Admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "admin_1", "admin")
+            .await
+            .unwrap();
+        let token = create_pat(&state, "tagadmin", "admin_1", [Permission::PackUpdate]).await;
+
+        let create_body = serde_json::json!({
+            "id": "tag_cross",
+            "tenantId": "tenant_2",
+            "name": "cross"
+        });
+        let create_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/tags")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_response.status(), StatusCode::FORBIDDEN);
+
+        let list_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/tags?tenantId=tenant_2")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
     #[allow(clippy::too_many_lines)]
     async fn metadata_routes_manage_pack_memberships() {
         let state = seeded_state().await;

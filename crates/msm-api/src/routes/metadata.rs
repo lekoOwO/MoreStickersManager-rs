@@ -14,7 +14,7 @@ use crate::{
         PackTagResponse, SubscriptionGroupPackResponse, SubscriptionGroupResponse, TagResponse,
         UpsertPackMembershipRequest,
     },
-    rbac::{require_pack_access, require_tenant_resource_access},
+    rbac::{require_pack_access, require_tenant_permission, require_tenant_resource_access},
     ApiError, ApiResult, ApiState,
 };
 
@@ -189,7 +189,16 @@ pub async fn create_tag(
     headers: HeaderMap,
     Json(request): Json<CreateTagRequest>,
 ) -> ApiResult<(StatusCode, Json<TagResponse>)> {
-    let _pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    require_tenant_permission(
+        &state,
+        &pat,
+        &request.tenant_id,
+        Permission::PackUpdate,
+        true,
+        "PAT user cannot manage tags in this tenant",
+    )
+    .await?;
     let tag = state
         .repository()
         .create_tag(NewTag {
@@ -218,7 +227,16 @@ pub async fn list_tags(
     headers: HeaderMap,
     Query(query): Query<ListTagsQuery>,
 ) -> ApiResult<Json<Vec<TagResponse>>> {
-    let _pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
+    require_tenant_permission(
+        &state,
+        &pat,
+        &query.tenant_id,
+        Permission::PackUpdate,
+        true,
+        "PAT user cannot list tags in this tenant",
+    )
+    .await?;
     let tags = state
         .repository()
         .list_tags(&query.tenant_id)

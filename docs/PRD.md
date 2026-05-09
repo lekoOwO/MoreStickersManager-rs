@@ -79,7 +79,7 @@ Status meanings:
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, and tenant member/settings/user-status/role-template administration exist. Cross-tenant audit coverage and OIDC/SSO remain incomplete. |
+| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -88,8 +88,8 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Review and close remaining fine-grained RBAC gaps for resource-owning
-   operations.
+1. Continue route-by-route review and closure of remaining fine-grained RBAC
+   gaps for tenant/resource-owning operations.
 
 Each queue item must update this section when completed or reordered.
 
@@ -147,6 +147,8 @@ tests and docs are updated.
   admin/custom-role authorization, export job create/read/event routes support
   same-tenant admin delegation, Telegram publication reads use pack RBAC, and
   subscription-link management routes support same-tenant admin delegation.
+  Tenant tag create/list routes now require membership in the target tenant,
+  preventing scoped PATs from creating or enumerating tags across tenants.
 - [x] PAT creation policy and scope templates by role.
   Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
   PAT for the same user, PAT creation and local login reject scopes outside the
@@ -258,7 +260,7 @@ Current parity gaps:
   reads also use tenant/pack RBAC helpers. Subscription-link management routes
   use pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
   enforce `pat.manage` and role-allowed scopes across API, CLI, MCP, and Web.
-  Cross-tenant audit tests and OIDC/SSO remain incomplete.
+  Cross-tenant audit tests exist; OIDC/SSO remains incomplete.
 
 ## Open Product Questions
 
