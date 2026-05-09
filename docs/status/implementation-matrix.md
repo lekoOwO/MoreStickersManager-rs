@@ -48,11 +48,11 @@ roadmap, and completion definition.
 | Asset privacy enforcement | Future phase | Private pack asset and subscription paths reject anonymous reads and accept owner PATs, pack subscription tokens, subscription-group tokens containing the pack, or an owner `msm_session` Web session cookie. Final read-access rules are recorded in `docs/status/decisions.md`. |
 | OIDC/SSO | Future phase | Local auth bootstrap exists; OIDC/SSO provider configuration and login flow are not implemented. |
 | System-wide CDN public asset URL | Future phase | Domain URL resolver supports CDN preference; admin configuration UI/API is not implemented. |
-| Tenant admin console | Current phase | Bootstrap admin plus tenant member/settings/user-status/role-template API/CLI/MCP/Web surfaces exist; remaining work is route-by-route fine-grained RBAC audit/closure, role assignment semantics beyond templates, and OIDC/SSO integration. |
+| Tenant admin console | Current phase | Bootstrap admin plus tenant member/settings/user-status/role-template API/CLI/MCP/Web surfaces exist, and route-by-route fine-grained RBAC audit/closure is complete for current API tenant/resource-owning routes. Remaining work is role assignment semantics beyond templates and OIDC/SSO integration. |
 | Full user migration UI/API | Future phase | Storage portability helpers exist; complete Web/API/CLI migration workflow is not implemented. |
 | Future providers | Future phases | Signal, WhatsApp, Kakao, Band, OGQ, and Viber are registered as planned only. |
 | Remote target sync/update/delete | P33+ | Telegram reconciliation policies are defined in `msm-exporters` for create-only, append-missing, and mirror operations. `msm-telegram` can execute title/add/replace/delete mutation sequences and fetch remote sticker set metadata, storage can persist source-sticker-to-Telegram-file mappings, successful publication and reconciliation mutation jobs populate mappings from fetched remote state, worker dry-run jobs can summarize planned operations from supplied remote state, append-missing non-dry-run jobs can execute mutations with `executeReconciliation:true`, omitted remote state can be derived from stored mappings plus fetched Telegram metadata, mirror replace/delete also requires `allowDestructiveReconciliation:true`, and Web/CLI/MCP expose named controls for these options. |
 
 ## Current Next Phase
 
-Continue route-by-route review and closure of remaining fine-grained RBAC gaps for tenant/resource-owning operations.
+Start Phase D by implementing admin switches for enabling/disabling local registration.

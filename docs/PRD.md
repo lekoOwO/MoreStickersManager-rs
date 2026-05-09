@@ -88,8 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue route-by-route review and closure of remaining fine-grained RBAC
-   gaps for tenant/resource-owning operations.
+1. Implement admin switches for enabling/disabling local registration.
 
 Each queue item must update this section when completed or reordered.
 
@@ -139,7 +138,7 @@ tests and docs are updated.
   settings read/update, user disabled-status update, and role template
   list/upsert APIs exist with CLI/MCP/Web parity.
 - [x] Web tenant admin console.
-- [ ] Fine-grained RBAC checks for all resource-owning operations.
+- [x] Fine-grained RBAC checks for all resource-owning operations.
   Progress: pack update/delete/export routes now use the domain policy
   evaluator, and product metadata membership routes use shared RBAC helpers, so
   same-tenant admins can manage non-owned packs and metadata memberships while
@@ -158,6 +157,8 @@ tests and docs are updated.
   credentials. Pack listing now filters out packs whose owner is no longer a
   member of the pack's tenant. Subscription-link metadata listing now filters
   same-owner results by current owner membership in each token tenant.
+  Route audit found no remaining API tenant/resource-owning route without a
+  membership or policy gate.
 - [x] PAT creation policy and scope templates by role.
   Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
   PAT for the same user, PAT creation and local login reject scopes outside the

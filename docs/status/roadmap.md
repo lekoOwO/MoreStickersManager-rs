@@ -157,11 +157,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   pack tenant.
 - Same-owner subscription-link metadata listing now filters out token records
   whose owner is no longer a member of the token tenant.
+- Fine-grained RBAC audit for tenant/resource-owning API routes is closed in
+  the PRD; the next focus is Phase D auth-provider administration.
 
 ## Immediate Plan
 
-1. Continue route-by-route review and closure of remaining fine-grained RBAC
-   gaps for tenant/resource-owning operations.
+1. Implement admin switches for enabling/disabling local registration.
 
 ## Later Planned Work
 

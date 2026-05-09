@@ -1292,3 +1292,13 @@
   tenant permission for each returned token.
 - Updated PRD and status docs; next work should continue the route-by-route
   fine-grained RBAC audit.
+
+## 2026-05-10 Fine-Grained RBAC Audit Closure
+
+- Reviewed current API tenant/resource-owning routes after the pack import,
+  pack list, private read, metadata, export/publication, subscription-link,
+  PAT, and tenant administration RBAC slices.
+- Marked Phase C fine-grained RBAC checks complete in the PRD for the current
+  API surface.
+- Moved the active queue to Phase D: admin switches for enabling/disabling
+  local registration.
