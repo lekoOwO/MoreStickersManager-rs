@@ -1,14 +1,22 @@
+use std::collections::BTreeMap;
+
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
     Json,
 };
 use msm_domain::{
-    build_dynamic_subscription_payload, Permission, SubscriptionPackInput, SubscriptionPayloadInput,
+    build_dynamic_subscription_payload, subscription_bearer_headers, Permission,
+    SubscriptionPackInput, SubscriptionPayloadInput,
 };
-use msm_storage::models::{PackVisibility, StickerPackRecord, SubscriptionGroupRecord};
+use msm_storage::models::{
+    PackVisibility, StickerPackRecord, SubscriptionAccessResourceType, SubscriptionGroupRecord,
+};
 
-use crate::{auth::require_pat, ApiError, ApiResult, ApiState};
+use crate::{
+    auth::{bearer_token, require_pat},
+    ApiError, ApiResult, ApiState,
+};
 
 #[utoipa::path(
     get,
@@ -67,7 +75,7 @@ pub async fn public_pack_subscription(
     Path(pack_id): Path<String>,
 ) -> ApiResult<Json<serde_json::Value>> {
     let record = load_pack_record(&state, &pack_id).await?;
-    require_pack_subscription_access(&state, &headers, &record).await?;
+    let access = require_pack_subscription_access(&state, &headers, &record).await?;
     let base_url = public_base_url(&headers);
     let pack = state
         .repository()
@@ -80,7 +88,7 @@ pub async fn public_pack_subscription(
         title: Some(pack.title.clone()),
         author: pack.author.clone(),
         refresh_url: format!("{base_url}/api/public/packs/{pack_id}/subscription"),
-        auth_headers: None,
+        auth_headers: access.auth_headers,
         packs: vec![SubscriptionPackInput {
             pack,
             refresh_url: format!("{base_url}/api/public/packs/{pack_id}/stickerpack"),
@@ -115,7 +123,7 @@ pub async fn public_subscription_group(
     Path(subscription_group_id): Path<String>,
 ) -> ApiResult<Json<serde_json::Value>> {
     let group = load_subscription_group(&state, &subscription_group_id).await?;
-    let include_private = require_subscription_access(&state, &headers, &group).await?;
+    let access = require_subscription_access(&state, &headers, &group).await?;
     let base_url = public_base_url(&headers);
     let pack_ids = state
         .repository()
@@ -125,7 +133,7 @@ pub async fn public_subscription_group(
 
     for pack_id in pack_ids {
         let record = load_pack_record(&state, &pack_id).await?;
-        if include_private || record.visibility == PackVisibility::Public {
+        if access.include_private || record.visibility == PackVisibility::Public {
             let pack = state
                 .repository()
                 .find_sticker_pack(&pack_id)
@@ -144,7 +152,7 @@ pub async fn public_subscription_group(
         title: Some(group.title),
         author: None,
         refresh_url: format!("{base_url}/api/public/subscriptions/{subscription_group_id}"),
-        auth_headers: None,
+        auth_headers: access.auth_headers,
         packs,
     });
 
@@ -176,17 +184,40 @@ async fn load_subscription_group(
         })
 }
 
+struct PackSubscriptionAccess {
+    auth_headers: Option<BTreeMap<String, String>>,
+}
+
+struct SubscriptionGroupAccess {
+    include_private: bool,
+    auth_headers: Option<BTreeMap<String, String>>,
+}
+
 async fn require_pack_subscription_access(
     state: &ApiState,
     headers: &HeaderMap,
     pack: &StickerPackRecord,
-) -> ApiResult<()> {
+) -> ApiResult<PackSubscriptionAccess> {
     if pack.visibility == PackVisibility::Public {
-        return Ok(());
+        return Ok(PackSubscriptionAccess { auth_headers: None });
     }
+
+    if let Some(auth_headers) = require_subscription_token_access(
+        state,
+        headers,
+        SubscriptionAccessResourceType::Pack,
+        &pack.id,
+    )
+    .await?
+    {
+        return Ok(PackSubscriptionAccess {
+            auth_headers: Some(auth_headers),
+        });
+    }
+
     let pat = require_pat(headers, state, Permission::PackRead).await?;
     if pat.user_id == pack.owner_user_id {
-        Ok(())
+        Ok(PackSubscriptionAccess { auth_headers: None })
     } else {
         Err(ApiError::Forbidden(
             "PAT user does not own the private pack".to_owned(),
@@ -198,18 +229,65 @@ async fn require_subscription_access(
     state: &ApiState,
     headers: &HeaderMap,
     group: &SubscriptionGroupRecord,
-) -> ApiResult<bool> {
-    if group.visibility == PackVisibility::Public {
-        return Ok(false);
+) -> ApiResult<SubscriptionGroupAccess> {
+    if let Some(auth_headers) = require_subscription_token_access(
+        state,
+        headers,
+        SubscriptionAccessResourceType::SubscriptionGroup,
+        &group.id,
+    )
+    .await?
+    {
+        return Ok(SubscriptionGroupAccess {
+            include_private: true,
+            auth_headers: Some(auth_headers),
+        });
     }
+
+    if group.visibility == PackVisibility::Public {
+        return Ok(SubscriptionGroupAccess {
+            include_private: false,
+            auth_headers: None,
+        });
+    }
+
     let pat = require_pat(headers, state, Permission::SubscriptionRead).await?;
     if pat.user_id == group.owner_user_id {
-        Ok(true)
+        Ok(SubscriptionGroupAccess {
+            include_private: true,
+            auth_headers: None,
+        })
     } else {
         Err(ApiError::Forbidden(
             "PAT user does not own the private subscription group".to_owned(),
         ))
     }
+}
+
+async fn require_subscription_token_access(
+    state: &ApiState,
+    headers: &HeaderMap,
+    resource_type: SubscriptionAccessResourceType,
+    resource_id: &str,
+) -> ApiResult<Option<BTreeMap<String, String>>> {
+    let token = match bearer_token(headers) {
+        Ok(token) if token.starts_with("msm_sub_") => token,
+        Ok(_) | Err(ApiError::Unauthorized(_)) => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    let record = state
+        .repository()
+        .verify_subscription_access_token(token)
+        .await?
+        .ok_or_else(|| ApiError::Unauthorized("invalid subscription access token".to_owned()))?;
+
+    if record.resource_type != resource_type || record.resource_id != resource_id {
+        return Err(ApiError::Forbidden(
+            "subscription access token resource mismatch".to_owned(),
+        ));
+    }
+
+    Ok(Some(subscription_bearer_headers(token)))
 }
 
 fn public_base_url(headers: &HeaderMap) -> String {

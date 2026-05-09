@@ -169,7 +169,10 @@ mod tests {
 
     use msm_domain::{Permission, Sticker};
     use msm_storage::{
-        models::{NewExportJobEvent, NewExportTarget, NewTag, NewTelegramPublication},
+        models::{
+            NewExportJobEvent, NewExportTarget, NewTag, NewTelegramPublication,
+            SubscriptionAccessResourceType,
+        },
         DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
     };
     use tower::ServiceExt;
@@ -1378,6 +1381,141 @@ mod tests {
             payload["packs"][0]["dynamic"]["refreshUrl"],
             "http://msm.example/api/public/packs/pack_private/stickerpack"
         );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn public_subscription_routes_accept_subscription_access_tokens() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_private",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("private"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_private",
+                "tenant_1",
+                "user_1",
+                "Private Feed",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_pack_to_subscription_group("sub_private", "pack_private", 0)
+            .await
+            .unwrap();
+
+        let pack_token = state
+            .repository()
+            .create_subscription_access_token(
+                "packlink",
+                "tenant_1",
+                "user_1",
+                SubscriptionAccessResourceType::Pack,
+                "pack_private",
+            )
+            .await
+            .unwrap()
+            .token;
+        let group_token = state
+            .repository()
+            .create_subscription_access_token(
+                "grouplink",
+                "tenant_1",
+                "user_1",
+                SubscriptionAccessResourceType::SubscriptionGroup,
+                "sub_private",
+            )
+            .await
+            .unwrap()
+            .token;
+
+        let private_pack = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_private/stickerpack")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(private_pack.status(), StatusCode::OK);
+
+        let private_pack_subscription = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_private/subscription")
+                    .header("host", "msm.example")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(private_pack_subscription.status(), StatusCode::OK);
+        let body = to_bytes(private_pack_subscription.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            payload["authHeaders"]["Authorization"],
+            format!("Bearer {pack_token}")
+        );
+        assert_eq!(
+            payload["packs"][0]["dynamic"]["authHeaders"]["Authorization"],
+            format!("Bearer {pack_token}")
+        );
+
+        let private_subscription = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/subscriptions/sub_private")
+                    .header("host", "msm.example")
+                    .header("authorization", format!("Bearer {group_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(private_subscription.status(), StatusCode::OK);
+        let body = to_bytes(private_subscription.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(payload["id"], "sub_private");
+        assert_eq!(payload["packs"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            payload["authHeaders"]["Authorization"],
+            format!("Bearer {group_token}")
+        );
+        assert_eq!(
+            payload["packs"][0]["dynamic"]["authHeaders"]["Authorization"],
+            format!("Bearer {group_token}")
+        );
+
+        let wrong_resource_token = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/subscriptions/sub_private")
+                    .header("authorization", format!("Bearer {pack_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(wrong_resource_token.status(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]

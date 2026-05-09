@@ -57,7 +57,7 @@ pub async fn require_pat(
     })
 }
 
-fn bearer_token(headers: &HeaderMap) -> ApiResult<&str> {
+pub(crate) fn bearer_token(headers: &HeaderMap) -> ApiResult<&str> {
     let value = headers
         .get(AUTHORIZATION)
         .ok_or_else(|| ApiError::Unauthorized("missing Bearer token".to_owned()))?

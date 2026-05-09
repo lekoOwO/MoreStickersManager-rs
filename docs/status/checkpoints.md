@@ -860,6 +860,21 @@
 - Updated PRD, roadmap, implementation matrix, and current status so the next
   slice wires token verification into public subscription endpoints.
 
+## 2026-05-09 Subscription Access Token API Enforcement
+
+- Public pack refresh, per-pack subscription, and subscription-group endpoints
+  now accept matching `msm_sub_*` subscription access tokens for private
+  resources.
+- Protected dynamic subscription payloads now include refresh `Authorization`
+  headers when the caller used a subscription access token, while owner PAT
+  access does not get embedded back into payloads.
+- Added API tests for private pack access, private subscription-group access,
+  protected payload auth headers, and subscription token resource mismatch
+  rejection.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice can expose subscription link creation, rotation, and revocation
+  controls across API/CLI/MCP/Web.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,
