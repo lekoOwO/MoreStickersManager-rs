@@ -370,6 +370,8 @@ Tenant settings administration currently has API/OpenAPI support:
 
 - `GET /api/v1/tenants/{tenant_id}/settings`
 - `PUT /api/v1/tenants/{tenant_id}/settings`
+- `msm tenants settings get --tenant-id <tenant_id>`
+- `msm tenants settings update --tenant-id <tenant_id> --name <name> [--public-asset-url <url>]`
 
 These routes require a Bearer PAT with `tenant.manage_settings`, and the PAT
 user must be an `admin` member of the target tenant.
@@ -377,6 +379,7 @@ user must be an `admin` member of the target tenant.
 Tenant user status administration currently has API/OpenAPI support:
 
 - `PUT /api/v1/tenants/{tenant_id}/users/{user_id}/status`
+- `msm tenants users set-status --tenant-id <tenant_id> --user-id <user_id> --disabled`
 
 This route requires a Bearer PAT with `tenant.manage_users`, the PAT user must
 be an `admin` member of the target tenant, and the target user must also belong
@@ -386,6 +389,8 @@ Tenant role template administration currently has API/OpenAPI support:
 
 - `GET /api/v1/tenants/{tenant_id}/roles`
 - `PUT /api/v1/tenants/{tenant_id}/roles/{role_id}`
+- `msm tenants roles list --tenant-id <tenant_id>`
+- `msm tenants roles upsert --tenant-id <tenant_id> --role-id <role_id> --name <name> --permission <permission_key>`
 
 These routes require a Bearer PAT with `tenant.manage_roles`, and the PAT user
 must be an `admin` member of the target tenant.

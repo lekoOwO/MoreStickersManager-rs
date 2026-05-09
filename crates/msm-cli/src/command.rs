@@ -9,6 +9,7 @@ use crate::{
         CreatePersonalAccessTokenPayload, CreateSubscriptionAccessTokenPayload,
         CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, MsmClient,
         ReqwestMsmClient, SubscriptionAccessResourceType, UpdatePackPayload,
+        UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertTenantRolePayload,
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
@@ -20,7 +21,8 @@ use crate::{
         format_subscription_link_revoke, format_subscription_link_secret,
         format_subscription_links, format_tag, format_tag_ids, format_tags,
         format_telegram_publication, format_telegram_publications, format_tenant_member,
-        format_tenant_members,
+        format_tenant_members, format_tenant_role, format_tenant_roles, format_tenant_settings,
+        format_tenant_user,
     },
     CliError, CliResult,
 };
@@ -138,6 +140,18 @@ pub enum TenantCommand {
         #[command(subcommand)]
         command: TenantMemberCommand,
     },
+    Settings {
+        #[command(subcommand)]
+        command: TenantSettingsCommand,
+    },
+    Users {
+        #[command(subcommand)]
+        command: TenantUserCommand,
+    },
+    Roles {
+        #[command(subcommand)]
+        command: TenantRoleCommand,
+    },
 }
 
 #[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
@@ -153,6 +167,52 @@ pub enum TenantMemberCommand {
         user_id: String,
         #[arg(long, value_enum)]
         role: TenantMemberRoleArg,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum TenantSettingsCommand {
+    Get {
+        #[arg(long)]
+        tenant_id: String,
+    },
+    Update {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        public_asset_url: Option<String>,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum TenantUserCommand {
+    SetStatus {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        user_id: String,
+        #[arg(long)]
+        disabled: bool,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum TenantRoleCommand {
+    List {
+        #[arg(long)]
+        tenant_id: String,
+    },
+    Upsert {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        role_id: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long = "permission")]
+        permissions: Vec<String>,
     },
 }
 
@@ -597,6 +657,67 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                     format_tenant_member(cli.output_format, &member)
                 }
             },
+            TenantCommand::Settings { command } => match command {
+                TenantSettingsCommand::Get { tenant_id } => {
+                    let settings = client.get_tenant_settings(&tenant_id).await?;
+                    format_tenant_settings(cli.output_format, &settings)
+                }
+                TenantSettingsCommand::Update {
+                    tenant_id,
+                    name,
+                    public_asset_url,
+                } => {
+                    let settings = client
+                        .update_tenant_settings(
+                            &tenant_id,
+                            UpdateTenantSettingsPayload {
+                                name,
+                                public_asset_url,
+                            },
+                        )
+                        .await?;
+                    format_tenant_settings(cli.output_format, &settings)
+                }
+            },
+            TenantCommand::Users { command } => match command {
+                TenantUserCommand::SetStatus {
+                    tenant_id,
+                    user_id,
+                    disabled,
+                } => {
+                    let user = client
+                        .update_tenant_user_status(
+                            &tenant_id,
+                            &user_id,
+                            UpdateTenantUserStatusPayload {
+                                is_disabled: disabled,
+                            },
+                        )
+                        .await?;
+                    format_tenant_user(cli.output_format, &user)
+                }
+            },
+            TenantCommand::Roles { command } => match command {
+                TenantRoleCommand::List { tenant_id } => {
+                    let roles = client.list_tenant_roles(&tenant_id).await?;
+                    format_tenant_roles(cli.output_format, &roles)
+                }
+                TenantRoleCommand::Upsert {
+                    tenant_id,
+                    role_id,
+                    name,
+                    permissions,
+                } => {
+                    let role = client
+                        .upsert_tenant_role(
+                            &tenant_id,
+                            &role_id,
+                            UpsertTenantRolePayload { name, permissions },
+                        )
+                        .await?;
+                    format_tenant_role(cli.output_format, &role)
+                }
+            },
         },
         Command::Metadata { command } => match command {
             MetadataCommand::Folders { command } => match command {
@@ -998,6 +1119,8 @@ mod tests {
             ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, PackTag,
             PersonalAccessToken, SubscriptionAccessResourceType, SubscriptionAccessToken,
             SubscriptionGroup, SubscriptionGroupPack, Tag, TelegramPublication, TenantMember,
+            TenantRole, TenantSettings, TenantUser, UpdateTenantSettingsPayload,
+            UpdateTenantUserStatusPayload, UpsertTenantRolePayload,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
@@ -1005,11 +1128,13 @@ mod tests {
             MetadataCommand, OutputFormat, PackCommand, PackTagCommand, PackVisibility, PatCommand,
             SubscriptionGroupCommand, SubscriptionGroupPackCommand, SubscriptionLinkCommand,
             SubscriptionLinkResourceType, TagCommand, TenantCommand, TenantMemberCommand,
-            TenantMemberRoleArg,
+            TenantMemberRoleArg, TenantRoleCommand, TenantSettingsCommand, TenantUserCommand,
         },
         output::HealthResponse,
         CliResult,
     };
+
+    type TenantRoleUpsertCall = (String, String, String, Vec<String>);
 
     #[test]
     fn parses_health_command() {
@@ -1296,6 +1421,110 @@ mod tests {
                     }
                 }
             } if tenant_id == "tenant_1" && user_id == "user_2"
+        ));
+    }
+
+    #[test]
+    fn parses_tenant_administration_parity_commands() {
+        let settings_get = Cli::parse_from([
+            "msm",
+            "tenants",
+            "settings",
+            "get",
+            "--tenant-id",
+            "tenant_1",
+        ]);
+        assert!(matches!(
+            settings_get.command,
+            Command::Tenants {
+                command: TenantCommand::Settings {
+                    command: TenantSettingsCommand::Get { ref tenant_id }
+                }
+            } if tenant_id == "tenant_1"
+        ));
+
+        let settings_update = Cli::parse_from([
+            "msm",
+            "tenants",
+            "settings",
+            "update",
+            "--tenant-id",
+            "tenant_1",
+            "--name",
+            "Production",
+            "--public-asset-url",
+            "https://cdn.example.test/msm",
+        ]);
+        assert!(matches!(
+            settings_update.command,
+            Command::Tenants {
+                command: TenantCommand::Settings {
+                    command: TenantSettingsCommand::Update {
+                        ref tenant_id,
+                        ref name,
+                        ref public_asset_url,
+                    }
+                }
+            } if tenant_id == "tenant_1"
+                && name == "Production"
+                && public_asset_url.as_deref() == Some("https://cdn.example.test/msm")
+        ));
+
+        let user_status = Cli::parse_from([
+            "msm",
+            "tenants",
+            "users",
+            "set-status",
+            "--tenant-id",
+            "tenant_1",
+            "--user-id",
+            "user_2",
+            "--disabled",
+        ]);
+        assert!(matches!(
+            user_status.command,
+            Command::Tenants {
+                command: TenantCommand::Users {
+                    command: TenantUserCommand::SetStatus {
+                        ref tenant_id,
+                        ref user_id,
+                        disabled: true,
+                    }
+                }
+            } if tenant_id == "tenant_1" && user_id == "user_2"
+        ));
+
+        let roles_upsert = Cli::parse_from([
+            "msm",
+            "tenants",
+            "roles",
+            "upsert",
+            "--tenant-id",
+            "tenant_1",
+            "--role-id",
+            "role_editor",
+            "--name",
+            "Editors",
+            "--permission",
+            "pack.read",
+            "--permission",
+            "pack.update",
+        ]);
+        assert!(matches!(
+            roles_upsert.command,
+            Command::Tenants {
+                command: TenantCommand::Roles {
+                    command: TenantRoleCommand::Upsert {
+                        ref tenant_id,
+                        ref role_id,
+                        ref name,
+                        ref permissions,
+                    }
+                }
+            } if tenant_id == "tenant_1"
+                && role_id == "role_editor"
+                && name == "Editors"
+                && permissions == &vec!["pack.read".to_owned(), "pack.update".to_owned()]
         ));
     }
 
@@ -1926,6 +2155,138 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn executes_tenant_settings_commands() {
+        let client = FakeClient::default();
+        let settings = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "settings",
+                "get",
+                "--tenant-id",
+                "tenant_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(settings, "tenant_1\tTenant\thttps://cdn.example.test/msm");
+
+        let settings_update = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "settings",
+                "update",
+                "--tenant-id",
+                "tenant_1",
+                "--name",
+                "Production",
+                "--public-asset-url",
+                "https://cdn.example.test/prod",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            settings_update,
+            "tenant_1\tProduction\thttps://cdn.example.test/prod"
+        );
+        assert_eq!(
+            client
+                .updated_tenant_settings
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap(),
+            &(
+                "tenant_1".to_owned(),
+                "Production".to_owned(),
+                Some("https://cdn.example.test/prod".to_owned())
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn executes_tenant_user_status_command() {
+        let client = FakeClient::default();
+        let user_status = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "users",
+                "set-status",
+                "--tenant-id",
+                "tenant_1",
+                "--user-id",
+                "user_2",
+                "--disabled",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(user_status, "user_2\tuser@example.com\tdisabled");
+        assert_eq!(
+            client
+                .updated_tenant_user_status
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap(),
+            &("tenant_1".to_owned(), "user_2".to_owned(), true)
+        );
+    }
+
+    #[tokio::test]
+    async fn executes_tenant_role_commands() {
+        let client = FakeClient::default();
+        let roles = execute_with_client(
+            Cli::parse_from(["msm", "tenants", "roles", "list", "--tenant-id", "tenant_1"]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(roles, "role_editor\tEditors\tpack.read,pack.update");
+
+        let role = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "roles",
+                "upsert",
+                "--tenant-id",
+                "tenant_1",
+                "--role-id",
+                "role_editor",
+                "--name",
+                "Editors",
+                "--permission",
+                "pack.read",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(role, "role_editor\tEditors\tpack.read");
+        assert_eq!(
+            client
+                .upserted_tenant_role
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap(),
+            &(
+                "tenant_1".to_owned(),
+                "role_editor".to_owned(),
+                "Editors".to_owned(),
+                vec!["pack.read".to_owned()]
+            )
+        );
+    }
+
+    #[tokio::test]
     async fn executes_export_kinds_command() {
         let output = execute_with_client(
             Cli::parse_from(["msm", "exports", "kinds"]),
@@ -2315,6 +2676,9 @@ mod tests {
         rotated_subscription_access_token: Mutex<Option<String>>,
         revoked_subscription_access_token: Mutex<Option<String>>,
         upserted_tenant_member: Mutex<Option<(String, String, String)>>,
+        updated_tenant_settings: Mutex<Option<(String, String, Option<String>)>>,
+        updated_tenant_user_status: Mutex<Option<(String, String, bool)>>,
+        upserted_tenant_role: Mutex<Option<TenantRoleUpsertCall>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
         created_export_job: Mutex<Option<CreateExportJobPayload>>,
     }
@@ -2400,6 +2764,74 @@ mod tests {
             *self.upserted_tenant_member.lock().unwrap() =
                 Some((tenant_id.to_owned(), user_id.to_owned(), role.to_owned()));
             Ok(sample_tenant_member(user_id, role))
+        }
+
+        async fn get_tenant_settings(&self, _tenant_id: &str) -> CliResult<TenantSettings> {
+            Ok(sample_tenant_settings(
+                "tenant_1",
+                "Tenant",
+                Some("https://cdn.example.test/msm"),
+            ))
+        }
+
+        async fn update_tenant_settings(
+            &self,
+            tenant_id: &str,
+            payload: UpdateTenantSettingsPayload,
+        ) -> CliResult<TenantSettings> {
+            *self.updated_tenant_settings.lock().unwrap() = Some((
+                tenant_id.to_owned(),
+                payload.name.clone(),
+                payload.public_asset_url.clone(),
+            ));
+            Ok(sample_tenant_settings(
+                tenant_id,
+                &payload.name,
+                payload.public_asset_url.as_deref(),
+            ))
+        }
+
+        async fn update_tenant_user_status(
+            &self,
+            tenant_id: &str,
+            user_id: &str,
+            payload: UpdateTenantUserStatusPayload,
+        ) -> CliResult<TenantUser> {
+            *self.updated_tenant_user_status.lock().unwrap() = Some((
+                tenant_id.to_owned(),
+                user_id.to_owned(),
+                payload.is_disabled,
+            ));
+            Ok(sample_tenant_user(user_id, payload.is_disabled))
+        }
+
+        async fn list_tenant_roles(&self, _tenant_id: &str) -> CliResult<Vec<TenantRole>> {
+            Ok(vec![sample_tenant_role(
+                "role_editor",
+                "tenant_1",
+                "Editors",
+                vec!["pack.read".to_owned(), "pack.update".to_owned()],
+            )])
+        }
+
+        async fn upsert_tenant_role(
+            &self,
+            tenant_id: &str,
+            role_id: &str,
+            payload: UpsertTenantRolePayload,
+        ) -> CliResult<TenantRole> {
+            *self.upserted_tenant_role.lock().unwrap() = Some((
+                tenant_id.to_owned(),
+                role_id.to_owned(),
+                payload.name.clone(),
+                payload.permissions.clone(),
+            ));
+            Ok(sample_tenant_role(
+                role_id,
+                tenant_id,
+                &payload.name,
+                payload.permissions,
+            ))
         }
 
         async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder> {
@@ -2620,6 +3052,44 @@ mod tests {
             tenant_id: "tenant_1".to_owned(),
             user_id: user_id.to_owned(),
             role: role.to_owned(),
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_tenant_settings(
+        tenant_id: &str,
+        name: &str,
+        public_asset_url: Option<&str>,
+    ) -> TenantSettings {
+        TenantSettings {
+            tenant_id: tenant_id.to_owned(),
+            name: name.to_owned(),
+            public_asset_url: public_asset_url.map(str::to_owned),
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_tenant_user(user_id: &str, is_disabled: bool) -> TenantUser {
+        TenantUser {
+            id: user_id.to_owned(),
+            email: "user@example.com".to_owned(),
+            display_name: "User".to_owned(),
+            is_disabled,
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_tenant_role(
+        role_id: &str,
+        tenant_id: &str,
+        name: &str,
+        permissions: Vec<String>,
+    ) -> TenantRole {
+        TenantRole {
+            id: role_id.to_owned(),
+            tenant_id: Some(tenant_id.to_owned()),
+            name: name.to_owned(),
+            permissions,
             created_at: "2026-05-09T00:00:00Z".to_owned(),
         }
     }

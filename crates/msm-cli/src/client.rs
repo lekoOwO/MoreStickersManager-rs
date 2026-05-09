@@ -202,6 +202,55 @@ pub struct UpsertTenantMemberPayload {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TenantSettings {
+    pub tenant_id: String,
+    pub name: String,
+    pub public_asset_url: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTenantSettingsPayload {
+    pub name: String,
+    pub public_asset_url: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TenantUser {
+    pub id: String,
+    pub email: String,
+    pub display_name: String,
+    pub is_disabled: bool,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTenantUserStatusPayload {
+    pub is_disabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TenantRole {
+    pub id: String,
+    pub tenant_id: Option<String>,
+    pub name: String,
+    pub permissions: Vec<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertTenantRolePayload {
+    pub name: String,
+    pub permissions: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExportTargetKind {
     pub kind: String,
     pub display_name: String,
@@ -311,6 +360,25 @@ pub trait MsmClient {
         user_id: &str,
         role: &str,
     ) -> CliResult<TenantMember>;
+    async fn get_tenant_settings(&self, tenant_id: &str) -> CliResult<TenantSettings>;
+    async fn update_tenant_settings(
+        &self,
+        tenant_id: &str,
+        payload: UpdateTenantSettingsPayload,
+    ) -> CliResult<TenantSettings>;
+    async fn update_tenant_user_status(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        payload: UpdateTenantUserStatusPayload,
+    ) -> CliResult<TenantUser>;
+    async fn list_tenant_roles(&self, tenant_id: &str) -> CliResult<Vec<TenantRole>>;
+    async fn upsert_tenant_role(
+        &self,
+        tenant_id: &str,
+        role_id: &str,
+        payload: UpsertTenantRolePayload,
+    ) -> CliResult<TenantRole>;
     async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder>;
     async fn list_folders(&self, tenant_id: &str, owner_user_id: &str) -> CliResult<Vec<Folder>>;
     async fn create_tag(&self, payload: CreateTagPayload) -> CliResult<Tag>;
@@ -573,6 +641,87 @@ impl MsmClient for ReqwestMsmClient {
             .json(&UpsertTenantMemberPayload {
                 role: role.to_owned(),
             })
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn get_tenant_settings(&self, tenant_id: &str) -> CliResult<TenantSettings> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/tenants/{tenant_id}/settings"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn update_tenant_settings(
+        &self,
+        tenant_id: &str,
+        payload: UpdateTenantSettingsPayload,
+    ) -> CliResult<TenantSettings> {
+        Ok(self
+            .authorize(
+                self.http
+                    .put(self.endpoint(&format!("/api/v1/tenants/{tenant_id}/settings"))?),
+            )
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn update_tenant_user_status(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        payload: UpdateTenantUserStatusPayload,
+    ) -> CliResult<TenantUser> {
+        Ok(self
+            .authorize(self.http.put(self.endpoint(&format!(
+                "/api/v1/tenants/{tenant_id}/users/{user_id}/status"
+            ))?))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_tenant_roles(&self, tenant_id: &str) -> CliResult<Vec<TenantRole>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/tenants/{tenant_id}/roles"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn upsert_tenant_role(
+        &self,
+        tenant_id: &str,
+        role_id: &str,
+        payload: UpsertTenantRolePayload,
+    ) -> CliResult<TenantRole> {
+        Ok(self
+            .authorize(
+                self.http
+                    .put(self.endpoint(&format!("/api/v1/tenants/{tenant_id}/roles/{role_id}"))?),
+            )
+            .json(&payload)
             .send()
             .await?
             .error_for_status()?

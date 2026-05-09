@@ -107,10 +107,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Role templates now have storage helpers plus protected API/OpenAPI list and
   upsert routes guarded by `tenant.manage_roles` and an admin tenant membership
   check.
+- CLI now exposes tenant settings get/update, tenant user disabled-status
+  updates, and tenant role template list/upsert.
 
 ## Immediate Plan
 
-1. Add CLI/MCP/Web parity for tenant settings, user status controls, and role
+1. Add MCP/Web parity for tenant settings, user status controls, and role
    templates.
 
 ## Later Planned Work

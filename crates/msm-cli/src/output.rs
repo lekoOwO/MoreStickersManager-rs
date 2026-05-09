@@ -5,7 +5,7 @@ use crate::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
         ExportTarget, ExportTargetKind, Folder, FolderPack, PackTag, PersonalAccessToken,
         SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
-        TelegramPublication, TenantMember,
+        TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
     },
     command::OutputFormat,
     CliResult,
@@ -205,6 +205,75 @@ pub fn format_tenant_member(format: OutputFormat, member: &TenantMember) -> CliR
     match format {
         OutputFormat::Human => Ok(tenant_member_line(member)),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(member)?),
+    }
+}
+
+/// Formats tenant settings responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tenant_settings(
+    format: OutputFormat,
+    settings: &TenantSettings,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!(
+            "{}\t{}\t{}",
+            settings.tenant_id,
+            settings.name,
+            settings.public_asset_url.as_deref().unwrap_or("")
+        )),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(settings)?),
+    }
+}
+
+/// Formats tenant user responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tenant_user(format: OutputFormat, user: &TenantUser) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!(
+            "{}\t{}\t{}",
+            user.id,
+            user.email,
+            if user.is_disabled {
+                "disabled"
+            } else {
+                "enabled"
+            }
+        )),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(user)?),
+    }
+}
+
+/// Formats tenant role list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tenant_roles(format: OutputFormat, roles: &[TenantRole]) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(roles
+            .iter()
+            .map(tenant_role_line)
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(roles)?),
+    }
+}
+
+/// Formats one tenant role response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tenant_role(format: OutputFormat, role: &TenantRole) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(tenant_role_line(role)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(role)?),
     }
 }
 
@@ -560,6 +629,10 @@ fn telegram_publication_line(publication: &TelegramPublication) -> String {
 
 fn tenant_member_line(member: &TenantMember) -> String {
     format!("{}\t{}", member.user_id, member.role)
+}
+
+fn tenant_role_line(role: &TenantRole) -> String {
+    format!("{}\t{}\t{}", role.id, role.name, role.permissions.join(","))
 }
 
 fn folder_line(folder: &Folder) -> String {

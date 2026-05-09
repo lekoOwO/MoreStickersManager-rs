@@ -1041,3 +1041,17 @@
 - Updated PRD, roadmap, implementation matrix, and current status; next slice
   should add CLI/MCP/Web parity for tenant settings, user status controls, and
   role templates.
+
+## 2026-05-09 Tenant Administration CLI Parity
+
+- Added CLI `msm tenants settings get --tenant-id <tenant_id>` and
+  `msm tenants settings update --tenant-id <tenant_id> --name <name>
+  [--public-asset-url <url>]`.
+- Added CLI `msm tenants users set-status --tenant-id <tenant_id> --user-id
+  <user_id> --disabled`.
+- Added CLI `msm tenants roles list --tenant-id <tenant_id>` and
+  `msm tenants roles upsert --tenant-id <tenant_id> --role-id <role_id>
+  --name <name> --permission <permission_key>...`.
+- Updated PRD, roadmap, implementation matrix, current status, README, and user
+  docs; next slice should add MCP/Web parity for tenant settings, user status
+  controls, and role templates.
