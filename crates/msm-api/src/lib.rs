@@ -3,6 +3,7 @@
 pub mod auth;
 pub mod dto;
 pub mod error;
+pub mod oidc;
 pub mod openapi;
 mod rbac;
 pub mod routes;

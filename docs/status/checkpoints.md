@@ -1354,3 +1354,10 @@
   without burning a valid state token.
 - Updated PRD/status docs; next work should implement real authorization-code
   exchange, discovery/JWKS validation, and userinfo/ID-token validation.
+
+## 2026-05-10 OIDC Token Exchange Foundation
+
+- Added tested OIDC helper functions for building authorization-code token
+  exchange form bodies and parsing Bearer token responses.
+- Kept callback integration, discovery/JWKS validation, and userinfo/ID-token
+  signature/expiry validation as the next Phase D work.

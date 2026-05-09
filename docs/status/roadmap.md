@@ -171,7 +171,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Implement OIDC authorization-code exchange plus discovery/JWKS/userinfo validation.
+1. Wire OIDC token exchange helpers into callback-path HTTP exchange, then add discovery/JWKS/userinfo validation.
 
 ## Later Planned Work
 
