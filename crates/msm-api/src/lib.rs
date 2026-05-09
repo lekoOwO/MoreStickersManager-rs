@@ -791,6 +791,137 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn tenant_admin_pat_can_manage_pack_owned_by_another_user() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "owner@example.com", "Owner")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_other",
+                "tenant_1",
+                "user_2",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("other"),
+            )
+            .await
+            .unwrap();
+        let admin_token = create_pat(
+            &state,
+            "adminpack",
+            "user_1",
+            [
+                Permission::PackRead,
+                Permission::PackUpdate,
+                Permission::PackDelete,
+            ],
+        )
+        .await;
+        let update_body = serde_json::json!({
+            "title": "Admin Renamed",
+            "visibility": "public",
+        });
+
+        let update_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/v1/packs/pack_other")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(update_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(update_response.status(), StatusCode::OK);
+
+        let export_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs/pack_other/stickerpack")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(export_response.status(), StatusCode::OK);
+
+        let delete_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/packs/pack_other")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn non_owner_pat_cannot_export_private_pack_without_delegated_access() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "owner@example.com", "Owner")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_3", "reader@example.com", "Reader")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_3", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_other",
+                "tenant_1",
+                "user_2",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("other"),
+            )
+            .await
+            .unwrap();
+        let reader_token = create_pat(&state, "readerpack", "user_3", [Permission::PackRead]).await;
+
+        let export_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs/pack_other/stickerpack")
+                    .header("authorization", format!("Bearer {reader_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(export_response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
     #[allow(clippy::too_many_lines)]
     async fn export_target_routes_redact_tokens_and_require_scopes() {
         let state = empty_state_with_owner().await;

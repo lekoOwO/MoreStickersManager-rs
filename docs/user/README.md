@@ -488,6 +488,9 @@ PAT enforcement status:
   subscription access tokens, or an owner `msm_session` cookie.
 - anonymous public subscription-group reads still omit private packs; owner PAT
   or owner Web-session reads include owned private packs in that group.
+- pack update, delete, and export API routes use domain RBAC policy evaluation:
+  same-tenant admins with matching PAT scopes can manage non-owned packs, while
+  regular non-owners are denied.
 
 Local auth bootstrap endpoints:
 

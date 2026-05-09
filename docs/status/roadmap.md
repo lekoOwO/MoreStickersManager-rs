@@ -119,11 +119,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   read private pack refresh and subscription endpoints.
 - Private pack refresh/subscription endpoints now accept owner Web sessions,
   and owner PAT reads of public subscription groups include owned private packs.
+- Pack update/delete/export routes now use the domain policy evaluator, giving
+  same-tenant admins scoped non-owner access while denying regular non-owners.
 
 ## Immediate Plan
 
-1. Add fine-grained RBAC checks for resource-owning operations so tenant role
-   templates can delegate non-owner management safely.
+1. Continue fine-grained RBAC checks for product metadata membership routes,
+   export jobs, subscription-link management, and Telegram publication reads.
 
 ## Later Planned Work
 

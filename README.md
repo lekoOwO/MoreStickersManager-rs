@@ -411,6 +411,9 @@ PAT, and Web-session read-access model is recorded in
 `docs/status/decisions.md`. Private pack refresh and subscription endpoints
 accept owner PATs, matching subscription secrets, or an owner `msm_session`
 cookie; anonymous reads of public subscription groups still omit private packs.
+Pack update, delete, and export API routes now use the domain RBAC policy
+evaluator, so same-tenant admins with matching PAT scopes can manage
+non-owned packs while regular non-owners are denied.
 
 ## Project Docs
 

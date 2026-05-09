@@ -28,7 +28,7 @@ roadmap, and completion definition.
 | Web auth/PAT UI | Implemented | Local register/login and PAT create/list/revoke are exposed through dialogs, with selectable PAT scope controls, including tenant administration scopes, instead of free-form scope text input. Local login also receives an HttpOnly `msm_session` cookie from the API. |
 | Web pack management | Implemented | Dashboard supports shell-selected pack list, rename, visibility edit, delete, pasted `.stickerpack` import dialog, folder/tag/subscription-group metadata management, folder-pack/pack-tag/subscription-group pack membership controls, tenant member/settings/user-status/role-template administration, export target setup, export job queue/status views, Telegram publication history links, and Telegram reconciliation controls for selected packs. |
 | Local auth bootstrap | Implemented | Register/login APIs store Argon2 password credentials; login returns a PAT and creates a hashed Web session cookie. Registration can bootstrap a tenant admin. |
-| Multi-tenant model | Partially implemented | Tenant/user records, bootstrap admin path, protected tenant member/settings/user-status/role-template API routes, CLI commands, MCP tools, and Web controls exist. Complete resource-owner RBAC delegation and richer tenant policy management are not implemented. |
+| Multi-tenant model | Partially implemented | Tenant/user records, bootstrap admin path, protected tenant member/settings/user-status/role-template API routes, CLI commands, MCP tools, and Web controls exist. Pack update/delete/export routes use domain RBAC policy evaluation; remaining resource-owner routes and richer tenant policy management are incomplete. |
 | PAT support | Implemented | Raw token is returned once, only the secret hash is stored, and protected pack API/MCP operations enforce scopes. |
 | GitHub Actions | Implemented | CI, Docker publish, prerelease, and tag release workflows exist. Local Docker verification is blocked by missing Docker CLI. |
 
@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue with fine-grained RBAC delegation for resource-owning operations.
+Continue with RBAC delegation for metadata membership and export ownership routes.

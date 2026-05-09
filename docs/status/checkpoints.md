@@ -1100,3 +1100,15 @@
 - Updated PRD, roadmap, implementation matrix, current status, README, and user
   docs; next slice should begin fine-grained RBAC delegation for resource-owner
   operations.
+
+## 2026-05-09 Pack RBAC Delegation
+
+- Routed pack update, delete, and export authorization through the domain pack
+  policy evaluator after the PAT scope gate.
+- Same-tenant admins with matching PAT scopes can now manage packs owned by
+  other tenant users.
+- Regular non-owner PATs are denied when exporting private packs, closing the
+  previous read-scope-only gap.
+- Updated PRD, roadmap, implementation matrix, current status, README, and user
+  docs; remaining RBAC work should cover metadata membership, export job, and
+  publication ownership checks.
