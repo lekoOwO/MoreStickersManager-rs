@@ -30,6 +30,7 @@ const memberUserId = ref("");
 const memberRole = ref<TenantMemberRole>("user");
 const settingsName = ref("");
 const publicAssetUrl = ref("");
+const localRegistrationEnabled = ref(true);
 const statusUserId = ref("");
 const userStatus = ref<TenantUserResponse | null>(null);
 const roleId = ref("");
@@ -76,6 +77,7 @@ async function loadTenantAdminData() {
     settings.value = nextSettings;
     settingsName.value = nextSettings.name;
     publicAssetUrl.value = nextSettings.publicAssetUrl ?? "";
+    localRegistrationEnabled.value = nextSettings.localRegistrationEnabled;
   } catch (error) {
     members.value = [];
     roles.value = [];
@@ -114,9 +116,11 @@ async function saveTenantSettings() {
     settings.value = await tenantAdminClient().updateTenantSettings(props.tenantId, {
       name: settingsName.value.trim(),
       publicAssetUrl: publicAssetUrl.value.trim() || null,
+      localRegistrationEnabled: localRegistrationEnabled.value,
     });
     settingsName.value = settings.value.name;
     publicAssetUrl.value = settings.value.publicAssetUrl ?? "";
+    localRegistrationEnabled.value = settings.value.localRegistrationEnabled;
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
   }
@@ -215,6 +219,15 @@ function updateMemberRoleFromEvent(userId: string, event: Event) {
                   placeholder="https://cdn.example.test/msm"
                   :aria-label="labels.publicAssetUrl"
                 />
+              </label>
+              <label class="flex items-center gap-3 rounded-xl border bg-background/70 p-3 text-sm font-medium">
+                <input
+                  v-model="localRegistrationEnabled"
+                  type="checkbox"
+                  class="size-4 cursor-pointer accent-primary"
+                  :aria-label="labels.localRegistrationEnabled"
+                />
+                <span>{{ labels.localRegistrationEnabled }}</span>
               </label>
               <Button
                 type="button"

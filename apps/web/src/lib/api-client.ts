@@ -133,12 +133,14 @@ export interface TenantSettingsResponse {
   tenantId: string;
   name: string;
   publicAssetUrl: string | null;
+  localRegistrationEnabled: boolean;
   createdAt: string;
 }
 
 export interface UpdateTenantSettingsRequest {
   name: string;
   publicAssetUrl: string | null;
+  localRegistrationEnabled: boolean;
 }
 
 export interface TenantUserResponse {
@@ -1003,6 +1005,7 @@ function mockTenantAdminClient(): TenantAdminClient {
     tenantId: "tenant_1",
     name: "Default tenant",
     publicAssetUrl: null,
+    localRegistrationEnabled: true,
     createdAt: "2026-05-09T00:00:00Z",
   };
   let users: TenantUserResponse[] = [
@@ -1059,6 +1062,7 @@ function mockTenantAdminClient(): TenantAdminClient {
         tenantId,
         name: request.name,
         publicAssetUrl: request.publicAssetUrl,
+        localRegistrationEnabled: request.localRegistrationEnabled,
         createdAt: settings.createdAt,
       };
       return { ...settings };

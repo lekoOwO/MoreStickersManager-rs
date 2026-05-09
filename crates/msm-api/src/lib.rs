@@ -1210,7 +1210,8 @@ mod tests {
                     .body(Body::from(
                         serde_json::json!({
                             "name": "Cross tenant",
-                            "publicAssetUrl": null
+                            "publicAssetUrl": null,
+                            "localRegistrationEnabled": true
                         })
                         .to_string(),
                     ))
@@ -3795,6 +3796,49 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn local_auth_register_rejects_disabled_tenant_registration() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .update_tenant_settings("tenant_1", "Tenant", None, false)
+            .await
+            .unwrap();
+        let register_body = serde_json::json!({
+            "id": "user_1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "password": "correct horse battery staple",
+            "tenantId": "tenant_1",
+            "tenantRole": "user"
+        });
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/register")
+                    .header("content-type", "application/json")
+                    .body(Body::from(register_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert!(state
+            .repository()
+            .find_user("user_1")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
     async fn local_auth_session_cookie_reads_owned_private_asset() {
         let state = test_state().await;
         state
@@ -4140,7 +4184,8 @@ mod tests {
 
         let update_body = serde_json::json!({
             "name": "Production Tenant",
-            "publicAssetUrl": "https://cdn.example.test/msm"
+            "publicAssetUrl": "https://cdn.example.test/msm",
+            "localRegistrationEnabled": false
         });
         let update_response = build_router(state.clone())
             .oneshot(
@@ -4162,6 +4207,7 @@ mod tests {
         assert_eq!(updated["tenantId"], "tenant_1");
         assert_eq!(updated["name"], "Production Tenant");
         assert_eq!(updated["publicAssetUrl"], "https://cdn.example.test/msm");
+        assert_eq!(updated["localRegistrationEnabled"], false);
 
         let get_response = build_router(state)
             .oneshot(
@@ -4179,6 +4225,7 @@ mod tests {
             .unwrap();
         let settings: serde_json::Value = serde_json::from_slice(&get_body).unwrap();
         assert_eq!(settings["publicAssetUrl"], "https://cdn.example.test/msm");
+        assert_eq!(settings["localRegistrationEnabled"], false);
     }
 
     #[tokio::test]

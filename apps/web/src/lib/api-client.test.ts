@@ -287,6 +287,7 @@ describe("tenant admin API client", () => {
             tenantId: "tenant_1",
             name: "Production",
             publicAssetUrl: "https://cdn.example.test/msm",
+            localRegistrationEnabled: false,
             createdAt: "2026-05-09T00:00:00Z",
           }),
           { status: 200 },
@@ -298,6 +299,7 @@ describe("tenant admin API client", () => {
             tenantId: "tenant_1",
             name: "Default tenant",
             publicAssetUrl: null,
+            localRegistrationEnabled: true,
             createdAt: "2026-05-09T00:00:00Z",
           }),
           { status: 200 },
@@ -351,6 +353,7 @@ describe("tenant admin API client", () => {
     const updatedSettings = await client.updateTenantSettings("tenant_1", {
       name: "Production",
       publicAssetUrl: "https://cdn.example.test/msm",
+      localRegistrationEnabled: false,
     });
     const user = await client.setTenantUserStatus("tenant_1", "user_2", true);
     const role = await client.upsertTenantRole("tenant_1", "role_editor", {
@@ -361,6 +364,7 @@ describe("tenant admin API client", () => {
 
     expect(settings.name).toBe("Default tenant");
     expect(updatedSettings.publicAssetUrl).toBe("https://cdn.example.test/msm");
+    expect(updatedSettings.localRegistrationEnabled).toBe(false);
     expect(user.isDisabled).toBe(true);
     expect(role.permissions).toEqual(["pack.read", "pack.update"]);
     expect(roles[0]?.id).toBe("role_editor");
@@ -373,6 +377,7 @@ describe("tenant admin API client", () => {
       body: JSON.stringify({
         name: "Production",
         publicAssetUrl: "https://cdn.example.test/msm",
+        localRegistrationEnabled: false,
       }),
     });
     expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/tenants/tenant_1/users/user_2/status", {

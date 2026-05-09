@@ -213,6 +213,7 @@ pub struct TenantSettings {
     pub tenant_id: String,
     pub name: String,
     pub public_asset_url: Option<String>,
+    pub local_registration_enabled: bool,
     pub created_at: String,
 }
 
@@ -221,6 +222,7 @@ pub struct TenantSettings {
 pub struct UpdateTenantSettingsPayload {
     pub name: String,
     pub public_asset_url: Option<String>,
+    pub local_registration_enabled: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

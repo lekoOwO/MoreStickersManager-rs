@@ -1,6 +1,6 @@
 # MoreStickersManager-rs PRD
 
-Last updated: 2026-05-09.
+Last updated: 2026-05-10.
 
 This is the living product requirements document for MoreStickersManager-rs
 (MSM). Keep it accurate until the project can be considered complete. When
@@ -79,7 +79,7 @@ Status meanings:
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
+| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Implement admin switches for enabling/disabling local registration.
+1. Implement OIDC provider configuration storage.
 
 Each queue item must update this section when completed or reordered.
 
@@ -178,7 +178,11 @@ tests and docs are updated.
 ### Phase D: Auth Providers
 
 - [x] Local registration/login bootstrap.
-- [ ] Admin switches for enabling/disabling local registration.
+- [x] Admin switches for enabling/disabling local registration.
+  Progress: tenant settings now include `localRegistrationEnabled` across
+  SQLite storage, API/OpenAPI DTOs, CLI, MCP, and Web tenant administration.
+  Existing tenants can reject local registrations while existing accounts
+  continue to log in; new-tenant bootstrap remains available.
 - [ ] OIDC provider configuration storage.
 - [ ] OIDC login/callback flow.
 - [ ] Web SSO login controls.
@@ -263,12 +267,13 @@ Current parity gaps:
   operator recovery polish remains.
 - User data migration: storage helpers exist; API, CLI, and Web workflows are
   missing.
-- Tenant/RBAC administration: tenant member, tenant settings, user
-  disabled-status, and role template administration exist across API, CLI, MCP,
-  and Web. Pack update/delete/export plus product metadata membership routes
-  use RBAC policy helpers. Export target/job routes and Telegram publication
-  reads also use tenant/pack RBAC helpers. Subscription-link management routes
-  use pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
+- Tenant/RBAC administration: tenant member, tenant settings including local
+  registration enable/disable, user disabled-status, and role template
+  administration exist across API, CLI, MCP, and Web. Pack
+  update/delete/export plus product metadata membership routes use RBAC policy
+  helpers. Export target/job routes and Telegram publication reads also use
+  tenant/pack RBAC helpers. Subscription-link management routes use
+  pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
   enforce `pat.manage` and role-allowed scopes across API, CLI, MCP, and Web.
   Cross-tenant audit tests exist; OIDC/SSO remains incomplete.
 

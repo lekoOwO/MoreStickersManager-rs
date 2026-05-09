@@ -7,6 +7,7 @@ pub struct TenantRecord {
     pub id: String,
     pub name: String,
     pub public_asset_url: Option<String>,
+    pub local_registration_enabled: bool,
     pub created_at: DateTime<Utc>,
 }
 

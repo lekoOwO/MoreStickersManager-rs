@@ -232,6 +232,8 @@ pub struct TenantMemberResponse {
 pub struct UpdateTenantSettingsRequest {
     pub name: String,
     pub public_asset_url: Option<String>,
+    #[serde(default = "default_true")]
+    pub local_registration_enabled: bool,
 }
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
@@ -240,7 +242,12 @@ pub struct TenantSettingsResponse {
     pub tenant_id: String,
     pub name: String,
     pub public_asset_url: Option<String>,
+    pub local_registration_enabled: bool,
     pub created_at: String,
+}
+
+const fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
@@ -656,6 +663,7 @@ impl From<msm_storage::models::TenantRecord> for TenantSettingsResponse {
             tenant_id: record.id,
             name: record.name,
             public_asset_url: record.public_asset_url,
+            local_registration_enabled: record.local_registration_enabled,
             created_at: record.created_at.to_rfc3339(),
         }
     }

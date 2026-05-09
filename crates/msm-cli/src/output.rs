@@ -235,10 +235,11 @@ pub fn format_tenant_settings(
 ) -> CliResult<String> {
     match format {
         OutputFormat::Human => Ok(format!(
-            "{}\t{}\t{}",
+            "{}\t{}\t{}\t{}",
             settings.tenant_id,
             settings.name,
-            settings.public_asset_url.as_deref().unwrap_or("")
+            settings.public_asset_url.as_deref().unwrap_or(""),
+            settings.local_registration_enabled
         )),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(settings)?),
     }

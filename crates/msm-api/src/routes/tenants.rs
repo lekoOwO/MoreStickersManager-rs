@@ -169,7 +169,12 @@ pub async fn update_tenant_settings(
     let public_asset_url = normalize_public_asset_url(request.public_asset_url.as_deref())?;
     let tenant = state
         .repository()
-        .update_tenant_settings(&tenant_id, name, public_asset_url)
+        .update_tenant_settings(
+            &tenant_id,
+            name,
+            public_asset_url,
+            request.local_registration_enabled,
+        )
         .await?;
 
     Ok((StatusCode::OK, Json(TenantSettingsResponse::from(tenant))))

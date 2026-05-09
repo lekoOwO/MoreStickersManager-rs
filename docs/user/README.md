@@ -436,7 +436,7 @@ Tenant administration CLI commands:
 - `msm tenants members list --tenant-id <tenant_id>`
 - `msm tenants members set-role --tenant-id <tenant_id> --user-id <user_id> --role <admin|user>`
 - `msm tenants settings get --tenant-id <tenant_id>`
-- `msm tenants settings update --tenant-id <tenant_id> --name <name> [--public-asset-url <url>]`
+- `msm tenants settings update --tenant-id <tenant_id> --name <name> [--public-asset-url <url>] [--local-registration-enabled <true|false>]`
 - `msm tenants users set-status --tenant-id <tenant_id> --user-id <user_id> --disabled`
 - `msm tenants roles list --tenant-id <tenant_id>`
 - `msm tenants roles upsert --tenant-id <tenant_id> --role-id <role_id> --name <name> --permission <permission_key>`
@@ -565,7 +565,8 @@ Tenant member administration Web surface:
 - Open the Tenant admin workspace.
 - Review member counts and current member roles.
 - Enter a user ID and choose `admin` or `user` to add or update a tenant member.
-- Edit tenant name and public asset/CDN URL in the tenant settings area.
+- Edit tenant name, public asset/CDN URL, and whether local account
+  registration is enabled in the tenant settings area.
 - Enter a member user ID and enable or disable that user's local login status.
 - Create or update role templates with selectable permission keys.
 
@@ -576,7 +577,7 @@ Tenant settings administration API endpoints:
 - `GET /api/v1/tenants/{tenant_id}/settings`
 - `PUT /api/v1/tenants/{tenant_id}/settings`
 - `msm tenants settings get --tenant-id <tenant_id>`
-- `msm tenants settings update --tenant-id <tenant_id> --name <name> [--public-asset-url <url>]`
+- `msm tenants settings update --tenant-id <tenant_id> --name <name> [--public-asset-url <url>] [--local-registration-enabled <true|false>]`
 - `msm.get_tenant_settings`
 - `msm.update_tenant_settings`
 
@@ -585,11 +586,15 @@ The `PUT` body replaces editable settings:
 ```json
 {
   "name": "Production Tenant",
-  "publicAssetUrl": "https://cdn.example.test/msm"
+  "publicAssetUrl": "https://cdn.example.test/msm",
+  "localRegistrationEnabled": false
 }
 ```
 
 Use `null` for `publicAssetUrl` to clear the tenant-level CDN/public asset URL.
+When `localRegistrationEnabled` is `false`, existing users can still log in,
+but `POST /api/v1/auth/local/register` rejects new registrations into that
+existing tenant. New-tenant bootstrap registrations are still allowed.
 
 Tenant user status administration API endpoint:
 

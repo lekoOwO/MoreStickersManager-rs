@@ -1080,7 +1080,8 @@ mod tests {
                     "arguments": {
                         "tenantId": "tenant_1",
                         "name": "Production",
-                        "publicAssetUrl": "https://cdn.example.test/msm"
+                        "publicAssetUrl": "https://cdn.example.test/msm",
+                        "localRegistrationEnabled": false
                     }
                 }
             }),
@@ -1089,6 +1090,10 @@ mod tests {
         assert_eq!(
             update_settings["result"]["structuredContent"]["settings"]["publicAssetUrl"],
             "https://cdn.example.test/msm"
+        );
+        assert_eq!(
+            update_settings["result"]["structuredContent"]["settings"]["localRegistrationEnabled"],
+            false
         );
 
         let get_settings = post_mcp_with_auth(

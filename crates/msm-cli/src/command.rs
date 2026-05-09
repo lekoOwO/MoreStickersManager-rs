@@ -187,6 +187,8 @@ pub enum TenantSettingsCommand {
         name: String,
         #[arg(long)]
         public_asset_url: Option<String>,
+        #[arg(long, default_value_t = true)]
+        local_registration_enabled: bool,
     },
 }
 
@@ -674,6 +676,7 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                     tenant_id,
                     name,
                     public_asset_url,
+                    local_registration_enabled,
                 } => {
                     let settings = client
                         .update_tenant_settings(
@@ -681,6 +684,7 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                             UpdateTenantSettingsPayload {
                                 name,
                                 public_asset_url,
+                                local_registration_enabled,
                             },
                         )
                         .await?;
@@ -1483,11 +1487,13 @@ mod tests {
                         ref tenant_id,
                         ref name,
                         ref public_asset_url,
+                        local_registration_enabled,
                     }
                 }
             } if tenant_id == "tenant_1"
                 && name == "Production"
                 && public_asset_url.as_deref() == Some("https://cdn.example.test/msm")
+                && local_registration_enabled
         ));
 
         let user_status = Cli::parse_from([
@@ -2202,7 +2208,10 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(settings, "tenant_1\tTenant\thttps://cdn.example.test/msm");
+        assert_eq!(
+            settings,
+            "tenant_1\tTenant\thttps://cdn.example.test/msm\ttrue"
+        );
 
         let settings_update = execute_with_client(
             Cli::parse_from([
@@ -2223,7 +2232,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             settings_update,
-            "tenant_1\tProduction\thttps://cdn.example.test/prod"
+            "tenant_1\tProduction\thttps://cdn.example.test/prod\ttrue"
         );
         assert_eq!(
             client
@@ -2235,7 +2244,8 @@ mod tests {
             &(
                 "tenant_1".to_owned(),
                 "Production".to_owned(),
-                Some("https://cdn.example.test/prod".to_owned())
+                Some("https://cdn.example.test/prod".to_owned()),
+                true
             )
         );
     }
@@ -2688,6 +2698,8 @@ mod tests {
         assert_eq!(subscription_pack_remove, "removed sub_1 pack_1");
     }
 
+    type TenantSettingsUpdateCall = (String, String, Option<String>, bool);
+
     #[derive(Default)]
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
@@ -2708,7 +2720,7 @@ mod tests {
         rotated_subscription_access_token: Mutex<Option<String>>,
         revoked_subscription_access_token: Mutex<Option<String>>,
         upserted_tenant_member: Mutex<Option<(String, String, String)>>,
-        updated_tenant_settings: Mutex<Option<(String, String, Option<String>)>>,
+        updated_tenant_settings: Mutex<Option<TenantSettingsUpdateCall>>,
         updated_tenant_user_status: Mutex<Option<(String, String, bool)>>,
         upserted_tenant_role: Mutex<Option<TenantRoleUpsertCall>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
@@ -2810,6 +2822,7 @@ mod tests {
                 "tenant_1",
                 "Tenant",
                 Some("https://cdn.example.test/msm"),
+                true,
             ))
         }
 
@@ -2822,11 +2835,13 @@ mod tests {
                 tenant_id.to_owned(),
                 payload.name.clone(),
                 payload.public_asset_url.clone(),
+                payload.local_registration_enabled,
             ));
             Ok(sample_tenant_settings(
                 tenant_id,
                 &payload.name,
                 payload.public_asset_url.as_deref(),
+                payload.local_registration_enabled,
             ))
         }
 
@@ -3099,11 +3114,13 @@ mod tests {
         tenant_id: &str,
         name: &str,
         public_asset_url: Option<&str>,
+        local_registration_enabled: bool,
     ) -> TenantSettings {
         TenantSettings {
             tenant_id: tenant_id.to_owned(),
             name: name.to_owned(),
             public_asset_url: public_asset_url.map(str::to_owned),
+            local_registration_enabled,
             created_at: "2026-05-09T00:00:00Z".to_owned(),
         }
     }

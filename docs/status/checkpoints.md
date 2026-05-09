@@ -1302,3 +1302,16 @@
   API surface.
 - Moved the active queue to Phase D: admin switches for enabling/disabling
   local registration.
+
+## 2026-05-10 Local Registration Tenant Setting
+
+- Added a SQLite tenant setting for `localRegistrationEnabled`, defaulting to
+  enabled for existing tenants.
+- Tenant settings API/OpenAPI DTOs, CLI commands, MCP tool schema/responses,
+  and Web tenant administration now expose the local registration switch with
+  tests across the touched surfaces.
+- Local account registration now rejects attempts to register into an existing
+  tenant where local registration has been disabled; existing login and new
+  tenant bootstrap paths remain available.
+- Updated the PRD, current status, and implementation matrix; next work should
+  continue Phase D with OIDC provider configuration storage.

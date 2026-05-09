@@ -57,7 +57,7 @@ impl StorageRepository {
     /// are invalid.
     pub async fn find_tenant(&self, id: &str) -> StorageResult<Option<TenantRecord>> {
         let row = sqlx::query(
-            "SELECT id, name, public_asset_url, created_at
+            "SELECT id, name, public_asset_url, local_registration_enabled, created_at
             FROM tenants
             WHERE id = ?",
         )
@@ -79,14 +79,16 @@ impl StorageRepository {
         id: &str,
         name: &str,
         public_asset_url: Option<&str>,
+        local_registration_enabled: bool,
     ) -> StorageResult<TenantRecord> {
         let result = sqlx::query(
             "UPDATE tenants
-            SET name = ?, public_asset_url = ?
+            SET name = ?, public_asset_url = ?, local_registration_enabled = ?
             WHERE id = ?",
         )
         .bind(name)
         .bind(public_asset_url)
+        .bind(local_registration_enabled)
         .bind(id)
         .execute(self.sqlite()?)
         .await?;
@@ -1822,10 +1824,12 @@ fn tenant_member_from_row(row: &SqliteRow) -> StorageResult<TenantMemberRecord> 
 
 fn tenant_from_row(row: &SqliteRow) -> StorageResult<TenantRecord> {
     let created_at: String = row.get("created_at");
+    let local_registration_enabled: i64 = row.get("local_registration_enabled");
     Ok(TenantRecord {
         id: row.get("id"),
         name: row.get("name"),
         public_asset_url: row.get("public_asset_url"),
+        local_registration_enabled: local_registration_enabled != 0,
         created_at: parse_rfc3339(&created_at)?,
     })
 }
@@ -2121,12 +2125,14 @@ mod tests {
         let initial = repo.find_tenant("tenant_1").await.unwrap().unwrap();
         assert_eq!(initial.name, "Tenant");
         assert_eq!(initial.public_asset_url, None);
+        assert!(initial.local_registration_enabled);
 
         let updated = repo
             .update_tenant_settings(
                 "tenant_1",
                 "Production Tenant",
                 Some("https://cdn.example.test/msm"),
+                false,
             )
             .await
             .unwrap();
@@ -2135,12 +2141,14 @@ mod tests {
             updated.public_asset_url.as_deref(),
             Some("https://cdn.example.test/msm")
         );
+        assert!(!updated.local_registration_enabled);
 
         let cleared = repo
-            .update_tenant_settings("tenant_1", "Production Tenant", None)
+            .update_tenant_settings("tenant_1", "Production Tenant", None, true)
             .await
             .unwrap();
         assert_eq!(cleared.public_asset_url, None);
+        assert!(cleared.local_registration_enabled);
     }
 
     #[tokio::test]

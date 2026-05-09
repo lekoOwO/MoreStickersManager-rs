@@ -136,12 +136,14 @@ describe("PackDashboard", () => {
         tenantId: "tenant_1",
         name: "Default tenant",
         publicAssetUrl: null,
+        localRegistrationEnabled: true,
         createdAt: "2026-05-09T00:00:00Z",
       })),
       updateTenantSettings: vi.fn(async (tenantId, request) => ({
         tenantId,
         name: request.name,
         publicAssetUrl: request.publicAssetUrl,
+        localRegistrationEnabled: request.localRegistrationEnabled,
         createdAt: "2026-05-09T00:00:00Z",
       })),
       setTenantUserStatus: vi.fn(async (tenantId, userId, isDisabled) => ({

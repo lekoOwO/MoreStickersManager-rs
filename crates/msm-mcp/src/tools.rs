@@ -658,7 +658,8 @@ fn update_tenant_settings_tool() -> ToolDefinition {
             &json!({
                 "tenantId": { "type": "string" },
                 "name": { "type": "string" },
-                "publicAssetUrl": { "type": ["string", "null"] }
+                "publicAssetUrl": { "type": ["string", "null"] },
+                "localRegistrationEnabled": { "type": "boolean" }
             }),
             &["tenantId", "name"],
         ),

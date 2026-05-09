@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-09.
+Last updated: 2026-05-10.
 
 This file is the short handoff view. Use `current.md` for the detailed
 chronological log, `implementation-matrix.md` for the feature truth table, and
@@ -80,7 +80,11 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   rotate.
 - MCP `msm.create_subscription_link`, `msm.list_subscription_links`,
   `msm.rotate_subscription_link`, and `msm.revoke_subscription_link` tools now
-  expose the same link management controls with raw secrets returned only for
+- Fine-grained RBAC audit for tenant/resource-owning API routes is closed in
+  the PRD.
+- Tenant settings now include a local-registration enable/disable switch across
+  storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
+  new local registrations.
   create/rotate.
 - Web Organize now lists subscription links and can create, rotate, and revoke
   links with one-time secret display after create/rotate.
@@ -132,7 +136,11 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - PAT create/list/revoke routes now require a same-user `pat.manage` Bearer
   PAT, and PAT creation/local login reject scopes outside the user's
   role-allowed scope template.
-- API/OpenAPI now exposes `GET /api/v1/pats/scope-policy?userId=...` to return
+- Fine-grained RBAC audit for tenant/resource-owning API routes is closed in
+  the PRD.
+- Tenant settings now include a local-registration enable/disable switch across
+  storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
+  new local registrations.
   role-allowed PAT scopes for the current user.
 - CLI now exposes `msm pats scope-policy --user-id ...` with human/JSON output
   backed by the same protected API endpoint.
@@ -158,11 +166,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Same-owner subscription-link metadata listing now filters out token records
   whose owner is no longer a member of the token tenant.
 - Fine-grained RBAC audit for tenant/resource-owning API routes is closed in
-  the PRD; the next focus is Phase D auth-provider administration.
+  the PRD.
+- Tenant settings now include a local-registration enable/disable switch across
+  storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
+  new local registrations.
 
 ## Immediate Plan
 
-1. Implement admin switches for enabling/disabling local registration.
+1. Implement OIDC provider configuration storage.
 
 ## Later Planned Work
 

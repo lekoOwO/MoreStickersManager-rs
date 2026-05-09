@@ -159,5 +159,7 @@ the private pack being read.
 Tenant member administration currently lives in `tenant_members`. The API
 requires both a `tenant.manage_members` PAT scope and an `admin` membership in
 the target tenant before listing or upserting member roles. This is the first
-tenant-admin slice; role templates, tenant settings, and UI/CLI/MCP parity are
-still separate work.
+tenant-admin slice. Role templates, tenant settings, local-registration
+enable/disable, tenant user status, and UI/CLI/MCP parity are implemented for
+the current tenant administration surface; OIDC/SSO provider administration is
+still future work.

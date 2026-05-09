@@ -890,6 +890,7 @@ async fn update_tenant_settings(
             &args.tenant_id,
             &args.name,
             args.public_asset_url.as_deref(),
+            args.local_registration_enabled.unwrap_or(true),
         )
         .await
         .map_err(|error| error.to_string())?;
@@ -1401,6 +1402,7 @@ fn tenant_settings_value(record: &TenantRecord) -> Value {
         "tenantId": record.id,
         "name": record.name,
         "publicAssetUrl": record.public_asset_url,
+        "localRegistrationEnabled": record.local_registration_enabled,
         "createdAt": record.created_at
     })
 }
@@ -1824,6 +1826,7 @@ struct UpdateTenantSettingsArgs {
     tenant_id: String,
     name: String,
     public_asset_url: Option<String>,
+    local_registration_enabled: Option<bool>,
 }
 
 #[derive(Deserialize)]

@@ -36,6 +36,25 @@ pub async fn register_local_user(
     State(state): State<ApiState>,
     Json(request): Json<RegisterLocalUserRequest>,
 ) -> ApiResult<(StatusCode, Json<LocalUserResponse>)> {
+    let tenant = if let Some(tenant_id) = request
+        .tenant_id
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    {
+        let tenant = state.repository().find_tenant(tenant_id).await?;
+        if tenant
+            .as_ref()
+            .is_some_and(|tenant| !tenant.local_registration_enabled)
+        {
+            return Err(ApiError::Forbidden(
+                "local registration is disabled for this tenant".to_owned(),
+            ));
+        }
+        Some((tenant_id.to_owned(), tenant))
+    } else {
+        None
+    };
+
     let user = state
         .repository()
         .create_local_user_with_password(
@@ -45,20 +64,18 @@ pub async fn register_local_user(
             &request.password,
         )
         .await?;
-    if let Some(tenant_id) = request
-        .tenant_id
-        .as_deref()
-        .filter(|value| !value.is_empty())
-    {
-        let tenant_name = request.tenant_name.as_deref().unwrap_or(tenant_id);
+    if let Some((tenant_id, tenant)) = tenant {
+        let tenant_name = request.tenant_name.as_deref().unwrap_or(&tenant_id);
         let tenant_role = request.tenant_role.as_deref().unwrap_or("admin");
+        if tenant.is_none() {
+            state
+                .repository()
+                .create_tenant(&tenant_id, tenant_name)
+                .await?;
+        }
         state
             .repository()
-            .create_tenant(tenant_id, tenant_name)
-            .await?;
-        state
-            .repository()
-            .add_tenant_member(tenant_id, &user.id, tenant_role)
+            .add_tenant_member(&tenant_id, &user.id, tenant_role)
             .await?;
     }
 

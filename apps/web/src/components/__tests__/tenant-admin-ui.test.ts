@@ -31,12 +31,14 @@ describe("tenant admin UI", () => {
         tenantId: "tenant_1",
         name: "Default tenant",
         publicAssetUrl: null,
+        localRegistrationEnabled: true,
         createdAt: "2026-05-09T00:00:00Z",
       })),
       updateTenantSettings: vi.fn(async (tenantId, request) => ({
         tenantId,
         name: request.name,
         publicAssetUrl: request.publicAssetUrl,
+        localRegistrationEnabled: request.localRegistrationEnabled,
         createdAt: "2026-05-09T00:00:00Z",
       })),
       setTenantUserStatus: vi.fn(async (tenantId, userId, isDisabled) => ({
@@ -98,12 +100,14 @@ describe("tenant admin UI", () => {
         tenantId: "tenant_1",
         name: "Default tenant",
         publicAssetUrl: null,
+        localRegistrationEnabled: true,
         createdAt: "2026-05-09T00:00:00Z",
       })),
       updateTenantSettings: vi.fn(async (tenantId, request) => ({
         tenantId,
         name: request.name,
         publicAssetUrl: request.publicAssetUrl,
+        localRegistrationEnabled: request.localRegistrationEnabled,
         createdAt: "2026-05-09T00:00:00Z",
       })),
       setTenantUserStatus: vi.fn(async (tenantId, userId, isDisabled) => ({
@@ -142,6 +146,7 @@ describe("tenant admin UI", () => {
     await flushPromises();
     await wrapper.get('[aria-label="Tenant name"]').setValue("Production");
     await wrapper.get('[aria-label="Public asset URL"]').setValue("https://cdn.example.test/msm");
+    await wrapper.get('[aria-label="Allow local account registration"]').setValue(false);
     await wrapper.get('[aria-label="Save tenant settings"]').trigger("click");
     await wrapper.get('[aria-label="User status ID"]').setValue("user_2");
     await wrapper.get('[aria-label="Disable user"]').trigger("click");
@@ -154,6 +159,7 @@ describe("tenant admin UI", () => {
     expect(client.updateTenantSettings).toHaveBeenCalledWith("tenant_1", {
       name: "Production",
       publicAssetUrl: "https://cdn.example.test/msm",
+      localRegistrationEnabled: false,
     });
     expect(client.setTenantUserStatus).toHaveBeenCalledWith("tenant_1", "user_2", true);
     expect(client.upsertTenantRole).toHaveBeenCalledWith("tenant_1", "role_editor", {
