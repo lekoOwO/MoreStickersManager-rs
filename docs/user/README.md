@@ -464,6 +464,8 @@ PAT enforcement status:
   PAT user must be an `admin` member of the target tenant.
 - `tenant.manage_users` is required for tenant user status API routes, and the
   PAT user must be an `admin` member of the target tenant.
+- `tenant.manage_roles` is required for tenant role template API routes, and
+  the PAT user must be an `admin` member of the target tenant.
 - user-scoped list/import/update/delete operations reject PATs belonging to
   another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
@@ -557,3 +559,17 @@ The `PUT` body toggles whether the local user can authenticate:
 ```
 
 The target user must already be a member of the tenant.
+
+Tenant role template administration API endpoints:
+
+- `GET /api/v1/tenants/{tenant_id}/roles`
+- `PUT /api/v1/tenants/{tenant_id}/roles/{role_id}`
+
+The `PUT` body replaces the role template name and permission list:
+
+```json
+{
+  "name": "Editors",
+  "permissions": ["pack.read", "pack.update"]
+}
+```

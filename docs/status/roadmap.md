@@ -104,11 +104,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   membership check.
 - User status controls now have storage helpers plus a protected API/OpenAPI
   route guarded by `tenant.manage_users` and an admin tenant membership check.
+- Role templates now have storage helpers plus protected API/OpenAPI list and
+  upsert routes guarded by `tenant.manage_roles` and an admin tenant membership
+  check.
 
 ## Immediate Plan
 
-1. Extend tenant admin API coverage to role templates.
-2. Add CLI/MCP/Web parity for tenant settings and user status controls.
+1. Add CLI/MCP/Web parity for tenant settings, user status controls, and role
+   templates.
 
 ## Later Planned Work
 

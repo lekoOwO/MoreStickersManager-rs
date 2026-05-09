@@ -261,6 +261,23 @@ pub struct TenantUserResponse {
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct UpsertTenantRoleRequest {
+    pub name: String,
+    pub permissions: Vec<String>,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TenantRoleResponse {
+    pub id: String,
+    pub tenant_id: Option<String>,
+    pub name: String,
+    pub permissions: Vec<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginLocalUserRequest {
     pub email: String,
     pub password: String,
@@ -637,6 +654,23 @@ impl From<msm_storage::models::UserRecord> for TenantUserResponse {
             email: record.email,
             display_name: record.display_name,
             is_disabled: record.is_disabled,
+            created_at: record.created_at.to_rfc3339(),
+        }
+    }
+}
+
+impl From<msm_storage::models::RoleRecord> for TenantRoleResponse {
+    fn from(record: msm_storage::models::RoleRecord) -> Self {
+        Self {
+            id: record.id,
+            tenant_id: record.tenant_id,
+            name: record.name,
+            permissions: record
+                .permissions
+                .into_iter()
+                .map(msm_domain::Permission::as_key)
+                .map(str::to_owned)
+                .collect(),
             created_at: record.created_at.to_rfc3339(),
         }
     }

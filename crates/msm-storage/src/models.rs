@@ -28,6 +28,15 @@ pub struct TenantMemberRecord {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct RoleRecord {
+    pub id: String,
+    pub tenant_id: Option<String>,
+    pub name: String,
+    pub permissions: BTreeSet<Permission>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct LocalUserCredentialRecord {
     pub user_id: String,
     pub password_hash: String,

@@ -1026,3 +1026,18 @@
 - Updated PRD, roadmap, implementation matrix, current status, README, and user
   docs; next slice should continue tenant administration API coverage for role
   templates before adding parity surfaces.
+
+## 2026-05-09 Tenant Role Template API
+
+- Added `tenant.manage_roles` as a distinct PAT scope for tenant role template
+  administration.
+- Added storage helpers to list and upsert tenant-scoped role templates with
+  permission keys.
+- Added protected API/OpenAPI routes:
+  `GET /api/v1/tenants/{tenant_id}/roles` and
+  `PUT /api/v1/tenants/{tenant_id}/roles/{role_id}`.
+- Tenant role template routes require a PAT with `tenant.manage_roles` and
+  require the PAT user to be an `admin` member of the target tenant.
+- Updated PRD, roadmap, implementation matrix, and current status; next slice
+  should add CLI/MCP/Web parity for tenant settings, user status controls, and
+  role templates.

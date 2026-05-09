@@ -4,12 +4,14 @@ use axum::{
     Json,
 };
 use msm_domain::Permission;
+use std::collections::BTreeSet;
 
 use crate::{
     auth::require_pat,
     dto::{
-        TenantMemberResponse, TenantSettingsResponse, TenantUserResponse,
+        TenantMemberResponse, TenantRoleResponse, TenantSettingsResponse, TenantUserResponse,
         UpdateTenantSettingsRequest, UpdateTenantUserStatusRequest, UpsertTenantMemberRequest,
+        UpsertTenantRoleRequest,
     },
     ApiError, ApiResult, ApiState,
 };
@@ -214,6 +216,71 @@ pub async fn update_tenant_user_status(
     Ok((StatusCode::OK, Json(TenantUserResponse::from(user))))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/tenants/{tenant_id}/roles",
+    tag = "tenants",
+    params(("tenant_id" = String, Path, description = "Tenant ID")),
+    responses(
+        (status = 200, description = "Tenant role templates", body = [TenantRoleResponse]),
+        (status = 403, description = "Not a tenant admin", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Lists tenant role templates.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks tenant admin access or storage fails.
+pub async fn list_tenant_roles(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(tenant_id): Path<String>,
+) -> ApiResult<Json<Vec<TenantRoleResponse>>> {
+    require_tenant_admin(&state, &headers, &tenant_id, Permission::TenantManageRoles).await?;
+    let roles = state.repository().list_role_templates(&tenant_id).await?;
+    Ok(Json(
+        roles.into_iter().map(TenantRoleResponse::from).collect(),
+    ))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/tenants/{tenant_id}/roles/{role_id}",
+    tag = "tenants",
+    params(
+        ("tenant_id" = String, Path, description = "Tenant ID"),
+        ("role_id" = String, Path, description = "Role template ID")
+    ),
+    request_body = UpsertTenantRoleRequest,
+    responses(
+        (status = 200, description = "Tenant role template upserted", body = TenantRoleResponse),
+        (status = 400, description = "Invalid role template", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Not a tenant admin", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Adds or updates a tenant role template.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks tenant admin access, input is invalid, or storage
+/// fails.
+pub async fn upsert_tenant_role(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((tenant_id, role_id)): Path<(String, String)>,
+    Json(request): Json<UpsertTenantRoleRequest>,
+) -> ApiResult<(StatusCode, Json<TenantRoleResponse>)> {
+    require_tenant_admin(&state, &headers, &tenant_id, Permission::TenantManageRoles).await?;
+    let name = normalize_role_template_name(&request.name)?;
+    let permissions = normalize_permissions(&request.permissions)?;
+    let role = state
+        .repository()
+        .upsert_role_template(&role_id, &tenant_id, name, &permissions)
+        .await?;
+
+    Ok((StatusCode::OK, Json(TenantRoleResponse::from(role))))
+}
+
 async fn require_tenant_admin(
     state: &ApiState,
     headers: &HeaderMap,
@@ -260,6 +327,27 @@ fn normalize_public_asset_url(value: Option<&str>) -> ApiResult<Option<&str>> {
             }
         })
         .transpose()
+}
+
+fn normalize_role_template_name(name: &str) -> ApiResult<&str> {
+    let name = name.trim();
+    if name.is_empty() {
+        Err(ApiError::BadRequest(
+            "role template name must not be empty".to_owned(),
+        ))
+    } else {
+        Ok(name)
+    }
+}
+
+fn normalize_permissions(permissions: &[String]) -> ApiResult<BTreeSet<Permission>> {
+    permissions
+        .iter()
+        .map(|key| {
+            Permission::from_key(key)
+                .ok_or_else(|| ApiError::BadRequest(format!("unknown permission `{key}`")))
+        })
+        .collect()
 }
 
 fn normalize_role(role: &str) -> ApiResult<&'static str> {

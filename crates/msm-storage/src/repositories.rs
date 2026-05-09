@@ -14,7 +14,7 @@ use crate::{
     models::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, CreatedWebSession,
         FolderPackRecord, FolderRecord, LocalUserCredentialRecord, NewTag, PackTagRecord,
-        PackVisibility, PersonalAccessTokenRecord, StickerPackRecord,
+        PackVisibility, PersonalAccessTokenRecord, RoleRecord, StickerPackRecord,
         SubscriptionAccessResourceType, SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord,
         SubscriptionGroupRecord, TagRecord, TenantMemberRecord, TenantRecord, UserRecord,
         WebSessionRecord,
@@ -392,6 +392,119 @@ impl StorageRepository {
         .await?;
 
         row.as_ref().map(tenant_member_from_row).transpose()
+    }
+
+    /// Adds or updates a tenant-scoped role template and replaces its permissions.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn upsert_role_template(
+        &self,
+        id: &str,
+        tenant_id: &str,
+        name: &str,
+        permissions: &BTreeSet<Permission>,
+    ) -> StorageResult<RoleRecord> {
+        let now = now();
+        let sqlite = self.sqlite()?;
+        let mut tx = sqlite.begin().await?;
+
+        sqlx::query(
+            "INSERT INTO roles (id, tenant_id, name, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                tenant_id = excluded.tenant_id,
+                name = excluded.name",
+        )
+        .bind(id)
+        .bind(tenant_id)
+        .bind(name)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query("DELETE FROM role_permissions WHERE role_id = ?")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+
+        for permission in permissions {
+            sqlx::query(
+                "INSERT OR IGNORE INTO permissions (key, description)
+                VALUES (?, ?)",
+            )
+            .bind(permission.as_key())
+            .bind(permission.as_key())
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query(
+                "INSERT INTO role_permissions (role_id, permission_key)
+                VALUES (?, ?)",
+            )
+            .bind(id)
+            .bind(permission.as_key())
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+
+        self.find_role_template(tenant_id, id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
+    /// Lists role templates for one tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn list_role_templates(&self, tenant_id: &str) -> StorageResult<Vec<RoleRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, tenant_id, name, created_at
+            FROM roles
+            WHERE tenant_id = ?
+            ORDER BY name, id",
+        )
+        .bind(tenant_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        let mut roles = Vec::with_capacity(rows.len());
+        for row in rows {
+            roles.push(self.role_from_row_with_permissions(&row).await?);
+        }
+        Ok(roles)
+    }
+
+    /// Finds one tenant role template.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn find_role_template(
+        &self,
+        tenant_id: &str,
+        id: &str,
+    ) -> StorageResult<Option<RoleRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, name, created_at
+            FROM roles
+            WHERE tenant_id = ? AND id = ?",
+        )
+        .bind(tenant_id)
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        match row {
+            Some(row) => Ok(Some(self.role_from_row_with_permissions(&row).await?)),
+            None => Ok(None),
+        }
     }
 
     /// Inserts or updates a sticker pack and replaces its sticker rows.
@@ -1556,6 +1669,29 @@ impl StorageRepository {
         Ok(result.rows_affected() == 1)
     }
 
+    async fn role_from_row_with_permissions(&self, row: &SqliteRow) -> StorageResult<RoleRecord> {
+        let id: String = row.get("id");
+        let permission_rows = sqlx::query(
+            "SELECT permission_key
+            FROM role_permissions
+            WHERE role_id = ?
+            ORDER BY permission_key",
+        )
+        .bind(&id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+        let mut permissions = BTreeSet::new();
+        for row in permission_rows {
+            let key: String = row.get("permission_key");
+            let permission =
+                Permission::from_key(&key).ok_or(StorageError::InvalidPersonalAccessToken {
+                    reason: "unknown role permission",
+                })?;
+            permissions.insert(permission);
+        }
+        role_from_row(row, permissions)
+    }
+
     pub(crate) fn sqlite(&self) -> StorageResult<&SqlitePool> {
         self.pool
             .sqlite()
@@ -1627,6 +1763,17 @@ fn user_from_row(row: &SqliteRow) -> StorageResult<UserRecord> {
         email: row.get("email"),
         display_name: row.get("display_name"),
         is_disabled: is_disabled != 0,
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn role_from_row(row: &SqliteRow, permissions: BTreeSet<Permission>) -> StorageResult<RoleRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(RoleRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        name: row.get("name"),
+        permissions,
         created_at: parse_rfc3339(&created_at)?,
     })
 }
@@ -1934,6 +2081,36 @@ mod tests {
         let enabled = repo.set_user_disabled("user_1", false).await.unwrap();
         assert!(!enabled.is_disabled);
         assert!(!repo.find_user("user_1").await.unwrap().unwrap().is_disabled);
+    }
+
+    #[tokio::test]
+    async fn role_templates_can_be_upserted_and_listed() {
+        let repo = test_repo().await;
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+        let permissions = BTreeSet::from([
+            msm_domain::Permission::PackRead,
+            msm_domain::Permission::PackUpdate,
+        ]);
+
+        let created = repo
+            .upsert_role_template("role_editor", "tenant_1", "Editors", &permissions)
+            .await
+            .unwrap();
+        assert_eq!(created.id, "role_editor");
+        assert_eq!(created.tenant_id.as_deref(), Some("tenant_1"));
+        assert_eq!(created.permissions, permissions);
+
+        let updated_permissions = BTreeSet::from([msm_domain::Permission::PackRead]);
+        let updated = repo
+            .upsert_role_template("role_editor", "tenant_1", "Readers", &updated_permissions)
+            .await
+            .unwrap();
+        assert_eq!(updated.name, "Readers");
+        assert_eq!(updated.permissions, updated_permissions);
+
+        let roles = repo.list_role_templates("tenant_1").await.unwrap();
+        assert_eq!(roles.len(), 1);
+        assert_eq!(roles[0].name, "Readers");
     }
 
     #[tokio::test]
