@@ -152,7 +152,10 @@ tests and docs are updated.
   Owner-scoped folder and subscription-group create/list routes now also
   require target-tenant membership instead of trusting `ownerUserId` alone.
   Pack import now requires target-tenant membership before writing imported
-  packs.
+  packs. Owner PAT/Web-session reads of private assets, private pack refreshes,
+  and private subscription groups now require the owner to remain a member of
+  the resource tenant; subscription secrets remain explicit resource-sharing
+  credentials.
 - [x] PAT creation policy and scope templates by role.
   Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
   PAT for the same user, PAT creation and local login reject scopes outside the

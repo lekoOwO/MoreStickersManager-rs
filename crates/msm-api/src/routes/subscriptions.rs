@@ -15,6 +15,7 @@ use msm_storage::models::{
 
 use crate::{
     auth::{bearer_token, optional_web_session, require_pat},
+    rbac::require_tenant_resource_access,
     ApiError, ApiResult, ApiState,
 };
 
@@ -215,18 +216,23 @@ async fn require_pack_subscription_access(
         });
     }
 
-    if web_session_can_read_owned_resource(state, headers, &pack.owner_user_id).await? {
+    if web_session_can_read_owned_resource(state, headers, &pack.tenant_id, &pack.owner_user_id)
+        .await?
+    {
         return Ok(PackSubscriptionAccess { auth_headers: None });
     }
 
     let pat = require_pat(headers, state, Permission::PackRead).await?;
-    if pat.user_id == pack.owner_user_id {
-        Ok(PackSubscriptionAccess { auth_headers: None })
-    } else {
-        Err(ApiError::Forbidden(
-            "PAT user does not own the private pack".to_owned(),
-        ))
-    }
+    require_tenant_resource_access(
+        state,
+        &pat,
+        &pack.tenant_id,
+        &pack.owner_user_id,
+        Permission::PackRead,
+        "PAT user cannot read private packs in this tenant",
+    )
+    .await?;
+    Ok(PackSubscriptionAccess { auth_headers: None })
 }
 
 async fn require_subscription_access(
@@ -248,7 +254,9 @@ async fn require_subscription_access(
         });
     }
 
-    if web_session_can_read_owned_resource(state, headers, &group.owner_user_id).await? {
+    if web_session_can_read_owned_resource(state, headers, &group.tenant_id, &group.owner_user_id)
+        .await?
+    {
         return Ok(SubscriptionGroupAccess {
             include_private: true,
             auth_headers: None,
@@ -270,16 +278,19 @@ async fn require_subscription_access(
     }
 
     let pat = require_pat(headers, state, Permission::SubscriptionRead).await?;
-    if pat.user_id == group.owner_user_id {
-        Ok(SubscriptionGroupAccess {
-            include_private: true,
-            auth_headers: None,
-        })
-    } else {
-        Err(ApiError::Forbidden(
-            "PAT user does not own the private subscription group".to_owned(),
-        ))
-    }
+    require_tenant_resource_access(
+        state,
+        &pat,
+        &group.tenant_id,
+        &group.owner_user_id,
+        Permission::SubscriptionRead,
+        "PAT user cannot read private subscription groups in this tenant",
+    )
+    .await?;
+    Ok(SubscriptionGroupAccess {
+        include_private: true,
+        auth_headers: None,
+    })
 }
 
 async fn require_subscription_token_access(
@@ -311,13 +322,14 @@ async fn require_subscription_token_access(
 async fn web_session_can_read_owned_resource(
     state: &ApiState,
     headers: &HeaderMap,
+    tenant_id: &str,
     owner_user_id: &str,
 ) -> ApiResult<bool> {
     let Some(session) = optional_web_session(headers, state).await? else {
         return Ok(false);
     };
     session.require_user(owner_user_id)?;
-    Ok(true)
+    user_has_tenant_membership(state, tenant_id, owner_user_id).await
 }
 
 async fn pat_can_read_owned_subscription(
@@ -338,8 +350,25 @@ async fn pat_can_read_owned_subscription(
         return Ok(false);
     };
 
-    Ok(record.user_id == group.owner_user_id
-        && record.scopes.contains(&Permission::SubscriptionRead))
+    if record.user_id != group.owner_user_id
+        || !record.scopes.contains(&Permission::SubscriptionRead)
+    {
+        return Ok(false);
+    }
+
+    user_has_tenant_membership(state, &group.tenant_id, &record.user_id).await
+}
+
+async fn user_has_tenant_membership(
+    state: &ApiState,
+    tenant_id: &str,
+    user_id: &str,
+) -> ApiResult<bool> {
+    Ok(state
+        .repository()
+        .find_tenant_member(tenant_id, user_id)
+        .await?
+        .is_some())
 }
 
 fn public_base_url(headers: &HeaderMap) -> String {

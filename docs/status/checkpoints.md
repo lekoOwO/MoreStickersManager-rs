@@ -1260,3 +1260,15 @@
   storing the imported `.stickerpack`.
 - Updated PRD and status docs; next work should continue the route-by-route
   fine-grained RBAC audit.
+
+## 2026-05-09 Private Read Owner Credential Tenant Guard
+
+- Added a RED/GREEN API test proving owner PATs cannot read private assets,
+  private pack refresh/subscription endpoints, or private subscription groups
+  when the owner is no longer a member of the resource tenant.
+- Private asset and subscription public endpoints now validate target-tenant
+  membership for owner PAT/Web-session credentials.
+- Subscription access tokens remain explicit resource-sharing credentials and
+  are not tied to a user membership check.
+- Updated PRD and status docs; next work should continue the route-by-route
+  fine-grained RBAC audit.

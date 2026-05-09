@@ -11,6 +11,7 @@ use msm_storage::{
 
 use crate::{
     auth::{bearer_token, optional_web_session, require_pat},
+    rbac::require_tenant_resource_access,
     ApiError, ApiResult, ApiState,
 };
 
@@ -70,24 +71,34 @@ async fn require_asset_access(
     if subscription_token_can_read_pack_asset(state, headers, pack_id).await? {
         return Ok(());
     }
-    if web_session_can_read_pack_asset(state, headers, &pack.owner_user_id).await? {
+    if web_session_can_read_pack_asset(state, headers, &pack.tenant_id, &pack.owner_user_id).await?
+    {
         return Ok(());
     }
 
     let pat = require_pat(headers, state, Permission::AssetRead).await?;
-    pat.require_user(&pack.owner_user_id)
+    require_tenant_resource_access(
+        state,
+        &pat,
+        &pack.tenant_id,
+        &pack.owner_user_id,
+        Permission::AssetRead,
+        "PAT user cannot read private assets in this tenant",
+    )
+    .await
 }
 
 async fn web_session_can_read_pack_asset(
     state: &ApiState,
     headers: &HeaderMap,
+    tenant_id: &str,
     owner_user_id: &str,
 ) -> ApiResult<bool> {
     let Some(session) = optional_web_session(headers, state).await? else {
         return Ok(false);
     };
     session.require_user(owner_user_id)?;
-    Ok(true)
+    user_has_tenant_membership(state, tenant_id, owner_user_id).await
 }
 
 async fn subscription_token_can_read_pack_asset(
@@ -116,4 +127,16 @@ async fn subscription_token_can_read_pack_asset(
             Ok(pack_ids.iter().any(|candidate| candidate == pack_id))
         }
     }
+}
+
+async fn user_has_tenant_membership(
+    state: &ApiState,
+    tenant_id: &str,
+    user_id: &str,
+) -> ApiResult<bool> {
+    Ok(state
+        .repository()
+        .find_tenant_member(tenant_id, user_id)
+        .await?
+        .is_some())
 }

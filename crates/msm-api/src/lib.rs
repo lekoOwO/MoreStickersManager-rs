@@ -568,6 +568,84 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn private_owner_read_credentials_require_tenant_membership() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_1", "user@example.com", "User")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_1",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack(),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_1",
+                "tenant_1",
+                "user_1",
+                "Private Feed",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_pack_to_subscription_group("sub_1", "pack_1", 0)
+            .await
+            .unwrap();
+        let key = msm_storage::AssetKey::new("pack_1", "sticker.webp").unwrap();
+        state
+            .asset_store()
+            .write(&key, b"private-webp")
+            .await
+            .unwrap();
+
+        let asset_token = create_pat(&state, "assetread", "user_1", [Permission::AssetRead]).await;
+        let pack_read_token =
+            create_pat(&state, "packread", "user_1", [Permission::PackRead]).await;
+        let subscription_read_token =
+            create_pat(&state, "subread", "user_1", [Permission::SubscriptionRead]).await;
+
+        for (uri, token) in [
+            ("/assets/packs/pack_1/sticker.webp", asset_token),
+            (
+                "/api/public/packs/pack_1/stickerpack",
+                pack_read_token.clone(),
+            ),
+            ("/api/public/packs/pack_1/subscription", pack_read_token),
+            ("/api/public/subscriptions/sub_1", subscription_read_token),
+        ] {
+            let response = build_router(state.clone())
+                .oneshot(
+                    Request::builder()
+                        .uri(uri)
+                        .header("authorization", format!("Bearer {token}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        }
+    }
+
+    #[tokio::test]
     async fn pat_enforcement_requires_bearer_for_pack_list() {
         let response = build_router(test_state().await)
             .oneshot(

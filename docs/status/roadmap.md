@@ -150,6 +150,9 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   target-tenant membership even when the PAT user matches `ownerUserId`.
 - Pack import now requires membership in the target tenant before storing an
   imported `.stickerpack`.
+- Owner PAT/Web-session reads of private assets, private pack refreshes, and
+  private subscription groups now require owner membership in the resource
+  tenant; subscription secrets remain explicit sharing credentials.
 
 ## Immediate Plan
 

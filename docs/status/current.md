@@ -100,6 +100,7 @@ Last completed:
 - Tenant tag RBAC guard slice: tenant tag create/list routes now require membership and the matching `pack.update` role permission in the target tenant, closing the audited cross-tenant tag metadata gap.
 - Owner-scoped metadata tenant guard slice: folder and subscription-group create/list routes now require target-tenant membership even when the PAT user matches `ownerUserId`; the shared tenant-resource guard no longer bypasses tenant membership for owners.
 - Pack import tenant guard slice: pack import now requires target-tenant membership before storing an imported `.stickerpack`, closing a route where a user PAT could write into a tenant it did not belong to.
+- Private read owner credential tenant guard slice: owner PAT/Web-session reads of private assets, private pack refresh/subscription endpoints, and private subscription groups now require the owner to remain a member of the resource tenant; subscription secrets remain explicit resource-sharing credentials.
 
 Current task:
 - Continue route-by-route review and closure of remaining fine-grained RBAC gaps for tenant/resource-owning operations.
@@ -206,6 +207,7 @@ Last verification:
 - Tenant tag RBAC guard slice: RED/GREEN test with `cargo test -p msm-api cross_tenant_pat_cannot_manage_tags_for_other_tenant --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Owner-scoped metadata tenant guard slice: RED/GREEN test with `cargo test -p msm-api owner_scoped_metadata_routes_require_target_tenant_membership --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Pack import tenant guard slice: RED/GREEN test with `cargo test -p msm-api import_pack_requires_target_tenant_membership --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
+- Private read owner credential tenant guard slice: RED/GREEN test with `cargo test -p msm-api private_owner_read_credentials_require_tenant_membership --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 
 Next step:
 - Continue reviewing remaining tenant/resource-owning routes against the PRD permission model and implement the next missing fine-grained RBAC guard with tests.
