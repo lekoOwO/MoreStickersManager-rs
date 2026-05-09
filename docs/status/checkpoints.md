@@ -1088,3 +1088,15 @@
 - Identified the next enforcement gap: owner Web sessions currently read
   private assets, but private pack refresh and subscription endpoints still
   require PAT/subscription-token credentials.
+
+## 2026-05-09 Subscription Web Session Enforcement
+
+- Private pack refresh, single-pack subscription, and private
+  subscription-group endpoints now accept an owner `msm_session` Web session in
+  addition to owner PATs and subscription secrets.
+- Owner PAT reads of public subscription groups now include the owner's private
+  packs in that group, while anonymous public reads continue to hide private
+  packs.
+- Updated PRD, roadmap, implementation matrix, current status, README, and user
+  docs; next slice should begin fine-grained RBAC delegation for resource-owner
+  operations.

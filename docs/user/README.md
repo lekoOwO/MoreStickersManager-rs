@@ -484,6 +484,10 @@ PAT enforcement status:
   PATs, matching subscription access tokens, or an owner `msm_session` cookie.
 - final public/private pack, subscription group, subscription secret, PAT, and
   Web-session read-access rules are tracked in `docs/status/decisions.md`.
+- private pack refresh and subscription endpoints accept owner PATs, matching
+  subscription access tokens, or an owner `msm_session` cookie.
+- anonymous public subscription-group reads still omit private packs; owner PAT
+  or owner Web-session reads include owned private packs in that group.
 
 Local auth bootstrap endpoints:
 

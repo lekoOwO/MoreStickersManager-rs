@@ -80,7 +80,7 @@ Status meanings:
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
 | Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, and tenant member/settings/user-status/role-template administration exist in API/CLI/MCP/Web. Fine-grained RBAC checks and OIDC/SSO remain incomplete. |
-| Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack asset reads require owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
+| Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
 
@@ -88,9 +88,8 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add owner Web-session access to private pack refresh, single-pack
-   subscription, and subscription-group public endpoints so the API matches the
-   finalized access model.
+1. Add fine-grained RBAC checks for all resource-owning operations so tenant
+   role templates can delegate non-owner management safely.
 
 Each queue item must update this section when completed or reordered.
 
@@ -122,6 +121,8 @@ tests and docs are updated.
 - [x] Add moreStickers-compatible subscription payload contract.
 - [x] Add persistent subscription secret/link rotation storage.
 - [x] Enforce subscription secret access on public subscription endpoints.
+- [x] Enforce owner PAT and owner Web-session access on private subscription
+  endpoints.
 - [x] Add API/OpenAPI controls for subscription link creation, listing,
   rotation, and revocation.
 - [x] Add CLI controls for subscription link creation, listing, rotation, and

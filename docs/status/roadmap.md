@@ -117,11 +117,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Pack/subscription/asset read access is now finalized in
   `docs/status/decisions.md`, including the rule that owner Web sessions should
   read private pack refresh and subscription endpoints.
+- Private pack refresh/subscription endpoints now accept owner Web sessions,
+  and owner PAT reads of public subscription groups include owned private packs.
 
 ## Immediate Plan
 
-1. Add owner Web-session access to private pack refresh, single-pack
-   subscription, and subscription-group public endpoints.
+1. Add fine-grained RBAC checks for resource-owning operations so tenant role
+   templates can delegate non-owner management safely.
 
 ## Later Planned Work
 

@@ -86,9 +86,10 @@ Last completed:
 - Tenant administration MCP parity slice: MCP can get/update tenant settings, set tenant user disabled status, and list/upsert tenant role templates.
 - Tenant administration Web parity slice: Web can get/update tenant settings, set tenant user enabled/disabled status, list/upsert role templates with selectable permission keys, and expose the new tenant scopes in PAT scope pickers.
 - Pack/subscription/asset access model slice: finalized the read-access model for public/private packs, public/private subscription groups, subscription secrets, owner PATs, and owner Web sessions in `docs/status/decisions.md`.
+- Subscription Web-session enforcement slice: owner Web sessions can read private pack refresh, single-pack subscription, and private subscription-group endpoints; owner PAT reads of public groups include owned private packs according to the finalized model.
 
 Current task:
-- Add owner Web-session access to private pack refresh, single-pack subscription, and subscription-group public endpoints so implementation matches the finalized access model.
+- Add fine-grained RBAC checks for resource-owning operations so tenant role templates can delegate non-owner management safely.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -178,9 +179,10 @@ Last verification:
 - Tenant administration MCP parity slice: RED/GREEN tests with `cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked`, `cargo test -p msm-mcp tools_call_manages_tenant_settings --locked`, `cargo test -p msm-mcp tools_call_sets_tenant_user_status --locked`, and `cargo test -p msm-mcp tools_call_manages_tenant_roles --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Tenant administration Web parity slice: RED/GREEN tests with `npm run test -- src/lib/api-client.test.ts` and `npm run test -- src/components/__tests__/tenant-admin-ui.test.ts` from `apps/web`; full verification with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.
 - Pack/subscription/asset access model slice: docs-only verification with `git diff --check`.
+- Subscription Web-session enforcement slice: RED/GREEN tests with `cargo test -p msm-api owner_web_session_reads_private_pack_subscription_endpoints --locked` and `cargo test -p msm-api public_subscription_routes_emit_accessible_dynamic_payloads --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 
 Next step:
-- Add API tests for owner Web-session access to private pack refresh/subscription endpoints, then update subscription endpoint authorization.
+- Start fine-grained RBAC delegation by routing resource-owner checks through the domain policy evaluator and adding cross-tenant/non-owner audit tests.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

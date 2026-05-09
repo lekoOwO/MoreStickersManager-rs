@@ -14,7 +14,7 @@ use msm_storage::models::{
 };
 
 use crate::{
-    auth::{bearer_token, require_pat},
+    auth::{bearer_token, optional_web_session, require_pat},
     ApiError, ApiResult, ApiState,
 };
 
@@ -215,6 +215,10 @@ async fn require_pack_subscription_access(
         });
     }
 
+    if web_session_can_read_owned_resource(state, headers, &pack.owner_user_id).await? {
+        return Ok(PackSubscriptionAccess { auth_headers: None });
+    }
+
     let pat = require_pat(headers, state, Permission::PackRead).await?;
     if pat.user_id == pack.owner_user_id {
         Ok(PackSubscriptionAccess { auth_headers: None })
@@ -241,6 +245,20 @@ async fn require_subscription_access(
         return Ok(SubscriptionGroupAccess {
             include_private: true,
             auth_headers: Some(auth_headers),
+        });
+    }
+
+    if web_session_can_read_owned_resource(state, headers, &group.owner_user_id).await? {
+        return Ok(SubscriptionGroupAccess {
+            include_private: true,
+            auth_headers: None,
+        });
+    }
+
+    if pat_can_read_owned_subscription(state, headers, group).await? {
+        return Ok(SubscriptionGroupAccess {
+            include_private: true,
+            auth_headers: None,
         });
     }
 
@@ -288,6 +306,40 @@ async fn require_subscription_token_access(
     }
 
     Ok(Some(subscription_bearer_headers(token)))
+}
+
+async fn web_session_can_read_owned_resource(
+    state: &ApiState,
+    headers: &HeaderMap,
+    owner_user_id: &str,
+) -> ApiResult<bool> {
+    let Some(session) = optional_web_session(headers, state).await? else {
+        return Ok(false);
+    };
+    session.require_user(owner_user_id)?;
+    Ok(true)
+}
+
+async fn pat_can_read_owned_subscription(
+    state: &ApiState,
+    headers: &HeaderMap,
+    group: &SubscriptionGroupRecord,
+) -> ApiResult<bool> {
+    let token = match bearer_token(headers) {
+        Ok(token) if !token.starts_with("msm_sub_") => token,
+        Ok(_) | Err(ApiError::Unauthorized(_)) => return Ok(false),
+        Err(error) => return Err(error),
+    };
+    let Some(record) = state
+        .repository()
+        .verify_personal_access_token(token)
+        .await?
+    else {
+        return Ok(false);
+    };
+
+    Ok(record.user_id == group.owner_user_id
+        && record.scopes.contains(&Permission::SubscriptionRead))
 }
 
 fn public_base_url(headers: &HeaderMap) -> String {

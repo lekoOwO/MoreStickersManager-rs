@@ -1513,6 +1513,24 @@ mod tests {
             "http://msm.example/api/public/packs/pack_public/stickerpack"
         );
 
+        let subscription_with_owner_pat = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/subscriptions/sub_public")
+                    .header("host", "msm.example")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_with_owner_pat.status(), StatusCode::OK);
+        let body = to_bytes(subscription_with_owner_pat.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(payload["packs"].as_array().unwrap().len(), 2);
+
         let private_subscription = build_router(state.clone())
             .oneshot(
                 Request::builder()
@@ -1681,6 +1699,61 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(wrong_resource_token.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn owner_web_session_reads_private_pack_subscription_endpoints() {
+        let (state, session_cookie) = private_subscription_state_with_owner_login().await;
+
+        let stickerpack = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_private/stickerpack")
+                    .header(header::COOKIE, session_cookie.clone())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(stickerpack.status(), StatusCode::OK);
+
+        let pack_subscription = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_private/subscription")
+                    .header("host", "msm.example")
+                    .header(header::COOKIE, session_cookie.clone())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(pack_subscription.status(), StatusCode::OK);
+        let body = to_bytes(pack_subscription.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(payload["id"], "pack_private");
+        assert!(payload.get("authHeaders").is_none());
+
+        let group_subscription = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/subscriptions/sub_private")
+                    .header("host", "msm.example")
+                    .header(header::COOKIE, session_cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(group_subscription.status(), StatusCode::OK);
+        let body = to_bytes(group_subscription.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(payload["id"], "sub_private");
+        assert_eq!(payload["packs"].as_array().unwrap().len(), 1);
     }
 
     #[tokio::test]
@@ -2750,6 +2823,88 @@ mod tests {
             .await
             .unwrap();
         state
+    }
+
+    async fn private_subscription_state_with_owner_login() -> (ApiState, String) {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_local_user_with_password(
+                "user_1",
+                "leko@example.com",
+                "Leko",
+                "correct horse battery staple",
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_1", "admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_private",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("private"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_private",
+                "tenant_1",
+                "user_1",
+                "Private Feed",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_pack_to_subscription_group("sub_private", "pack_private", 0)
+            .await
+            .unwrap();
+
+        let login_body = serde_json::json!({
+            "email": "leko@example.com",
+            "password": "correct horse battery staple",
+            "tokenId": "webui",
+            "tokenName": "Web UI",
+            "scopes": ["pack.read", "asset.read", "subscription.read"],
+            "expiresAt": null,
+        });
+        let login_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(login_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(login_response.status(), StatusCode::OK);
+        let set_cookie = login_response
+            .headers()
+            .get(header::SET_COOKIE)
+            .expect("login should set a Web session cookie")
+            .to_str()
+            .unwrap()
+            .to_owned();
+
+        (state, set_cookie.split(';').next().unwrap().to_owned())
     }
 
     async fn create_pat<const N: usize>(

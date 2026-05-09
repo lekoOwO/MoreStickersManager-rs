@@ -408,7 +408,9 @@ uses selectable permission keys for role templates.
 
 The finalized public/private pack, subscription group, subscription secret,
 PAT, and Web-session read-access model is recorded in
-`docs/status/decisions.md`.
+`docs/status/decisions.md`. Private pack refresh and subscription endpoints
+accept owner PATs, matching subscription secrets, or an owner `msm_session`
+cookie; anonymous reads of public subscription groups still omit private packs.
 
 ## Project Docs
 
