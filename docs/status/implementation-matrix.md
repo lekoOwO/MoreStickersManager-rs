@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue Phase D by implementing OIDC discovery/JWKS plus ID-token/userinfo validation and deriving callback claims from validated provider data.
+Continue Phase D by wiring OIDC discovery metadata into callback/token validation, then adding JWKS signature validation plus userinfo/ID-token claim derivation.

@@ -25,6 +25,16 @@ pub struct OidcTokenExchangeRequest {
     pub form: Vec<(String, String)>,
 }
 
+/// Validated OIDC discovery metadata used by MSM.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OidcDiscoveryDocument {
+    pub issuer: String,
+    pub authorization_endpoint: Option<String>,
+    pub token_endpoint: String,
+    pub jwks_uri: String,
+    pub userinfo_endpoint: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OidcTokenResponse {
     pub access_token: String,
@@ -39,6 +49,15 @@ struct RawTokenResponse {
     token_type: Option<String>,
     id_token: Option<String>,
     expires_in: Option<u64>,
+}
+
+#[derive(serde::Deserialize)]
+struct RawDiscoveryDocument {
+    issuer: Option<String>,
+    authorization_endpoint: Option<String>,
+    token_endpoint: Option<String>,
+    jwks_uri: Option<String>,
+    userinfo_endpoint: Option<String>,
 }
 
 /// Boxed future returned by an OIDC token exchanger implementation.
@@ -103,6 +122,60 @@ pub fn token_endpoint_url(issuer_url: &str) -> Result<String, OidcError> {
     url.set_path(&token_path);
     url.set_query(None);
     Ok(url.to_string())
+}
+
+/// Parses and validates an OIDC discovery document.
+///
+/// # Errors
+///
+/// Returns an error when the document is not JSON, the issuer does not match the
+/// expected issuer, or required endpoint URLs are missing or invalid.
+pub fn parse_discovery_document(
+    body: &str,
+    expected_issuer: &str,
+) -> Result<OidcDiscoveryDocument, OidcError> {
+    let raw: RawDiscoveryDocument = serde_json::from_str(body)?;
+    let issuer = required_url_field(raw.issuer, "issuer")?;
+    if normalize_url_claim(&issuer) != normalize_url_claim(expected_issuer) {
+        return Err(OidcError::InvalidTokenResponse(
+            "discovery issuer mismatch".to_owned(),
+        ));
+    }
+    Ok(OidcDiscoveryDocument {
+        issuer,
+        authorization_endpoint: optional_url_field(
+            raw.authorization_endpoint,
+            "authorization_endpoint",
+        )?,
+        token_endpoint: required_url_field(raw.token_endpoint, "token_endpoint")?,
+        jwks_uri: required_url_field(raw.jwks_uri, "jwks_uri")?,
+        userinfo_endpoint: optional_url_field(raw.userinfo_endpoint, "userinfo_endpoint")?,
+    })
+}
+
+fn required_url_field(value: Option<String>, field: &str) -> Result<String, OidcError> {
+    let value = value
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| OidcError::InvalidTokenResponse(format!("missing {field}")))?;
+    Url::parse(&value)
+        .map_err(|error| OidcError::InvalidTokenResponse(format!("invalid {field}: {error}")))?;
+    Ok(value)
+}
+
+fn optional_url_field(value: Option<String>, field: &str) -> Result<Option<String>, OidcError> {
+    value
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| {
+            Url::parse(&value).map_err(|error| {
+                OidcError::InvalidTokenResponse(format!("invalid {field}: {error}"))
+            })?;
+            Ok(value)
+        })
+        .transpose()
+}
+
+fn normalize_url_claim(value: &str) -> String {
+    value.trim_end_matches('/').to_owned()
 }
 
 /// Builds the `application/x-www-form-urlencoded` body for an OIDC token exchange.
@@ -190,6 +263,38 @@ mod tests {
         assert_eq!(parsed.expires_in, Some(3600));
         assert!(parse_token_response(r#"{"token_type":"Bearer"}"#).is_err());
         assert!(parse_token_response(r#"{"access_token":"access","token_type":"mac"}"#).is_err());
+    }
+
+    #[test]
+    fn discovery_parser_requires_matching_issuer_and_required_endpoints() {
+        let parsed = super::parse_discovery_document(
+            r#"{
+                "issuer":"https://accounts.google.com",
+                "authorization_endpoint":"https://accounts.google.com/o/oauth2/v2/auth",
+                "token_endpoint":"https://oauth2.googleapis.com/token",
+                "jwks_uri":"https://www.googleapis.com/oauth2/v3/certs",
+                "userinfo_endpoint":"https://openidconnect.googleapis.com/v1/userinfo"
+            }"#,
+            "https://accounts.google.com/",
+        )
+        .expect("matching discovery document should parse");
+
+        assert_eq!(parsed.issuer, "https://accounts.google.com");
+        assert_eq!(parsed.token_endpoint, "https://oauth2.googleapis.com/token");
+        assert_eq!(
+            parsed.jwks_uri,
+            "https://www.googleapis.com/oauth2/v3/certs"
+        );
+        assert!(super::parse_discovery_document(
+            r#"{"issuer":"https://evil.example","token_endpoint":"https://oauth2.googleapis.com/token","jwks_uri":"https://www.googleapis.com/oauth2/v3/certs"}"#,
+            "https://accounts.google.com"
+        )
+        .is_err());
+        assert!(super::parse_discovery_document(
+            r#"{"issuer":"https://accounts.google.com","token_endpoint":"","jwks_uri":"https://www.googleapis.com/oauth2/v3/certs"}"#,
+            "https://accounts.google.com"
+        )
+        .is_err());
     }
 
     fn sample_provider() -> OidcProviderConfigRecord {

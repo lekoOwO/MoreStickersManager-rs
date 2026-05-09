@@ -1371,3 +1371,10 @@
   trusted-claim validation and session/PAT creation.
 - Kept discovery/JWKS validation and userinfo/ID-token claim derivation as the
   next Phase D work.
+
+## 2026-05-10 OIDC Discovery Parser Foundation
+
+- Added tested OIDC discovery document parsing that validates matching issuer,
+  token endpoint URL, JWKS URI, and optional authorization/userinfo endpoints.
+- Kept discovery fetching/caching, JWKS signature validation, and provider-
+  derived claims as the next Phase D work.
