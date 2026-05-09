@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add CLI/MCP/Web controls for subscription link creation, rotation,
+1. Add MCP/Web controls for subscription link creation, rotation,
    revocation, and visibility.
 2. Extend the pack/group access model for Web session
    access beyond the current public/private/PAT endpoint checks.
@@ -126,7 +126,9 @@ tests and docs are updated.
 - [x] Enforce subscription secret access on public subscription endpoints.
 - [x] Add API/OpenAPI controls for subscription link creation, listing,
   rotation, and revocation.
-- [ ] Add CLI/MCP/Web controls for subscription link creation, listing,
+- [x] Add CLI controls for subscription link creation, listing, rotation, and
+  revocation.
+- [ ] Add MCP/Web controls for subscription link creation, listing,
   rotation, and revocation.
 
 ### Phase C: Multi-Tenant Administration

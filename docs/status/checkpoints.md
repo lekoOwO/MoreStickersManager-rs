@@ -888,6 +888,17 @@
 - Updated PRD, roadmap, implementation matrix, and current status so the next
   slice can add CLI/MCP/Web controls on top of the API contract.
 
+## 2026-05-09 Subscription Access Token CLI
+
+- Added `msm subscription-links create`, `list`, `rotate`, and `revoke`
+  commands.
+- Added CLI client request/response models and HTTP calls for the subscription
+  access token management API.
+- Human output prints raw `msm_sub_*` secrets only for create/rotate, while
+  list output is metadata-only and revoke output is a confirmation.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice can add MCP/Web controls.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,

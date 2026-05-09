@@ -2,9 +2,10 @@ use msm_domain::StickerPack;
 
 use crate::{
     client::{
-        CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
-        Folder, FolderPack, PackTag, PersonalAccessToken, SubscriptionGroup, SubscriptionGroupPack,
-        Tag, TelegramPublication,
+        CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
+        ExportTarget, ExportTargetKind, Folder, FolderPack, PackTag, PersonalAccessToken,
+        SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
+        TelegramPublication,
     },
     command::OutputFormat,
     CliResult,
@@ -25,6 +26,13 @@ pub struct ImportResponse {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RevokePatResponse {
+    pub status: &'static str,
+    pub token_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionLinkMutationResponse {
     pub status: &'static str,
     pub token_id: String,
 }
@@ -169,6 +177,57 @@ pub fn format_pat_revoke(format: OutputFormat, token_id: &str) -> CliResult<Stri
             status: "revoked",
             token_id: token_id.to_owned(),
         })?),
+    }
+}
+
+/// Formats a subscription access token create/rotate response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_subscription_link_secret(
+    format: OutputFormat,
+    response: &CreatedSubscriptionAccessToken,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("{}\t{}", response.id, response.token)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(response)?),
+    }
+}
+
+/// Formats subscription access token metadata responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_subscription_links(
+    format: OutputFormat,
+    links: &[SubscriptionAccessToken],
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(links
+            .iter()
+            .map(subscription_link_line)
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(links)?),
+    }
+}
+
+/// Formats a subscription access token revoke response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_subscription_link_revoke(format: OutputFormat, token_id: &str) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("revoked {token_id}")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(
+            &SubscriptionLinkMutationResponse {
+                status: "revoked",
+                token_id: token_id.to_owned(),
+            },
+        )?),
     }
 }
 
@@ -500,5 +559,15 @@ fn subscription_group_pack_line(link: &SubscriptionGroupPack) -> String {
     format!(
         "{}\t{}\t{}",
         link.subscription_group_id, link.pack_id, link.sort_order
+    )
+}
+
+fn subscription_link_line(link: &SubscriptionAccessToken) -> String {
+    format!(
+        "{}\t{:?}\t{}\t{}",
+        link.id,
+        link.resource_type,
+        link.resource_id,
+        link.revoked_at.is_some()
     )
 }

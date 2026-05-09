@@ -75,10 +75,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - API/OpenAPI controls now create, list, rotate, and revoke subscription
   access tokens for pack default links and subscription-group links with
   resource-specific manage-access PAT checks.
+- CLI `subscription-links` commands now create, list, rotate, and revoke
+  subscription access tokens, including one-time secret output for create and
+  rotate.
 
 ## Immediate Plan
 
-1. Add CLI/MCP/Web controls for subscription link creation, rotation,
+1. Add MCP/Web controls for subscription link creation, rotation,
    revocation, and visibility.
 2. Extend subscription access policy enforcement beyond public/private/PAT to
    subscription secrets and Web session credentials.

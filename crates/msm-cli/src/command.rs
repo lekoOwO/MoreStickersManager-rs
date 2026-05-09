@@ -6,8 +6,9 @@ use msm_domain::StickerPack;
 use crate::{
     client::{
         CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
-        CreatePersonalAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
-        ImportPackPayload, MsmClient, ReqwestMsmClient, UpdatePackPayload,
+        CreatePersonalAccessTokenPayload, CreateSubscriptionAccessTokenPayload,
+        CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, MsmClient,
+        ReqwestMsmClient, SubscriptionAccessResourceType, UpdatePackPayload,
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
@@ -15,8 +16,10 @@ use crate::{
         format_folders, format_health, format_import, format_membership_remove, format_pack_delete,
         format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag, format_pat_create,
         format_pat_list, format_pat_revoke, format_subscription_group,
-        format_subscription_group_pack, format_subscription_groups, format_tag, format_tag_ids,
-        format_tags, format_telegram_publication, format_telegram_publications,
+        format_subscription_group_pack, format_subscription_groups,
+        format_subscription_link_revoke, format_subscription_link_secret,
+        format_subscription_links, format_tag, format_tag_ids, format_tags,
+        format_telegram_publication, format_telegram_publications,
     },
     CliError, CliResult,
 };
@@ -51,6 +54,10 @@ pub enum Command {
     Metadata {
         #[command(subcommand)]
         command: MetadataCommand,
+    },
+    SubscriptionLinks {
+        #[command(subcommand)]
+        command: SubscriptionLinkCommand,
     },
     Exports {
         #[command(subcommand)]
@@ -271,6 +278,30 @@ pub enum SubscriptionGroupPackCommand {
 }
 
 #[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum SubscriptionLinkCommand {
+    Create {
+        #[arg(long)]
+        id: String,
+        #[arg(long, value_enum)]
+        resource_type: SubscriptionLinkResourceType,
+        #[arg(long)]
+        resource_id: String,
+    },
+    List {
+        #[arg(long)]
+        user_id: String,
+    },
+    Rotate {
+        #[arg(long)]
+        token_id: String,
+    },
+    Revoke {
+        #[arg(long)]
+        token_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
 pub enum ExportCommand {
     Kinds,
     Targets {
@@ -387,6 +418,21 @@ impl TelegramReconcileModeArg {
 pub enum PackVisibility {
     Public,
     Private,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum SubscriptionLinkResourceType {
+    Pack,
+    SubscriptionGroup,
+}
+
+impl From<SubscriptionLinkResourceType> for SubscriptionAccessResourceType {
+    fn from(value: SubscriptionLinkResourceType) -> Self {
+        match value {
+            SubscriptionLinkResourceType::Pack => Self::Pack,
+            SubscriptionLinkResourceType::SubscriptionGroup => Self::SubscriptionGroup,
+        }
+    }
 }
 
 impl PackVisibility {
@@ -637,6 +683,34 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                 },
             },
         },
+        Command::SubscriptionLinks { command } => match command {
+            SubscriptionLinkCommand::Create {
+                id,
+                resource_type,
+                resource_id,
+            } => {
+                let link = client
+                    .create_subscription_access_token(CreateSubscriptionAccessTokenPayload {
+                        id,
+                        resource_type: resource_type.into(),
+                        resource_id,
+                    })
+                    .await?;
+                format_subscription_link_secret(cli.output_format, &link)
+            }
+            SubscriptionLinkCommand::List { user_id } => {
+                let links = client.list_subscription_access_tokens(&user_id).await?;
+                format_subscription_links(cli.output_format, &links)
+            }
+            SubscriptionLinkCommand::Rotate { token_id } => {
+                let link = client.rotate_subscription_access_token(&token_id).await?;
+                format_subscription_link_secret(cli.output_format, &link)
+            }
+            SubscriptionLinkCommand::Revoke { token_id } => {
+                client.revoke_subscription_access_token(&token_id).await?;
+                format_subscription_link_revoke(cli.output_format, &token_id)
+            }
+        },
         Command::Exports { command } => match command {
             ExportCommand::Kinds => {
                 let kinds = client.list_export_target_kinds().await?;
@@ -856,16 +930,19 @@ mod tests {
     use crate::{
         client::{
             CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
-            CreatePersonalAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
-            CreatedPersonalAccessToken, ExportJob, ExportJobEvent, ExportTarget, ExportTargetKind,
-            Folder, FolderPack, ImportPackPayload, MsmClient, PackTag, PersonalAccessToken,
+            CreatePersonalAccessTokenPayload, CreateSubscriptionAccessTokenPayload,
+            CreateSubscriptionGroupPayload, CreateTagPayload, CreatedPersonalAccessToken,
+            CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent, ExportTarget,
+            ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, PackTag,
+            PersonalAccessToken, SubscriptionAccessResourceType, SubscriptionAccessToken,
             SubscriptionGroup, SubscriptionGroupPack, Tag, TelegramPublication,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
             ExportPublicationCommand, ExportTargetCommand, FolderCommand, FolderPackCommand,
             MetadataCommand, OutputFormat, PackCommand, PackTagCommand, PackVisibility, PatCommand,
-            SubscriptionGroupCommand, SubscriptionGroupPackCommand, TagCommand,
+            SubscriptionGroupCommand, SubscriptionGroupPackCommand, SubscriptionLinkCommand,
+            SubscriptionLinkResourceType, TagCommand,
         },
         output::HealthResponse,
         CliResult,
@@ -1050,6 +1127,67 @@ mod tests {
             Command::Pats {
                 command: PatCommand::Revoke { ref token_id }
             } if token_id == "cli1"
+        ));
+    }
+
+    #[test]
+    fn parses_subscription_link_commands() {
+        let create = Cli::parse_from([
+            "msm",
+            "subscription-links",
+            "create",
+            "--id",
+            "packlink",
+            "--resource-type",
+            "pack",
+            "--resource-id",
+            "pack_1",
+        ]);
+        assert!(matches!(
+            create.command,
+            Command::SubscriptionLinks {
+                command: SubscriptionLinkCommand::Create {
+                    ref id,
+                    resource_type: SubscriptionLinkResourceType::Pack,
+                    ref resource_id,
+                }
+            } if id == "packlink" && resource_id == "pack_1"
+        ));
+
+        let list = Cli::parse_from(["msm", "subscription-links", "list", "--user-id", "user_1"]);
+        assert!(matches!(
+            list.command,
+            Command::SubscriptionLinks {
+                command: SubscriptionLinkCommand::List { ref user_id }
+            } if user_id == "user_1"
+        ));
+
+        let rotate = Cli::parse_from([
+            "msm",
+            "subscription-links",
+            "rotate",
+            "--token-id",
+            "packlink",
+        ]);
+        assert!(matches!(
+            rotate.command,
+            Command::SubscriptionLinks {
+                command: SubscriptionLinkCommand::Rotate { ref token_id }
+            } if token_id == "packlink"
+        ));
+
+        let revoke = Cli::parse_from([
+            "msm",
+            "subscription-links",
+            "revoke",
+            "--token-id",
+            "packlink",
+        ]);
+        assert!(matches!(
+            revoke.command,
+            Command::SubscriptionLinks {
+                command: SubscriptionLinkCommand::Revoke { ref token_id }
+            } if token_id == "packlink"
         ));
     }
 
@@ -1546,6 +1684,88 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn executes_subscription_link_commands() {
+        let client = FakeClient::default();
+        let create = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "subscription-links",
+                "create",
+                "--id",
+                "packlink",
+                "--resource-type",
+                "pack",
+                "--resource-id",
+                "pack_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(create, "packlink\tmsm_sub_packlink_secret");
+        let created = client
+            .created_subscription_access_token
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(created.resource_type, SubscriptionAccessResourceType::Pack);
+        assert_eq!(created.resource_id, "pack_1");
+
+        let list = execute_with_client(
+            Cli::parse_from(["msm", "subscription-links", "list", "--user-id", "user_1"]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(list, "packlink\tPack\tpack_1\tfalse");
+
+        let rotate = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "subscription-links",
+                "rotate",
+                "--token-id",
+                "packlink",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(rotate, "packlink\tmsm_sub_packlink_secret");
+        assert_eq!(
+            client
+                .rotated_subscription_access_token
+                .lock()
+                .unwrap()
+                .as_deref(),
+            Some("packlink")
+        );
+
+        let revoke = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "subscription-links",
+                "revoke",
+                "--token-id",
+                "packlink",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(revoke, "revoked packlink");
+        assert_eq!(
+            client
+                .revoked_subscription_access_token
+                .lock()
+                .unwrap()
+                .as_deref(),
+            Some("packlink")
+        );
+    }
+
+    #[tokio::test]
     async fn executes_export_kinds_command() {
         let output = execute_with_client(
             Cli::parse_from(["msm", "exports", "kinds"]),
@@ -1931,6 +2151,9 @@ mod tests {
         removed_pack_tag: Mutex<Option<(String, String)>>,
         added_subscription_group_pack: Mutex<Option<(String, String, i64)>>,
         removed_subscription_group_pack: Mutex<Option<(String, String)>>,
+        created_subscription_access_token: Mutex<Option<CreateSubscriptionAccessTokenPayload>>,
+        rotated_subscription_access_token: Mutex<Option<String>>,
+        revoked_subscription_access_token: Mutex<Option<String>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
         created_export_job: Mutex<Option<CreateExportJobPayload>>,
     }
@@ -2104,6 +2327,34 @@ mod tests {
             Ok(())
         }
 
+        async fn create_subscription_access_token(
+            &self,
+            payload: CreateSubscriptionAccessTokenPayload,
+        ) -> CliResult<CreatedSubscriptionAccessToken> {
+            *self.created_subscription_access_token.lock().unwrap() = Some(payload);
+            Ok(sample_created_subscription_access_token())
+        }
+
+        async fn list_subscription_access_tokens(
+            &self,
+            _user_id: &str,
+        ) -> CliResult<Vec<SubscriptionAccessToken>> {
+            Ok(vec![sample_subscription_access_token()])
+        }
+
+        async fn rotate_subscription_access_token(
+            &self,
+            token_id: &str,
+        ) -> CliResult<CreatedSubscriptionAccessToken> {
+            *self.rotated_subscription_access_token.lock().unwrap() = Some(token_id.to_owned());
+            Ok(sample_created_subscription_access_token())
+        }
+
+        async fn revoke_subscription_access_token(&self, token_id: &str) -> CliResult<()> {
+            *self.revoked_subscription_access_token.lock().unwrap() = Some(token_id.to_owned());
+            Ok(())
+        }
+
         async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>> {
             Ok(vec![ExportTargetKind {
                 kind: "telegram".to_owned(),
@@ -2225,6 +2476,33 @@ mod tests {
             subscription_group_id: "sub_1".to_owned(),
             pack_id: "pack_1".to_owned(),
             sort_order: 20,
+        }
+    }
+
+    fn sample_subscription_access_token() -> SubscriptionAccessToken {
+        SubscriptionAccessToken {
+            id: "packlink".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            owner_user_id: "user_1".to_owned(),
+            resource_type: SubscriptionAccessResourceType::Pack,
+            resource_id: "pack_1".to_owned(),
+            revoked_at: None,
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
+            updated_at: "2026-05-09T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_created_subscription_access_token() -> CreatedSubscriptionAccessToken {
+        CreatedSubscriptionAccessToken {
+            id: "packlink".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            owner_user_id: "user_1".to_owned(),
+            resource_type: SubscriptionAccessResourceType::Pack,
+            resource_id: "pack_1".to_owned(),
+            token: "msm_sub_packlink_secret".to_owned(),
+            revoked_at: None,
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
+            updated_at: "2026-05-09T00:00:00Z".to_owned(),
         }
     }
 

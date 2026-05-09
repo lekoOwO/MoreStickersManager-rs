@@ -120,6 +120,48 @@ pub struct SubscriptionGroupPack {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub enum SubscriptionAccessResourceType {
+    Pack,
+    SubscriptionGroup,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSubscriptionAccessTokenPayload {
+    pub id: String,
+    pub resource_type: SubscriptionAccessResourceType,
+    pub resource_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionAccessToken {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub resource_type: SubscriptionAccessResourceType,
+    pub resource_id: String,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatedSubscriptionAccessToken {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub resource_type: SubscriptionAccessResourceType,
+    pub resource_id: String,
+    pub token: String,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreatedPersonalAccessToken {
     pub id: String,
     pub user_id: String,
@@ -286,6 +328,19 @@ pub trait MsmClient {
         subscription_group_id: &str,
         pack_id: &str,
     ) -> CliResult<()>;
+    async fn create_subscription_access_token(
+        &self,
+        payload: CreateSubscriptionAccessTokenPayload,
+    ) -> CliResult<CreatedSubscriptionAccessToken>;
+    async fn list_subscription_access_tokens(
+        &self,
+        user_id: &str,
+    ) -> CliResult<Vec<SubscriptionAccessToken>>;
+    async fn rotate_subscription_access_token(
+        &self,
+        token_id: &str,
+    ) -> CliResult<CreatedSubscriptionAccessToken>;
+    async fn revoke_subscription_access_token(&self, token_id: &str) -> CliResult<()>;
     async fn list_export_target_kinds(&self) -> CliResult<Vec<ExportTargetKind>>;
     async fn list_export_targets(&self, tenant_id: &str) -> CliResult<Vec<ExportTarget>>;
     async fn create_export_target(
@@ -666,6 +721,66 @@ impl MsmClient for ReqwestMsmClient {
         self.authorize(self.http.delete(self.endpoint(&format!(
             "/api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}"
         ))?))
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
+    }
+
+    async fn create_subscription_access_token(
+        &self,
+        payload: CreateSubscriptionAccessTokenPayload,
+    ) -> CliResult<CreatedSubscriptionAccessToken> {
+        Ok(self
+            .authorize(
+                self.http
+                    .post(self.endpoint("/api/v1/subscription-access-tokens")?),
+            )
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_subscription_access_tokens(
+        &self,
+        user_id: &str,
+    ) -> CliResult<Vec<SubscriptionAccessToken>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint("/api/v1/subscription-access-tokens")?),
+            )
+            .query(&[("userId", user_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn rotate_subscription_access_token(
+        &self,
+        token_id: &str,
+    ) -> CliResult<CreatedSubscriptionAccessToken> {
+        Ok(self
+            .authorize(self.http.patch(self.endpoint(&format!(
+                "/api/v1/subscription-access-tokens/{token_id}/rotate"
+            ))?))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn revoke_subscription_access_token(&self, token_id: &str) -> CliResult<()> {
+        self.authorize(
+            self.http
+                .delete(self.endpoint(&format!("/api/v1/subscription-access-tokens/{token_id}"))?),
+        )
         .send()
         .await?
         .error_for_status()?;
