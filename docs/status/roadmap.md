@@ -90,12 +90,15 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   callers cannot.
 - Local login now creates a hashed `msm_session` Web session cookie, and owner
   Web sessions can read private assets for their packs without sending a PAT.
+- Tenant member administration now has storage helpers plus protected
+  API/OpenAPI list/upsert routes guarded by `tenant.manage_members` and an
+  admin tenant membership check.
 
 ## Immediate Plan
 
-1. Start tenant administration and RBAC management surfaces.
-2. Add focused tests for tenant/user/role administration before introducing
-   new API contracts.
+1. Add CLI/MCP/Web parity for tenant member administration.
+2. Extend tenant admin API coverage to tenant settings, role templates, and
+   user status controls.
 
 ## Later Planned Work
 
@@ -105,7 +108,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Provider download integrations beyond Telegram/LINE fixtures.
 - Media probing through ffprobe and richer conversion diagnostics.
 - MCP auth/session/SSE hardening.
-- Multi-tenant RBAC, OIDC/SSO controls, and richer PAT management.
+- Broader multi-tenant RBAC checks, OIDC/SSO controls, and richer PAT
+  management.
 
 ## Verification Expectations
 

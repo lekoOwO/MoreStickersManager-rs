@@ -963,3 +963,15 @@
 - Updated PRD, roadmap, implementation matrix, current status, README, user
   docs, and architecture notes so the next queue item is tenant/RBAC
   administration.
+
+## 2026-05-09 Tenant Member Administration API
+
+- Added `TenantMemberRecord` plus repository helpers to list, find, and upsert
+  tenant member roles.
+- Added protected tenant member API/OpenAPI routes:
+  `GET /api/v1/tenants/{tenant_id}/members` and
+  `PUT /api/v1/tenants/{tenant_id}/members/{user_id}`.
+- Tenant member routes require a PAT with `tenant.manage_members` and require
+  the PAT user to be an `admin` member of the target tenant.
+- Updated PRD, roadmap, implementation matrix, current status, README, user
+  docs, and architecture notes; next slice should add CLI/MCP/Web parity.

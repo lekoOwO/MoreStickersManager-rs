@@ -152,3 +152,9 @@ Local Web sessions use the same hash-only secret storage pattern in the
 for API/Web bootstrap compatibility and also sets an HttpOnly `msm_session`
 cookie. Asset authorization accepts that cookie only when the session user owns
 the private pack being read.
+
+Tenant member administration currently lives in `tenant_members`. The API
+requires both a `tenant.manage_members` PAT scope and an `admin` membership in
+the target tenant before listing or upserting member roles. This is the first
+tenant-admin slice; role templates, tenant settings, and UI/CLI/MCP parity are
+still separate work.

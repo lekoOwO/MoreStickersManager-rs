@@ -76,9 +76,10 @@ Last completed:
 - Subscription access token Web slice: added ProductMetadataClient subscription link methods and Organize UI controls for list/create/rotate/revoke with one-time secret display after create/rotate.
 - Private asset authorization API slice: private pack asset paths now reject anonymous reads and accept owner `asset.read` PATs, matching pack subscription tokens, or subscription-group tokens that include the pack. Asset paths without a pack record remain readable for backward compatibility.
 - Web session asset authorization slice: local login now creates a hashed `msm_session` cookie, storage can verify/revoke Web sessions, and private pack assets accept an owner Web session credential in addition to owner PATs and subscription tokens.
+- Tenant member administration API slice: storage can list/upsert tenant members and API/OpenAPI exposes protected member list/upsert routes guarded by `tenant.manage_members` plus an admin tenant membership check.
 
 Current task:
-- Start tenant administration and RBAC management surfaces from the PRD queue.
+- Add CLI/MCP/Web parity for tenant member administration from the PRD queue.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -158,11 +159,14 @@ Last verification:
 - Documentation consolidation slice: added `docs/PRD.md` as the living product requirements, roadmap, progress, and completion source; reduced active Agent docs to `docs/agents/README.md`; removed legacy per-phase `docs/superpowers` plans/specs and duplicated Agent handoff files; verification with `git diff --check`.
 - PRD self-review hardening: clarified PRD status semantics, current implementation queue, current surface parity gaps, open product questions, and per-slice definition of done; verification with `git diff --check`.
 - Web session asset authorization slice: RED/GREEN tests with `cargo test -p msm-storage web_sessions_verify_and_revoke --locked` and `cargo test -p msm-api local_auth_session_cookie_reads_owned_private_asset --locked`; full verification with `cargo test -p msm-storage --locked`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Tenant member administration API slice: RED/GREEN tests with `cargo test -p msm-storage --lib tenant_members_can_be_listed_and_roles_updated --locked` and `cargo test -p msm-api --lib tenant_member_routes_require_tenant_admin_scope_and_role --locked`; full verification with `cargo test -p msm-storage --locked`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp` because C drive temp space is exhausted in this environment.
 
 Next step:
-- Start tenant administration and RBAC management surfaces.
+- Add CLI/MCP/Web parity for tenant member administration.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
 - Docker CLI is not installed in this environment, so Docker image build is deferred to GitHub Actions or a Docker-enabled machine.
+- C drive reports no free space; Rust verification should set `TMP` and `TEMP`
+  to `D:\Temp` to keep linker temp files off C.
 - `skills-lock.json` is an existing untracked local skill lock file and is not part of MSM source changes.

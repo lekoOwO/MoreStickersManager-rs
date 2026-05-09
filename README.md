@@ -339,6 +339,15 @@ P20 lets local registration optionally bootstrap a tenant admin by passing
 `tenantId`, optional `tenantName`, and optional `tenantRole` fields. The role
 defaults to `admin`.
 
+Tenant member administration currently has API/OpenAPI support:
+
+- `GET /api/v1/tenants/{tenant_id}/members`
+- `PUT /api/v1/tenants/{tenant_id}/members/{user_id}`
+
+Both routes require a Bearer PAT with `tenant.manage_members`, and the PAT user
+must be an `admin` member of the target tenant. CLI, MCP, and Web admin parity
+are planned next.
+
 ## Project Docs
 
 - `docs/PRD.md`: living product requirements, status, roadmap, and completion checklist.

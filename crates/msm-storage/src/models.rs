@@ -20,6 +20,14 @@ pub struct UserRecord {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct TenantMemberRecord {
+    pub tenant_id: String,
+    pub user_id: String,
+    pub role: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct LocalUserCredentialRecord {
     pub user_id: String,
     pub password_hash: String,

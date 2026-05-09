@@ -214,6 +214,21 @@ pub struct LocalUserResponse {
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct UpsertTenantMemberRequest {
+    pub role: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TenantMemberResponse {
+    pub tenant_id: String,
+    pub user_id: String,
+    pub role: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginLocalUserRequest {
     pub email: String,
     pub password: String,
@@ -557,6 +572,17 @@ impl From<msm_storage::models::UserRecord> for LocalUserResponse {
             id: record.id,
             email: record.email,
             display_name: record.display_name,
+        }
+    }
+}
+
+impl From<msm_storage::models::TenantMemberRecord> for TenantMemberResponse {
+    fn from(record: msm_storage::models::TenantMemberRecord) -> Self {
+        Self {
+            tenant_id: record.tenant_id,
+            user_id: record.user_id,
+            role: record.role,
+            created_at: record.created_at.to_rfc3339(),
         }
     }
 }

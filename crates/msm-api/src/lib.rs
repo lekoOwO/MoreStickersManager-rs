@@ -24,6 +24,7 @@ pub fn build_router(state: ApiState) -> Router {
         .merge(export_routes())
         .merge(pat_routes())
         .merge(subscription_access_token_routes())
+        .merge(tenant_routes())
         .with_state(state)
 }
 
@@ -177,6 +178,18 @@ fn subscription_access_token_routes() -> Router<ApiState> {
         )
 }
 
+fn tenant_routes() -> Router<ApiState> {
+    Router::new()
+        .route(
+            "/api/v1/tenants/{tenant_id}/members",
+            get(routes::tenants::list_tenant_members),
+        )
+        .route(
+            "/api/v1/tenants/{tenant_id}/members/{user_id}",
+            put(routes::tenants::upsert_tenant_member),
+        )
+}
+
 #[cfg(test)]
 mod tests {
     use axum::{
@@ -272,6 +285,12 @@ mod tests {
             .is_some());
         assert!(json["paths"]
             .get("/api/v1/subscription-access-tokens/{token_id}")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/v1/tenants/{tenant_id}/members")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/v1/tenants/{tenant_id}/members/{user_id}")
             .is_some());
         assert!(json["paths"].get("/api/v1/telegram-publications").is_some());
         assert!(json["paths"]
@@ -2233,6 +2252,112 @@ mod tests {
             .unwrap();
 
         assert_eq!(import_response.status(), StatusCode::CREATED);
+    }
+
+    #[tokio::test]
+    async fn tenant_member_routes_require_tenant_admin_scope_and_role() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_tenant("tenant_2", "Other")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("admin_1", "admin@example.com", "Admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_1", "user@example.com", "User")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "admin_1", "admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_2", "admin_1", "admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_1", "user")
+            .await
+            .unwrap();
+        let admin_token = create_pat(
+            &state,
+            "tenantadmin",
+            "admin_1",
+            [Permission::TenantManageMembers],
+        )
+        .await;
+        let scoped_non_admin = create_pat(
+            &state,
+            "tenantuser",
+            "user_1",
+            [Permission::TenantManageMembers],
+        )
+        .await;
+
+        let denied = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/tenants/tenant_1/members")
+                    .header("authorization", format!("Bearer {scoped_non_admin}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+
+        let update_body = serde_json::json!({ "role": "admin" });
+        let update_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/tenants/tenant_1/members/user_1")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(update_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(update_response.status(), StatusCode::OK);
+        let update_body = to_bytes(update_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let updated: serde_json::Value = serde_json::from_slice(&update_body).unwrap();
+        assert_eq!(updated["tenantId"], "tenant_1");
+        assert_eq!(updated["userId"], "user_1");
+        assert_eq!(updated["role"], "admin");
+
+        let list_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/tenants/tenant_1/members")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_response.status(), StatusCode::OK);
+        let list_body = to_bytes(list_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let members: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
+        assert_eq!(members.as_array().unwrap().len(), 2);
+        assert_eq!(members[1]["role"], "admin");
     }
 
     async fn test_state() -> ApiState {

@@ -16,7 +16,7 @@ use crate::{
         FolderPackRecord, FolderRecord, LocalUserCredentialRecord, NewTag, PackTagRecord,
         PackVisibility, PersonalAccessTokenRecord, StickerPackRecord,
         SubscriptionAccessResourceType, SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord,
-        SubscriptionGroupRecord, TagRecord, UserRecord, WebSessionRecord,
+        SubscriptionGroupRecord, TagRecord, TenantMemberRecord, UserRecord, WebSessionRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -214,6 +214,83 @@ impl StorageRepository {
         .execute(self.sqlite()?)
         .await?;
         Ok(())
+    }
+
+    /// Adds or updates a tenant member role.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn upsert_tenant_member(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        role: &str,
+    ) -> StorageResult<TenantMemberRecord> {
+        let now = now();
+        sqlx::query(
+            "INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(tenant_id, user_id) DO UPDATE SET role = excluded.role",
+        )
+        .bind(tenant_id)
+        .bind(user_id)
+        .bind(role)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        self.find_tenant_member(tenant_id, user_id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
+    /// Lists members in a tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn list_tenant_members(
+        &self,
+        tenant_id: &str,
+    ) -> StorageResult<Vec<TenantMemberRecord>> {
+        let rows = sqlx::query(
+            "SELECT tenant_id, user_id, role, created_at
+            FROM tenant_members
+            WHERE tenant_id = ?
+            ORDER BY created_at, user_id",
+        )
+        .bind(tenant_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.iter().map(tenant_member_from_row).collect()
+    }
+
+    /// Finds one tenant member.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn find_tenant_member(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> StorageResult<Option<TenantMemberRecord>> {
+        let row = sqlx::query(
+            "SELECT tenant_id, user_id, role, created_at
+            FROM tenant_members
+            WHERE tenant_id = ? AND user_id = ?",
+        )
+        .bind(tenant_id)
+        .bind(user_id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref().map(tenant_member_from_row).transpose()
     }
 
     /// Inserts or updates a sticker pack and replaces its sticker rows.
@@ -1421,6 +1498,16 @@ fn tag_from_row(row: &SqliteRow) -> StorageResult<TagRecord> {
     })
 }
 
+fn tenant_member_from_row(row: &SqliteRow) -> StorageResult<TenantMemberRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(TenantMemberRecord {
+        tenant_id: row.get("tenant_id"),
+        user_id: row.get("user_id"),
+        role: row.get("role"),
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
 fn subscription_group_from_row(row: &SqliteRow) -> StorageResult<SubscriptionGroupRecord> {
     let visibility: String = row.get("visibility");
     let Some(visibility) = PackVisibility::from_storage(&visibility) else {
@@ -1638,6 +1725,46 @@ mod tests {
         assert_eq!(
             repo.list_subscription_pack_ids("sub_1").await.unwrap(),
             vec!["pack_1".to_owned()]
+        );
+    }
+
+    #[tokio::test]
+    async fn tenant_members_can_be_listed_and_roles_updated() {
+        let repo = test_repo().await;
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+        repo.create_user("admin_1", "admin@example.com", "Admin")
+            .await
+            .unwrap();
+        repo.create_user("user_1", "user@example.com", "User")
+            .await
+            .unwrap();
+        repo.add_tenant_member("tenant_1", "admin_1", "admin")
+            .await
+            .unwrap();
+
+        let created = repo
+            .upsert_tenant_member("tenant_1", "user_1", "user")
+            .await
+            .unwrap();
+        assert_eq!(created.role, "user");
+
+        let updated = repo
+            .upsert_tenant_member("tenant_1", "user_1", "admin")
+            .await
+            .unwrap();
+        assert_eq!(updated.role, "admin");
+
+        let members = repo.list_tenant_members("tenant_1").await.unwrap();
+        assert_eq!(members.len(), 2);
+        assert_eq!(members[0].user_id, "admin_1");
+        assert_eq!(members[1].user_id, "user_1");
+        assert_eq!(
+            repo.find_tenant_member("tenant_1", "user_1")
+                .await
+                .unwrap()
+                .unwrap()
+                .role,
+            "admin"
         );
     }
 

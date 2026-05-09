@@ -7,3 +7,4 @@ pub mod packs;
 pub mod pats;
 pub mod subscription_access_tokens;
 pub mod subscriptions;
+pub mod tenants;

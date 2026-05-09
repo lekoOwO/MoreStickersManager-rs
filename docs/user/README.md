@@ -445,6 +445,8 @@ PAT enforcement status:
 - `export.run` is required for export job creation API routes and MCP tools.
 - `export.target.manage` is required for export target management API routes and
   MCP tools.
+- `tenant.manage_members` is required for tenant member administration API
+  routes, and the PAT user must be an `admin` member of the target tenant.
 - user-scoped list/import/update/delete operations reject PATs belonging to
   another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
@@ -477,3 +479,19 @@ Local register can also bootstrap a tenant admin:
   "tenantRole": "admin"
 }
 ```
+
+Tenant member administration API endpoints:
+
+- `GET /api/v1/tenants/{tenant_id}/members`
+- `PUT /api/v1/tenants/{tenant_id}/members/{user_id}`
+
+The `PUT` body is:
+
+```json
+{
+  "role": "admin"
+}
+```
+
+Valid roles are currently `admin` and `user`. CLI, MCP, and Web controls are
+planned but not implemented yet.
