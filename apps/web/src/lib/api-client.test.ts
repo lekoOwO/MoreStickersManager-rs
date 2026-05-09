@@ -12,6 +12,7 @@ import {
   packTagListUrl,
   subscriptionGroupPackListUrl,
   subscriptionGroupListUrl,
+  subscriptionLinkListUrl,
   tagListUrl,
   type ApiStickerPackRecord,
 } from "./api-client";
@@ -381,6 +382,9 @@ describe("product metadata API client", () => {
     expect(subscriptionGroupListUrl("https://msm.example.test/", "tenant 1", "user 1")).toBe(
       "https://msm.example.test/api/v1/subscription-groups?tenantId=tenant+1&ownerUserId=user+1",
     );
+    expect(subscriptionLinkListUrl("https://msm.example.test/", "user 1")).toBe(
+      "https://msm.example.test/api/v1/subscription-access-tokens?userId=user+1",
+    );
     expect(folderPackListUrl("https://msm.example.test/", "folder 1")).toBe(
       "https://msm.example.test/api/v1/folders/folder%201/packs",
     );
@@ -565,6 +569,97 @@ describe("product metadata API client", () => {
         Authorization: "Bearer msm_pat_web_secret",
       },
       body: JSON.stringify({ sortOrder: 10 }),
+    });
+  });
+
+  it("manages subscription links with bearer auth and one-time secrets", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            id: "packlink",
+            tenantId: "tenant_1",
+            ownerUserId: "user_1",
+            resourceType: "pack",
+            resourceId: "pack_1",
+            token: "msm_sub_packlink_secret",
+            revokedAt: null,
+            createdAt: "2026-05-09T00:00:00Z",
+            updatedAt: "2026-05-09T00:00:00Z",
+          }),
+          { status: 201 },
+        );
+      }
+      if (init?.method === "PATCH") {
+        return new Response(
+          JSON.stringify({
+            id: "packlink",
+            tenantId: "tenant_1",
+            ownerUserId: "user_1",
+            resourceType: "pack",
+            resourceId: "pack_1",
+            token: "msm_sub_packlink_rotated",
+            revokedAt: null,
+            createdAt: "2026-05-09T00:00:00Z",
+            updatedAt: "2026-05-09T00:00:01Z",
+          }),
+          { status: 200 },
+        );
+      }
+      if (init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      return new Response(
+        JSON.stringify([
+          {
+            id: "packlink",
+            tenantId: "tenant_1",
+            ownerUserId: "user_1",
+            resourceType: "pack",
+            resourceId: "pack_1",
+            revokedAt: null,
+            createdAt: "2026-05-09T00:00:00Z",
+            updatedAt: "2026-05-09T00:00:00Z",
+          },
+        ]),
+        { status: 200 },
+      );
+    });
+    const client = createProductMetadataClient({
+      baseUrl: "https://msm.example.test/",
+      authToken: "msm_pat_web_secret",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const created = await client.createSubscriptionLink({
+      id: "packlink",
+      resourceType: "pack",
+      resourceId: "pack_1",
+    });
+    const links = await client.listSubscriptionLinks("user_1");
+    const rotated = await client.rotateSubscriptionLink("packlink");
+    await client.revokeSubscriptionLink("packlink");
+
+    expect(created.token).toBe("msm_sub_packlink_secret");
+    expect(links[0]).not.toHaveProperty("token");
+    expect(rotated.token).toBe("msm_sub_packlink_rotated");
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/subscription-access-tokens", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_web_secret",
+      },
+      body: JSON.stringify({
+        id: "packlink",
+        resourceType: "pack",
+        resourceId: "pack_1",
+      }),
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/subscription-access-tokens/packlink/rotate", {
+      method: "PATCH",
+      headers: {
+        Authorization: "Bearer msm_pat_web_secret",
+      },
     });
   });
 });

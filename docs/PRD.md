@@ -88,11 +88,9 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add Web controls for subscription link creation, rotation, revocation, and
-   visibility.
-2. Extend the pack/group access model for Web session
+1. Extend the pack/group access model for Web session
    access beyond the current public/private/PAT endpoint checks.
-3. Start tenant administration and RBAC management surfaces.
+2. Start tenant administration and RBAC management surfaces.
 
 Each queue item must update this section when completed or reordered.
 
@@ -130,7 +128,7 @@ tests and docs are updated.
   revocation.
 - [x] Add MCP controls for subscription link creation, listing, rotation, and
   revocation.
-- [ ] Add Web controls for subscription link creation, listing, rotation, and
+- [x] Add Web controls for subscription link creation, listing, rotation, and
   revocation.
 
 ### Phase C: Multi-Tenant Administration

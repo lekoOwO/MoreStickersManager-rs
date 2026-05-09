@@ -40,6 +40,39 @@ describe("product metadata UI", () => {
       listSubscriptionGroupPacks: vi.fn(async () => []),
       addPackToSubscriptionGroup: vi.fn(async (request) => request),
       removePackFromSubscriptionGroup: vi.fn(async () => undefined),
+      listSubscriptionLinks: vi.fn(async () => [
+        {
+          id: "packlink",
+          tenantId: "tenant_1",
+          ownerUserId: "user_1",
+          resourceType: "pack",
+          resourceId: "pack_1",
+          revokedAt: null,
+          createdAt: "2026-05-09T00:00:00Z",
+          updatedAt: "2026-05-09T00:00:00Z",
+        },
+      ]),
+      createSubscriptionLink: vi.fn(async (request) => ({
+        ...request,
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        token: "msm_sub_packlink_secret",
+        revokedAt: null,
+        createdAt: "2026-05-09T00:00:00Z",
+        updatedAt: "2026-05-09T00:00:00Z",
+      })),
+      rotateSubscriptionLink: vi.fn(async (tokenId) => ({
+        id: tokenId,
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        resourceType: "pack",
+        resourceId: "pack_1",
+        token: "msm_sub_packlink_rotated",
+        revokedAt: null,
+        createdAt: "2026-05-09T00:00:00Z",
+        updatedAt: "2026-05-09T00:00:01Z",
+      })),
+      revokeSubscriptionLink: vi.fn(async () => undefined),
     };
     const wrapper = mount(ProductMetadataPanel, {
       props: {
@@ -54,6 +87,7 @@ describe("product metadata UI", () => {
     expect(wrapper.text()).toContain("Favorites");
     expect(wrapper.text()).toContain("cute");
     expect(wrapper.text()).toContain("Weekly");
+    expect(wrapper.text()).toContain("packlink");
 
     await wrapper.get('[aria-label="Folder ID"]').setValue("folder_new");
     await wrapper.get('[aria-label="Folder name"]').setValue("Pinned");
@@ -65,6 +99,12 @@ describe("product metadata UI", () => {
     await wrapper.get('[aria-label="Subscription group title"]').setValue("Public feed");
     await wrapper.get('[aria-label="Subscription group visibility"]').setValue("public");
     await wrapper.get('[aria-label="Create subscription group"]').trigger("click");
+    await wrapper.get('[aria-label="Subscription link ID"]').setValue("packlink_new");
+    await wrapper.get('[aria-label="Link type"]').setValue("pack");
+    await wrapper.get('[aria-label="Resource ID"]').setValue("pack_1");
+    await wrapper.get('[aria-label="Create subscription link"]').trigger("click");
+    await wrapper.get('[aria-label="Rotate packlink"]').trigger("click");
+    await wrapper.get('[aria-label="Revoke packlink"]').trigger("click");
     await flushPromises();
 
     expect(client.createFolder).toHaveBeenCalledWith({
@@ -81,9 +121,18 @@ describe("product metadata UI", () => {
       title: "Public feed",
       visibility: "public",
     });
-    expect(client.listFolders).toHaveBeenCalledTimes(4);
-    expect(client.listTags).toHaveBeenCalledTimes(4);
-    expect(client.listSubscriptionGroups).toHaveBeenCalledTimes(4);
+    expect(client.createSubscriptionLink).toHaveBeenCalledWith({
+      id: "packlink_new",
+      resourceType: "pack",
+      resourceId: "pack_1",
+    });
+    expect(client.rotateSubscriptionLink).toHaveBeenCalledWith("packlink");
+    expect(client.revokeSubscriptionLink).toHaveBeenCalledWith("packlink");
+    expect(wrapper.get('[data-testid="subscription-secret"]').text()).toContain("msm_sub_packlink");
+    expect(client.listFolders).toHaveBeenCalledTimes(7);
+    expect(client.listTags).toHaveBeenCalledTimes(7);
+    expect(client.listSubscriptionGroups).toHaveBeenCalledTimes(7);
+    expect(client.listSubscriptionLinks).toHaveBeenCalledTimes(7);
   });
 
   it("adds and removes pack memberships from the Organize workspace", async () => {
@@ -131,6 +180,10 @@ describe("product metadata UI", () => {
       listSubscriptionGroupPacks: vi.fn(async () => []),
       addPackToSubscriptionGroup: vi.fn(async (request) => request),
       removePackFromSubscriptionGroup: vi.fn(async () => undefined),
+      listSubscriptionLinks: vi.fn(async () => []),
+      createSubscriptionLink: vi.fn(),
+      rotateSubscriptionLink: vi.fn(),
+      revokeSubscriptionLink: vi.fn(),
     };
     const wrapper = mount(ProductMetadataPanel, {
       props: {

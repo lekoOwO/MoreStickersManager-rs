@@ -911,6 +911,16 @@
 - Updated PRD, roadmap, implementation matrix, and current status so the next
   slice can add Web controls.
 
+## 2026-05-09 Subscription Access Token Web
+
+- Added Web API client methods for subscription link list/create/rotate/revoke.
+- Added Organize UI controls to manage pack and subscription-group links,
+  including metadata-only link listing and one-time raw secret display after
+  create/rotate.
+- Added Web tests for subscription link API calls and UI actions.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice can focus on Web-session access and private asset authorization.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,

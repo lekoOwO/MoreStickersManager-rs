@@ -7,6 +7,8 @@ import {
   createProductMetadataClient,
   type ProductMetadataClient,
   type ProductMetadataFolder,
+  type SubscriptionAccessResourceType,
+  type SubscriptionAccessTokenResponse,
   type ProductMetadataSubscriptionGroup,
   type ProductMetadataTag,
   type WritablePackVisibility,
@@ -26,8 +28,10 @@ const props = defineProps<{
 const folders = ref<ProductMetadataFolder[]>([]);
 const tags = ref<ProductMetadataTag[]>([]);
 const subscriptionGroups = ref<ProductMetadataSubscriptionGroup[]>([]);
+const subscriptionLinks = ref<SubscriptionAccessTokenResponse[]>([]);
 const loadingError = ref("");
 const actionError = ref("");
+const createdSubscriptionSecret = ref("");
 const folderId = ref("folder_favorites");
 const folderName = ref("Favorites");
 const tagId = ref("tag_reaction");
@@ -39,6 +43,9 @@ const selectedPackId = ref("");
 const selectedFolderId = ref("");
 const selectedTagId = ref("");
 const selectedSubscriptionGroupId = ref("");
+const subscriptionLinkId = ref("packlink");
+const subscriptionLinkResourceType = ref<SubscriptionAccessResourceType>("pack");
+const subscriptionLinkResourceId = ref("");
 const folderPackIds = ref<string[]>([]);
 const packTagIds = ref<string[]>([]);
 const subscriptionGroupPackIds = ref<string[]>([]);
@@ -59,14 +66,16 @@ async function loadMetadata() {
   loadingError.value = "";
   try {
     const client = metadataClient();
-    const [nextFolders, nextTags, nextGroups] = await Promise.all([
+    const [nextFolders, nextTags, nextGroups, nextLinks] = await Promise.all([
       client.listFolders(props.tenantId, props.ownerUserId),
       client.listTags(props.tenantId),
       client.listSubscriptionGroups(props.tenantId, props.ownerUserId),
+      client.listSubscriptionLinks(props.ownerUserId),
     ]);
     folders.value = nextFolders;
     tags.value = nextTags;
     subscriptionGroups.value = nextGroups;
+    subscriptionLinks.value = nextLinks;
     ensureSelections();
     await loadMemberships();
   } catch (error) {
@@ -187,6 +196,44 @@ async function removePackFromSubscriptionGroup() {
   }
 }
 
+async function createSubscriptionLink() {
+  actionError.value = "";
+  createdSubscriptionSecret.value = "";
+  try {
+    const created = await metadataClient().createSubscriptionLink({
+      id: subscriptionLinkId.value.trim(),
+      resourceType: subscriptionLinkResourceType.value,
+      resourceId: subscriptionLinkResourceId.value.trim(),
+    });
+    createdSubscriptionSecret.value = created.token;
+    await loadMetadata();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function rotateSubscriptionLink(tokenId: string) {
+  actionError.value = "";
+  createdSubscriptionSecret.value = "";
+  try {
+    const rotated = await metadataClient().rotateSubscriptionLink(tokenId);
+    createdSubscriptionSecret.value = rotated.token;
+    await loadMetadata();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function revokeSubscriptionLink(tokenId: string) {
+  actionError.value = "";
+  try {
+    await metadataClient().revokeSubscriptionLink(tokenId);
+    await loadMetadata();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
 async function refreshSelections() {
   ensureSelections();
   await loadMemberships();
@@ -197,6 +244,7 @@ function ensureSelections() {
   selectedFolderId.value ||= folders.value[0]?.id ?? "";
   selectedTagId.value ||= tags.value[0]?.id ?? "";
   selectedSubscriptionGroupId.value ||= subscriptionGroups.value[0]?.id ?? "";
+  subscriptionLinkResourceId.value ||= selectedPackId.value || selectedSubscriptionGroupId.value;
 }
 
 async function loadMemberships() {
@@ -385,6 +433,57 @@ function metadataClient() {
             <Button type="button" variant="outline" :disabled="!selectedPackId || !selectedSubscriptionGroupId" :aria-label="labels.removePackFromSubscriptionGroup" @click="removePackFromSubscriptionGroup">{{ labels.remove }}</Button>
           </div>
         </form>
+      </div>
+    </section>
+
+    <section class="overflow-hidden rounded-[1.35rem] border bg-card/80">
+      <div class="grid gap-4 border-b px-5 py-4 xl:grid-cols-[1fr_auto]">
+        <div>
+          <h3 class="font-semibold">{{ labels.subscriptionLinks }}</h3>
+          <p class="mt-1 max-w-3xl text-sm text-muted-foreground">{{ labels.subscriptionLinksHelp }}</p>
+        </div>
+        <Badge variant="secondary">{{ subscriptionLinks.length }} {{ labels.subscriptionLinks }}</Badge>
+      </div>
+
+      <form class="grid gap-3 px-5 py-5 lg:grid-cols-[minmax(9rem,0.7fr)_minmax(10rem,0.8fr)_minmax(12rem,1fr)_auto]" @submit.prevent>
+        <label class="flex flex-col gap-2 text-sm font-medium">
+          {{ labels.subscriptionLinkId }}
+          <input v-model="subscriptionLinkId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" :aria-label="labels.subscriptionLinkId" />
+        </label>
+        <label class="flex flex-col gap-2 text-sm font-medium">
+          {{ labels.subscriptionLinkResourceType }}
+          <select v-model="subscriptionLinkResourceType" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" :aria-label="labels.subscriptionLinkResourceType">
+            <option value="pack">{{ labels.packLink }}</option>
+            <option value="subscriptionGroup">{{ labels.subscriptionGroupLink }}</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-2 text-sm font-medium">
+          {{ labels.subscriptionLinkResourceId }}
+          <input v-model="subscriptionLinkResourceId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" :aria-label="labels.subscriptionLinkResourceId" />
+        </label>
+        <Button type="button" class="self-end" :aria-label="labels.createSubscriptionLink" @click="createSubscriptionLink">{{ labels.createSubscriptionLink }}</Button>
+      </form>
+
+      <p v-if="createdSubscriptionSecret" class="mx-5 mb-4 rounded-2xl border bg-background/70 px-4 py-3 font-mono text-xs text-muted-foreground" data-testid="subscription-secret">
+        {{ labels.subscriptionLinkSecretOnce }} {{ createdSubscriptionSecret }}
+      </p>
+
+      <div class="divide-y border-t">
+        <article v-for="link in subscriptionLinks" :key="link.id" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="font-semibold">{{ link.id }}</p>
+              <Badge :variant="link.revokedAt ? 'muted' : 'secondary'">{{ link.revokedAt ? labels.revoked : labels.active }}</Badge>
+              <Badge variant="outline">{{ link.resourceType === "pack" ? labels.packLink : labels.subscriptionGroupLink }}</Badge>
+            </div>
+            <p class="mt-1 font-mono text-xs text-muted-foreground">{{ link.resourceId }}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" :aria-label="`${labels.rotateSubscriptionLink} ${link.id}`" @click="rotateSubscriptionLink(link.id)">{{ labels.rotateSubscriptionLink }}</Button>
+            <Button type="button" variant="outline" :aria-label="`${labels.revokeSubscriptionLink} ${link.id}`" @click="revokeSubscriptionLink(link.id)">{{ labels.revokeSubscriptionLink }}</Button>
+          </div>
+        </article>
+        <p v-if="subscriptionLinks.length === 0" class="px-5 py-4 text-sm text-muted-foreground">{{ labels.noSubscriptionLinks }}</p>
       </div>
     </section>
   </section>

@@ -159,6 +159,29 @@ export interface SubscriptionGroupPackLink {
   sortOrder: number;
 }
 
+export type SubscriptionAccessResourceType = "pack" | "subscriptionGroup";
+
+export interface CreateSubscriptionAccessTokenRequest {
+  id: string;
+  resourceType: SubscriptionAccessResourceType;
+  resourceId: string;
+}
+
+export interface SubscriptionAccessTokenResponse {
+  id: string;
+  tenantId: string;
+  ownerUserId: string;
+  resourceType: SubscriptionAccessResourceType;
+  resourceId: string;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatedSubscriptionAccessTokenResponse extends SubscriptionAccessTokenResponse {
+  token: string;
+}
+
 export interface ProductMetadataClient {
   listFolders(tenantId: string, ownerUserId: string): Promise<ProductMetadataFolder[]>;
   createFolder(request: CreateFolderRequest): Promise<ProductMetadataFolder>;
@@ -175,6 +198,12 @@ export interface ProductMetadataClient {
   listSubscriptionGroupPacks(subscriptionGroupId: string): Promise<string[]>;
   addPackToSubscriptionGroup(request: SubscriptionGroupPackLink): Promise<SubscriptionGroupPackLink>;
   removePackFromSubscriptionGroup(subscriptionGroupId: string, packId: string): Promise<void>;
+  listSubscriptionLinks(userId: string): Promise<SubscriptionAccessTokenResponse[]>;
+  createSubscriptionLink(
+    request: CreateSubscriptionAccessTokenRequest,
+  ): Promise<CreatedSubscriptionAccessTokenResponse>;
+  rotateSubscriptionLink(tokenId: string): Promise<CreatedSubscriptionAccessTokenResponse>;
+  revokeSubscriptionLink(tokenId: string): Promise<void>;
 }
 
 export function createPackClient(options: PackClientOptions = {}): PackClient {
@@ -414,6 +443,52 @@ export function createProductMetadataClient(options: PackClientOptions = {}): Pr
         throw new Error(`Failed to remove pack from subscription group: HTTP ${response.status}`);
       }
     },
+    async listSubscriptionLinks(userId) {
+      const response = await fetchOptional(fetchImpl, subscriptionLinkListUrl(baseUrl, userId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list subscription links: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as SubscriptionAccessTokenResponse[];
+    },
+    async createSubscriptionLink(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/subscription-access-tokens`, {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to create subscription link: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as CreatedSubscriptionAccessTokenResponse;
+    },
+    async rotateSubscriptionLink(tokenId) {
+      const response = await fetchImpl(
+        `${trimBaseUrl(baseUrl)}/api/v1/subscription-access-tokens/${encodeURIComponent(tokenId)}/rotate`,
+        {
+          method: "PATCH",
+          ...authInit(options.authToken),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to rotate subscription link: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as CreatedSubscriptionAccessTokenResponse;
+    },
+    async revokeSubscriptionLink(tokenId) {
+      const response = await fetchImpl(
+        `${trimBaseUrl(baseUrl)}/api/v1/subscription-access-tokens/${encodeURIComponent(tokenId)}`,
+        {
+          method: "DELETE",
+          ...authInit(options.authToken),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to revoke subscription link: HTTP ${response.status}`);
+      }
+    },
   };
 }
 
@@ -540,6 +615,12 @@ export function subscriptionGroupListUrl(baseUrl: string, tenantId: string, owne
   return `${path}?${query.toString()}`;
 }
 
+export function subscriptionLinkListUrl(baseUrl: string, userId: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/subscription-access-tokens`;
+  const query = new URLSearchParams({ userId });
+  return `${path}?${query.toString()}`;
+}
+
 export function folderPackListUrl(baseUrl: string, folderId: string) {
   return `${trimBaseUrl(baseUrl)}/api/v1/folders/${encodeURIComponent(folderId)}/packs`;
 }
@@ -634,6 +715,18 @@ function mockProductMetadataClient(): ProductMetadataClient {
       createdAt: "2026-05-09T00:00:00Z",
     },
   ];
+  const subscriptionLinks: SubscriptionAccessTokenResponse[] = [
+    {
+      id: "packlink",
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      resourceType: "pack",
+      resourceId: "pack_demo",
+      revokedAt: null,
+      createdAt: "2026-05-09T00:00:00Z",
+      updatedAt: "2026-05-09T00:00:00Z",
+    },
+  ];
 
   return {
     async listFolders() {
@@ -680,6 +773,18 @@ function mockProductMetadataClient(): ProductMetadataClient {
     },
     async removePackFromSubscriptionGroup(subscriptionGroupId) {
       throw new Error(`Subscription group membership removal requires VITE_MSM_API_BASE_URL: ${subscriptionGroupId}`);
+    },
+    async listSubscriptionLinks() {
+      return [...subscriptionLinks];
+    },
+    async createSubscriptionLink(request) {
+      throw new Error(`Subscription link creation requires VITE_MSM_API_BASE_URL: ${request.id}`);
+    },
+    async rotateSubscriptionLink(tokenId) {
+      throw new Error(`Subscription link rotation requires VITE_MSM_API_BASE_URL: ${tokenId}`);
+    },
+    async revokeSubscriptionLink(tokenId) {
+      throw new Error(`Subscription link revocation requires VITE_MSM_API_BASE_URL: ${tokenId}`);
     },
   };
 }
