@@ -95,9 +95,10 @@ Last completed:
 - PAT scope policy API slice: API/OpenAPI now exposes `GET /api/v1/pats/scope-policy?userId=...` so clients can fetch the current user's role-allowed PAT scopes.
 - PAT scope policy CLI slice: CLI now exposes `msm pats scope-policy --user-id ...` backed by the protected API endpoint, with human/JSON output through the shared client boundary.
 - PAT scope policy MCP slice: MCP now exposes `msm.get_pat_scope_policy` with `pat.manage` and same-user enforcement, backed by the shared API RBAC evaluator.
+- PAT scope policy Web slice: Web PAT/local-login dialogs load role-allowed scopes from the protected scope-policy endpoint when a `pat.manage` PAT is available, filter selectable cards, preserve fallback behavior, and cover the live-policy state in unit and Edge E2E tests.
 
 Current task:
-- Add Web discovery for role-allowed PAT scope templates.
+- Add cross-tenant isolation audit tests for RBAC-protected resource operations.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -196,9 +197,10 @@ Last verification:
 - PAT scope policy API slice: RED/GREEN test with `cargo test -p msm-api pat_scope_policy_route_lists_role_allowed_scopes --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - PAT scope policy CLI slice: RED/GREEN tests with `cargo test -p msm-cli parses_pats_scope_policy_command --locked` and `cargo test -p msm-cli executes_pats_scope_policy_command --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - PAT scope policy MCP slice: RED/GREEN tests with `cargo test -p msm-mcp tools_call_gets_pat_scope_policy --locked`, `cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked`, and `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api -p msm-mcp --locked`, `cargo clippy -p msm-api -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
+- PAT scope policy Web slice: RED/GREEN tests with `npm run web:test -- api-client` and `npm run web:test -- AppShell`; full verification with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run web:e2e` using installed Microsoft Edge, `%LOCALAPPDATA%\ms-playwright` absence check, and `git diff --check`.
 
 Next step:
-- Add Web scope-template discovery so users can select role-allowed PAT scopes without stale hard-coded templates.
+- Add cross-tenant isolation audit tests that exercise denied access across pack, subscription, tenant-admin, PAT, and export/publication boundaries.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

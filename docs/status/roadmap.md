@@ -138,10 +138,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   backed by the same protected API endpoint.
 - MCP now exposes `msm.get_pat_scope_policy` with the same `pat.manage`
   same-user policy.
+- Web PAT/local-login dialogs now load the same scope policy and filter
+  selectable scope cards when a `pat.manage` PAT is available.
 
 ## Immediate Plan
 
-1. Add role-allowed PAT scope-template discovery for Web.
+1. Add cross-tenant isolation audit tests for RBAC-protected resource
+   operations.
 
 ## Later Planned Work
 

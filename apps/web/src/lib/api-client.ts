@@ -79,11 +79,17 @@ export interface PersonalAccessTokenResponse {
   createdAt: string;
 }
 
+export interface PatScopePolicyResponse {
+  userId: string;
+  allowedScopes: string[];
+}
+
 export interface PatClient {
   createPersonalAccessToken(
     request: CreatePersonalAccessTokenRequest,
   ): Promise<CreatedPersonalAccessTokenResponse>;
   listPersonalAccessTokens(userId: string): Promise<PersonalAccessTokenResponse[]>;
+  getPatScopePolicy(userId: string): Promise<PatScopePolicyResponse>;
   revokePersonalAccessToken(tokenId: string): Promise<void>;
 }
 
@@ -672,6 +678,14 @@ export function createPatClient(options: PackClientOptions = {}): PatClient {
 
       return (await response.json()) as PersonalAccessTokenResponse[];
     },
+    async getPatScopePolicy(userId) {
+      const response = await fetchOptional(fetchImpl, patScopePolicyUrl(baseUrl, userId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to load PAT scope policy: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as PatScopePolicyResponse;
+    },
     async revokePersonalAccessToken(tokenId) {
       const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/pats/${encodeURIComponent(tokenId)}`, {
         method: "DELETE",
@@ -744,6 +758,12 @@ export function packListUrl(baseUrl: string, userId: string) {
 
 export function patListUrl(baseUrl: string, userId: string) {
   const path = `${trimBaseUrl(baseUrl)}/api/v1/pats`;
+  const query = new URLSearchParams({ userId });
+  return `${path}?${query.toString()}`;
+}
+
+export function patScopePolicyUrl(baseUrl: string, userId: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/pats/scope-policy`;
   const query = new URLSearchParams({ userId });
   return `${path}?${query.toString()}`;
 }

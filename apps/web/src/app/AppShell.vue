@@ -72,6 +72,7 @@ const defaultPatScopes = [
   "subscription.read",
   "pat.manage",
 ] as const;
+type KnownPatScope = (typeof defaultPatScopes)[number];
 const authScopes = ref<string[]>([
   "pack.read",
   "pack.update",
@@ -90,6 +91,9 @@ const tokenScopes = ref<string[]>([...defaultPatScopes]);
 const tokens = ref<PersonalAccessTokenResponse[]>([]);
 const createdToken = ref<CreatedPersonalAccessTokenResponse | null>(null);
 const patError = ref("");
+const scopePolicyAllowedScopes = ref<string[] | null>(null);
+const scopePolicyLoading = ref(false);
+const scopePolicyError = ref("");
 const labels = computed(() => allMessages()[props.locale]);
 const apiBaseUrl = computed(() => import.meta.env.VITE_MSM_API_BASE_URL?.trim() ?? "");
 const isConnected = computed(() => Boolean(apiBaseUrl.value));
@@ -121,7 +125,7 @@ const runtimeMode = computed(() => {
   };
 });
 
-const scopeOptions = computed(() => [
+const allScopeOptions = computed(() => [
   { key: "pack.create", label: labels.value.scopePackCreate, help: labels.value.scopePackCreateHelp },
   { key: "pack.read", label: labels.value.scopePackRead, help: labels.value.scopePackReadHelp },
   { key: "pack.update", label: labels.value.scopePackUpdate, help: labels.value.scopePackUpdateHelp },
@@ -160,6 +164,27 @@ const scopeOptions = computed(() => [
   { key: "subscription.read", label: labels.value.scopeSubscriptionRead, help: labels.value.scopeSubscriptionReadHelp },
   { key: "pat.manage", label: labels.value.scopePatManage, help: labels.value.scopePatManageHelp },
 ]);
+const scopeOptions = computed(() => {
+  const allowedScopes = scopePolicyAllowedScopes.value;
+  if (!allowedScopes) {
+    return allScopeOptions.value;
+  }
+
+  const allowed = new Set(allowedScopes);
+  return allScopeOptions.value.filter((scope) => allowed.has(scope.key));
+});
+const scopePolicyStatus = computed(() => {
+  if (scopePolicyLoading.value) {
+    return labels.value.scopePolicyLoading;
+  }
+  if (scopePolicyAllowedScopes.value) {
+    return labels.value.scopePolicyLive;
+  }
+  if (scopePolicyError.value) {
+    return `${labels.value.scopePolicyFallback} ${scopePolicyError.value}`;
+  }
+  return labels.value.scopePolicyFallback;
+});
 
 const navigationItems = computed<Array<{ key: WorkspaceSection; label: string; icon: Component }>>(() => [
   { key: "overview", label: labels.value.overview, icon: LayoutDashboardIcon },
@@ -186,6 +211,12 @@ watch(
     tokenDraft.value = nextToken;
   },
 );
+
+watch([accessDialogOpen, authDialogOpen, () => props.patToken], ([isAccessOpen, isAuthOpen]) => {
+  if (isAccessOpen || isAuthOpen) {
+    void loadPatScopePolicy();
+  }
+});
 
 function selectSection(section: WorkspaceSection) {
   activeSection.value = section;
@@ -246,6 +277,41 @@ async function loginLocalUser() {
   } catch (error) {
     authError.value = error instanceof Error ? error.message : String(error);
   }
+}
+
+async function loadPatScopePolicy() {
+  scopePolicyError.value = "";
+  if (!patClient.value || !props.patToken.trim()) {
+    scopePolicyAllowedScopes.value = null;
+    return;
+  }
+
+  scopePolicyLoading.value = true;
+  try {
+    const policy = await patClient.value.getPatScopePolicy(patUserId.value);
+    applyAllowedScopes(policy.allowedScopes);
+  } catch (error) {
+    scopePolicyAllowedScopes.value = null;
+    scopePolicyError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    scopePolicyLoading.value = false;
+  }
+}
+
+function applyAllowedScopes(allowedScopes: string[]) {
+  const knownAllowedScopes = allowedScopes.filter((scope): scope is KnownPatScope =>
+    defaultPatScopes.includes(scope as KnownPatScope),
+  );
+  scopePolicyAllowedScopes.value = knownAllowedScopes;
+  const allowed = new Set(knownAllowedScopes);
+  const tokenWasDefault =
+    tokenScopes.value.length === defaultPatScopes.length &&
+    defaultPatScopes.every((scope) => tokenScopes.value.includes(scope));
+
+  tokenScopes.value = tokenWasDefault
+    ? [...knownAllowedScopes]
+    : tokenScopes.value.filter((scope) => allowed.has(scope));
+  authScopes.value = authScopes.value.filter((scope) => allowed.has(scope));
 }
 
 function requireLocalAuthClient() {
@@ -503,6 +569,9 @@ function requirePatClient() {
           <fieldset class="md:col-span-2">
             <legend class="text-sm font-medium">{{ labels.tokenScopes }}</legend>
             <p class="mt-1 text-xs text-muted-foreground">{{ labels.tokenScopesHelp }}</p>
+            <p class="mt-2 rounded-lg border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+              {{ scopePolicyStatus }}
+            </p>
             <div class="mt-3 grid gap-2 md:grid-cols-2">
               <label
                 v-for="scope in scopeOptions"
@@ -577,6 +646,9 @@ function requirePatClient() {
           <fieldset>
             <legend class="text-sm font-medium">{{ labels.tokenScopes }}</legend>
             <p class="mt-1 text-xs text-muted-foreground">{{ labels.tokenScopesHelp }}</p>
+            <p class="mt-2 rounded-lg border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+              {{ scopePolicyStatus }}
+            </p>
             <div class="mt-3 grid gap-2 md:grid-cols-2">
               <label
                 v-for="scope in scopeOptions"

@@ -74,12 +74,12 @@ Status meanings:
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, and role template administration commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, and role template administration tools exist. Session/SSE hardening remains incomplete. |
-| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login, pack CRUD/import, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
+| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, pack CRUD/import, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP scope-policy discovery, and tenant member/settings/user-status/role-template administration exist. Web scope-template discovery and OIDC/SSO remain incomplete. |
+| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, and tenant member/settings/user-status/role-template administration exist. Cross-tenant audit coverage and OIDC/SSO remain incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add Web discovery for role-allowed PAT scope templates.
+1. Add cross-tenant isolation audit tests for RBAC-protected resource operations.
 
 Each queue item must update this section when completed or reordered.
 
@@ -146,14 +146,16 @@ tests and docs are updated.
   admin/custom-role authorization, export job create/read/event routes support
   same-tenant admin delegation, Telegram publication reads use pack RBAC, and
   subscription-link management routes support same-tenant admin delegation.
-- [ ] PAT creation policy and scope templates by role.
+- [x] PAT creation policy and scope templates by role.
   Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
   PAT for the same user, PAT creation and local login reject scopes outside the
   user's built-in role, tenant admin role, or custom role-template permissions,
   dev bootstrap obtains PATs through local login, API/OpenAPI exposes
   `GET /api/v1/pats/scope-policy`, CLI exposes
-  `msm pats scope-policy --user-id ...`, and MCP exposes
-  `msm.get_pat_scope_policy`. Web discovery remains incomplete.
+  `msm pats scope-policy --user-id ...`, MCP exposes
+  `msm.get_pat_scope_policy`, and Web PAT/local-login dialogs filter selectable
+  scope cards from the live scope-policy endpoint when a `pat.manage` PAT is
+  available.
 - [ ] Audit tests for cross-tenant isolation.
 
 ### Phase D: Auth Providers
@@ -250,8 +252,8 @@ Current parity gaps:
   use RBAC policy helpers. Export target/job routes and Telegram publication
   reads also use tenant/pack RBAC helpers. Subscription-link management routes
   use pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
-  enforce `pat.manage` and role-allowed scopes; Web scope-template discovery,
-  cross-tenant audit tests, and OIDC/SSO remain incomplete.
+  enforce `pat.manage` and role-allowed scopes across API, CLI, MCP, and Web.
+  Cross-tenant audit tests and OIDC/SSO remain incomplete.
 
 ## Open Product Questions
 

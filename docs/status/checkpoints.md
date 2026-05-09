@@ -1200,3 +1200,20 @@
   hygiene with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD and status docs; next work should wire Web discovery to this
   endpoint.
+
+## 2026-05-09 PAT Scope Policy Web
+
+- Added Web PAT client support for
+  `GET /api/v1/pats/scope-policy?userId=...`.
+- Web PAT and local-login dialogs now load role-allowed scopes when a
+  `pat.manage` PAT is available, filter selectable scope cards, and keep a
+  documented built-in fallback when the API or PAT is unavailable.
+- Added AppShell unit coverage for live policy filtering and expanded Edge E2E
+  mocks/assertions so the browser test exercises the live-policy state.
+- Hardened the tenant-admin E2E setup by mocking settings and role-template
+  endpoints, avoiding accidental Vite HTML responses during JSON parsing.
+- Verified with `npm run web:typecheck`, `npm run web:test`,
+  `npm run web:build`, `npm run web:e2e`, `%LOCALAPPDATA%\ms-playwright`
+  absence check, and `git diff --check`.
+- Updated PRD and status docs; next work should add cross-tenant isolation
+  audit tests for RBAC-protected operations.

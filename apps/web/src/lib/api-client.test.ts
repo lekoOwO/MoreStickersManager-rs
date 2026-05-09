@@ -11,6 +11,7 @@ import {
   mapApiPackRecord,
   packListUrl,
   packTagListUrl,
+  patScopePolicyUrl,
   subscriptionGroupPackListUrl,
   subscriptionGroupListUrl,
   subscriptionLinkListUrl,
@@ -475,6 +476,35 @@ describe("PAT API client", () => {
         Authorization: "Bearer msm_pat_admin_secret",
       },
     });
+  });
+
+  it("loads PAT scope policy with bearer auth", async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          userId: "user_1",
+          allowedScopes: ["pack.read", "pat.manage"],
+        }),
+        { status: 200 },
+      );
+    });
+    const client = createPatClient({
+      baseUrl: "https://msm.example.test/",
+      authToken: "msm_pat_admin_secret",
+      fetchImpl,
+    });
+
+    const policy = await client.getPatScopePolicy("user_1");
+
+    expect(policy.allowedScopes).toEqual(["pack.read", "pat.manage"]);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      patScopePolicyUrl("https://msm.example.test/", "user_1"),
+      {
+        headers: {
+          Authorization: "Bearer msm_pat_admin_secret",
+        },
+      },
+    );
   });
 });
 

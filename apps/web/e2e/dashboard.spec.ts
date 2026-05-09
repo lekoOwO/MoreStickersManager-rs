@@ -23,6 +23,33 @@ test.beforeEach(async ({ page }) => {
       ]),
     });
   });
+  await page.route("**/api/v1/pats/scope-policy?**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        userId: "user_1",
+        allowedScopes: [
+          "pack.create",
+          "pack.read",
+          "pack.update",
+          "pack.delete",
+          "pack.manage_access",
+          "asset.read",
+          "import.run",
+          "export.read",
+          "export.run",
+          "export.target.manage",
+          "tenant.manage_members",
+          "tenant.manage_settings",
+          "tenant.manage_users",
+          "tenant.manage_roles",
+          "subscription.create",
+          "subscription.read",
+          "pat.manage",
+        ],
+      }),
+    });
+  });
   await page.route("**/api/v1/tenants/*/members", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -49,6 +76,35 @@ test.beforeEach(async ({ page }) => {
         tenantId: "tenant_1",
         userId: "user_3",
         role: "admin",
+        createdAt: "2026-05-09T00:00:00Z",
+      }),
+    });
+  });
+  await page.route("**/api/v1/tenants/*/settings", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        tenantId: "tenant_1",
+        name: "Tenant",
+        publicAssetUrl: "https://cdn.example.test/msm",
+        createdAt: "2026-05-09T00:00:00Z",
+      }),
+    });
+  });
+  await page.route("**/api/v1/tenants/*/roles", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([]),
+    });
+  });
+  await page.route("**/api/v1/tenants/*/roles/*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "role_editor",
+        tenantId: "tenant_1",
+        name: "Editors",
+        permissions: ["pack.read"],
         createdAt: "2026-05-09T00:00:00Z",
       }),
     });
@@ -102,6 +158,7 @@ test("PAT scopes are selectable controls instead of a raw text field", async ({ 
   const dialog = page.getByRole("dialog", { name: "Personal Access Tokens" });
 
   await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Available scopes are filtered by the current user's roles.");
   await expect(dialog.getByRole("checkbox", { name: /Read packs/ })).toBeChecked();
   await expect(dialog.getByRole("checkbox", { name: /Manage PATs/ })).toBeChecked();
   await expect(dialog.getByRole("checkbox", { name: /Manage tenant members/ })).toBeChecked();

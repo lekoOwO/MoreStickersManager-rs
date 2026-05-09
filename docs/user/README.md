@@ -108,6 +108,10 @@ When `VITE_MSM_API_BASE_URL` is omitted, the dashboard falls back to mock data.
 When it is configured, the Web UI can store a PAT in browser localStorage and
 send it to protected pack API calls. `VITE_MSM_PAT` can seed the token during
 development.
+When the stored PAT has `pat.manage`, the PAT and local-login dialogs load
+role-allowed scopes from `GET /api/v1/pats/scope-policy?userId=...` and filter
+the selectable scope cards. If no suitable PAT or API is available, the dialogs
+fall back to the built-in scope catalog.
 
 The dashboard can rename packs, change public/private visibility, and delete
 packs when the stored PAT has `pack.update` and `pack.delete`.
