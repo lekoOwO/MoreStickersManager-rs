@@ -352,7 +352,8 @@ P20 lets local registration optionally bootstrap a tenant admin by passing
 `tenantId`, optional `tenantName`, and optional `tenantRole` fields. The role
 defaults to `admin`.
 
-Tenant member administration currently has API/OpenAPI, CLI, and MCP support:
+Tenant member administration currently has API/OpenAPI, CLI, MCP, and Web
+support:
 
 - `GET /api/v1/tenants/{tenant_id}/members`
 - `PUT /api/v1/tenants/{tenant_id}/members/{user_id}`
@@ -366,7 +367,8 @@ and the PAT user must be an `admin` member of the target tenant. The Web UI
 exposes the same member list and role assignment workflow from the Tenant admin
 workspace.
 
-Tenant settings administration currently has API/OpenAPI support:
+Tenant settings administration currently has API/OpenAPI, CLI, MCP, and Web
+support:
 
 - `GET /api/v1/tenants/{tenant_id}/settings`
 - `PUT /api/v1/tenants/{tenant_id}/settings`
@@ -376,9 +378,11 @@ Tenant settings administration currently has API/OpenAPI support:
 - `msm.update_tenant_settings`
 
 These routes require a Bearer PAT with `tenant.manage_settings`, and the PAT
-user must be an `admin` member of the target tenant.
+user must be an `admin` member of the target tenant. The Tenant admin Web
+workspace exposes tenant name and public asset/CDN URL controls.
 
-Tenant user status administration currently has API/OpenAPI support:
+Tenant user status administration currently has API/OpenAPI, CLI, MCP, and Web
+support:
 
 - `PUT /api/v1/tenants/{tenant_id}/users/{user_id}/status`
 - `msm tenants users set-status --tenant-id <tenant_id> --user-id <user_id> --disabled`
@@ -386,9 +390,10 @@ Tenant user status administration currently has API/OpenAPI support:
 
 This route requires a Bearer PAT with `tenant.manage_users`, the PAT user must
 be an `admin` member of the target tenant, and the target user must also belong
-to that tenant.
+to that tenant. The Tenant admin Web workspace exposes enable/disable controls.
 
-Tenant role template administration currently has API/OpenAPI support:
+Tenant role template administration currently has API/OpenAPI, CLI, MCP, and
+Web support:
 
 - `GET /api/v1/tenants/{tenant_id}/roles`
 - `PUT /api/v1/tenants/{tenant_id}/roles/{role_id}`
@@ -398,7 +403,8 @@ Tenant role template administration currently has API/OpenAPI support:
 - `msm.upsert_tenant_role`
 
 These routes require a Bearer PAT with `tenant.manage_roles`, and the PAT user
-must be an `admin` member of the target tenant.
+must be an `admin` member of the target tenant. The Tenant admin Web workspace
+uses selectable permission keys for role templates.
 
 ## Project Docs
 

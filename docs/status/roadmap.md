@@ -111,11 +111,15 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   updates, and tenant role template list/upsert.
 - MCP now exposes tenant settings get/update, tenant user disabled-status
   updates, and tenant role template list/upsert.
+- Web now exposes tenant settings, public asset URL, tenant user enable/disable,
+  and tenant role template list/upsert controls, with selectable permission
+  keys and tenant administration PAT scopes.
 
 ## Immediate Plan
 
-1. Add Web parity for tenant settings, user status controls, and role
-   templates.
+1. Define the final permission model for pack visibility, subscription-group
+   visibility, subscription secrets, PAT access, and authenticated Web
+   credentials.
 
 ## Later Planned Work
 
@@ -130,10 +134,11 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Verification Expectations
 
-For docs-only changes, `git diff --check` is sufficient. For CLI/MCP feature
-work, run at least:
+For docs-only changes, `git diff --check` is sufficient. For Rust feature
+work, run the relevant package tests/clippy with `TMP` and `TEMP` pointed at
+`D:\Temp`. For Web feature work, run at least:
 
-- `cargo fmt --all -- --check`
-- `cargo test -p msm-cli -p msm-mcp --locked`
-- `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`
+- `npm run web:typecheck`
+- `npm run web:test`
+- `npm run web:build`
 - `git diff --check`

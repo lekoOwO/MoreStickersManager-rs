@@ -8,6 +8,9 @@ import {
   type TenantAdminClient,
   type TenantMemberResponse,
   type TenantMemberRole,
+  type TenantRoleResponse,
+  type TenantSettingsResponse,
+  type TenantUserResponse,
 } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
 
@@ -19,18 +22,66 @@ const props = defineProps<{
 }>();
 
 const members = ref<TenantMemberResponse[]>([]);
+const roles = ref<TenantRoleResponse[]>([]);
+const settings = ref<TenantSettingsResponse | null>(null);
 const loadingError = ref("");
 const actionError = ref("");
 const memberUserId = ref("");
 const memberRole = ref<TenantMemberRole>("user");
+const settingsName = ref("");
+const publicAssetUrl = ref("");
+const statusUserId = ref("");
+const userStatus = ref<TenantUserResponse | null>(null);
+const roleId = ref("");
+const roleName = ref("");
+const rolePermissions = ref<string[]>([]);
 const labels = computed(() => allMessages()[props.locale]);
 const adminCount = computed(() => members.value.filter((member) => member.role === "admin").length);
 const userCount = computed(() => members.value.filter((member) => member.role === "user").length);
+const rolePermissionOptions = computed(() => [
+  { key: "pack.create", label: labels.value.scopePackCreate },
+  { key: "pack.read", label: labels.value.scopePackRead },
+  { key: "pack.update", label: labels.value.scopePackUpdate },
+  { key: "pack.delete", label: labels.value.scopePackDelete },
+  { key: "pack.manage_access", label: labels.value.scopePackManageAccess },
+  { key: "asset.read", label: labels.value.scopeAssetRead },
+  { key: "import.run", label: labels.value.scopeImportRun },
+  { key: "export.read", label: labels.value.scopeExportRead },
+  { key: "export.run", label: labels.value.scopeExportRun },
+  { key: "export.target.manage", label: labels.value.scopeExportTargetManage },
+  { key: "tenant.manage_members", label: labels.value.scopeTenantManageMembers },
+  { key: "tenant.manage_settings", label: labels.value.scopeTenantManageSettings },
+  { key: "tenant.manage_users", label: labels.value.scopeTenantManageUsers },
+  { key: "tenant.manage_roles", label: labels.value.scopeTenantManageRoles },
+  { key: "subscription.create", label: labels.value.scopeSubscriptionCreate },
+  { key: "subscription.read", label: labels.value.scopeSubscriptionRead },
+  { key: "pat.manage", label: labels.value.scopePatManage },
+]);
 
-onMounted(loadMembers);
-watch(() => props.tenantAdminClient, loadMembers);
-watch(() => props.patToken, loadMembers);
-watch(() => props.tenantId, loadMembers);
+onMounted(loadTenantAdminData);
+watch(() => props.tenantAdminClient, loadTenantAdminData);
+watch(() => props.patToken, loadTenantAdminData);
+watch(() => props.tenantId, loadTenantAdminData);
+
+async function loadTenantAdminData() {
+  loadingError.value = "";
+  try {
+    const [nextMembers, nextSettings, nextRoles] = await Promise.all([
+      tenantAdminClient().listTenantMembers(props.tenantId),
+      tenantAdminClient().getTenantSettings(props.tenantId),
+      tenantAdminClient().listTenantRoles(props.tenantId),
+    ]);
+    members.value = nextMembers;
+    roles.value = nextRoles;
+    settings.value = nextSettings;
+    settingsName.value = nextSettings.name;
+    publicAssetUrl.value = nextSettings.publicAssetUrl ?? "";
+  } catch (error) {
+    members.value = [];
+    roles.value = [];
+    loadingError.value = error instanceof Error ? error.message : String(error);
+  }
+}
 
 async function loadMembers() {
   loadingError.value = "";
@@ -42,12 +93,59 @@ async function loadMembers() {
   }
 }
 
+async function loadRoles() {
+  roles.value = await tenantAdminClient().listTenantRoles(props.tenantId);
+}
+
 async function setMemberRole(userId = memberUserId.value, role = memberRole.value) {
   actionError.value = "";
   try {
     await tenantAdminClient().setTenantMemberRole(props.tenantId, userId.trim(), role);
     memberUserId.value = "";
     await loadMembers();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function saveTenantSettings() {
+  actionError.value = "";
+  try {
+    settings.value = await tenantAdminClient().updateTenantSettings(props.tenantId, {
+      name: settingsName.value.trim(),
+      publicAssetUrl: publicAssetUrl.value.trim() || null,
+    });
+    settingsName.value = settings.value.name;
+    publicAssetUrl.value = settings.value.publicAssetUrl ?? "";
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function setUserStatus(isDisabled: boolean) {
+  actionError.value = "";
+  try {
+    userStatus.value = await tenantAdminClient().setTenantUserStatus(
+      props.tenantId,
+      statusUserId.value.trim(),
+      isDisabled,
+    );
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function saveRoleTemplate() {
+  actionError.value = "";
+  try {
+    await tenantAdminClient().upsertTenantRole(props.tenantId, roleId.value.trim(), {
+      name: roleName.value.trim(),
+      permissions: [...rolePermissions.value].sort(),
+    });
+    roleId.value = "";
+    roleName.value = "";
+    rolePermissions.value = [];
+    await loadRoles();
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
   }
@@ -85,13 +183,169 @@ function updateMemberRoleFromEvent(userId: string, event: Event) {
         <div class="flex flex-wrap items-start gap-2 xl:justify-end">
           <Badge variant="accent">{{ adminCount }} {{ labels.roleAdmin }}</Badge>
           <Badge variant="secondary">{{ userCount }} {{ labels.roleUser }}</Badge>
-          <Button type="button" variant="outline" @click="loadMembers">{{ labels.refreshTokens }}</Button>
+          <Button type="button" variant="outline" @click="loadTenantAdminData">{{ labels.refreshTokens }}</Button>
         </div>
       </div>
 
       <p v-if="loadingError || actionError" class="mx-5 mt-4 rounded-2xl border bg-background/70 px-4 py-3 text-sm text-muted-foreground">
         {{ loadingError || actionError }}
       </p>
+
+      <div class="grid gap-0 border-b lg:grid-cols-[minmax(18rem,0.82fr)_minmax(0,1.18fr)]">
+        <div class="border-b p-5 lg:border-b-0 lg:border-r">
+          <div class="flex flex-col gap-5">
+            <form class="flex flex-col gap-3" @submit.prevent>
+              <div>
+                <h3 class="font-semibold">{{ labels.tenantSettings }}</h3>
+                <p class="mt-1 text-sm leading-6 text-muted-foreground">{{ labels.scopeTenantManageSettingsHelp }}</p>
+              </div>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.tenantName }}
+                <input
+                  v-model="settingsName"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.tenantName"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.publicAssetUrl }}
+                <input
+                  v-model="publicAssetUrl"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="https://cdn.example.test/msm"
+                  :aria-label="labels.publicAssetUrl"
+                />
+              </label>
+              <Button
+                type="button"
+                class="w-fit"
+                :disabled="!settingsName.trim()"
+                :aria-label="labels.saveTenantSettings"
+                @click="saveTenantSettings"
+              >
+                {{ labels.saveTenantSettings }}
+              </Button>
+            </form>
+
+            <form class="flex flex-col gap-3 border-t pt-5" @submit.prevent>
+              <div>
+                <h3 class="font-semibold">{{ labels.userStatus }}</h3>
+                <p class="mt-1 text-sm leading-6 text-muted-foreground">{{ labels.scopeTenantManageUsersHelp }}</p>
+              </div>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.statusUserId }}
+                <input
+                  v-model="statusUserId"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.statusUserId"
+                />
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  :disabled="!statusUserId.trim()"
+                  :aria-label="labels.enableUser"
+                  @click="setUserStatus(false)"
+                >
+                  {{ labels.enableUser }}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  :disabled="!statusUserId.trim()"
+                  :aria-label="labels.disableUser"
+                  @click="setUserStatus(true)"
+                >
+                  {{ labels.disableUser }}
+                </Button>
+              </div>
+              <p v-if="userStatus" class="rounded-xl border bg-background/70 px-3 py-2 text-sm text-muted-foreground">
+                {{ userStatus.displayName }} · {{ userStatus.isDisabled ? labels.disabledUser : labels.activeUser }}
+              </p>
+            </form>
+          </div>
+        </div>
+
+        <div class="p-5">
+          <div class="grid gap-5 xl:grid-cols-[minmax(16rem,0.88fr)_minmax(0,1.12fr)]">
+            <form class="flex flex-col gap-3" @submit.prevent>
+              <div>
+                <h3 class="font-semibold">{{ labels.roleTemplates }}</h3>
+                <p class="mt-1 text-sm leading-6 text-muted-foreground">{{ labels.scopeTenantManageRolesHelp }}</p>
+              </div>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.roleTemplateId }}
+                <input
+                  v-model="roleId"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.roleTemplateId"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.roleTemplateName }}
+                <input
+                  v-model="roleName"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.roleTemplateName"
+                />
+              </label>
+              <fieldset>
+                <legend class="text-sm font-medium">{{ labels.roleTemplatePermissions }}</legend>
+                <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                  <label
+                    v-for="permission in rolePermissionOptions"
+                    :key="permission.key"
+                    class="flex cursor-pointer items-start gap-2 rounded-xl border bg-background/70 p-2.5 text-sm hover:border-primary/45 hover:bg-accent/45"
+                  >
+                    <input
+                      v-model="rolePermissions"
+                      class="mt-1 size-4 cursor-pointer accent-[var(--primary)]"
+                      type="checkbox"
+                      :value="permission.key"
+                      :aria-label="`Permission: ${permission.label}`"
+                    />
+                    <span class="min-w-0">
+                      <span class="block font-semibold">{{ permission.label }}</span>
+                      <code class="mt-1 block truncate font-mono text-xs text-muted-foreground">{{ permission.key }}</code>
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+              <Button
+                type="button"
+                class="w-fit"
+                :disabled="!roleId.trim() || !roleName.trim() || rolePermissions.length === 0"
+                :aria-label="labels.saveRoleTemplate"
+                @click="saveRoleTemplate"
+              >
+                {{ labels.saveRoleTemplate }}
+              </Button>
+            </form>
+
+            <div class="min-w-0">
+              <div class="flex items-center justify-between gap-3">
+                <h4 class="font-semibold">{{ labels.roleTemplates }}</h4>
+                <Badge variant="secondary">{{ roles.length }}</Badge>
+              </div>
+              <div class="mt-3 divide-y rounded-2xl border bg-background/70">
+                <article v-for="role in roles" :key="role.id" class="px-4 py-3">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="font-semibold">{{ role.name }}</p>
+                    <code class="font-mono text-xs text-muted-foreground">{{ role.id }}</code>
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1.5">
+                    <Badge v-for="permission in role.permissions" :key="`${role.id}:${permission}`" variant="outline">
+                      {{ permission }}
+                    </Badge>
+                  </div>
+                </article>
+                <p v-if="roles.length === 0" class="px-4 py-3 text-sm text-muted-foreground">{{ labels.noTenantRoles }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <form class="grid gap-3 px-5 py-5 lg:grid-cols-[minmax(12rem,1fr)_12rem_auto]" @submit.prevent>
         <label class="flex flex-col gap-2 text-sm font-medium">

@@ -17,6 +17,10 @@ import {
   tagListUrl,
   tenantMemberListUrl,
   tenantMemberUrl,
+  tenantRoleUrl,
+  tenantRolesUrl,
+  tenantSettingsUrl,
+  tenantUserStatusUrl,
   type ApiStickerPackRecord,
 } from "./api-client";
 
@@ -202,6 +206,18 @@ describe("tenant admin API client", () => {
     expect(tenantMemberUrl("https://msm.example.test/", "tenant 1", "user 2")).toBe(
       "https://msm.example.test/api/v1/tenants/tenant%201/members/user%202",
     );
+    expect(tenantSettingsUrl("https://msm.example.test/", "tenant 1")).toBe(
+      "https://msm.example.test/api/v1/tenants/tenant%201/settings",
+    );
+    expect(tenantUserStatusUrl("https://msm.example.test/", "tenant 1", "user 2")).toBe(
+      "https://msm.example.test/api/v1/tenants/tenant%201/users/user%202/status",
+    );
+    expect(tenantRolesUrl("https://msm.example.test/", "tenant 1")).toBe(
+      "https://msm.example.test/api/v1/tenants/tenant%201/roles",
+    );
+    expect(tenantRoleUrl("https://msm.example.test/", "tenant 1", "role editor")).toBe(
+      "https://msm.example.test/api/v1/tenants/tenant%201/roles/role%20editor",
+    );
   });
 
   it("lists and updates tenant member roles with bearer auth", async () => {
@@ -259,6 +275,112 @@ describe("tenant admin API client", () => {
         Authorization: "Bearer msm_pat_admin_secret",
       },
       body: JSON.stringify({ role: "admin" }),
+    });
+  });
+
+  it("manages tenant settings, user status, and role templates with bearer auth", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/settings") && init?.method === "PUT") {
+        return new Response(
+          JSON.stringify({
+            tenantId: "tenant_1",
+            name: "Production",
+            publicAssetUrl: "https://cdn.example.test/msm",
+            createdAt: "2026-05-09T00:00:00Z",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/settings")) {
+        return new Response(
+          JSON.stringify({
+            tenantId: "tenant_1",
+            name: "Default tenant",
+            publicAssetUrl: null,
+            createdAt: "2026-05-09T00:00:00Z",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/users/user_2/status")) {
+        return new Response(
+          JSON.stringify({
+            id: "user_2",
+            email: "member@example.com",
+            displayName: "Member",
+            isDisabled: true,
+            createdAt: "2026-05-09T00:00:00Z",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/roles/role_editor")) {
+        return new Response(
+          JSON.stringify({
+            id: "role_editor",
+            tenantId: "tenant_1",
+            name: "Editors",
+            permissions: ["pack.read", "pack.update"],
+            createdAt: "2026-05-09T00:00:00Z",
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(
+        JSON.stringify([
+          {
+            id: "role_editor",
+            tenantId: "tenant_1",
+            name: "Editors",
+            permissions: ["pack.read", "pack.update"],
+            createdAt: "2026-05-09T00:00:00Z",
+          },
+        ]),
+        { status: 200 },
+      );
+    });
+    const client = createTenantAdminClient({
+      baseUrl: "https://msm.example.test/",
+      authToken: "msm_pat_admin_secret",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const settings = await client.getTenantSettings("tenant_1");
+    const updatedSettings = await client.updateTenantSettings("tenant_1", {
+      name: "Production",
+      publicAssetUrl: "https://cdn.example.test/msm",
+    });
+    const user = await client.setTenantUserStatus("tenant_1", "user_2", true);
+    const role = await client.upsertTenantRole("tenant_1", "role_editor", {
+      name: "Editors",
+      permissions: ["pack.read", "pack.update"],
+    });
+    const roles = await client.listTenantRoles("tenant_1");
+
+    expect(settings.name).toBe("Default tenant");
+    expect(updatedSettings.publicAssetUrl).toBe("https://cdn.example.test/msm");
+    expect(user.isDisabled).toBe(true);
+    expect(role.permissions).toEqual(["pack.read", "pack.update"]);
+    expect(roles[0]?.id).toBe("role_editor");
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/tenants/tenant_1/settings", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_admin_secret",
+      },
+      body: JSON.stringify({
+        name: "Production",
+        publicAssetUrl: "https://cdn.example.test/msm",
+      }),
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/tenants/tenant_1/users/user_2/status", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_admin_secret",
+      },
+      body: JSON.stringify({ isDisabled: true }),
     });
   });
 });

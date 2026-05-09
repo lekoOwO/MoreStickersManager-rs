@@ -123,6 +123,39 @@ export interface TenantMemberResponse {
   createdAt: string;
 }
 
+export interface TenantSettingsResponse {
+  tenantId: string;
+  name: string;
+  publicAssetUrl: string | null;
+  createdAt: string;
+}
+
+export interface UpdateTenantSettingsRequest {
+  name: string;
+  publicAssetUrl: string | null;
+}
+
+export interface TenantUserResponse {
+  id: string;
+  email: string;
+  displayName: string;
+  isDisabled: boolean;
+  createdAt: string;
+}
+
+export interface TenantRoleResponse {
+  id: string;
+  tenantId: string | null;
+  name: string;
+  permissions: string[];
+  createdAt: string;
+}
+
+export interface UpsertTenantRoleRequest {
+  name: string;
+  permissions: string[];
+}
+
 export interface TenantAdminClient {
   listTenantMembers(tenantId: string): Promise<TenantMemberResponse[]>;
   setTenantMemberRole(
@@ -130,6 +163,22 @@ export interface TenantAdminClient {
     userId: string,
     role: TenantMemberRole,
   ): Promise<TenantMemberResponse>;
+  getTenantSettings(tenantId: string): Promise<TenantSettingsResponse>;
+  updateTenantSettings(
+    tenantId: string,
+    request: UpdateTenantSettingsRequest,
+  ): Promise<TenantSettingsResponse>;
+  setTenantUserStatus(
+    tenantId: string,
+    userId: string,
+    isDisabled: boolean,
+  ): Promise<TenantUserResponse>;
+  listTenantRoles(tenantId: string): Promise<TenantRoleResponse[]>;
+  upsertTenantRole(
+    tenantId: string,
+    roleId: string,
+    request: UpsertTenantRoleRequest,
+  ): Promise<TenantRoleResponse>;
 }
 
 export interface ProductMetadataFolder {
@@ -539,6 +588,58 @@ export function createTenantAdminClient(options: PackClientOptions = {}): Tenant
 
       return (await response.json()) as TenantMemberResponse;
     },
+    async getTenantSettings(tenantId) {
+      const response = await fetchOptional(fetchImpl, tenantSettingsUrl(baseUrl, tenantId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to read tenant settings: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as TenantSettingsResponse;
+    },
+    async updateTenantSettings(tenantId, request) {
+      const response = await fetchImpl(tenantSettingsUrl(baseUrl, tenantId), {
+        method: "PUT",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to update tenant settings: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as TenantSettingsResponse;
+    },
+    async setTenantUserStatus(tenantId, userId, isDisabled) {
+      const response = await fetchImpl(tenantUserStatusUrl(baseUrl, tenantId, userId), {
+        method: "PUT",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify({ isDisabled }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to update tenant user status: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as TenantUserResponse;
+    },
+    async listTenantRoles(tenantId) {
+      const response = await fetchOptional(fetchImpl, tenantRolesUrl(baseUrl, tenantId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list tenant roles: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as TenantRoleResponse[];
+    },
+    async upsertTenantRole(tenantId, roleId, request) {
+      const response = await fetchImpl(tenantRoleUrl(baseUrl, tenantId, roleId), {
+        method: "PUT",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to upsert tenant role: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as TenantRoleResponse;
+    },
   };
 }
 
@@ -689,6 +790,22 @@ export function tenantMemberListUrl(baseUrl: string, tenantId: string) {
 
 export function tenantMemberUrl(baseUrl: string, tenantId: string, userId: string) {
   return `${tenantMemberListUrl(baseUrl, tenantId)}/${encodeURIComponent(userId)}`;
+}
+
+export function tenantSettingsUrl(baseUrl: string, tenantId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/tenants/${encodeURIComponent(tenantId)}/settings`;
+}
+
+export function tenantUserStatusUrl(baseUrl: string, tenantId: string, userId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/tenants/${encodeURIComponent(tenantId)}/users/${encodeURIComponent(userId)}/status`;
+}
+
+export function tenantRolesUrl(baseUrl: string, tenantId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/tenants/${encodeURIComponent(tenantId)}/roles`;
+}
+
+export function tenantRoleUrl(baseUrl: string, tenantId: string, roleId: string) {
+  return `${tenantRolesUrl(baseUrl, tenantId)}/${encodeURIComponent(roleId)}`;
 }
 
 function trimBaseUrl(baseUrl: string) {
@@ -862,6 +979,37 @@ function mockTenantAdminClient(): TenantAdminClient {
       createdAt: "2026-05-09T00:00:00Z",
     },
   ];
+  let settings: TenantSettingsResponse = {
+    tenantId: "tenant_1",
+    name: "Default tenant",
+    publicAssetUrl: null,
+    createdAt: "2026-05-09T00:00:00Z",
+  };
+  let users: TenantUserResponse[] = [
+    {
+      id: "user_1",
+      email: "admin@example.test",
+      displayName: "Admin",
+      isDisabled: false,
+      createdAt: "2026-05-09T00:00:00Z",
+    },
+    {
+      id: "user_2",
+      email: "member@example.test",
+      displayName: "Member",
+      isDisabled: false,
+      createdAt: "2026-05-09T00:00:00Z",
+    },
+  ];
+  let roles: TenantRoleResponse[] = [
+    {
+      id: "role_viewer",
+      tenantId: "tenant_1",
+      name: "Viewers",
+      permissions: ["pack.read"],
+      createdAt: "2026-05-09T00:00:00Z",
+    },
+  ];
 
   return {
     async listTenantMembers() {
@@ -882,6 +1030,56 @@ function mockTenantAdminClient(): TenantAdminClient {
       };
       members = [...members, created];
       return created;
+    },
+    async getTenantSettings() {
+      return { ...settings };
+    },
+    async updateTenantSettings(tenantId, request) {
+      settings = {
+        tenantId,
+        name: request.name,
+        publicAssetUrl: request.publicAssetUrl,
+        createdAt: settings.createdAt,
+      };
+      return { ...settings };
+    },
+    async setTenantUserStatus(_tenantId, userId, isDisabled) {
+      const existing = users.find((user) => user.id === userId);
+      if (existing) {
+        existing.isDisabled = isDisabled;
+        return { ...existing };
+      }
+
+      const created = {
+        id: userId,
+        email: `${userId}@example.test`,
+        displayName: userId,
+        isDisabled,
+        createdAt: "2026-05-09T00:00:00Z",
+      };
+      users = [...users, created];
+      return created;
+    },
+    async listTenantRoles() {
+      return roles.map((role) => ({ ...role, permissions: [...role.permissions] }));
+    },
+    async upsertTenantRole(tenantId, roleId, request) {
+      const existing = roles.find((role) => role.id === roleId && role.tenantId === tenantId);
+      if (existing) {
+        existing.name = request.name;
+        existing.permissions = [...request.permissions];
+        return { ...existing, permissions: [...existing.permissions] };
+      }
+
+      const created = {
+        id: roleId,
+        tenantId,
+        name: request.name,
+        permissions: [...request.permissions],
+        createdAt: "2026-05-09T00:00:00Z",
+      };
+      roles = [...roles, created];
+      return { ...created, permissions: [...created.permissions] };
     },
   };
 }

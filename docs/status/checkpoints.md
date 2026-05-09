@@ -1066,3 +1066,15 @@
 - Updated PRD, roadmap, implementation matrix, and current status; next slice
   should add Web parity for tenant settings, user status controls, and role
   templates.
+
+## 2026-05-09 Tenant Administration Web Parity
+
+- Added Web API client methods for tenant settings, tenant user status, and
+  tenant role template management.
+- Expanded the Tenant admin workspace with settings, CDN/public asset URL,
+  user enable/disable, and role template controls.
+- Role template permissions and PAT tenant administration scopes are selectable
+  in the UI rather than requiring users to type permission keys from memory.
+- Updated PRD, roadmap, implementation matrix, current status, README, and user
+  docs; next slice should define the final subscription/private asset
+  permission model before implementing remaining enforcement gaps.

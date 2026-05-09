@@ -84,9 +84,10 @@ Last completed:
 - Tenant role template API slice: storage can list/upsert tenant role templates with permission keys; API/OpenAPI exposes protected role template list/upsert routes guarded by `tenant.manage_roles` plus an admin tenant membership check.
 - Tenant administration CLI parity slice: CLI can get/update tenant settings, set tenant user disabled status, and list/upsert tenant role templates.
 - Tenant administration MCP parity slice: MCP can get/update tenant settings, set tenant user disabled status, and list/upsert tenant role templates.
+- Tenant administration Web parity slice: Web can get/update tenant settings, set tenant user enabled/disabled status, list/upsert role templates with selectable permission keys, and expose the new tenant scopes in PAT scope pickers.
 
 Current task:
-- Add Web parity for tenant settings, user status controls, and role templates from the PRD queue.
+- Define the final permission model for pack visibility, group visibility, subscription secrets, PAT access, and authenticated Web credentials from the PRD queue.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -174,9 +175,10 @@ Last verification:
 - Tenant role template API slice: RED/GREEN tests with `cargo test -p msm-storage --lib role_templates_can_be_upserted_and_listed --locked` and `cargo test -p msm-api --lib tenant_role_template_routes_require_tenant_admin_scope_and_role --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-domain -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-domain -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Tenant administration CLI parity slice: RED/GREEN tests with `cargo test -p msm-cli parses_tenant_administration_parity_commands --locked`, `cargo test -p msm-cli executes_tenant_settings_commands --locked`, `cargo test -p msm-cli executes_tenant_user_status_command --locked`, and `cargo test -p msm-cli executes_tenant_role_commands --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked`, `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Tenant administration MCP parity slice: RED/GREEN tests with `cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked`, `cargo test -p msm-mcp tools_call_manages_tenant_settings --locked`, `cargo test -p msm-mcp tools_call_sets_tenant_user_status --locked`, and `cargo test -p msm-mcp tools_call_manages_tenant_roles --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked`, `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
+- Tenant administration Web parity slice: RED/GREEN tests with `npm run test -- src/lib/api-client.test.ts` and `npm run test -- src/components/__tests__/tenant-admin-ui.test.ts` from `apps/web`; full verification with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.
 
 Next step:
-- Add Web parity for tenant settings, user status controls, and role templates.
+- Define and document the final subscription/private asset permission model, then implement any missing enforcement gaps it exposes.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

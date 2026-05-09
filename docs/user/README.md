@@ -375,6 +375,11 @@ Tenant administration MCP tools:
 
 - `msm.list_tenant_members`
 - `msm.set_tenant_member_role`
+- `msm.get_tenant_settings`
+- `msm.update_tenant_settings`
+- `msm.set_tenant_user_status`
+- `msm.list_tenant_roles`
+- `msm.upsert_tenant_role`
 
 Export MCP tools:
 
@@ -412,6 +417,11 @@ Tenant administration CLI commands:
 
 - `msm tenants members list --tenant-id <tenant_id>`
 - `msm tenants members set-role --tenant-id <tenant_id> --user-id <user_id> --role <admin|user>`
+- `msm tenants settings get --tenant-id <tenant_id>`
+- `msm tenants settings update --tenant-id <tenant_id> --name <name> [--public-asset-url <url>]`
+- `msm tenants users set-status --tenant-id <tenant_id> --user-id <user_id> --disabled`
+- `msm tenants roles list --tenant-id <tenant_id>`
+- `msm tenants roles upsert --tenant-id <tenant_id> --role-id <role_id> --name <name> --permission <permission_key>`
 
 Export CLI commands:
 
@@ -460,12 +470,12 @@ PAT enforcement status:
 - `tenant.manage_members` is required for tenant member administration
   API/CLI/MCP surfaces, and the PAT user must be an `admin` member of the
   target tenant.
-- `tenant.manage_settings` is required for tenant settings API routes, and the
-  PAT user must be an `admin` member of the target tenant.
-- `tenant.manage_users` is required for tenant user status API routes, and the
-  PAT user must be an `admin` member of the target tenant.
-- `tenant.manage_roles` is required for tenant role template API routes, and
-  the PAT user must be an `admin` member of the target tenant.
+- `tenant.manage_settings` is required for tenant settings API/CLI/MCP/Web
+  surfaces, and the PAT user must be an `admin` member of the target tenant.
+- `tenant.manage_users` is required for tenant user status API/CLI/MCP/Web
+  surfaces, and the PAT user must be an `admin` member of the target tenant.
+- `tenant.manage_roles` is required for tenant role template API/CLI/MCP/Web
+  surfaces, and the PAT user must be an `admin` member of the target tenant.
 - user-scoped list/import/update/delete operations reject PATs belonging to
   another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
@@ -527,6 +537,9 @@ Tenant member administration Web surface:
 - Open the Tenant admin workspace.
 - Review member counts and current member roles.
 - Enter a user ID and choose `admin` or `user` to add or update a tenant member.
+- Edit tenant name and public asset/CDN URL in the tenant settings area.
+- Enter a member user ID and enable or disable that user's local login status.
+- Create or update role templates with selectable permission keys.
 
 Valid roles are currently `admin` and `user`.
 

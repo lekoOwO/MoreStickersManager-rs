@@ -132,6 +132,33 @@ describe("PackDashboard", () => {
         role,
         createdAt: "2026-05-09T00:00:00Z",
       })),
+      getTenantSettings: vi.fn(async () => ({
+        tenantId: "tenant_1",
+        name: "Default tenant",
+        publicAssetUrl: null,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+      updateTenantSettings: vi.fn(async (tenantId, request) => ({
+        tenantId,
+        name: request.name,
+        publicAssetUrl: request.publicAssetUrl,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+      setTenantUserStatus: vi.fn(async (tenantId, userId, isDisabled) => ({
+        id: userId,
+        email: "member@example.com",
+        displayName: tenantId,
+        isDisabled,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+      listTenantRoles: vi.fn(async () => []),
+      upsertTenantRole: vi.fn(async (tenantId, roleId, request) => ({
+        id: roleId,
+        tenantId,
+        name: request.name,
+        permissions: request.permissions,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
     };
     const wrapper = mount(PackDashboard, {
       props: {
