@@ -16,6 +16,7 @@ use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
     NewExportTarget, NewTag, PackVisibility, StickerPackRecord, SubscriptionAccessResourceType,
     SubscriptionAccessTokenRecord, SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord,
+    TenantMemberRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -30,9 +31,9 @@ use crate::{
         IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
         LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS,
         LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
-        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, REMOVE_PACK_FROM_FOLDER,
+        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, REMOVE_PACK_FROM_FOLDER,
         REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK,
-        ROTATE_SUBSCRIPTION_LINK, UPDATE_STICKER_PACK,
+        ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE, UPDATE_STICKER_PACK,
     },
 };
 
@@ -113,6 +114,8 @@ async fn call_tool(
         LIST_SUBSCRIPTION_LINKS => list_subscription_links(&state, headers, arguments).await,
         ROTATE_SUBSCRIPTION_LINK => rotate_subscription_link(&state, headers, arguments).await,
         REVOKE_SUBSCRIPTION_LINK => revoke_subscription_link(&state, headers, arguments).await,
+        LIST_TENANT_MEMBERS => list_tenant_members(&state, headers, arguments).await,
+        SET_TENANT_MEMBER_ROLE => set_tenant_member_role(&state, headers, arguments).await,
         LIST_EXPORT_TARGET_KINDS => list_export_target_kinds(&state, headers, arguments).await,
         LIST_EXPORT_TARGETS => list_export_targets(&state, headers, arguments).await,
         CREATE_EXPORT_TARGET => create_export_target(&state, headers, arguments).await,
@@ -750,6 +753,53 @@ async fn revoke_subscription_link(
     ))
 }
 
+async fn list_tenant_members(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ListTenantMembersArgs>(arguments)?;
+    let _pat = require_tenant_admin(state, headers, &args.tenant_id).await?;
+    let members = state
+        .repository()
+        .list_tenant_members(&args.tenant_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .iter()
+        .map(tenant_member_value)
+        .collect::<Vec<_>>();
+
+    Ok(success_result(
+        format!("Found {} tenant member(s).", members.len()),
+        json!({ "members": members }),
+    ))
+}
+
+async fn set_tenant_member_role(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<SetTenantMemberRoleArgs>(arguments)?;
+    let _pat = require_tenant_admin(state, headers, &args.tenant_id).await?;
+    if !matches!(args.role.as_str(), "admin" | "user") {
+        return Err("role must be `admin` or `user`".to_owned());
+    }
+    let member = state
+        .repository()
+        .upsert_tenant_member(&args.tenant_id, &args.user_id, &args.role)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!(
+            "Set tenant member `{}` role to `{}`.",
+            args.user_id, args.role
+        ),
+        json!({ "member": tenant_member_value(&member) }),
+    ))
+}
+
 async fn list_export_target_kinds(
     state: &ApiState,
     headers: &HeaderMap,
@@ -974,6 +1024,25 @@ async fn require_tool_pat(
         .map_err(auth_error_message)
 }
 
+async fn require_tenant_admin(
+    state: &ApiState,
+    headers: &HeaderMap,
+    tenant_id: &str,
+) -> Result<VerifiedPat, String> {
+    let pat = require_tool_pat(state, headers, Permission::TenantManageMembers).await?;
+    let member = state
+        .repository()
+        .find_tenant_member(tenant_id, &pat.user_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "PAT user is not a tenant admin".to_owned())?;
+    if member.role == "admin" {
+        Ok(pat)
+    } else {
+        Err("PAT user is not a tenant admin".to_owned())
+    }
+}
+
 fn auth_error_message(error: ApiError) -> String {
     match error {
         ApiError::Unauthorized(message) => format!("Personal Access Token unauthorized: {message}"),
@@ -1125,6 +1194,15 @@ fn subscription_access_token_value(record: &SubscriptionAccessTokenRecord) -> Va
         "revokedAt": record.revoked_at,
         "createdAt": record.created_at,
         "updatedAt": record.updated_at
+    })
+}
+
+fn tenant_member_value(record: &TenantMemberRecord) -> Value {
+    json!({
+        "tenantId": record.tenant_id,
+        "userId": record.user_id,
+        "role": record.role,
+        "createdAt": record.created_at
     })
 }
 
@@ -1488,6 +1566,20 @@ struct ListSubscriptionLinksArgs {
 #[serde(rename_all = "camelCase")]
 struct SubscriptionLinkTokenArgs {
     token_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ListTenantMembersArgs {
+    tenant_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetTenantMemberRoleArgs {
+    tenant_id: String,
+    user_id: String,
+    role: String,
 }
 
 #[derive(Deserialize)]

@@ -28,6 +28,8 @@ pub const CREATE_SUBSCRIPTION_LINK: &str = "msm.create_subscription_link";
 pub const LIST_SUBSCRIPTION_LINKS: &str = "msm.list_subscription_links";
 pub const ROTATE_SUBSCRIPTION_LINK: &str = "msm.rotate_subscription_link";
 pub const REVOKE_SUBSCRIPTION_LINK: &str = "msm.revoke_subscription_link";
+pub const LIST_TENANT_MEMBERS: &str = "msm.list_tenant_members";
+pub const SET_TENANT_MEMBER_ROLE: &str = "msm.set_tenant_member_role";
 pub const LIST_EXPORT_TARGET_KINDS: &str = "msm.list_export_target_kinds";
 pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
 pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
@@ -65,6 +67,8 @@ pub fn list_tools_result() -> ListToolsResult {
             list_subscription_links_tool(),
             rotate_subscription_link_tool(),
             revoke_subscription_link_tool(),
+            list_tenant_members_tool(),
+            set_tenant_member_role_tool(),
             list_export_target_kinds_tool(),
             list_export_targets_tool(),
             create_export_target_tool(),
@@ -565,6 +569,43 @@ fn revoke_subscription_link_tool() -> ToolDefinition {
     }
 }
 
+fn list_tenant_members_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_TENANT_MEMBERS,
+        title: "List tenant members",
+        description: "List members and roles for one MSM tenant. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" }
+            }),
+            &["tenantId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn set_tenant_member_role_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: SET_TENANT_MEMBER_ROLE,
+        title: "Set tenant member role",
+        description: "Add or update a tenant member role. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "userId": { "type": "string" },
+                "role": { "type": "string", "enum": ["admin", "user"] }
+            }),
+            &["tenantId", "userId", "role"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
 fn list_export_target_kinds_tool() -> ToolDefinition {
     ToolDefinition {
         name: LIST_EXPORT_TARGET_KINDS,
@@ -736,9 +777,9 @@ mod tests {
         LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
         LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
         LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
-        LIST_TELEGRAM_PUBLICATIONS, REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP,
-        REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
-        UPDATE_STICKER_PACK,
+        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, REMOVE_PACK_FROM_FOLDER,
+        REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK,
+        ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE, UPDATE_STICKER_PACK,
     };
 
     #[test]
@@ -773,6 +814,8 @@ mod tests {
                 LIST_SUBSCRIPTION_LINKS,
                 ROTATE_SUBSCRIPTION_LINK,
                 REVOKE_SUBSCRIPTION_LINK,
+                LIST_TENANT_MEMBERS,
+                SET_TENANT_MEMBER_ROLE,
                 LIST_EXPORT_TARGET_KINDS,
                 LIST_EXPORT_TARGETS,
                 CREATE_EXPORT_TARGET,

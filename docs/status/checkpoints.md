@@ -975,3 +975,14 @@
   the PAT user to be an `admin` member of the target tenant.
 - Updated PRD, roadmap, implementation matrix, current status, README, user
   docs, and architecture notes; next slice should add CLI/MCP/Web parity.
+
+## 2026-05-09 Tenant Member Administration CLI/MCP
+
+- Added CLI `msm tenants members list --tenant-id <tenant_id>` and
+  `msm tenants members set-role --tenant-id <tenant_id> --user-id <user_id>
+  --role <admin|user>`.
+- Added MCP `msm.list_tenant_members` and `msm.set_tenant_member_role` tools.
+- MCP tenant member tools require `tenant.manage_members` and an admin tenant
+  membership, matching the API authorization model.
+- Updated PRD, roadmap, implementation matrix, current status, README, and user
+  docs; next slice should add Web parity for tenant member administration.

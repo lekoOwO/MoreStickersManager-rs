@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 32);
+        assert_eq!(tools.len(), 34);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools.iter().any(|tool| tool["name"] == "msm.create_folder"
             && tool["inputSchema"]["required"].as_array().unwrap().len() == 4));
@@ -101,6 +101,18 @@ mod tests {
             .iter()
             .any(|tool| tool["name"] == "msm.rotate_subscription_link"
                 && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.list_tenant_members"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.set_tenant_member_role"
+                && tool["inputSchema"]["properties"]["role"]["enum"]
+                    .as_array()
+                    .unwrap()
+                    .len()
+                    == 2));
         assert!(tools
             .iter()
             .any(|tool| tool["name"] == "msm.create_export_job"
@@ -891,6 +903,106 @@ mod tests {
         )
         .await;
         assert_eq!(revoke["result"]["structuredContent"]["revoked"], true);
+    }
+
+    #[tokio::test]
+    async fn tools_call_manages_tenant_members() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "member@example.com", "Member")
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "tenantmembers",
+            "user_1",
+            [Permission::TenantManageMembers],
+        )
+        .await;
+
+        let set_role = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 11,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.set_tenant_member_role",
+                    "arguments": { "tenantId": "tenant_1", "userId": "user_2", "role": "user" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(set_role["result"]["isError"], false);
+        assert_eq!(
+            set_role["result"]["structuredContent"]["member"]["role"],
+            "user"
+        );
+
+        let listed = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 12,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_tenant_members",
+                    "arguments": { "tenantId": "tenant_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(listed["result"]["isError"], false);
+        assert_eq!(
+            listed["result"]["structuredContent"]["members"][1]["userId"],
+            "user_2"
+        );
+    }
+
+    #[tokio::test]
+    async fn pat_enforcement_tenant_member_tools_require_admin_membership() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "member@example.com", "Member")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "tenantmembers",
+            "user_2",
+            [Permission::TenantManageMembers],
+        )
+        .await;
+
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 13,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_tenant_members",
+                    "arguments": { "tenantId": "tenant_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], true);
+        assert!(response["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("tenant admin"));
     }
 
     #[tokio::test]

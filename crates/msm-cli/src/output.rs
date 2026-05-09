@@ -5,7 +5,7 @@ use crate::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
         ExportTarget, ExportTargetKind, Folder, FolderPack, PackTag, PersonalAccessToken,
         SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
-        TelegramPublication,
+        TelegramPublication, TenantMember,
     },
     command::OutputFormat,
     CliResult,
@@ -177,6 +177,34 @@ pub fn format_pat_revoke(format: OutputFormat, token_id: &str) -> CliResult<Stri
             status: "revoked",
             token_id: token_id.to_owned(),
         })?),
+    }
+}
+
+/// Formats tenant member list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tenant_members(format: OutputFormat, members: &[TenantMember]) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(members
+            .iter()
+            .map(tenant_member_line)
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(members)?),
+    }
+}
+
+/// Formats one tenant member response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_tenant_member(format: OutputFormat, member: &TenantMember) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(tenant_member_line(member)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(member)?),
     }
 }
 
@@ -528,6 +556,10 @@ fn telegram_publication_line(publication: &TelegramPublication) -> String {
         "{}\t{}\t{}",
         publication.id, publication.sticker_set_name, publication.sticker_set_url
     )
+}
+
+fn tenant_member_line(member: &TenantMember) -> String {
+    format!("{}\t{}", member.user_id, member.role)
 }
 
 fn folder_line(folder: &Folder) -> String {

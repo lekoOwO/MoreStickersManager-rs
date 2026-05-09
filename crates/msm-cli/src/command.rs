@@ -19,7 +19,8 @@ use crate::{
         format_subscription_group_pack, format_subscription_groups,
         format_subscription_link_revoke, format_subscription_link_secret,
         format_subscription_links, format_tag, format_tag_ids, format_tags,
-        format_telegram_publication, format_telegram_publications,
+        format_telegram_publication, format_telegram_publications, format_tenant_member,
+        format_tenant_members,
     },
     CliError, CliResult,
 };
@@ -50,6 +51,10 @@ pub enum Command {
     Pats {
         #[command(subcommand)]
         command: PatCommand,
+    },
+    Tenants {
+        #[command(subcommand)]
+        command: TenantCommand,
     },
     Metadata {
         #[command(subcommand)]
@@ -124,6 +129,30 @@ pub enum PatCommand {
     Revoke {
         #[arg(long)]
         token_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum TenantCommand {
+    Members {
+        #[command(subcommand)]
+        command: TenantMemberCommand,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum TenantMemberCommand {
+    List {
+        #[arg(long)]
+        tenant_id: String,
+    },
+    SetRole {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        user_id: String,
+        #[arg(long, value_enum)]
+        role: TenantMemberRoleArg,
     },
 }
 
@@ -413,6 +442,21 @@ impl TelegramReconcileModeArg {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum TenantMemberRoleArg {
+    Admin,
+    User,
+}
+
+impl TenantMemberRoleArg {
+    const fn as_api_value(self) -> &'static str {
+        match self {
+            Self::Admin => "admin",
+            Self::User => "user",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PackVisibility {
@@ -535,6 +579,24 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                 client.revoke_pat(&token_id).await?;
                 format_pat_revoke(cli.output_format, &token_id)
             }
+        },
+        Command::Tenants { command } => match command {
+            TenantCommand::Members { command } => match command {
+                TenantMemberCommand::List { tenant_id } => {
+                    let members = client.list_tenant_members(&tenant_id).await?;
+                    format_tenant_members(cli.output_format, &members)
+                }
+                TenantMemberCommand::SetRole {
+                    tenant_id,
+                    user_id,
+                    role,
+                } => {
+                    let member = client
+                        .set_tenant_member_role(&tenant_id, &user_id, role.as_api_value())
+                        .await?;
+                    format_tenant_member(cli.output_format, &member)
+                }
+            },
         },
         Command::Metadata { command } => match command {
             MetadataCommand::Folders { command } => match command {
@@ -935,14 +997,15 @@ mod tests {
             CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent, ExportTarget,
             ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, PackTag,
             PersonalAccessToken, SubscriptionAccessResourceType, SubscriptionAccessToken,
-            SubscriptionGroup, SubscriptionGroupPack, Tag, TelegramPublication,
+            SubscriptionGroup, SubscriptionGroupPack, Tag, TelegramPublication, TenantMember,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
             ExportPublicationCommand, ExportTargetCommand, FolderCommand, FolderPackCommand,
             MetadataCommand, OutputFormat, PackCommand, PackTagCommand, PackVisibility, PatCommand,
             SubscriptionGroupCommand, SubscriptionGroupPackCommand, SubscriptionLinkCommand,
-            SubscriptionLinkResourceType, TagCommand,
+            SubscriptionLinkResourceType, TagCommand, TenantCommand, TenantMemberCommand,
+            TenantMemberRoleArg,
         },
         output::HealthResponse,
         CliResult,
@@ -1188,6 +1251,51 @@ mod tests {
             Command::SubscriptionLinks {
                 command: SubscriptionLinkCommand::Revoke { ref token_id }
             } if token_id == "packlink"
+        ));
+    }
+
+    #[test]
+    fn parses_tenant_member_commands() {
+        let list = Cli::parse_from([
+            "msm",
+            "tenants",
+            "members",
+            "list",
+            "--tenant-id",
+            "tenant_1",
+        ]);
+        assert!(matches!(
+            list.command,
+            Command::Tenants {
+                command: TenantCommand::Members {
+                    command: TenantMemberCommand::List { ref tenant_id }
+                }
+            } if tenant_id == "tenant_1"
+        ));
+
+        let set_role = Cli::parse_from([
+            "msm",
+            "tenants",
+            "members",
+            "set-role",
+            "--tenant-id",
+            "tenant_1",
+            "--user-id",
+            "user_2",
+            "--role",
+            "admin",
+        ]);
+        assert!(matches!(
+            set_role.command,
+            Command::Tenants {
+                command: TenantCommand::Members {
+                    command: TenantMemberCommand::SetRole {
+                        ref tenant_id,
+                        ref user_id,
+                        role: TenantMemberRoleArg::Admin,
+                    }
+                }
+            } if tenant_id == "tenant_1" && user_id == "user_2"
         ));
     }
 
@@ -1766,6 +1874,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn executes_tenant_member_commands() {
+        let client = FakeClient::default();
+
+        let list = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "members",
+                "list",
+                "--tenant-id",
+                "tenant_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(list, "user_1\tadmin\nuser_2\tuser");
+
+        let set_role = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "members",
+                "set-role",
+                "--tenant-id",
+                "tenant_1",
+                "--user-id",
+                "user_2",
+                "--role",
+                "admin",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(set_role, "user_2\tadmin");
+        assert_eq!(
+            client
+                .upserted_tenant_member
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap(),
+            &(
+                "tenant_1".to_owned(),
+                "user_2".to_owned(),
+                "admin".to_owned()
+            )
+        );
+    }
+
+    #[tokio::test]
     async fn executes_export_kinds_command() {
         let output = execute_with_client(
             Cli::parse_from(["msm", "exports", "kinds"]),
@@ -2154,6 +2314,7 @@ mod tests {
         created_subscription_access_token: Mutex<Option<CreateSubscriptionAccessTokenPayload>>,
         rotated_subscription_access_token: Mutex<Option<String>>,
         revoked_subscription_access_token: Mutex<Option<String>>,
+        upserted_tenant_member: Mutex<Option<(String, String, String)>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
         created_export_job: Mutex<Option<CreateExportJobPayload>>,
     }
@@ -2221,6 +2382,24 @@ mod tests {
         async fn revoke_pat(&self, token_id: &str) -> CliResult<()> {
             *self.revoked_pat.lock().unwrap() = Some(token_id.to_owned());
             Ok(())
+        }
+
+        async fn list_tenant_members(&self, _tenant_id: &str) -> CliResult<Vec<TenantMember>> {
+            Ok(vec![
+                sample_tenant_member("user_1", "admin"),
+                sample_tenant_member("user_2", "user"),
+            ])
+        }
+
+        async fn set_tenant_member_role(
+            &self,
+            tenant_id: &str,
+            user_id: &str,
+            role: &str,
+        ) -> CliResult<TenantMember> {
+            *self.upserted_tenant_member.lock().unwrap() =
+                Some((tenant_id.to_owned(), user_id.to_owned(), role.to_owned()));
+            Ok(sample_tenant_member(user_id, role))
         }
 
         async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder> {
@@ -2432,6 +2611,15 @@ mod tests {
             tenant_id: "tenant_1".to_owned(),
             owner_user_id: "user_1".to_owned(),
             name: "Favorites".to_owned(),
+            created_at: "2026-05-09T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_tenant_member(user_id: &str, role: &str) -> TenantMember {
+        TenantMember {
+            tenant_id: "tenant_1".to_owned(),
+            user_id: user_id.to_owned(),
+            role: role.to_owned(),
             created_at: "2026-05-09T00:00:00Z".to_owned(),
         }
     }

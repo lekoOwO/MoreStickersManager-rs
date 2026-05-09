@@ -70,6 +70,8 @@ cargo run -p msm-cli -- packs delete --pack-id pack_1
 cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
+cargo run -p msm-cli -- tenants members list --tenant-id tenant_1
+cargo run -p msm-cli -- tenants members set-role --tenant-id tenant_1 --user-id user_2 --role admin
 cargo run -p msm-cli -- metadata folders create --id folder_1 --tenant-id tenant_1 --owner-user-id user_1 --name Favorites
 cargo run -p msm-cli -- metadata folders list --tenant-id tenant_1 --owner-user-id user_1
 cargo run -p msm-cli -- metadata folders packs add --folder-id folder_1 --pack-id pack_1 --sort-order 10
@@ -252,7 +254,7 @@ The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
 
 ## MCP Slice
 
-`msm-app` exposes the initial MCP endpoint at `/mcp`. P11 supports JSON-RPC
+`msm-app` exposes the MCP endpoint at `/mcp`. It supports JSON-RPC
 `initialize`, `ping`, `tools/list`, and `tools/call` with these tools:
 
 - `msm.list_sticker_packs`
@@ -275,6 +277,12 @@ The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
 - `msm.list_subscription_group_packs`
 - `msm.add_pack_to_subscription_group`
 - `msm.remove_pack_from_subscription_group`
+- `msm.create_subscription_link`
+- `msm.list_subscription_links`
+- `msm.rotate_subscription_link`
+- `msm.revoke_subscription_link`
+- `msm.list_tenant_members`
+- `msm.set_tenant_member_role`
 - `msm.list_export_target_kinds`
 - `msm.list_export_targets`
 - `msm.create_export_target`
@@ -284,9 +292,9 @@ The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
 - `msm.list_telegram_publications`
 - `msm.get_telegram_publication`
 
-This first MCP slice returns `application/json` responses and does not yet
-implement SSE streams or session management. MCP `tools/call` pack and export
-operations use Bearer PAT enforcement.
+The MCP endpoint returns `application/json` responses and does not yet implement
+SSE streams or session management. Protected MCP `tools/call` operations use
+Bearer PAT enforcement.
 
 ## PAT Foundation
 
@@ -297,8 +305,8 @@ msm_pat_<token_id>_<random_secret>
 ```
 
 Only `sha256(random_secret)` is stored. Permission scopes use stable keys such
-as `pack.read`, `asset.read`, and `pat.manage`. API/CLI/MCP enforcement is a
-later auth integration phase.
+as `pack.read`, `asset.read`, `tenant.manage_members`, and `pat.manage`.
+Protected API/CLI/MCP surfaces enforce Bearer PAT scopes.
 
 P13 exposes PAT lifecycle APIs:
 
@@ -312,7 +320,7 @@ tokens and token hashes.
 P14 exposes those PAT lifecycle operations through the CLI. CLI create prints
 the raw token once; list responses never include token hashes.
 
-P15 enforces Bearer PAT scopes on pack API routes and MCP `tools/call`:
+Bearer PAT scopes are enforced on protected API routes and MCP `tools/call`:
 
 - `pack.read`: list/export sticker packs.
 - `import.run`: import sticker packs.
@@ -321,10 +329,11 @@ P15 enforces Bearer PAT scopes on pack API routes and MCP `tools/call`:
 - `export.read`: list/read export target kinds, targets, jobs, and job events.
 - `export.run`: create export jobs.
 - `export.target.manage`: create export targets.
+- `tenant.manage_members`: list and update tenant member roles.
 
 API `healthz`, OpenAPI, PAT lifecycle endpoints, MCP `initialize`, MCP `ping`,
-and MCP `tools/list` remain public in this bootstrap slice. Asset privacy and
-OIDC/local-login backed admin enforcement are later phases.
+and MCP `tools/list` remain public in this bootstrap slice. OIDC-backed admin
+enforcement is a later phase.
 
 P18 adds local password bootstrap APIs:
 
@@ -339,14 +348,18 @@ P20 lets local registration optionally bootstrap a tenant admin by passing
 `tenantId`, optional `tenantName`, and optional `tenantRole` fields. The role
 defaults to `admin`.
 
-Tenant member administration currently has API/OpenAPI support:
+Tenant member administration currently has API/OpenAPI, CLI, and MCP support:
 
 - `GET /api/v1/tenants/{tenant_id}/members`
 - `PUT /api/v1/tenants/{tenant_id}/members/{user_id}`
+- `msm tenants members list --tenant-id <tenant_id>`
+- `msm tenants members set-role --tenant-id <tenant_id> --user-id <user_id> --role <admin|user>`
+- `msm.list_tenant_members`
+- `msm.set_tenant_member_role`
 
-Both routes require a Bearer PAT with `tenant.manage_members`, and the PAT user
-must be an `admin` member of the target tenant. CLI, MCP, and Web admin parity
-are planned next.
+These management surfaces require a Bearer PAT with `tenant.manage_members`,
+and the PAT user must be an `admin` member of the target tenant. Web admin
+parity is planned next.
 
 ## Project Docs
 

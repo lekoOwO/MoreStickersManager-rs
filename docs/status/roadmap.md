@@ -10,7 +10,7 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 Telegram export has moved past basic dry-run and publication. The P33
 reconciliation usability slice is functionally covered across Web, API, CLI,
-and MCP; the active handoff focus is product-data management surfaces.
+and MCP; the active handoff focus is tenant/RBAC administration.
 
 Web, CLI, and MCP now expose dry-run, reconciliation mode,
 execute-reconciliation, and destructive mirror guard controls without requiring
@@ -93,10 +93,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Tenant member administration now has storage helpers plus protected
   API/OpenAPI list/upsert routes guarded by `tenant.manage_members` and an
   admin tenant membership check.
+- CLI `msm tenants members list` and `msm tenants members set-role` now expose
+  tenant member administration.
+- MCP `msm.list_tenant_members` and `msm.set_tenant_member_role` now expose the
+  same tenant member administration contract.
 
 ## Immediate Plan
 
-1. Add CLI/MCP/Web parity for tenant member administration.
+1. Add Web parity for tenant member administration.
 2. Extend tenant admin API coverage to tenant settings, role templates, and
    user status controls.
 

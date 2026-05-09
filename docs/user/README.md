@@ -1,7 +1,7 @@
 # MSM User Documentation
 
 MSM currently has foundation, storage, authorization, API, CLI, provider
-normalization, local auth bootstrap, PAT enforcement, MCP pack operations, and
+normalization, local auth bootstrap, PAT enforcement, broad MCP operations, and
 Web UI pack management slices.
 
 Current usable contract: `.stickerpack` compatibility is documented in `../dev/compatibility.md`.
@@ -22,6 +22,8 @@ cargo run -p msm-cli -- packs delete --pack-id pack_1
 cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
 cargo run -p msm-cli -- pats list --user-id user_1
 cargo run -p msm-cli -- pats revoke --token-id cli1
+cargo run -p msm-cli -- tenants members list --tenant-id tenant_1
+cargo run -p msm-cli -- tenants members set-role --tenant-id tenant_1 --user-id user_2 --role admin
 cargo run -p msm-cli -- metadata folders create --id folder_1 --tenant-id tenant_1 --owner-user-id user_1 --name Favorites
 cargo run -p msm-cli -- metadata folders list --tenant-id tenant_1 --owner-user-id user_1
 cargo run -p msm-cli -- metadata tags create --id tag_1 --tenant-id tenant_1 --name cute
@@ -369,6 +371,11 @@ Product metadata MCP tools:
 - `msm.add_pack_to_subscription_group`
 - `msm.remove_pack_from_subscription_group`
 
+Tenant administration MCP tools:
+
+- `msm.list_tenant_members`
+- `msm.set_tenant_member_role`
+
 Export MCP tools:
 
 - `msm.list_export_target_kinds`
@@ -400,6 +407,11 @@ PAT CLI commands:
 - `msm pats create --id <token_id> --user-id <user_id> --name <name> --scope <scope>`
 - `msm pats list --user-id <user_id>`
 - `msm pats revoke --token-id <token_id>`
+
+Tenant administration CLI commands:
+
+- `msm tenants members list --tenant-id <tenant_id>`
+- `msm tenants members set-role --tenant-id <tenant_id> --user-id <user_id> --role <admin|user>`
 
 Export CLI commands:
 
@@ -445,8 +457,9 @@ PAT enforcement status:
 - `export.run` is required for export job creation API routes and MCP tools.
 - `export.target.manage` is required for export target management API routes and
   MCP tools.
-- `tenant.manage_members` is required for tenant member administration API
-  routes, and the PAT user must be an `admin` member of the target tenant.
+- `tenant.manage_members` is required for tenant member administration
+  API/CLI/MCP surfaces, and the PAT user must be an `admin` member of the
+  target tenant.
 - user-scoped list/import/update/delete operations reject PATs belonging to
   another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
@@ -493,5 +506,15 @@ The `PUT` body is:
 }
 ```
 
-Valid roles are currently `admin` and `user`. CLI, MCP, and Web controls are
-planned but not implemented yet.
+Tenant member administration CLI commands:
+
+- `msm tenants members list --tenant-id <tenant_id>`
+- `msm tenants members set-role --tenant-id <tenant_id> --user-id <user_id> --role <admin|user>`
+
+Tenant member administration MCP tools:
+
+- `msm.list_tenant_members`
+- `msm.set_tenant_member_role`
+
+Valid roles are currently `admin` and `user`. Web controls are planned but not
+implemented yet.

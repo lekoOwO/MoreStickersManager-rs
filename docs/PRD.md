@@ -72,14 +72,14 @@ Status meanings:
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
 | Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
-| CLI | Partially complete | Pack, PAT, export, Telegram publication history, product metadata, and product membership commands exist. |
-| MCP | Partially complete | Pack, export, Telegram publication history, product metadata, and product membership tools exist. Session/SSE hardening remains incomplete. |
+| CLI | Partially complete | Pack, PAT, export, Telegram publication history, product metadata, product membership, and tenant member administration commands exist. |
+| MCP | Partially complete | Pack, export, Telegram publication history, product metadata, product membership, and tenant member administration tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login, pack CRUD/import, product metadata create/list, product membership add/remove controls, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, and tenant member list/upsert API exist. Full tenant settings, role management, CLI/MCP/Web admin parity, and OIDC/SSO remain incomplete. |
+| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, and tenant member list/upsert exist in API/CLI/MCP. Full tenant settings, role management, Web admin parity, and OIDC/SSO remain incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack asset reads require owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add CLI/MCP/Web parity for tenant member administration.
+1. Add Web parity for tenant member administration.
 2. Extend tenant administration APIs to tenant settings, role templates, and
    user status controls.
 
@@ -134,7 +134,8 @@ tests and docs are updated.
 ### Phase C: Multi-Tenant Administration
 
 - [ ] Tenant admin API for users, roles, memberships, and tenant settings.
-  Progress: member list/upsert API exists; users, roles, and settings remain.
+  Progress: member list/upsert API exists with CLI/MCP parity; users, roles,
+  Web controls, and settings remain.
 - [ ] Web tenant admin console.
 - [ ] Fine-grained RBAC checks for all resource-owning operations.
 - [ ] PAT creation policy and scope templates by role.
@@ -228,9 +229,9 @@ Current parity gaps:
   operator recovery polish remains.
 - User data migration: storage helpers exist; API, CLI, and Web workflows are
   missing.
-- Tenant/RBAC administration: tenant member storage and API list/upsert exist;
-  CLI, MCP, Web, tenant settings, role templates, and user status controls are
-  incomplete.
+- Tenant/RBAC administration: tenant member storage and API/CLI/MCP list/upsert
+  exist; Web controls, tenant settings, role templates, and user status controls
+  are incomplete.
 
 ## Open Product Questions
 

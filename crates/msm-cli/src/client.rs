@@ -187,6 +187,21 @@ pub struct PersonalAccessToken {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TenantMember {
+    pub tenant_id: String,
+    pub user_id: String,
+    pub role: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertTenantMemberPayload {
+    pub role: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExportTargetKind {
     pub kind: String,
     pub display_name: String,
@@ -289,6 +304,13 @@ pub trait MsmClient {
     ) -> CliResult<CreatedPersonalAccessToken>;
     async fn list_pats(&self, user_id: &str) -> CliResult<Vec<PersonalAccessToken>>;
     async fn revoke_pat(&self, token_id: &str) -> CliResult<()>;
+    async fn list_tenant_members(&self, tenant_id: &str) -> CliResult<Vec<TenantMember>>;
+    async fn set_tenant_member_role(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        role: &str,
+    ) -> CliResult<TenantMember>;
     async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder>;
     async fn list_folders(&self, tenant_id: &str, owner_user_id: &str) -> CliResult<Vec<Folder>>;
     async fn create_tag(&self, payload: CreateTagPayload) -> CliResult<Tag>;
@@ -522,6 +544,40 @@ impl MsmClient for ReqwestMsmClient {
         .await?
         .error_for_status()?;
         Ok(())
+    }
+
+    async fn list_tenant_members(&self, tenant_id: &str) -> CliResult<Vec<TenantMember>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/tenants/{tenant_id}/members"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn set_tenant_member_role(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        role: &str,
+    ) -> CliResult<TenantMember> {
+        Ok(self
+            .authorize(
+                self.http
+                    .put(self.endpoint(&format!("/api/v1/tenants/{tenant_id}/members/{user_id}"))?),
+            )
+            .json(&UpsertTenantMemberPayload {
+                role: role.to_owned(),
+            })
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
     }
 
     async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder> {
