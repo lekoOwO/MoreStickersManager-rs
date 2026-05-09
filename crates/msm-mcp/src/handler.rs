@@ -28,15 +28,15 @@ use crate::{
         execution_error_result, list_tools_result, success_result, ADD_PACK_TO_FOLDER,
         ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
         CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG,
-        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION,
-        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
-        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS,
-        LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS,
-        LIST_SUBSCRIPTION_LINKS, LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS,
-        LIST_TENANT_ROLES, REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP,
-        REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
-        SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK,
-        UPDATE_TENANT_SETTINGS, UPSERT_TENANT_ROLE,
+        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY,
+        GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
+        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
+        LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
+        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
+        REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
+        SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_TENANT_ROLE,
     },
 };
 
@@ -117,6 +117,7 @@ async fn call_tool(
         LIST_SUBSCRIPTION_LINKS => list_subscription_links(&state, headers, arguments).await,
         ROTATE_SUBSCRIPTION_LINK => rotate_subscription_link(&state, headers, arguments).await,
         REVOKE_SUBSCRIPTION_LINK => revoke_subscription_link(&state, headers, arguments).await,
+        GET_PAT_SCOPE_POLICY => get_pat_scope_policy(&state, headers, arguments).await,
         LIST_TENANT_MEMBERS => list_tenant_members(&state, headers, arguments).await,
         SET_TENANT_MEMBER_ROLE => set_tenant_member_role(&state, headers, arguments).await,
         GET_TENANT_SETTINGS => get_tenant_settings(&state, headers, arguments).await,
@@ -758,6 +759,30 @@ async fn revoke_subscription_link(
     Ok(success_result(
         format!("Revoked subscription link `{}`.", args.token_id),
         json!({ "revoked": true, "tokenId": args.token_id }),
+    ))
+}
+
+async fn get_pat_scope_policy(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<PatScopePolicyArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PatManage).await?;
+    pat.require_user(&args.user_id)
+        .map_err(auth_error_message)?;
+
+    let mut allowed_scopes = msm_api::allowed_pat_scopes_for_user(state, &args.user_id)
+        .await
+        .map_err(auth_error_message)?
+        .into_iter()
+        .map(Permission::as_key)
+        .collect::<Vec<_>>();
+    allowed_scopes.sort_unstable();
+
+    Ok(success_result(
+        format!("Found {} allowed PAT scope(s).", allowed_scopes.len()),
+        json!({ "userId": args.user_id, "allowedScopes": allowed_scopes }),
     ))
 }
 
@@ -1765,6 +1790,12 @@ struct ListSubscriptionLinksArgs {
 #[serde(rename_all = "camelCase")]
 struct SubscriptionLinkTokenArgs {
     token_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PatScopePolicyArgs {
+    user_id: String,
 }
 
 #[derive(Deserialize)]

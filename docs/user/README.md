@@ -383,6 +383,10 @@ Tenant administration MCP tools:
 - `msm.list_tenant_roles`
 - `msm.upsert_tenant_role`
 
+PAT MCP tools:
+
+- `msm.get_pat_scope_policy`
+
 Export MCP tools:
 
 - `msm.list_export_target_kinds`

@@ -28,6 +28,7 @@ pub const CREATE_SUBSCRIPTION_LINK: &str = "msm.create_subscription_link";
 pub const LIST_SUBSCRIPTION_LINKS: &str = "msm.list_subscription_links";
 pub const ROTATE_SUBSCRIPTION_LINK: &str = "msm.rotate_subscription_link";
 pub const REVOKE_SUBSCRIPTION_LINK: &str = "msm.revoke_subscription_link";
+pub const GET_PAT_SCOPE_POLICY: &str = "msm.get_pat_scope_policy";
 pub const LIST_TENANT_MEMBERS: &str = "msm.list_tenant_members";
 pub const SET_TENANT_MEMBER_ROLE: &str = "msm.set_tenant_member_role";
 pub const GET_TENANT_SETTINGS: &str = "msm.get_tenant_settings";
@@ -72,6 +73,7 @@ pub fn list_tools_result() -> ListToolsResult {
             list_subscription_links_tool(),
             rotate_subscription_link_tool(),
             revoke_subscription_link_tool(),
+            get_pat_scope_policy_tool(),
             list_tenant_members_tool(),
             set_tenant_member_role_tool(),
             get_tenant_settings_tool(),
@@ -579,6 +581,22 @@ fn revoke_subscription_link_tool() -> ToolDefinition {
     }
 }
 
+fn get_pat_scope_policy_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: GET_PAT_SCOPE_POLICY,
+        title: "Get PAT scope policy",
+        description:
+            "List role-allowed Personal Access Token scopes for one user. Requires pat.manage.",
+        input_schema: object_schema(
+            &json!({
+                "userId": { "type": "string" }
+            }),
+            &["userId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
 fn list_tenant_members_tool() -> ToolDefinition {
     ToolDefinition {
         name: LIST_TENANT_MEMBERS,
@@ -880,11 +898,11 @@ mod tests {
         list_tools_result, ADD_PACK_TO_FOLDER, ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK,
         CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP,
         CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK,
-        GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK,
-        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS,
-        LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
-        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
-        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS,
+        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
+        LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS,
+        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
+        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
         SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_TENANT_ROLE,
@@ -922,6 +940,7 @@ mod tests {
                 LIST_SUBSCRIPTION_LINKS,
                 ROTATE_SUBSCRIPTION_LINK,
                 REVOKE_SUBSCRIPTION_LINK,
+                GET_PAT_SCOPE_POLICY,
                 LIST_TENANT_MEMBERS,
                 SET_TENANT_MEMBER_ROLE,
                 GET_TENANT_SETTINGS,

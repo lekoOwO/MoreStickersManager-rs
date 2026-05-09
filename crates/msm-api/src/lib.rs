@@ -14,6 +14,7 @@ use axum::{
 };
 
 pub use error::{ApiError, ApiResult};
+pub use rbac::allowed_pat_scopes_for_user;
 pub use state::ApiState;
 
 pub fn build_router(state: ApiState) -> Router {

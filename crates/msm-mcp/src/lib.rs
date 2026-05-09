@@ -67,8 +67,12 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 39);
+        assert_eq!(tools.len(), 40);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.get_pat_scope_policy"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
         assert!(tools.iter().any(|tool| tool["name"] == "msm.create_folder"
             && tool["inputSchema"]["required"].as_array().unwrap().len() == 4));
         assert!(tools
@@ -176,6 +180,34 @@ mod tests {
             response["result"]["structuredContent"]["packs"][0]["title"],
             "Sample"
         );
+    }
+
+    #[tokio::test]
+    async fn tools_call_gets_pat_scope_policy() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(&state, "patmanage", "user_1", [Permission::PatManage]).await;
+        let response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.get_pat_scope_policy",
+                    "arguments": { "userId": "user_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        let scopes = response["result"]["structuredContent"]["allowedScopes"]
+            .as_array()
+            .unwrap();
+        assert!(scopes.iter().any(|scope| scope == "pat.manage"));
+        assert!(scopes.iter().any(|scope| scope == "tenant.manage_members"));
+        assert!(!scopes.iter().any(|scope| scope == "system.configure"));
     }
 
     #[tokio::test]

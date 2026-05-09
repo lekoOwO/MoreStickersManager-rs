@@ -136,10 +136,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   role-allowed PAT scopes for the current user.
 - CLI now exposes `msm pats scope-policy --user-id ...` with human/JSON output
   backed by the same protected API endpoint.
+- MCP now exposes `msm.get_pat_scope_policy` with the same `pat.manage`
+  same-user policy.
 
 ## Immediate Plan
 
-1. Add role-allowed PAT scope-template discovery for MCP/Web.
+1. Add role-allowed PAT scope-template discovery for Web.
 
 ## Later Planned Work
 

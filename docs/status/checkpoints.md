@@ -1188,3 +1188,15 @@
   `git diff --check` with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD and status docs; next work should wire MCP/Web discovery to this
   endpoint.
+
+## 2026-05-09 PAT Scope Policy MCP
+
+- Added `msm.get_pat_scope_policy` to the MCP tool registry.
+- The tool requires a Bearer PAT with `pat.manage`, enforces same-user access,
+  and returns `userId` plus sorted `allowedScopes`.
+- Re-exported only the shared PAT scope-policy evaluator from `msm-api` so MCP
+  uses the same role policy without exposing the full internal RBAC module.
+- Verified tool listing, tool execution, API/MCP tests, clippy, and diff
+  hygiene with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD and status docs; next work should wire Web discovery to this
+  endpoint.

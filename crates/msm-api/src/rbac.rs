@@ -181,6 +181,11 @@ async fn tenant_role_permissions(
     }
 }
 
+/// Returns the set of PAT scopes the user's roles are allowed to request.
+///
+/// # Errors
+///
+/// Returns an error when tenant membership or custom role-template lookup fails.
 pub async fn allowed_pat_scopes_for_user(
     state: &ApiState,
     user_id: &str,
