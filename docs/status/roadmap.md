@@ -132,10 +132,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - PAT create/list/revoke routes now require a same-user `pat.manage` Bearer
   PAT, and PAT creation/local login reject scopes outside the user's
   role-allowed scope template.
+- API/OpenAPI now exposes `GET /api/v1/pats/scope-policy?userId=...` to return
+  role-allowed PAT scopes for the current user.
 
 ## Immediate Plan
 
-1. Add role-allowed PAT scope-template discovery for API/Web/CLI/MCP.
+1. Add role-allowed PAT scope-template discovery for CLI/MCP/Web.
 
 ## Later Planned Work
 

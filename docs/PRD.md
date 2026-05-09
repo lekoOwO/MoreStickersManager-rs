@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add API/Web/CLI/MCP discovery for role-allowed PAT scope templates.
+1. Add CLI/MCP/Web discovery for role-allowed PAT scope templates.
 
 Each queue item must update this section when completed or reordered.
 
@@ -150,8 +150,9 @@ tests and docs are updated.
   Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
   PAT for the same user, PAT creation and local login reject scopes outside the
   user's built-in role, tenant admin role, or custom role-template permissions,
-  and dev bootstrap obtains PATs through local login. Scope-template discovery
-  surfaces remain incomplete.
+  dev bootstrap obtains PATs through local login, and API/OpenAPI exposes
+  `GET /api/v1/pats/scope-policy`. CLI/MCP/Web discovery surfaces remain
+  incomplete.
 - [ ] Audit tests for cross-tenant isolation.
 
 ### Phase D: Auth Providers

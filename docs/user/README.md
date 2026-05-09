@@ -410,6 +410,7 @@ PAT API endpoints:
 
 - `POST /api/v1/pats`
 - `GET /api/v1/pats?userId=...`
+- `GET /api/v1/pats/scope-policy?userId=...`
 - `DELETE /api/v1/pats/{token_id}`
 
 PAT CLI commands:

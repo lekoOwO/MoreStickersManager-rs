@@ -1165,3 +1165,13 @@
 - Updated PRD, roadmap, implementation matrix, user docs, current status, and
   architecture docs; next work should add role-allowed scope discovery surfaces
   for Web/CLI/MCP.
+
+## 2026-05-09 PAT Scope Policy API
+
+- Added `GET /api/v1/pats/scope-policy?userId=...` with `pat.manage`
+  enforcement for the same user.
+- The endpoint returns sorted role-allowed PAT scopes, including tenant admin
+  scopes for tenant admins and excluding system-only scopes.
+- Registered the endpoint and response schema in OpenAPI.
+- Updated PRD and status docs; next work should wire CLI/MCP/Web discovery to
+  this endpoint.

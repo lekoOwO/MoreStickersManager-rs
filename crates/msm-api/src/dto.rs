@@ -332,6 +332,20 @@ pub struct ListPersonalAccessTokensQuery {
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
+pub struct PatScopePolicyQuery {
+    pub user_id: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PatScopePolicyResponse {
+    pub user_id: String,
+    pub allowed_scopes: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
 pub struct ListExportTargetsQuery {
     pub tenant_id: String,
 }

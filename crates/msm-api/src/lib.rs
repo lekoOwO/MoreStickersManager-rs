@@ -159,6 +159,10 @@ fn pat_routes() -> Router<ApiState> {
             "/api/v1/pats",
             get(routes::pats::list_pats).post(routes::pats::create_pat),
         )
+        .route(
+            "/api/v1/pats/scope-policy",
+            get(routes::pats::get_pat_scope_policy),
+        )
         .route("/api/v1/pats/{token_id}", delete(routes::pats::revoke_pat))
 }
 
@@ -3066,6 +3070,66 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(revoke.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn pat_scope_policy_route_lists_role_allowed_scopes() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "member@example.com", "Member")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        let admin_token = create_pat(&state, "adminpat", "user_1", [Permission::PatManage]).await;
+        let member_token = create_pat(&state, "memberpat", "user_2", [Permission::PatManage]).await;
+
+        let admin_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/pats/scope-policy?userId=user_1")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(admin_response.status(), StatusCode::OK);
+        let body = to_bytes(admin_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let admin_policy: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let admin_scopes = admin_policy["allowedScopes"].as_array().unwrap();
+        assert!(admin_scopes.iter().any(|scope| scope == "pack.read"));
+        assert!(admin_scopes
+            .iter()
+            .any(|scope| scope == "tenant.manage_members"));
+        assert!(!admin_scopes.iter().any(|scope| scope == "system.configure"));
+
+        let member_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/pats/scope-policy?userId=user_2")
+                    .header("authorization", format!("Bearer {member_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(member_response.status(), StatusCode::OK);
+        let body = to_bytes(member_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let member_policy: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let member_scopes = member_policy["allowedScopes"].as_array().unwrap();
+        assert!(member_scopes.iter().any(|scope| scope == "pack.read"));
+        assert!(!member_scopes
+            .iter()
+            .any(|scope| scope == "tenant.manage_members"));
     }
 
     #[tokio::test]

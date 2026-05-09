@@ -11,9 +11,10 @@ use crate::{
     auth::require_pat,
     dto::{
         CreatePersonalAccessTokenRequest, CreatedPersonalAccessTokenResponse,
-        ListPersonalAccessTokensQuery, PersonalAccessTokenResponse,
+        ListPersonalAccessTokensQuery, PatScopePolicyQuery, PatScopePolicyResponse,
+        PersonalAccessTokenResponse,
     },
-    rbac::require_user_pat_scopes_allowed,
+    rbac::{allowed_pat_scopes_for_user, require_user_pat_scopes_allowed},
     ApiError, ApiResult, ApiState,
 };
 
@@ -86,6 +87,42 @@ pub async fn list_pats(
         .map(PersonalAccessTokenResponse::from)
         .collect();
     Ok(Json(tokens))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pats/scope-policy",
+    tag = "pats",
+    params(PatScopePolicyQuery),
+    responses(
+        (status = 200, description = "Allowed PAT scopes for the user", body = PatScopePolicyResponse),
+        (status = 401, description = "Missing or invalid PAT", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Missing pat.manage scope or user mismatch", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Returns the role-allowed PAT scopes for a user.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks PAT management rights or storage fails.
+pub async fn get_pat_scope_policy(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Query(query): Query<PatScopePolicyQuery>,
+) -> ApiResult<Json<PatScopePolicyResponse>> {
+    let pat = require_pat(&headers, &state, Permission::PatManage).await?;
+    pat.require_user(&query.user_id)?;
+    let mut allowed_scopes = allowed_pat_scopes_for_user(&state, &query.user_id)
+        .await?
+        .into_iter()
+        .map(Permission::as_key)
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    allowed_scopes.sort();
+    Ok(Json(PatScopePolicyResponse {
+        user_id: query.user_id,
+        allowed_scopes,
+    }))
 }
 
 #[utoipa::path(

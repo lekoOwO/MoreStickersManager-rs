@@ -181,7 +181,7 @@ async fn tenant_role_permissions(
     }
 }
 
-async fn allowed_pat_scopes_for_user(
+pub async fn allowed_pat_scopes_for_user(
     state: &ApiState,
     user_id: &str,
 ) -> ApiResult<BTreeSet<Permission>> {
