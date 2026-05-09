@@ -184,9 +184,10 @@ tests and docs are updated.
   Existing tenants can reject local registrations while existing accounts
   continue to log in; new-tenant bootstrap remains available.
 - [x] OIDC provider configuration storage.
-  Progress: SQLite migration and repository methods now store per-tenant OIDC
-  provider configs with issuer, client credentials, scopes, enabled state,
-  and registration policy.
+  Progress: SQLite migration, repository methods, and tenant admin API/OpenAPI
+  routes now store per-tenant OIDC provider configs with issuer, redacted client
+  credentials, scopes, enabled state, and registration policy. CLI/MCP/Web
+  parity remains future work.
 - [ ] OIDC login/callback flow.
   Progress: API now starts OIDC login by creating one-time hashed state tokens
   and building provider authorization URLs. The callback endpoint consumes

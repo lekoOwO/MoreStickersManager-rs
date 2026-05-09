@@ -586,6 +586,9 @@ Tenant settings administration API endpoints:
 
 - `GET /api/v1/tenants/{tenant_id}/settings`
 - `PUT /api/v1/tenants/{tenant_id}/settings`
+- `GET /api/v1/tenants/{tenant_id}/oidc-providers`
+- `PUT /api/v1/tenants/{tenant_id}/oidc-providers/{provider_id}`
+- `DELETE /api/v1/tenants/{tenant_id}/oidc-providers/{provider_id}`
 - `msm tenants settings get --tenant-id <tenant_id>`
 - `msm tenants settings update --tenant-id <tenant_id> --name <name> [--public-asset-url <url>] [--local-registration-enabled <true|false>]`
 - `msm.get_tenant_settings`
@@ -605,6 +608,22 @@ Use `null` for `publicAssetUrl` to clear the tenant-level CDN/public asset URL.
 When `localRegistrationEnabled` is `false`, existing users can still log in,
 but `POST /api/v1/auth/local/register` rejects new registrations into that
 existing tenant. New-tenant bootstrap registrations are still allowed.
+
+OIDC provider administration currently exists on the API surface. Provider
+responses redact `clientSecret`; update calls replace it with the submitted
+secret. The request body is:
+
+```json
+{
+  "displayName": "Google",
+  "issuerUrl": "https://accounts.google.com",
+  "clientId": "client-id",
+  "clientSecret": "client-secret",
+  "scopes": ["openid", "email"],
+  "isEnabled": true,
+  "allowRegistration": false
+}
+```
 
 Tenant user status administration API endpoint:
 

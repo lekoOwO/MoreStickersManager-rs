@@ -246,6 +246,34 @@ pub struct TenantSettingsResponse {
     pub created_at: String,
 }
 
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertOidcProviderRequest {
+    pub display_name: String,
+    pub issuer_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub scopes: Vec<String>,
+    pub is_enabled: bool,
+    pub allow_registration: bool,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct OidcProviderResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub display_name: String,
+    pub issuer_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub scopes: Vec<String>,
+    pub is_enabled: bool,
+    pub allow_registration: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 const fn default_true() -> bool {
     true
 }
@@ -694,6 +722,24 @@ impl From<msm_storage::models::TenantRecord> for TenantSettingsResponse {
             public_asset_url: record.public_asset_url,
             local_registration_enabled: record.local_registration_enabled,
             created_at: record.created_at.to_rfc3339(),
+        }
+    }
+}
+
+impl From<msm_storage::models::OidcProviderConfigRecord> for OidcProviderResponse {
+    fn from(record: msm_storage::models::OidcProviderConfigRecord) -> Self {
+        Self {
+            id: record.id,
+            tenant_id: record.tenant_id,
+            display_name: record.display_name,
+            issuer_url: record.issuer_url,
+            client_id: record.client_id,
+            client_secret: "[redacted]".to_owned(),
+            scopes: record.scopes.into_iter().collect(),
+            is_enabled: record.is_enabled,
+            allow_registration: record.allow_registration,
+            created_at: record.created_at.to_rfc3339(),
+            updated_at: record.updated_at.to_rfc3339(),
         }
     }
 }

@@ -1335,3 +1335,12 @@
   returns a PAT for already-validated provider claims.
 - Updated PRD/status docs to keep full OIDC code exchange and claim validation
   as the next Phase D queue item.
+
+## 2026-05-10 OIDC Provider Tenant Admin API
+
+- Added tenant admin API/OpenAPI routes for listing, upserting, and deleting
+  OIDC provider configs under `/api/v1/tenants/{tenant_id}/oidc-providers`.
+- The API uses `tenant.manage_settings` plus admin tenant membership and redacts
+  `clientSecret` in all responses.
+- Updated PRD/status/user docs; CLI/MCP/Web parity and full OIDC token
+  validation remain planned Phase D work.

@@ -9,12 +9,13 @@ use std::collections::BTreeSet;
 use crate::{
     auth::require_pat,
     dto::{
-        TenantMemberResponse, TenantRoleResponse, TenantSettingsResponse, TenantUserResponse,
-        UpdateTenantSettingsRequest, UpdateTenantUserStatusRequest, UpsertTenantMemberRequest,
-        UpsertTenantRoleRequest,
+        OidcProviderResponse, TenantMemberResponse, TenantRoleResponse, TenantSettingsResponse,
+        TenantUserResponse, UpdateTenantSettingsRequest, UpdateTenantUserStatusRequest,
+        UpsertOidcProviderRequest, UpsertTenantMemberRequest, UpsertTenantRoleRequest,
     },
     ApiError, ApiResult, ApiState,
 };
+use msm_storage::models::NewOidcProviderConfig;
 
 #[utoipa::path(
     get,
@@ -181,6 +182,155 @@ pub async fn update_tenant_settings(
 }
 
 #[utoipa::path(
+    get,
+    path = "/api/v1/tenants/{tenant_id}/oidc-providers",
+    tag = "tenants",
+    params(("tenant_id" = String, Path, description = "Tenant ID")),
+    responses(
+        (status = 200, description = "OIDC providers", body = [OidcProviderResponse]),
+        (status = 403, description = "Not a tenant admin", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Lists OIDC provider configurations for a tenant without exposing client secrets.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks tenant admin access or storage fails.
+pub async fn list_oidc_providers(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(tenant_id): Path<String>,
+) -> ApiResult<Json<Vec<OidcProviderResponse>>> {
+    require_tenant_admin(
+        &state,
+        &headers,
+        &tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let providers = state
+        .repository()
+        .list_oidc_provider_configs(&tenant_id)
+        .await?;
+    Ok(Json(
+        providers
+            .into_iter()
+            .map(OidcProviderResponse::from)
+            .collect(),
+    ))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/tenants/{tenant_id}/oidc-providers/{provider_id}",
+    tag = "tenants",
+    params(
+        ("tenant_id" = String, Path, description = "Tenant ID"),
+        ("provider_id" = String, Path, description = "OIDC provider ID")
+    ),
+    request_body = UpsertOidcProviderRequest,
+    responses(
+        (status = 200, description = "OIDC provider upserted", body = OidcProviderResponse),
+        (status = 400, description = "Invalid OIDC provider", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Not a tenant admin", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Adds or updates an OIDC provider configuration.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks tenant admin access, input is invalid, or storage
+/// fails.
+pub async fn upsert_oidc_provider(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((tenant_id, provider_id)): Path<(String, String)>,
+    Json(request): Json<UpsertOidcProviderRequest>,
+) -> ApiResult<(StatusCode, Json<OidcProviderResponse>)> {
+    require_tenant_admin(
+        &state,
+        &headers,
+        &tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let display_name = normalize_required("OIDC provider display name", &request.display_name)?;
+    let issuer_url = normalize_required("OIDC issuer URL", &request.issuer_url)?;
+    let client_id = normalize_required("OIDC client ID", &request.client_id)?;
+    let client_secret = normalize_required("OIDC client secret", &request.client_secret)?;
+    let scopes = request
+        .scopes
+        .into_iter()
+        .map(|scope| scope.trim().to_owned())
+        .filter(|scope| !scope.is_empty())
+        .collect::<BTreeSet<_>>();
+    if scopes.is_empty() {
+        return Err(ApiError::BadRequest(
+            "OIDC provider scopes must not be empty".to_owned(),
+        ));
+    }
+    let provider = state
+        .repository()
+        .upsert_oidc_provider_config(NewOidcProviderConfig {
+            id: &provider_id,
+            tenant_id: &tenant_id,
+            display_name,
+            issuer_url,
+            client_id,
+            client_secret,
+            scopes: &scopes,
+            is_enabled: request.is_enabled,
+            allow_registration: request.allow_registration,
+        })
+        .await?;
+
+    Ok((StatusCode::OK, Json(OidcProviderResponse::from(provider))))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/tenants/{tenant_id}/oidc-providers/{provider_id}",
+    tag = "tenants",
+    params(
+        ("tenant_id" = String, Path, description = "Tenant ID"),
+        ("provider_id" = String, Path, description = "OIDC provider ID")
+    ),
+    responses(
+        (status = 204, description = "OIDC provider deleted"),
+        (status = 403, description = "Not a tenant admin", body = crate::error::ApiErrorBody),
+        (status = 404, description = "OIDC provider not found", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Deletes an OIDC provider configuration.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks tenant admin access, the provider is missing, or
+/// storage fails.
+pub async fn delete_oidc_provider(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((tenant_id, provider_id)): Path<(String, String)>,
+) -> ApiResult<StatusCode> {
+    require_tenant_admin(
+        &state,
+        &headers,
+        &tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    if state
+        .repository()
+        .delete_oidc_provider_config(&tenant_id, &provider_id)
+        .await?
+    {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiError::NotFound("OIDC provider not found".to_owned()))
+    }
+}
+
+#[utoipa::path(
     put,
     path = "/api/v1/tenants/{tenant_id}/users/{user_id}/status",
     tag = "tenants",
@@ -315,6 +465,15 @@ fn normalize_tenant_name(name: &str) -> ApiResult<&str> {
         ))
     } else {
         Ok(name)
+    }
+}
+
+fn normalize_required<'a>(field: &str, value: &'a str) -> ApiResult<&'a str> {
+    let value = value.trim();
+    if value.is_empty() {
+        Err(ApiError::BadRequest(format!("{field} must not be empty")))
+    } else {
+        Ok(value)
     }
 }
 

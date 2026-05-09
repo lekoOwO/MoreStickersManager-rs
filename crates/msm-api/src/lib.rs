@@ -199,6 +199,15 @@ fn tenant_routes() -> Router<ApiState> {
             get(routes::tenants::get_tenant_settings).put(routes::tenants::update_tenant_settings),
         )
         .route(
+            "/api/v1/tenants/{tenant_id}/oidc-providers",
+            get(routes::tenants::list_oidc_providers),
+        )
+        .route(
+            "/api/v1/tenants/{tenant_id}/oidc-providers/{provider_id}",
+            put(routes::tenants::upsert_oidc_provider)
+                .delete(routes::tenants::delete_oidc_provider),
+        )
+        .route(
             "/api/v1/tenants/{tenant_id}/members",
             get(routes::tenants::list_tenant_members),
         )
@@ -4379,6 +4388,129 @@ mod tests {
         let settings: serde_json::Value = serde_json::from_slice(&get_body).unwrap();
         assert_eq!(settings["publicAssetUrl"], "https://cdn.example.test/msm");
         assert_eq!(settings["localRegistrationEnabled"], false);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn tenant_oidc_provider_routes_require_tenant_admin_and_redact_secret() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("admin_1", "admin@example.com", "Admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_2", "user@example.com", "User")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "admin_1", "admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        let admin_token = create_pat(
+            &state,
+            "adminsettings",
+            "admin_1",
+            [Permission::TenantManageSettings],
+        )
+        .await;
+        let user_token = create_pat(
+            &state,
+            "usersettings",
+            "user_2",
+            [Permission::TenantManageSettings],
+        )
+        .await;
+        let body = serde_json::json!({
+            "displayName": "Google",
+            "issuerUrl": "https://accounts.google.com",
+            "clientId": "client-id",
+            "clientSecret": "client-secret",
+            "scopes": ["openid", "email"],
+            "isEnabled": true,
+            "allowRegistration": false
+        });
+
+        let denied = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/tenants/tenant_1/oidc-providers/google")
+                    .header("authorization", format!("Bearer {user_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+
+        let upsert = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/tenants/tenant_1/oidc-providers/google")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(upsert.status(), StatusCode::OK);
+        let upsert_body = to_bytes(upsert.into_body(), usize::MAX).await.unwrap();
+        let provider: serde_json::Value = serde_json::from_slice(&upsert_body).unwrap();
+        assert_eq!(provider["id"], "google");
+        assert_eq!(provider["clientSecret"], "[redacted]");
+        assert_eq!(provider["scopes"], serde_json::json!(["email", "openid"]));
+
+        let list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/tenants/tenant_1/oidc-providers")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list.status(), StatusCode::OK);
+        let list_body = to_bytes(list.into_body(), usize::MAX).await.unwrap();
+        let providers: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
+        assert_eq!(providers.as_array().unwrap().len(), 1);
+        assert_eq!(providers[0]["clientSecret"], "[redacted]");
+
+        let deleted = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/tenants/tenant_1/oidc-providers/google")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(deleted.status(), StatusCode::NO_CONTENT);
+        assert!(state
+            .repository()
+            .find_oidc_provider_config("tenant_1", "google")
+            .await
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]
