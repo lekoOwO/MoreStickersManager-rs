@@ -406,6 +406,10 @@ These routes require a Bearer PAT with `tenant.manage_roles`, and the PAT user
 must be an `admin` member of the target tenant. The Tenant admin Web workspace
 uses selectable permission keys for role templates.
 
+The finalized public/private pack, subscription group, subscription secret,
+PAT, and Web-session read-access model is recorded in
+`docs/status/decisions.md`.
+
 ## Project Docs
 
 - `docs/PRD.md`: living product requirements, status, roadmap, and completion checklist.

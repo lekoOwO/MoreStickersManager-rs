@@ -45,7 +45,7 @@ roadmap, and completion definition.
 | Subscription groups | Next phase | Domain/storage foundations, repository primitives, protected API routes, OpenAPI schemas, CLI commands, MCP tools, and Web create/list management UI exist for subscription group create/list. Storage, API, CLI, MCP, and Web controls exist for subscription group pack links; subscription links and moreStickers auto-update integration remain later work. |
 | Subscription payload contract | Next phase | Domain helpers can build MoreStickers dynamic pack-set metadata for public or protected subscription links. Public API endpoints expose per-pack dynamic subscriptions, pack refresh payloads, and subscription-group payloads. Storage can persist, verify, rotate, list, and revoke pack/subscription-group access tokens. Public endpoints accept matching subscription access tokens and embed refresh auth headers for protected dynamic links. API/OpenAPI, CLI, MCP, and Web link management controls exist. |
 | Fine-grained pack sharing UI | Future phase | Current visibility update exists; member access management and secret-based pack asset access are not wired. |
-| Asset privacy enforcement | Future phase | Private pack asset paths reject anonymous reads and accept owner `asset.read` PATs, pack subscription tokens, subscription-group tokens containing the pack, or an owner `msm_session` Web session cookie. |
+| Asset privacy enforcement | Future phase | Private pack asset paths reject anonymous reads and accept owner `asset.read` PATs, pack subscription tokens, subscription-group tokens containing the pack, or an owner `msm_session` Web session cookie. Final read-access rules are recorded in `docs/status/decisions.md`; private pack refresh/subscription endpoints still need owner Web-session parity. |
 | OIDC/SSO | Future phase | Local auth bootstrap exists; OIDC/SSO provider configuration and login flow are not implemented. |
 | System-wide CDN public asset URL | Future phase | Domain URL resolver supports CDN preference; admin configuration UI/API is not implemented. |
 | Tenant admin console | Current phase | Bootstrap admin plus tenant member/settings/user-status/role-template API/CLI/MCP/Web surfaces exist; remaining work is fine-grained RBAC policy evaluation, role assignment semantics beyond templates, and OIDC/SSO integration. |
@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue with the final subscription/private asset permission model and any enforcement gaps it reveals.
+Continue with owner Web-session access for private pack refresh and subscription endpoints.

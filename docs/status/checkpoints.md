@@ -1078,3 +1078,13 @@
 - Updated PRD, roadmap, implementation matrix, current status, README, and user
   docs; next slice should define the final subscription/private asset
   permission model before implementing remaining enforcement gaps.
+
+## 2026-05-09 Pack Subscription Asset Access Model
+
+- Finalized the public/private pack, subscription group, subscription secret,
+  owner PAT, and owner Web-session read-access model in
+  `docs/status/decisions.md`.
+- Marked the Phase B permission-model checkbox complete in the PRD.
+- Identified the next enforcement gap: owner Web sessions currently read
+  private assets, but private pack refresh and subscription endpoints still
+  require PAT/subscription-token credentials.

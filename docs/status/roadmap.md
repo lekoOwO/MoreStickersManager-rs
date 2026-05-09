@@ -114,12 +114,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Web now exposes tenant settings, public asset URL, tenant user enable/disable,
   and tenant role template list/upsert controls, with selectable permission
   keys and tenant administration PAT scopes.
+- Pack/subscription/asset read access is now finalized in
+  `docs/status/decisions.md`, including the rule that owner Web sessions should
+  read private pack refresh and subscription endpoints.
 
 ## Immediate Plan
 
-1. Define the final permission model for pack visibility, subscription-group
-   visibility, subscription secrets, PAT access, and authenticated Web
-   credentials.
+1. Add owner Web-session access to private pack refresh, single-pack
+   subscription, and subscription-group public endpoints.
 
 ## Later Planned Work
 

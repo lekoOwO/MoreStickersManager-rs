@@ -482,6 +482,8 @@ PAT enforcement status:
   login and admin model is implemented.
 - private pack asset paths reject anonymous reads and accept owner `asset.read`
   PATs, matching subscription access tokens, or an owner `msm_session` cookie.
+- final public/private pack, subscription group, subscription secret, PAT, and
+  Web-session read-access rules are tracked in `docs/status/decisions.md`.
 
 Local auth bootstrap endpoints:
 

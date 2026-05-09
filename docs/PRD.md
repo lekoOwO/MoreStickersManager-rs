@@ -88,8 +88,9 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Define the final permission model for pack visibility, group visibility,
-   subscription secrets, PAT access, and authenticated Web credentials.
+1. Add owner Web-session access to private pack refresh, single-pack
+   subscription, and subscription-group public endpoints so the API matches the
+   finalized access model.
 
 Each queue item must update this section when completed or reordered.
 
@@ -113,7 +114,7 @@ tests and docs are updated.
 
 ### Phase B: Subscription Links And Access Model
 
-- [ ] Define final permission model for pack visibility, group visibility,
+- [x] Define final permission model for pack visibility, group visibility,
   subscription secrets, PAT access, and authenticated Web credentials.
 - [x] Implement per-pack default subscription endpoint.
 - [x] Implement user-created subscription group public/protected endpoints.
@@ -238,9 +239,6 @@ Current parity gaps:
 
 Resolve these before implementing the related phase:
 
-- Subscription access decision: matching pack subscription tokens and
-  subscription-group tokens grant read access to private pack assets and
-  refresh/subscription endpoints; they do not grant management access.
 - Pack membership UI decision: the first complete surface lives in the
   Organize workspace as a dedicated membership console; a future pack-detail
   shortcut can be added only if it improves daily workflow density.
