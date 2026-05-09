@@ -43,3 +43,13 @@ grant management actions, PAT creation, role administration, pack mutation, or
 subscription-link rotation/revocation. PATs remain user-owned and scope-bound;
 future tenant admin delegation must route through the domain RBAC evaluator
 instead of weakening owner checks.
+
+## 2026-05-09: Resource Ownership RBAC Delegation
+
+Owner-only API checks should move through shared authorization helpers before
+admin delegation is added. A valid PAT scope remains necessary for the route,
+but non-owner access to tenant-owned resources is decided by tenant membership:
+same-tenant admins may manage resources, custom roles may manage tenant
+metadata resources when their role template contains the required permission,
+and built-in regular users remain limited to resources they own unless a
+specific future sharing model says otherwise.

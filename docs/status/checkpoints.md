@@ -1112,3 +1112,16 @@
 - Updated PRD, roadmap, implementation matrix, current status, README, and user
   docs; remaining RBAC work should cover metadata membership, export job, and
   publication ownership checks.
+
+## 2026-05-09 Product Metadata Membership RBAC
+
+- Extracted pack access checks into a shared API RBAC helper and reused it from
+  pack CRUD/export and product metadata membership routes.
+- Folder-pack, pack-tag, and subscription-group pack membership routes now
+  allow same-tenant admin delegation after the route PAT scope gate while still
+  denying regular non-owner users.
+- Added tests for admin non-owner metadata membership management and regular
+  non-owner denial.
+- Updated PRD, roadmap, implementation matrix, current status, and RBAC
+  decisions; remaining RBAC work should cover export ownership,
+  subscription-link management, and Telegram publication reads.

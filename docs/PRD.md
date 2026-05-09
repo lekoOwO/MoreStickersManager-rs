@@ -89,8 +89,8 @@ Status meanings:
 Work these in order unless a higher-risk bug appears:
 
 1. Continue fine-grained RBAC checks for remaining resource-owning operations:
-   product metadata memberships, export targets/jobs, subscription-link
-   management, and Telegram publication reads.
+   export targets/jobs, subscription-link management, and Telegram publication
+   reads.
 
 Each queue item must update this section when completed or reordered.
 
@@ -142,8 +142,9 @@ tests and docs are updated.
 - [x] Web tenant admin console.
 - [ ] Fine-grained RBAC checks for all resource-owning operations.
   Progress: pack update/delete/export routes now use the domain policy
-  evaluator so same-tenant admins can manage non-owned packs while regular
-  non-owners are denied.
+  evaluator, and product metadata membership routes use shared RBAC helpers, so
+  same-tenant admins can manage non-owned packs and metadata memberships while
+  regular non-owners are denied.
 - [ ] PAT creation policy and scope templates by role.
 - [ ] Audit tests for cross-tenant isolation.
 
@@ -237,8 +238,9 @@ Current parity gaps:
   missing.
 - Tenant/RBAC administration: tenant member, tenant settings, user
   disabled-status, and role template administration exist across API, CLI, MCP,
-  and Web. Pack update/delete/export routes use domain RBAC policy evaluation;
-  remaining resource-owner routes and OIDC/SSO remain incomplete.
+  and Web. Pack update/delete/export plus product metadata membership routes
+  use RBAC policy helpers; remaining resource-owner routes and OIDC/SSO remain
+  incomplete.
 
 ## Open Product Questions
 
@@ -247,9 +249,6 @@ Resolve these before implementing the related phase:
 - Pack membership UI decision: the first complete surface lives in the
   Organize workspace as a dedicated membership console; a future pack-detail
   shortcut can be added only if it improves daily workflow density.
-- RBAC granularity: should owner-only checks remain direct `owner_user_id`
-  comparisons, or should all checks move through a tenant role/permission
-  evaluator before adding admin delegation?
 - PostgreSQL strategy: use SQLx compile-time checked queries per backend, query
   builder abstraction, or repository trait with backend-specific
   implementations?

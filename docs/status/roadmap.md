@@ -121,11 +121,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   and owner PAT reads of public subscription groups include owned private packs.
 - Pack update/delete/export routes now use the domain policy evaluator, giving
   same-tenant admins scoped non-owner access while denying regular non-owners.
+- Product metadata membership routes now use shared RBAC helpers, giving
+  same-tenant admins scoped non-owner access to folder-pack, pack-tag, and
+  subscription-group pack links while denying regular non-owners.
 
 ## Immediate Plan
 
-1. Continue fine-grained RBAC checks for product metadata membership routes,
-   export jobs, subscription-link management, and Telegram publication reads.
+1. Continue fine-grained RBAC checks for export jobs, subscription-link
+   management, and Telegram publication reads.
 
 ## Later Planned Work
 

@@ -3,19 +3,18 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use msm_domain::Permission;
-use msm_storage::models::{
-    FolderRecord, NewTag, StickerPackRecord, SubscriptionGroupRecord, TagRecord,
-};
+use msm_domain::{PackAction, Permission};
+use msm_storage::models::{FolderRecord, NewTag, SubscriptionGroupRecord, TagRecord};
 
 use crate::{
-    auth::require_pat,
+    auth::{require_pat, VerifiedPat},
     dto::{
         CreateFolderRequest, CreateSubscriptionGroupRequest, CreateTagRequest, FolderPackResponse,
         FolderResponse, ListFoldersQuery, ListSubscriptionGroupsQuery, ListTagsQuery,
         PackTagResponse, SubscriptionGroupPackResponse, SubscriptionGroupResponse, TagResponse,
         UpsertPackMembershipRequest,
     },
+    rbac::{require_pack_access, require_tenant_resource_access},
     ApiError, ApiResult, ApiState,
 };
 
@@ -101,7 +100,7 @@ pub async fn list_folder_pack_ids(
     Path(folder_id): Path<String>,
 ) -> ApiResult<Json<Vec<String>>> {
     let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
-    let _folder = require_owned_folder(&state, &folder_id, &pat.user_id).await?;
+    let _folder = require_folder_access(&state, &folder_id, &pat, Permission::PackUpdate).await?;
     let pack_ids = state.repository().list_folder_pack_ids(&folder_id).await?;
     Ok(Json(pack_ids))
 }
@@ -130,8 +129,8 @@ pub async fn add_pack_to_folder(
     Json(request): Json<UpsertPackMembershipRequest>,
 ) -> ApiResult<Json<FolderPackResponse>> {
     let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
-    let folder = require_owned_folder(&state, &folder_id, &pat.user_id).await?;
-    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let folder = require_folder_access(&state, &folder_id, &pat, Permission::PackUpdate).await?;
+    let pack = require_pack_access(&state, &pat, PackAction::Update, &pack_id).await?;
     require_same_tenant(&folder.tenant_id, &pack.tenant_id)?;
     let link = state
         .repository()
@@ -162,8 +161,8 @@ pub async fn remove_pack_from_folder(
     Path((folder_id, pack_id)): Path<(String, String)>,
 ) -> ApiResult<StatusCode> {
     let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
-    let folder = require_owned_folder(&state, &folder_id, &pat.user_id).await?;
-    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let folder = require_folder_access(&state, &folder_id, &pat, Permission::PackUpdate).await?;
+    let pack = require_pack_access(&state, &pat, PackAction::Update, &pack_id).await?;
     require_same_tenant(&folder.tenant_id, &pack.tenant_id)?;
     let removed = state
         .repository()
@@ -248,7 +247,7 @@ pub async fn list_pack_tag_ids(
     Path(pack_id): Path<String>,
 ) -> ApiResult<Json<Vec<String>>> {
     let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
-    let _pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let _pack = require_pack_access(&state, &pat, PackAction::Update, &pack_id).await?;
     let tag_ids = state.repository().list_pack_tag_ids(&pack_id).await?;
     Ok(Json(tag_ids))
 }
@@ -275,7 +274,7 @@ pub async fn add_tag_to_pack(
     Path((pack_id, tag_id)): Path<(String, String)>,
 ) -> ApiResult<Json<PackTagResponse>> {
     let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
-    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let pack = require_pack_access(&state, &pat, PackAction::Update, &pack_id).await?;
     let tag = require_tag(&state, &tag_id).await?;
     require_same_tenant(&tag.tenant_id, &pack.tenant_id)?;
     let link = state
@@ -307,7 +306,7 @@ pub async fn remove_tag_from_pack(
     Path((pack_id, tag_id)): Path<(String, String)>,
 ) -> ApiResult<StatusCode> {
     let pat = require_pat(&headers, &state, Permission::PackUpdate).await?;
-    let _pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let _pack = require_pack_access(&state, &pat, PackAction::Update, &pack_id).await?;
     let removed = state
         .repository()
         .remove_tag_from_pack(&pack_id, &tag_id)
@@ -395,8 +394,13 @@ pub async fn list_subscription_group_pack_ids(
     Path(subscription_group_id): Path<String>,
 ) -> ApiResult<Json<Vec<String>>> {
     let pat = require_pat(&headers, &state, Permission::SubscriptionRead).await?;
-    let _group =
-        require_owned_subscription_group(&state, &subscription_group_id, &pat.user_id).await?;
+    let _group = require_subscription_group_access(
+        &state,
+        &subscription_group_id,
+        &pat,
+        Permission::SubscriptionRead,
+    )
+    .await?;
     let pack_ids = state
         .repository()
         .list_subscription_pack_ids(&subscription_group_id)
@@ -428,9 +432,14 @@ pub async fn add_pack_to_subscription_group(
     Json(request): Json<UpsertPackMembershipRequest>,
 ) -> ApiResult<Json<SubscriptionGroupPackResponse>> {
     let pat = require_pat(&headers, &state, Permission::SubscriptionCreate).await?;
-    let group =
-        require_owned_subscription_group(&state, &subscription_group_id, &pat.user_id).await?;
-    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let group = require_subscription_group_access(
+        &state,
+        &subscription_group_id,
+        &pat,
+        Permission::SubscriptionCreate,
+    )
+    .await?;
+    let pack = require_pack_access(&state, &pat, PackAction::Update, &pack_id).await?;
     require_same_tenant(&group.tenant_id, &pack.tenant_id)?;
     let link = state
         .repository()
@@ -461,9 +470,14 @@ pub async fn remove_pack_from_subscription_group(
     Path((subscription_group_id, pack_id)): Path<(String, String)>,
 ) -> ApiResult<StatusCode> {
     let pat = require_pat(&headers, &state, Permission::SubscriptionCreate).await?;
-    let group =
-        require_owned_subscription_group(&state, &subscription_group_id, &pat.user_id).await?;
-    let pack = require_owned_pack(&state, &pack_id, &pat.user_id).await?;
+    let group = require_subscription_group_access(
+        &state,
+        &subscription_group_id,
+        &pat,
+        Permission::SubscriptionCreate,
+    )
+    .await?;
+    let pack = require_pack_access(&state, &pat, PackAction::Update, &pack_id).await?;
     require_same_tenant(&group.tenant_id, &pack.tenant_id)?;
     let removed = state
         .repository()
@@ -473,40 +487,27 @@ pub async fn remove_pack_from_subscription_group(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn require_owned_folder(
+async fn require_folder_access(
     state: &ApiState,
     folder_id: &str,
-    user_id: &str,
+    pat: &VerifiedPat,
+    required: Permission,
 ) -> ApiResult<FolderRecord> {
     let folder = state
         .repository()
         .find_folder_record(folder_id)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("folder `{folder_id}` not found")))?;
-    if folder.owner_user_id != user_id {
-        return Err(ApiError::Forbidden(
-            "PAT user does not own folder".to_owned(),
-        ));
-    }
+    require_tenant_resource_access(
+        state,
+        pat,
+        &folder.tenant_id,
+        &folder.owner_user_id,
+        required,
+        "PAT user cannot access folder",
+    )
+    .await?;
     Ok(folder)
-}
-
-async fn require_owned_pack(
-    state: &ApiState,
-    pack_id: &str,
-    user_id: &str,
-) -> ApiResult<StickerPackRecord> {
-    let pack = state
-        .repository()
-        .find_sticker_pack_record(pack_id)
-        .await?
-        .ok_or_else(|| ApiError::NotFound(format!("sticker pack `{pack_id}` not found")))?;
-    if pack.owner_user_id != user_id {
-        return Err(ApiError::Forbidden(
-            "PAT user does not own sticker pack".to_owned(),
-        ));
-    }
-    Ok(pack)
 }
 
 async fn require_tag(state: &ApiState, tag_id: &str) -> ApiResult<TagRecord> {
@@ -517,10 +518,11 @@ async fn require_tag(state: &ApiState, tag_id: &str) -> ApiResult<TagRecord> {
         .ok_or_else(|| ApiError::NotFound(format!("tag `{tag_id}` not found")))
 }
 
-async fn require_owned_subscription_group(
+async fn require_subscription_group_access(
     state: &ApiState,
     subscription_group_id: &str,
-    user_id: &str,
+    pat: &VerifiedPat,
+    required: Permission,
 ) -> ApiResult<SubscriptionGroupRecord> {
     let group = state
         .repository()
@@ -531,11 +533,15 @@ async fn require_owned_subscription_group(
                 "subscription group `{subscription_group_id}` not found"
             ))
         })?;
-    if group.owner_user_id != user_id {
-        return Err(ApiError::Forbidden(
-            "PAT user does not own subscription group".to_owned(),
-        ));
-    }
+    require_tenant_resource_access(
+        state,
+        pat,
+        &group.tenant_id,
+        &group.owner_user_id,
+        required,
+        "PAT user cannot access subscription group",
+    )
+    .await?;
     Ok(group)
 }
 

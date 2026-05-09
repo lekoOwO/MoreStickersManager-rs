@@ -4,6 +4,7 @@ pub mod auth;
 pub mod dto;
 pub mod error;
 pub mod openapi;
+mod rbac;
 pub mod routes;
 pub mod state;
 
@@ -1475,6 +1476,259 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        }
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn tenant_admin_pat_can_manage_metadata_memberships_for_other_user() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "owner@example.com", "Owner")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_other",
+                "tenant_1",
+                "user_2",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("metadata-other"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_folder("folder_other", "tenant_1", "user_2", "Other Favorites")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_tag(NewTag {
+                id: "tag_other",
+                tenant_id: "tenant_1",
+                name: "shared",
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_other",
+                "tenant_1",
+                "user_2",
+                "Shared Weekly",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+
+        let admin_token = create_pat(
+            &state,
+            "metadataadmin",
+            "user_1",
+            [
+                Permission::PackUpdate,
+                Permission::SubscriptionCreate,
+                Permission::SubscriptionRead,
+            ],
+        )
+        .await;
+
+        let folder_add = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/folders/folder_other/packs/pack_other")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({ "sortOrder": 10 }).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(folder_add.status(), StatusCode::OK);
+
+        let tag_add = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/packs/pack_other/tags/tag_other")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tag_add.status(), StatusCode::OK);
+
+        let subscription_add = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/subscription-groups/sub_other/packs/pack_other")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({ "sortOrder": 20 }).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_add.status(), StatusCode::OK);
+
+        let subscription_list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/subscription-groups/sub_other/packs")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(subscription_list.status(), StatusCode::OK);
+        let subscription_list_body = to_bytes(subscription_list.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let subscription_pack_ids: serde_json::Value =
+            serde_json::from_slice(&subscription_list_body).unwrap();
+        assert_eq!(subscription_pack_ids, serde_json::json!(["pack_other"]));
+
+        for uri in [
+            "/api/v1/folders/folder_other/packs/pack_other",
+            "/api/v1/packs/pack_other/tags/tag_other",
+            "/api/v1/subscription-groups/sub_other/packs/pack_other",
+        ] {
+            let response = build_router(state.clone())
+                .oneshot(
+                    Request::builder()
+                        .method("DELETE")
+                        .uri(uri)
+                        .header("authorization", format!("Bearer {admin_token}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        }
+    }
+
+    #[tokio::test]
+    async fn regular_non_owner_pat_cannot_manage_metadata_memberships() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "owner@example.com", "Owner")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_3", "member@example.com", "Member")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_3", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_other",
+                "tenant_1",
+                "user_2",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("metadata-member"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_folder("folder_other", "tenant_1", "user_2", "Other Favorites")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_tag(NewTag {
+                id: "tag_other",
+                tenant_id: "tenant_1",
+                name: "shared",
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_other",
+                "tenant_1",
+                "user_2",
+                "Shared Weekly",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+
+        let member_token = create_pat(
+            &state,
+            "metadatamember",
+            "user_3",
+            [
+                Permission::PackUpdate,
+                Permission::SubscriptionCreate,
+                Permission::SubscriptionRead,
+            ],
+        )
+        .await;
+
+        for (method, uri, body) in [
+            (
+                "PUT",
+                "/api/v1/folders/folder_other/packs/pack_other",
+                serde_json::json!({ "sortOrder": 10 }).to_string(),
+            ),
+            (
+                "PUT",
+                "/api/v1/packs/pack_other/tags/tag_other",
+                String::new(),
+            ),
+            (
+                "PUT",
+                "/api/v1/subscription-groups/sub_other/packs/pack_other",
+                serde_json::json!({ "sortOrder": 20 }).to_string(),
+            ),
+        ] {
+            let response = build_router(state.clone())
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(uri)
+                        .header("authorization", format!("Bearer {member_token}"))
+                        .header("content-type", "application/json")
+                        .body(Body::from(body))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
         }
     }
 

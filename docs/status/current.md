@@ -88,9 +88,10 @@ Last completed:
 - Pack/subscription/asset access model slice: finalized the read-access model for public/private packs, public/private subscription groups, subscription secrets, owner PATs, and owner Web sessions in `docs/status/decisions.md`.
 - Subscription Web-session enforcement slice: owner Web sessions can read private pack refresh, single-pack subscription, and private subscription-group endpoints; owner PAT reads of public groups include owned private packs according to the finalized model.
 - Pack RBAC delegation slice: pack update/delete/export routes now use the domain policy evaluator; same-tenant admins with matching PAT scopes can manage non-owned packs, while regular non-owner PATs are denied.
+- Product metadata membership RBAC slice: folder-pack, pack-tag, and subscription-group pack membership routes now use shared RBAC helpers; same-tenant admins can manage non-owned metadata memberships while regular non-owner PATs are denied.
 
 Current task:
-- Continue fine-grained RBAC checks for remaining resource-owning operations: product metadata memberships, export targets/jobs, subscription-link management, and Telegram publication reads.
+- Continue fine-grained RBAC checks for remaining resource-owning operations: export targets/jobs, subscription-link management, and Telegram publication reads.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -182,9 +183,10 @@ Last verification:
 - Pack/subscription/asset access model slice: docs-only verification with `git diff --check`.
 - Subscription Web-session enforcement slice: RED/GREEN tests with `cargo test -p msm-api owner_web_session_reads_private_pack_subscription_endpoints --locked` and `cargo test -p msm-api public_subscription_routes_emit_accessible_dynamic_payloads --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Pack RBAC delegation slice: RED/GREEN test with `cargo test -p msm-api tenant_admin_pat_can_manage_pack_owned_by_another_user --locked` plus regression coverage with `cargo test -p msm-api non_owner_pat_cannot_export_private_pack_without_delegated_access --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
+- Product metadata membership RBAC slice: RED/GREEN test with `cargo test -p msm-api tenant_admin_pat_can_manage_metadata_memberships_for_other_user --locked` plus regression coverage with `cargo test -p msm-api regular_non_owner_pat_cannot_manage_metadata_memberships --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 
 Next step:
-- Apply the same RBAC policy approach to product metadata membership routes and export job ownership checks.
+- Apply the same RBAC policy approach to export job ownership checks, subscription-link management, and Telegram publication reads.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
