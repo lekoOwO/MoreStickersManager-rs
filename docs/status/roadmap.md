@@ -155,6 +155,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   tenant; subscription secrets remain explicit sharing credentials.
 - Pack listing now filters out packs whose owner is no longer a member of the
   pack tenant.
+- Same-owner subscription-link metadata listing now filters out token records
+  whose owner is no longer a member of the token tenant.
 
 ## Immediate Plan
 

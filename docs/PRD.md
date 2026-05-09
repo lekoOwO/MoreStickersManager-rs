@@ -156,7 +156,8 @@ tests and docs are updated.
   and private subscription groups now require the owner to remain a member of
   the resource tenant; subscription secrets remain explicit resource-sharing
   credentials. Pack listing now filters out packs whose owner is no longer a
-  member of the pack's tenant.
+  member of the pack's tenant. Subscription-link metadata listing now filters
+  same-owner results by current owner membership in each token tenant.
 - [x] PAT creation policy and scope templates by role.
   Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
   PAT for the same user, PAT creation and local login reject scopes outside the

@@ -3030,6 +3030,62 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn subscription_link_list_filters_tokens_outside_user_tenant_memberships() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_tenant("tenant_2", "Other")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_access_token(
+                "linkvisible",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::SubscriptionAccessResourceType::Pack,
+                "pack_visible",
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_access_token(
+                "linkhidden",
+                "tenant_2",
+                "user_1",
+                msm_storage::models::SubscriptionAccessResourceType::Pack,
+                "pack_hidden",
+            )
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "submanager",
+            "user_1",
+            [Permission::SubscriptionManageAccess],
+        )
+        .await;
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/subscription-access-tokens?userId=user_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let links: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(links.as_array().unwrap().len(), 1);
+        assert_eq!(links[0]["id"], "linkvisible");
+    }
+
+    #[tokio::test]
     #[allow(clippy::too_many_lines)]
     async fn tenant_admin_pat_can_manage_subscription_links_for_other_user_resources() {
         let state = empty_state_with_owner().await;

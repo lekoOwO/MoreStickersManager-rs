@@ -88,7 +88,15 @@ pub async fn list_subscription_access_tokens(
         .repository()
         .list_subscription_access_tokens(&query.user_id)
         .await?;
-    if pat.user_id != query.user_id {
+    let tokens = if pat.user_id == query.user_id {
+        let mut visible = Vec::new();
+        for token in tokens {
+            if token_owner_is_tenant_member(&state, &token).await? {
+                visible.push(token);
+            }
+        }
+        visible
+    } else {
         if tokens.is_empty() {
             return Err(ApiError::Forbidden(
                 "PAT user cannot list subscription access tokens for this user".to_owned(),
@@ -105,7 +113,8 @@ pub async fn list_subscription_access_tokens(
             )
             .await?;
         }
-    }
+        tokens
+    };
     let tokens = tokens
         .into_iter()
         .map(SubscriptionAccessTokenResponse::from)
@@ -235,4 +244,15 @@ async fn load_subscription_access_token(
         .ok_or_else(|| {
             ApiError::NotFound(format!("subscription access token `{token_id}` not found"))
         })
+}
+
+async fn token_owner_is_tenant_member(
+    state: &ApiState,
+    token: &SubscriptionAccessTokenRecord,
+) -> ApiResult<bool> {
+    Ok(state
+        .repository()
+        .find_tenant_member(&token.tenant_id, &token.owner_user_id)
+        .await?
+        .is_some())
 }

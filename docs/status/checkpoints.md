@@ -1281,3 +1281,14 @@
   wired `GET /api/v1/packs?userId=...` to that tenant-filtered query.
 - Updated PRD and status docs; next work should continue the route-by-route
   fine-grained RBAC audit.
+
+## 2026-05-10 Subscription Link List Tenant Membership Guard
+
+- Added a RED/GREEN API test proving same-owner subscription-link metadata
+  listing does not return token records whose owner is no longer a member of
+  the token tenant.
+- `GET /api/v1/subscription-access-tokens?userId=...` now filters same-owner
+  results by current tenant membership; cross-user admin listing still requires
+  tenant permission for each returned token.
+- Updated PRD and status docs; next work should continue the route-by-route
+  fine-grained RBAC audit.
