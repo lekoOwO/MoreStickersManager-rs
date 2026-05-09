@@ -19,9 +19,9 @@ cargo run -p msm-cli -- packs list --user-id user_1
 cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
 cargo run -p msm-cli -- packs rename --pack-id pack_1 --title "Renamed Pack" --visibility public
 cargo run -p msm-cli -- packs delete --pack-id pack_1
-cargo run -p msm-cli -- pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
-cargo run -p msm-cli -- pats list --user-id user_1
-cargo run -p msm-cli -- pats revoke --token-id cli1
+cargo run -p msm-cli -- --pat msm_pat_with_pat_manage pats create --id cli1 --user-id user_1 --name CLI --scope pack.read --scope asset.read
+cargo run -p msm-cli -- --pat msm_pat_with_pat_manage pats list --user-id user_1
+cargo run -p msm-cli -- --pat msm_pat_with_pat_manage pats revoke --token-id cli1
 cargo run -p msm-cli -- tenants members list --tenant-id tenant_1
 cargo run -p msm-cli -- tenants members set-role --tenant-id tenant_1 --user-id user_2 --role admin
 cargo run -p msm-cli -- metadata folders create --id folder_1 --tenant-id tenant_1 --owner-user-id user_1 --name Favorites
@@ -40,7 +40,8 @@ cargo run -p msm-cli -- exports publications list --pack-id pack_1
 cargo run -p msm-cli -- exports publications get --publication-id telegram_pub_1
 ```
 
-Protected API-backed CLI commands accept a PAT through `--pat` or `MSM_PAT`:
+Protected API-backed CLI commands accept a PAT through `--pat` or `MSM_PAT`.
+The `pats` lifecycle commands require `pat.manage`:
 
 ```powershell
 cargo run -p msm-cli -- --pat msm_pat_cli1_secret packs list --user-id user_1
@@ -400,6 +401,10 @@ PAT foundation status:
 - API/CLI/MCP pack operations use Bearer PAT enforcement.
 - local login sets an HttpOnly `msm_session` cookie for Web-session protected
   reads.
+- PAT lifecycle endpoints require a same-user Bearer PAT with `pat.manage`.
+- PAT creation and local login reject requested scopes that are not allowed by
+  the user's built-in role, tenant-admin membership, or custom role-template
+  permissions.
 
 PAT API endpoints:
 
@@ -412,6 +417,8 @@ PAT CLI commands:
 - `msm pats create --id <token_id> --user-id <user_id> --name <name> --scope <scope>`
 - `msm pats list --user-id <user_id>`
 - `msm pats revoke --token-id <token_id>`
+
+The PAT CLI commands require `--pat <raw_pat>` or `MSM_PAT` with `pat.manage`.
 
 Tenant administration CLI commands:
 
@@ -453,7 +460,8 @@ Product metadata CLI commands:
 - `msm metadata subscription-groups packs remove --subscription-group-id <group_id> --pack-id <pack_id>`
 
 `msm pats create` prints the raw token once. Store it immediately outside MSM if
-you need to use it later.
+you need to use it later. The requested scopes must be allowed by the target
+user's role policy.
 
 PAT enforcement status:
 
@@ -478,8 +486,8 @@ PAT enforcement status:
   surfaces, and the PAT user must be an `admin` member of the target tenant.
 - user-scoped list/import/update/delete operations reject PATs belonging to
   another user.
-- PAT lifecycle endpoints are still bootstrap/admin placeholders until the
-  login and admin model is implemented.
+- PAT lifecycle endpoints require a same-user `pat.manage` Bearer PAT, and
+  requested scopes are capped by the user's role policy.
 - private pack asset paths reject anonymous reads and accept owner `asset.read`
   PATs, matching subscription access tokens, or an owner `msm_session` cookie.
 - final public/private pack, subscription group, subscription secret, PAT, and

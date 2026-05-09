@@ -370,6 +370,29 @@ impl StorageRepository {
         rows.iter().map(tenant_member_from_row).collect()
     }
 
+    /// Lists all tenant memberships for one user.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn list_user_tenant_members(
+        &self,
+        user_id: &str,
+    ) -> StorageResult<Vec<TenantMemberRecord>> {
+        let rows = sqlx::query(
+            "SELECT tenant_id, user_id, role, created_at
+            FROM tenant_members
+            WHERE user_id = ?
+            ORDER BY tenant_id",
+        )
+        .bind(user_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.iter().map(tenant_member_from_row).collect()
+    }
+
     /// Finds one tenant member.
     ///
     /// # Errors
@@ -1262,6 +1285,28 @@ impl StorageRepository {
         .await?;
 
         rows.iter().map(pat_record_from_row).collect()
+    }
+
+    /// Finds one Personal Access Token by ID without exposing its raw token.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored scope
+    /// key is invalid.
+    pub async fn find_personal_access_token(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<PersonalAccessTokenRecord>> {
+        let row = sqlx::query(
+            "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
+            FROM personal_access_tokens
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref().map(pat_record_from_row).transpose()
     }
 
     /// Verifies a Personal Access Token and returns the active record when valid.

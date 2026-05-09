@@ -79,7 +79,7 @@ Status meanings:
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, and tenant member/settings/user-status/role-template administration exist in API/CLI/MCP/Web. Fine-grained RBAC checks and OIDC/SSO remain incomplete. |
+| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, and tenant member/settings/user-status/role-template administration exist. Scope-template discovery surfaces and OIDC/SSO remain incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Implement PAT creation policy and scope templates by role.
+1. Add API/Web/CLI/MCP discovery for role-allowed PAT scope templates.
 
 Each queue item must update this section when completed or reordered.
 
@@ -147,6 +147,11 @@ tests and docs are updated.
   same-tenant admin delegation, Telegram publication reads use pack RBAC, and
   subscription-link management routes support same-tenant admin delegation.
 - [ ] PAT creation policy and scope templates by role.
+  Progress: PAT create/list/revoke routes now require a `pat.manage` Bearer
+  PAT for the same user, PAT creation and local login reject scopes outside the
+  user's built-in role, tenant admin role, or custom role-template permissions,
+  and dev bootstrap obtains PATs through local login. Scope-template discovery
+  surfaces remain incomplete.
 - [ ] Audit tests for cross-tenant isolation.
 
 ### Phase D: Auth Providers
@@ -242,7 +247,8 @@ Current parity gaps:
   and Web. Pack update/delete/export plus product metadata membership routes
   use RBAC policy helpers. Export target/job routes and Telegram publication
   reads also use tenant/pack RBAC helpers. Subscription-link management routes
-  use pack/subscription-group/tenant RBAC helpers; PAT creation policy,
+  use pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
+  enforce `pat.manage` and role-allowed scopes; scope-template discovery,
   cross-tenant audit tests, and OIDC/SSO remain incomplete.
 
 ## Open Product Questions

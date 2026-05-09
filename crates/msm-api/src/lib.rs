@@ -2863,11 +2863,14 @@ mod tests {
             "scopes": ["pack.read", "asset.read"],
             "expiresAt": null,
         });
+        let manager_token =
+            create_pat(&state, "patmanager", "user_1", [Permission::PatManage]).await;
         let create_response = build_router(state.clone())
             .oneshot(
                 Request::builder()
                     .method("POST")
                     .uri("/api/v1/pats")
+                    .header("authorization", format!("Bearer {manager_token}"))
                     .header("content-type", "application/json")
                     .body(Body::from(create_body.to_string()))
                     .unwrap(),
@@ -2887,6 +2890,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .uri("/api/v1/pats?userId=user_1")
+                    .header("authorization", format!("Bearer {manager_token}"))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -2906,6 +2910,7 @@ mod tests {
                 Request::builder()
                     .method("DELETE")
                     .uri("/api/v1/pats/cli1")
+                    .header("authorization", format!("Bearer {manager_token}"))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -2922,7 +2927,9 @@ mod tests {
 
     #[tokio::test]
     async fn create_personal_access_token_rejects_unknown_scopes() {
-        let state = test_state().await;
+        let state = empty_state_with_owner().await;
+        let manager_token =
+            create_pat(&state, "patmanager", "user_1", [Permission::PatManage]).await;
         let create_body = serde_json::json!({
             "id": "cli1",
             "userId": "user_1",
@@ -2936,6 +2943,7 @@ mod tests {
                 Request::builder()
                     .method("POST")
                     .uri("/api/v1/pats")
+                    .header("authorization", format!("Bearer {manager_token}"))
                     .header("content-type", "application/json")
                     .body(Body::from(create_body.to_string()))
                     .unwrap(),
@@ -2944,6 +2952,162 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn pat_routes_require_pat_manage_and_role_allowed_scopes() {
+        let state = empty_state_with_owner().await;
+        let manager_token =
+            create_pat(&state, "patmanager", "user_1", [Permission::PatManage]).await;
+        let read_token = create_pat(&state, "patreader", "user_1", [Permission::PackRead]).await;
+        let create_body = serde_json::json!({
+            "id": "managedpat",
+            "userId": "user_1",
+            "name": "Managed",
+            "scopes": ["pack.read"],
+            "expiresAt": null,
+        });
+
+        let unauthenticated_create = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/pats")
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(unauthenticated_create.status(), StatusCode::UNAUTHORIZED);
+
+        let missing_scope_create = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/pats")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing_scope_create.status(), StatusCode::FORBIDDEN);
+
+        let tenant_scope_body = serde_json::json!({
+            "id": "tenantpat",
+            "userId": "user_1",
+            "name": "Tenant Admin",
+            "scopes": ["tenant.manage_members"],
+            "expiresAt": null,
+        });
+        let tenant_scope_create = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/pats")
+                    .header("authorization", format!("Bearer {manager_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(tenant_scope_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(tenant_scope_create.status(), StatusCode::CREATED);
+
+        let created = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/pats")
+                    .header("authorization", format!("Bearer {manager_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(created.status(), StatusCode::CREATED);
+
+        let unauthenticated_list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/pats?userId=user_1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(unauthenticated_list.status(), StatusCode::UNAUTHORIZED);
+
+        let list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/pats?userId=user_1")
+                    .header("authorization", format!("Bearer {manager_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list.status(), StatusCode::OK);
+
+        let revoke = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/pats/managedpat")
+                    .header("authorization", format!("Bearer {manager_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(revoke.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn local_auth_rejects_login_scopes_outside_role_policy() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_local_user_with_password("user_1", "leko@example.com", "Leko", "password")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_1", "user")
+            .await
+            .unwrap();
+        let login_body = serde_json::json!({
+            "email": "leko@example.com",
+            "password": "password",
+            "tokenId": "webui",
+            "tokenName": "Web UI",
+            "scopes": ["tenant.manage_members"],
+            "expiresAt": null,
+        });
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(login_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]

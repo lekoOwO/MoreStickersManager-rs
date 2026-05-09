@@ -129,10 +129,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   Telegram publication reads use pack RBAC.
 - Subscription access token create/list/rotate/revoke routes now use
   pack/subscription-group/tenant RBAC and support same-tenant admin delegation.
+- PAT create/list/revoke routes now require a same-user `pat.manage` Bearer
+  PAT, and PAT creation/local login reject scopes outside the user's
+  role-allowed scope template.
 
 ## Immediate Plan
 
-1. Add tenant-aware PAT creation policy and role-based scope templates.
+1. Add role-allowed PAT scope-template discovery for API/Web/CLI/MCP.
 
 ## Later Planned Work
 

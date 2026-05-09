@@ -145,7 +145,10 @@ P12 implements PAT lifecycle persistence in `msm-storage`. Raw tokens are only
 returned at creation time. The database stores token IDs, SHA-256 token secret
 hashes, scope keys, expiry timestamps, and revocation timestamps. API/CLI/MCP
 middleware must use the repository verification method rather than reading token
-hashes directly.
+hashes directly. PAT lifecycle API routes require a same-user Bearer PAT with
+`pat.manage`; local login and PAT creation reject requested scopes outside the
+user's built-in user permissions, tenant-admin permissions, or custom
+role-template permissions.
 
 Local Web sessions use the same hash-only secret storage pattern in the
 `web_sessions` table. `/api/v1/auth/local/login` preserves the PAT response body

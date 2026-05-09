@@ -2,16 +2,18 @@ use std::collections::BTreeSet;
 
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     Json,
 };
 use msm_domain::Permission;
 
 use crate::{
+    auth::require_pat,
     dto::{
         CreatePersonalAccessTokenRequest, CreatedPersonalAccessTokenResponse,
         ListPersonalAccessTokensQuery, PersonalAccessTokenResponse,
     },
+    rbac::require_user_pat_scopes_allowed,
     ApiError, ApiResult, ApiState,
 };
 
@@ -33,9 +35,13 @@ use crate::{
 /// Returns an error when scope keys are invalid or storage fails.
 pub async fn create_pat(
     State(state): State<ApiState>,
+    headers: HeaderMap,
     Json(request): Json<CreatePersonalAccessTokenRequest>,
 ) -> ApiResult<(StatusCode, Json<CreatedPersonalAccessTokenResponse>)> {
+    let pat = require_pat(&headers, &state, Permission::PatManage).await?;
+    pat.require_user(&request.user_id)?;
     let scopes = parse_scopes(&request.scopes)?;
+    require_user_pat_scopes_allowed(&state, &request.user_id, &scopes).await?;
     let created = state
         .repository()
         .create_personal_access_token(
@@ -67,8 +73,11 @@ pub async fn create_pat(
 /// Returns an error when storage fails.
 pub async fn list_pats(
     State(state): State<ApiState>,
+    headers: HeaderMap,
     Query(query): Query<ListPersonalAccessTokensQuery>,
 ) -> ApiResult<Json<Vec<PersonalAccessTokenResponse>>> {
+    let pat = require_pat(&headers, &state, Permission::PatManage).await?;
+    pat.require_user(&query.user_id)?;
     let tokens = state
         .repository()
         .list_personal_access_tokens(&query.user_id)
@@ -93,8 +102,16 @@ pub async fn list_pats(
 /// Returns an error when storage fails.
 pub async fn revoke_pat(
     State(state): State<ApiState>,
+    headers: HeaderMap,
     Path(token_id): Path<String>,
 ) -> ApiResult<StatusCode> {
+    let pat = require_pat(&headers, &state, Permission::PatManage).await?;
+    let record = state
+        .repository()
+        .find_personal_access_token(&token_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("PAT `{token_id}` not found")))?;
+    pat.require_user(&record.user_id)?;
     state
         .repository()
         .revoke_personal_access_token(&token_id)

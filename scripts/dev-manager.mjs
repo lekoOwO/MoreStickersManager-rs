@@ -515,14 +515,14 @@ async function registerDevUser(baseUrl, values) {
 }
 
 async function createDevPat(baseUrl, values) {
-  const userId = values.MSM_DEV_USER_ID ?? values.VITE_MSM_USER_ID ?? "user_1";
   const tokenIdPrefix = (values.MSM_DEV_PAT_ID_PREFIX ?? "dev-web").replace(/_+/g, "-");
-  const response = await requestJson(baseUrl, "/api/v1/pats", {
+  const response = await requestJson(baseUrl, "/api/v1/auth/local/login", {
     method: "POST",
     body: {
-      id: `${tokenIdPrefix}-${Date.now()}`,
-      userId,
-      name: values.MSM_DEV_PAT_NAME ?? "Development Web UI",
+      email: values.MSM_DEV_USER_EMAIL ?? "dev@example.test",
+      password: values.MSM_DEV_USER_PASSWORD ?? "dev-password",
+      tokenId: `${tokenIdPrefix}-${Date.now()}`,
+      tokenName: values.MSM_DEV_PAT_NAME ?? "Development Web UI",
       scopes: splitScopes(values.MSM_DEV_PAT_SCOPES),
       expiresAt: null,
     },

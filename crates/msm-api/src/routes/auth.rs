@@ -13,6 +13,7 @@ use crate::{
         CreatedPersonalAccessTokenResponse, LocalUserResponse, LoginLocalUserRequest,
         RegisterLocalUserRequest,
     },
+    rbac::require_user_pat_scopes_allowed,
     ApiError, ApiResult, ApiState,
 };
 
@@ -89,6 +90,7 @@ pub async fn login_local_user(
         .await?
         .ok_or_else(|| ApiError::Unauthorized("invalid local credentials".to_owned()))?;
     let scopes = parse_scopes(&request.scopes)?;
+    require_user_pat_scopes_allowed(&state, &user.id, &scopes).await?;
     let created = state
         .repository()
         .create_personal_access_token(

@@ -1152,3 +1152,16 @@
   pack and subscription-group links.
 - Updated PRD, roadmap, implementation matrix, and current status; next Phase C
   work should add PAT creation policy and role-based scope templates.
+
+## 2026-05-09 PAT Role Policy Enforcement
+
+- PAT create/list/revoke API routes now require a same-user Bearer PAT with
+  `pat.manage` instead of acting as unauthenticated bootstrap endpoints.
+- PAT creation and local login now reject requested scopes outside the user's
+  built-in user permissions, tenant-admin permissions, or custom role-template
+  permissions.
+- Dev bootstrap now obtains its Web PAT through local login, so development
+  startup follows the same role-based scope policy as normal users.
+- Updated PRD, roadmap, implementation matrix, user docs, current status, and
+  architecture docs; next work should add role-allowed scope discovery surfaces
+  for Web/CLI/MCP.

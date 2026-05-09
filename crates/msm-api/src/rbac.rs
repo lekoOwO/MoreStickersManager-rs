@@ -134,6 +134,25 @@ pub async fn require_tenant_permission(
     }
 }
 
+pub async fn require_user_pat_scopes_allowed(
+    state: &ApiState,
+    user_id: &str,
+    requested: &BTreeSet<Permission>,
+) -> ApiResult<()> {
+    let allowed = allowed_pat_scopes_for_user(state, user_id).await?;
+    let denied = requested
+        .iter()
+        .find(|permission| !allowed.contains(permission));
+    if let Some(permission) = denied {
+        Err(ApiError::Forbidden(format!(
+            "PAT scope `{}` is not allowed for this user's role",
+            permission.as_key()
+        )))
+    } else {
+        Ok(())
+    }
+}
+
 async fn tenant_role_permissions(
     state: &ApiState,
     tenant_id: &str,
@@ -160,6 +179,68 @@ async fn tenant_role_permissions(
             Ok((Role::Custom(role_id.to_owned()), permissions))
         }
     }
+}
+
+async fn allowed_pat_scopes_for_user(
+    state: &ApiState,
+    user_id: &str,
+) -> ApiResult<BTreeSet<Permission>> {
+    let mut allowed = built_in_user_pat_permissions();
+    let memberships = state.repository().list_user_tenant_members(user_id).await?;
+
+    for member in memberships {
+        match member.role.as_str() {
+            "admin" => allowed.extend(tenant_admin_pat_permissions()),
+            "user" => {}
+            role_id => {
+                if let Some(role) = state
+                    .repository()
+                    .find_role_template(&member.tenant_id, role_id)
+                    .await?
+                {
+                    allowed.extend(role.permissions);
+                }
+            }
+        }
+    }
+
+    Ok(allowed)
+}
+
+fn built_in_user_pat_permissions() -> BTreeSet<Permission> {
+    [
+        Permission::PackCreate,
+        Permission::PackRead,
+        Permission::PackUpdate,
+        Permission::PackDelete,
+        Permission::AssetRead,
+        Permission::SubscriptionCreate,
+        Permission::SubscriptionRead,
+        Permission::SubscriptionUpdate,
+        Permission::SubscriptionDelete,
+        Permission::ProviderImport,
+        Permission::ExportRead,
+        Permission::ExportRun,
+        Permission::ExportTargetManage,
+        Permission::ImportRun,
+        Permission::PatManage,
+    ]
+    .into_iter()
+    .collect()
+}
+
+fn tenant_admin_pat_permissions() -> BTreeSet<Permission> {
+    [
+        Permission::TenantManageMembers,
+        Permission::TenantManageSettings,
+        Permission::TenantManageUsers,
+        Permission::TenantManageRoles,
+        Permission::TenantViewAuditLog,
+        Permission::PackManageAccess,
+        Permission::SubscriptionManageAccess,
+    ]
+    .into_iter()
+    .collect()
 }
 
 fn role_allows_tenant_permission(
