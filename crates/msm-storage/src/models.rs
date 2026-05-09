@@ -66,6 +66,36 @@ pub struct NewOidcProviderConfig<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct OidcLoginStateRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub provider_id: String,
+    pub state_hash: String,
+    pub redirect_uri: String,
+    pub expires_at: String,
+    pub consumed_at: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CreatedOidcLoginState {
+    pub record: OidcLoginStateRecord,
+    pub state: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct OidcUserLinkRecord {
+    pub tenant_id: String,
+    pub provider_id: String,
+    pub provider_subject: String,
+    pub user_id: String,
+    pub email: String,
+    pub display_name: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct LocalUserCredentialRecord {
     pub user_id: String,
     pub password_hash: String,

@@ -12,12 +12,13 @@ use subtle::ConstantTimeEq;
 
 use crate::{
     models::{
-        CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, CreatedWebSession,
-        FolderPackRecord, FolderRecord, LocalUserCredentialRecord, NewOidcProviderConfig, NewTag,
-        OidcProviderConfigRecord, PackTagRecord, PackVisibility, PersonalAccessTokenRecord,
-        RoleRecord, StickerPackRecord, SubscriptionAccessResourceType,
-        SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord, SubscriptionGroupRecord,
-        TagRecord, TenantMemberRecord, TenantRecord, UserRecord, WebSessionRecord,
+        CreatedOidcLoginState, CreatedPersonalAccessToken, CreatedSubscriptionAccessToken,
+        CreatedWebSession, FolderPackRecord, FolderRecord, LocalUserCredentialRecord,
+        NewOidcProviderConfig, NewTag, OidcLoginStateRecord, OidcProviderConfigRecord,
+        OidcUserLinkRecord, PackTagRecord, PackVisibility, PersonalAccessTokenRecord, RoleRecord,
+        StickerPackRecord, SubscriptionAccessResourceType, SubscriptionAccessTokenRecord,
+        SubscriptionGroupPackRecord, SubscriptionGroupRecord, TagRecord, TenantMemberRecord,
+        TenantRecord, UserRecord, WebSessionRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -220,6 +221,167 @@ impl StorageRepository {
         .await?;
 
         Ok(result.rows_affected() > 0)
+    }
+
+    /// Creates an OIDC login state token and stores only its hash.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when random generation, timestamp conversion, or SQL fails.
+    pub async fn create_oidc_login_state(
+        &self,
+        tenant_id: &str,
+        provider_id: &str,
+        redirect_uri: &str,
+        expires_at: &str,
+    ) -> StorageResult<CreatedOidcLoginState> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let secret = generate_pat_secret()?;
+        let state = format!("msm_oidc_state_{id}_{secret}");
+        let state_hash = hash_pat_secret(&secret);
+        let now = now();
+        sqlx::query(
+            "INSERT INTO oidc_login_states (
+                id, tenant_id, provider_id, state_hash, redirect_uri, expires_at, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&id)
+        .bind(tenant_id)
+        .bind(provider_id)
+        .bind(&state_hash)
+        .bind(redirect_uri)
+        .bind(expires_at)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(CreatedOidcLoginState {
+            record: OidcLoginStateRecord {
+                id,
+                tenant_id: tenant_id.to_owned(),
+                provider_id: provider_id.to_owned(),
+                state_hash,
+                redirect_uri: redirect_uri.to_owned(),
+                expires_at: expires_at.to_owned(),
+                consumed_at: None,
+                created_at: now,
+            },
+            state,
+        })
+    }
+
+    /// Verifies and consumes an OIDC state token once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when SQL fails or timestamps are invalid.
+    pub async fn consume_oidc_login_state(
+        &self,
+        state: &str,
+    ) -> StorageResult<Option<OidcLoginStateRecord>> {
+        let Some((id, secret)) = parse_oidc_login_state(state) else {
+            return Ok(None);
+        };
+        let Some(record) = self.find_oidc_login_state_by_id(id).await? else {
+            return Ok(None);
+        };
+        if record.consumed_at.is_some() || is_expired(Some(&record.expires_at)) {
+            return Ok(None);
+        }
+        let presented_hash = hash_pat_secret(secret);
+        if presented_hash
+            .as_bytes()
+            .ct_eq(record.state_hash.as_bytes())
+            .unwrap_u8()
+            == 0
+        {
+            return Ok(None);
+        }
+        let consumed_at = now();
+        sqlx::query(
+            "UPDATE oidc_login_states
+            SET consumed_at = ?
+            WHERE id = ? AND consumed_at IS NULL",
+        )
+        .bind(&consumed_at)
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(Some(OidcLoginStateRecord {
+            consumed_at: Some(consumed_at),
+            ..record
+        }))
+    }
+
+    /// Finds an OIDC user link by provider subject.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when SQL fails.
+    pub async fn find_oidc_user_link(
+        &self,
+        tenant_id: &str,
+        provider_id: &str,
+        provider_subject: &str,
+    ) -> StorageResult<Option<OidcUserLinkRecord>> {
+        let row = sqlx::query(
+            "SELECT tenant_id, provider_id, provider_subject, user_id, email, display_name,
+                created_at, updated_at
+            FROM oidc_user_links
+            WHERE tenant_id = ? AND provider_id = ? AND provider_subject = ?",
+        )
+        .bind(tenant_id)
+        .bind(provider_id)
+        .bind(provider_subject)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        Ok(row.as_ref().map(oidc_user_link_from_row))
+    }
+
+    /// Creates or refreshes an OIDC provider-subject to MSM user link.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when SQL fails.
+    pub async fn upsert_oidc_user_link(
+        &self,
+        tenant_id: &str,
+        provider_id: &str,
+        provider_subject: &str,
+        user_id: &str,
+        email: &str,
+        display_name: &str,
+    ) -> StorageResult<OidcUserLinkRecord> {
+        let now = now();
+        sqlx::query(
+            "INSERT INTO oidc_user_links (
+                tenant_id, provider_id, provider_subject, user_id, email, display_name,
+                created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(tenant_id, provider_id, provider_subject) DO UPDATE SET
+                user_id = excluded.user_id,
+                email = excluded.email,
+                display_name = excluded.display_name,
+                updated_at = excluded.updated_at",
+        )
+        .bind(tenant_id)
+        .bind(provider_id)
+        .bind(provider_subject)
+        .bind(user_id)
+        .bind(email)
+        .bind(display_name)
+        .bind(&now)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        self.find_oidc_user_link(tenant_id, provider_id, provider_subject)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
     }
 
     /// Creates a local user row.
@@ -1999,6 +2161,32 @@ fn oidc_provider_config_from_row(row: &SqliteRow) -> StorageResult<OidcProviderC
     })
 }
 
+fn oidc_login_state_from_row(row: &SqliteRow) -> OidcLoginStateRecord {
+    OidcLoginStateRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        provider_id: row.get("provider_id"),
+        state_hash: row.get("state_hash"),
+        redirect_uri: row.get("redirect_uri"),
+        expires_at: row.get("expires_at"),
+        consumed_at: row.get("consumed_at"),
+        created_at: row.get("created_at"),
+    }
+}
+
+fn oidc_user_link_from_row(row: &SqliteRow) -> OidcUserLinkRecord {
+    OidcUserLinkRecord {
+        tenant_id: row.get("tenant_id"),
+        provider_id: row.get("provider_id"),
+        provider_subject: row.get("provider_subject"),
+        user_id: row.get("user_id"),
+        email: row.get("email"),
+        display_name: row.get("display_name"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
 fn subscription_group_from_row(row: &SqliteRow) -> StorageResult<SubscriptionGroupRecord> {
     let visibility: String = row.get("visibility");
     let Some(visibility) = PackVisibility::from_storage(&visibility) else {
@@ -2159,6 +2347,30 @@ fn subscription_access_token_from_row(
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
+}
+
+fn parse_oidc_login_state(token: &str) -> Option<(&str, &str)> {
+    let rest = token.strip_prefix("msm_oidc_state_")?;
+    rest.rsplit_once('_')
+}
+
+impl StorageRepository {
+    async fn find_oidc_login_state_by_id(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<OidcLoginStateRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, provider_id, state_hash, redirect_uri, expires_at, consumed_at,
+                created_at
+            FROM oidc_login_states
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        Ok(row.as_ref().map(oidc_login_state_from_row))
+    }
 }
 
 #[cfg(test)]
@@ -2413,6 +2625,115 @@ mod tests {
             .delete_oidc_provider_config("tenant_1", "oidc_google")
             .await
             .unwrap());
+    }
+
+    #[tokio::test]
+    async fn oidc_login_states_are_hashed_and_consumed_once() {
+        let repo = test_repo().await;
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+        let scopes = BTreeSet::from(["openid".to_owned()]);
+        repo.upsert_oidc_provider_config(NewOidcProviderConfig {
+            id: "oidc_google",
+            tenant_id: "tenant_1",
+            display_name: "Google",
+            issuer_url: "https://accounts.google.com",
+            client_id: "client-id",
+            client_secret: "client-secret",
+            scopes: &scopes,
+            is_enabled: true,
+            allow_registration: true,
+        })
+        .await
+        .unwrap();
+        let expires_at = (Utc::now() + Duration::minutes(10)).to_rfc3339();
+
+        let created = repo
+            .create_oidc_login_state(
+                "tenant_1",
+                "oidc_google",
+                "https://msm.example/auth/callback",
+                &expires_at,
+            )
+            .await
+            .unwrap();
+
+        assert!(created.state.starts_with("msm_oidc_state_"));
+        assert_ne!(created.record.state_hash, created.state);
+        let consumed = repo
+            .consume_oidc_login_state(&created.state)
+            .await
+            .unwrap()
+            .expect("state should verify");
+        assert_eq!(consumed.tenant_id, "tenant_1");
+        assert_eq!(consumed.provider_id, "oidc_google");
+        assert!(consumed.consumed_at.is_some());
+        assert!(repo
+            .consume_oidc_login_state(&created.state)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(repo
+            .consume_oidc_login_state(&created.state.replace('a', "b"))
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn oidc_user_links_can_be_upserted_and_found() {
+        let repo = test_repo().await;
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+        repo.create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from(["openid".to_owned()]);
+        repo.upsert_oidc_provider_config(NewOidcProviderConfig {
+            id: "oidc_google",
+            tenant_id: "tenant_1",
+            display_name: "Google",
+            issuer_url: "https://accounts.google.com",
+            client_id: "client-id",
+            client_secret: "client-secret",
+            scopes: &scopes,
+            is_enabled: true,
+            allow_registration: true,
+        })
+        .await
+        .unwrap();
+
+        let created = repo
+            .upsert_oidc_user_link(
+                "tenant_1",
+                "oidc_google",
+                "google-subject",
+                "user_1",
+                "leko@example.com",
+                "Leko",
+            )
+            .await
+            .unwrap();
+        assert_eq!(created.user_id, "user_1");
+
+        let updated = repo
+            .upsert_oidc_user_link(
+                "tenant_1",
+                "oidc_google",
+                "google-subject",
+                "user_1",
+                "leko@leko.moe",
+                "Leko OwO",
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.email, "leko@leko.moe");
+        assert_eq!(updated.display_name, "Leko OwO");
+        assert!(updated.updated_at >= updated.created_at);
+        assert_eq!(
+            repo.find_oidc_user_link("tenant_1", "oidc_google", "google-subject")
+                .await
+                .unwrap(),
+            Some(updated)
+        );
     }
 
     #[tokio::test]

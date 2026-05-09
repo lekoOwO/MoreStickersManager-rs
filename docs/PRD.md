@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Implement OIDC login/callback flow.
+1. Implement OIDC authorization-code exchange and ID-token/userinfo validation for the callback path.
 
 Each queue item must update this section when completed or reordered.
 
@@ -188,6 +188,12 @@ tests and docs are updated.
   provider configs with issuer, client credentials, scopes, enabled state,
   and registration policy.
 - [ ] OIDC login/callback flow.
+  Progress: API now starts OIDC login by creating one-time hashed state tokens
+  and building provider authorization URLs. The callback endpoint consumes
+  state, links or creates tenant users when provider registration is enabled,
+  issues PATs, and creates Web sessions for already-validated provider claims.
+  Remaining work: authorization-code exchange, discovery/JWKS validation,
+  nonce checks, and userinfo/ID-token claim validation.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
 

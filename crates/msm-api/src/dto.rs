@@ -294,6 +294,35 @@ pub struct LoginLocalUserRequest {
     pub expires_at: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[serde(rename_all = "camelCase")]
+pub struct StartOidcLoginQuery {
+    pub redirect_uri: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct OidcLoginStartResponse {
+    pub tenant_id: String,
+    pub provider_id: String,
+    pub authorization_url: String,
+    pub state: String,
+    pub expires_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CompleteOidcLoginRequest {
+    pub state: String,
+    pub provider_subject: String,
+    pub email: String,
+    pub display_name: String,
+    pub token_id: String,
+    pub token_name: String,
+    pub scopes: Vec<String>,
+    pub expires_at: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePersonalAccessTokenRequest {

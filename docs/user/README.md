@@ -515,6 +515,8 @@ Local auth bootstrap endpoints:
 
 - `POST /api/v1/auth/local/register`
 - `POST /api/v1/auth/local/login`
+- `GET /api/v1/auth/oidc/{tenant_id}/{provider_id}/login?redirectUri=...`
+- `POST /api/v1/auth/oidc/callback`
 
 Register creates a local user and Argon2 password credential. Login verifies
 the password, returns a raw PAT once, and sets an HttpOnly `msm_session` cookie.
@@ -522,6 +524,14 @@ the password, returns a raw PAT once, and sets an HttpOnly `msm_session` cookie.
 The Web UI can call these endpoints when `VITE_MSM_API_BASE_URL` is configured.
 Successful Web login stores the returned PAT in browser localStorage and keeps
 the API-issued cookie for Web-session protected asset reads.
+
+OIDC provider login is partially implemented. The login start endpoint returns
+an authorization URL plus a one-time state. The callback endpoint currently
+expects already-validated provider claims, consumes the state, links or creates
+a tenant user when the provider allows registration, returns a PAT, and sets an
+`msm_session` cookie. Full authorization-code exchange, ID-token/JWKS
+validation, userinfo fetching, and Web SSO controls remain planned Phase D
+work.
 
 Local register can also bootstrap a tenant admin:
 

@@ -1324,3 +1324,14 @@
   a storage integration test covering update and deletion behavior.
 - Updated the PRD and status docs; next work should implement OIDC
   login/callback flow against this stored configuration.
+
+## 2026-05-10 OIDC State And Trusted Callback API
+
+- Added `oidc_login_states` and `oidc_user_links` storage tables with hashed
+  one-time state consumption and provider-subject link persistence.
+- Added OIDC auth start and callback API endpoints: start returns an
+  authorization URL and state; callback consumes state, links or creates a
+  tenant user when provider registration is enabled, creates a Web session, and
+  returns a PAT for already-validated provider claims.
+- Updated PRD/status docs to keep full OIDC code exchange and claim validation
+  as the next Phase D queue item.

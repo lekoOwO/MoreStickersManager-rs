@@ -62,6 +62,14 @@ fn auth_routes() -> Router<ApiState> {
             "/api/v1/auth/local/login",
             post(routes::auth::login_local_user),
         )
+        .route(
+            "/api/v1/auth/oidc/{tenant_id}/{provider_id}/login",
+            get(routes::auth::start_oidc_login),
+        )
+        .route(
+            "/api/v1/auth/oidc/callback",
+            post(routes::auth::complete_oidc_login),
+        )
 }
 
 fn pack_routes() -> Router<ApiState> {
@@ -223,8 +231,8 @@ mod tests {
     use msm_domain::{Permission, Sticker};
     use msm_storage::{
         models::{
-            NewExportJobEvent, NewExportTarget, NewTag, NewTelegramPublication,
-            SubscriptionAccessResourceType,
+            NewExportJobEvent, NewExportTarget, NewOidcProviderConfig, NewTag,
+            NewTelegramPublication, SubscriptionAccessResourceType,
         },
         DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
     };
@@ -3833,6 +3841,151 @@ mod tests {
         assert!(state
             .repository()
             .find_user("user_1")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn oidc_login_start_returns_authorization_url_and_state() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from(["email".to_owned(), "openid".to_owned()]);
+        state
+            .repository()
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_google",
+                tenant_id: "tenant_1",
+                display_name: "Google",
+                issuer_url: "https://accounts.google.com",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/auth/oidc/tenant_1/oidc_google/login?redirectUri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(started["tenantId"], "tenant_1");
+        assert_eq!(started["providerId"], "oidc_google");
+        let state_token = started["state"].as_str().unwrap();
+        assert!(state_token.starts_with("msm_oidc_state_"));
+        let authorization_url = started["authorizationUrl"].as_str().unwrap();
+        assert!(authorization_url.starts_with("https://accounts.google.com/authorize?"));
+        assert!(authorization_url.contains("response_type=code"));
+        assert!(authorization_url.contains("client_id=client-id"));
+        assert!(authorization_url.contains("scope=email+openid"));
+        assert!(
+            authorization_url.contains("redirect_uri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
+        );
+        assert!(authorization_url.contains(&format!("state={state_token}")));
+    }
+
+    #[tokio::test]
+    async fn oidc_callback_creates_user_link_pat_and_session_for_allowed_registration() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from(["email".to_owned(), "openid".to_owned()]);
+        state
+            .repository()
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_google",
+                tenant_id: "tenant_1",
+                display_name: "Google",
+                issuer_url: "https://accounts.google.com",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+        let start_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/auth/oidc/tenant_1/oidc_google/login?redirectUri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let start_body = to_bytes(start_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&start_body).unwrap();
+        let state_token = started["state"].as_str().unwrap();
+        let callback_body = serde_json::json!({
+            "state": state_token,
+            "providerSubject": "google-subject-1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "tokenId": "oidcweb",
+            "tokenName": "OIDC Web",
+            "scopes": ["pack.read"],
+            "expiresAt": null
+        });
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/oidc/callback")
+                    .header("content-type", "application/json")
+                    .body(Body::from(callback_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response.headers().contains_key(header::SET_COOKIE));
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let logged_in: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(logged_in["token"]
+            .as_str()
+            .unwrap()
+            .starts_with("msm_pat_oidcweb_"));
+        let link = state
+            .repository()
+            .find_oidc_user_link("tenant_1", "oidc_google", "google-subject-1")
+            .await
+            .unwrap()
+            .expect("OIDC user link should be persisted");
+        assert_eq!(link.email, "leko@example.com");
+        assert!(state
+            .repository()
+            .find_tenant_member("tenant_1", &link.user_id)
+            .await
+            .unwrap()
+            .is_some());
+        assert!(state
+            .repository()
+            .consume_oidc_login_state(state_token)
             .await
             .unwrap()
             .is_none());

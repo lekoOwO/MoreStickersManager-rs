@@ -169,3 +169,10 @@ per tenant and stores issuer URL, client ID/secret, requested scopes, enabled
 state, and whether the provider may create local MSM users during callback. The
 current slice is storage-only; OAuth state, callback verification, discovery, and
 admin API/UI surfaces are intentionally left to the Phase D login/callback work.
+
+OIDC login state storage uses `oidc_login_states` and stores only a hash of the
+raw state token. The API start endpoint returns the provider authorization URL
+and one-time state. The current callback endpoint consumes that state and can
+link/create a user from already-validated provider claims; production-grade code
+exchange, discovery, JWKS/ID-token validation, nonce handling, and userinfo
+fetching remain the next Phase D hardening slice.
