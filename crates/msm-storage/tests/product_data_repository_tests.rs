@@ -1,5 +1,5 @@
 use msm_storage::{
-    models::{NewTag, PackVisibility},
+    models::{NewTag, PackVisibility, SubscriptionAccessResourceType},
     DatabaseConfig, DbPool, StorageRepository,
 };
 
@@ -144,6 +144,88 @@ async fn pack_memberships_can_be_managed() {
         .await
         .unwrap()
         .is_empty());
+}
+
+#[tokio::test]
+async fn subscription_access_tokens_can_be_verified_rotated_and_revoked() {
+    let repo = seeded_repo().await;
+    seed_pack(&repo).await;
+    repo.create_subscription_group(
+        "sub_1",
+        "tenant_1",
+        "user_1",
+        "Weekly",
+        PackVisibility::Private,
+    )
+    .await
+    .unwrap();
+
+    let pack_token = repo
+        .create_subscription_access_token(
+            "packlink",
+            "tenant_1",
+            "user_1",
+            SubscriptionAccessResourceType::Pack,
+            "pack_1",
+        )
+        .await
+        .unwrap();
+    assert!(pack_token.token.starts_with("msm_sub_packlink_"));
+    assert_ne!(pack_token.record.token_hash, pack_token.token);
+
+    let verified_pack = repo
+        .verify_subscription_access_token(&pack_token.token)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        verified_pack.resource_type,
+        SubscriptionAccessResourceType::Pack
+    );
+    assert_eq!(verified_pack.resource_id, "pack_1");
+
+    let group_token = repo
+        .create_subscription_access_token(
+            "grouplink",
+            "tenant_1",
+            "user_1",
+            SubscriptionAccessResourceType::SubscriptionGroup,
+            "sub_1",
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        repo.list_subscription_access_tokens("user_1")
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+
+    let rotated = repo
+        .rotate_subscription_access_token("packlink")
+        .await
+        .unwrap();
+    assert_ne!(rotated.token, pack_token.token);
+    assert!(repo
+        .verify_subscription_access_token(&pack_token.token)
+        .await
+        .unwrap()
+        .is_none());
+    assert!(repo
+        .verify_subscription_access_token(&rotated.token)
+        .await
+        .unwrap()
+        .is_some());
+
+    repo.revoke_subscription_access_token("grouplink")
+        .await
+        .unwrap();
+    assert!(repo
+        .verify_subscription_access_token(&group_token.token)
+        .await
+        .unwrap()
+        .is_none());
 }
 
 async fn seeded_repo() -> StorageRepository {

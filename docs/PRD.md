@@ -88,10 +88,10 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add persistent subscription secret/link rotation storage and controls.
-2. Extend the pack/group access model for subscription secret and Web session
+1. Wire subscription secret verification into public subscription endpoints.
+2. Add API/CLI/MCP/Web controls for subscription link rotation and visibility.
+3. Extend the pack/group access model for Web session
    access beyond the current public/private/PAT endpoint checks.
-3. Add CLI/MCP/Web controls for subscription link rotation and visibility.
 4. Start tenant administration and RBAC management surfaces.
 
 Each queue item must update this section when completed or reordered.
@@ -122,6 +122,8 @@ tests and docs are updated.
 - [x] Implement user-created subscription group public/protected endpoints.
 - [x] Ensure private packs do not leak assets through public groups.
 - [x] Add moreStickers-compatible subscription payload contract.
+- [x] Add persistent subscription secret/link rotation storage.
+- [ ] Enforce subscription secret access on public subscription endpoints.
 - [ ] Add API/CLI/MCP/Web controls for subscription link rotation and visibility.
 
 ### Phase C: Multi-Tenant Administration

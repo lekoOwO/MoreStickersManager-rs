@@ -126,6 +126,50 @@ pub struct CreatedPersonalAccessToken {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct SubscriptionAccessTokenRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub resource_type: SubscriptionAccessResourceType,
+    pub resource_id: String,
+    pub token_hash: String,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CreatedSubscriptionAccessToken {
+    pub record: SubscriptionAccessTokenRecord,
+    pub token: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum SubscriptionAccessResourceType {
+    Pack,
+    SubscriptionGroup,
+}
+
+impl SubscriptionAccessResourceType {
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Pack => "pack",
+            Self::SubscriptionGroup => "subscription_group",
+        }
+    }
+
+    #[must_use]
+    pub fn from_storage(value: &str) -> Option<Self> {
+        match value {
+            "pack" => Some(Self::Pack),
+            "subscription_group" => Some(Self::SubscriptionGroup),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct ExportTargetRecord {
     pub id: String,
     pub tenant_id: String,

@@ -65,13 +65,18 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   payloads, pack refresh payloads, and subscription-group dynamic payloads.
 - Public subscription-group payloads filter out private packs for anonymous
   callers; owner PAT access can read private packs and private groups.
+- Storage now persists subscription access tokens for pack and
+  subscription-group links, with create, verify, rotate, list, and revoke
+  repository methods.
 
 ## Immediate Plan
 
-1. Add persistent subscription secret/link rotation storage and controls.
-2. Extend subscription access policy enforcement beyond public/private/PAT to
+1. Wire subscription access token verification into public subscription
+   endpoints.
+2. Add API/CLI/MCP/Web controls for subscription link rotation and visibility.
+3. Extend subscription access policy enforcement beyond public/private/PAT to
    subscription secrets and Web session credentials.
-3. Run targeted Rust/Web verification and update this roadmap, current status,
+4. Run targeted Rust/Web verification and update this roadmap, current status,
    implementation matrix, and checkpoints.
 
 ## Later Planned Work

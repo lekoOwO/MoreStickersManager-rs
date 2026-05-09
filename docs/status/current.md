@@ -68,10 +68,11 @@ Last completed:
 - Product-data membership Web slice: added ProductMetadataClient membership methods and an Organize workspace membership console for folder-pack, pack-tag, and subscription-group pack add/remove operations.
 - Subscription payload contract slice: added pure domain helpers for MoreStickers dynamic subscription payloads, including public payloads without auth headers and protected payloads with shared subscription Bearer headers.
 - Subscription endpoint API slice: added `/api/public/packs/{pack_id}/subscription`, `/api/public/packs/{pack_id}/stickerpack`, and `/api/public/subscriptions/{subscription_group_id}` with public visibility, owner PAT fallback, OpenAPI registration, and filtering so anonymous public group payloads do not leak private packs.
+- Subscription access token storage slice: added `subscription_access_tokens` storage, pack/subscription-group resource typing, create/verify/rotate/list/revoke repository methods, and hash-only persistence for raw subscription link secrets.
 
 Current task:
-- Continue with persistent subscription secret/link rotation storage and
-  subscription-secret access enforcement.
+- Continue by wiring subscription access token verification into public
+  subscription endpoints, then expose link rotation controls.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -141,11 +142,12 @@ Last verification:
 - Product-data membership Web slice: RED/GREEN tests with `npm run web:test -- api-client` and `npm run web:test -- product-metadata-ui`; full verification with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.
 - Subscription payload contract slice: RED/GREEN test with `cargo test -p msm-domain subscription_payload --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-domain --locked`, `cargo clippy -p msm-domain --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Subscription endpoint API slice: RED/GREEN tests with `cargo test -p msm-api public_subscription_routes_emit_accessible_dynamic_payloads --locked` and `cargo test -p msm-api openapi_endpoint_contains_health_path --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
+- Subscription access token storage slice: RED/GREEN test with `cargo test -p msm-storage subscription_access_tokens_can_be_verified_rotated_and_revoked --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Documentation consolidation slice: added `docs/PRD.md` as the living product requirements, roadmap, progress, and completion source; reduced active Agent docs to `docs/agents/README.md`; removed legacy per-phase `docs/superpowers` plans/specs and duplicated Agent handoff files; verification with `git diff --check`.
 - PRD self-review hardening: clarified PRD status semantics, current implementation queue, current surface parity gaps, open product questions, and per-slice definition of done; verification with `git diff --check`.
 
 Next step:
-- Continue with persistent subscription secret/link rotation storage and subscription-secret access enforcement.
+- Continue by wiring subscription access token verification into public subscription endpoints, then expose link rotation controls.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

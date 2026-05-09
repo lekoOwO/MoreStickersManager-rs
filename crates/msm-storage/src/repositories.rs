@@ -12,9 +12,11 @@ use subtle::ConstantTimeEq;
 
 use crate::{
     models::{
-        CreatedPersonalAccessToken, FolderPackRecord, FolderRecord, LocalUserCredentialRecord,
-        NewTag, PackTagRecord, PackVisibility, PersonalAccessTokenRecord, StickerPackRecord,
-        SubscriptionGroupPackRecord, SubscriptionGroupRecord, TagRecord, UserRecord,
+        CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, FolderPackRecord, FolderRecord,
+        LocalUserCredentialRecord, NewTag, PackTagRecord, PackVisibility,
+        PersonalAccessTokenRecord, StickerPackRecord, SubscriptionAccessResourceType,
+        SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord, SubscriptionGroupRecord,
+        TagRecord, UserRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -1029,6 +1031,207 @@ impl StorageRepository {
         Ok(())
     }
 
+    /// Creates a subscription access token and returns the raw token once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the token ID is invalid, random generation fails, the repository is
+    /// not backed by `SQLite`, or SQL fails.
+    pub async fn create_subscription_access_token(
+        &self,
+        id: &str,
+        tenant_id: &str,
+        owner_user_id: &str,
+        resource_type: SubscriptionAccessResourceType,
+        resource_id: &str,
+    ) -> StorageResult<CreatedSubscriptionAccessToken> {
+        validate_subscription_access_token_id(id)?;
+        let secret = generate_pat_secret()?;
+        let token = format!("msm_sub_{id}_{secret}");
+        let token_hash = hash_pat_secret(&secret);
+        let now = now();
+
+        sqlx::query(
+            "INSERT INTO subscription_access_tokens (
+                id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(tenant_id)
+        .bind(owner_user_id)
+        .bind(resource_type.as_str())
+        .bind(resource_id)
+        .bind(&token_hash)
+        .bind(&now)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(CreatedSubscriptionAccessToken {
+            record: SubscriptionAccessTokenRecord {
+                id: id.to_owned(),
+                tenant_id: tenant_id.to_owned(),
+                owner_user_id: owner_user_id.to_owned(),
+                resource_type,
+                resource_id: resource_id.to_owned(),
+                token_hash,
+                revoked_at: None,
+                created_at: now.clone(),
+                updated_at: now,
+            },
+            token,
+        })
+    }
+
+    /// Lists subscription access tokens owned by one user without exposing raw token secrets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored
+    /// resource type is invalid.
+    pub async fn list_subscription_access_tokens(
+        &self,
+        owner_user_id: &str,
+    ) -> StorageResult<Vec<SubscriptionAccessTokenRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                revoked_at, created_at, updated_at
+            FROM subscription_access_tokens
+            WHERE owner_user_id = ?
+            ORDER BY created_at DESC, id",
+        )
+        .bind(owner_user_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.iter()
+            .map(subscription_access_token_from_row)
+            .collect()
+    }
+
+    /// Verifies a subscription access token and returns the active record when valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored
+    /// resource type is invalid.
+    pub async fn verify_subscription_access_token(
+        &self,
+        token: &str,
+    ) -> StorageResult<Option<SubscriptionAccessTokenRecord>> {
+        let Some((id, secret)) = parse_subscription_access_token(token) else {
+            return Ok(None);
+        };
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                revoked_at, created_at, updated_at
+            FROM subscription_access_tokens
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let record = subscription_access_token_from_row(&row)?;
+        if record.revoked_at.is_some() {
+            return Ok(None);
+        }
+
+        let presented_hash = hash_pat_secret(secret);
+        if presented_hash
+            .as_bytes()
+            .ct_eq(record.token_hash.as_bytes())
+            .into()
+        {
+            Ok(Some(record))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Rotates a subscription access token secret by ID and returns the new raw token once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when random generation fails, the repository is not backed by `SQLite`,
+    /// SQL fails, the token does not exist, or a stored resource type is invalid.
+    pub async fn rotate_subscription_access_token(
+        &self,
+        id: &str,
+    ) -> StorageResult<CreatedSubscriptionAccessToken> {
+        let secret = generate_pat_secret()?;
+        let token = format!("msm_sub_{id}_{secret}");
+        let token_hash = hash_pat_secret(&secret);
+        let now = now();
+        let result = sqlx::query(
+            "UPDATE subscription_access_tokens
+            SET token_hash = ?, revoked_at = NULL, updated_at = ?
+            WHERE id = ?",
+        )
+        .bind(&token_hash)
+        .bind(&now)
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+        if result.rows_affected() != 1 {
+            return Err(StorageError::Sqlx(sqlx::Error::RowNotFound));
+        }
+        let record = self
+            .find_subscription_access_token(id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))?;
+        Ok(CreatedSubscriptionAccessToken { record, token })
+    }
+
+    /// Revokes a subscription access token by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn revoke_subscription_access_token(&self, id: &str) -> StorageResult<()> {
+        let now = now();
+        sqlx::query(
+            "UPDATE subscription_access_tokens
+            SET revoked_at = ?, updated_at = ?
+            WHERE id = ?",
+        )
+        .bind(&now)
+        .bind(&now)
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+        Ok(())
+    }
+
+    /// Finds a subscription access token by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored
+    /// resource type is invalid.
+    pub async fn find_subscription_access_token(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<SubscriptionAccessTokenRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                revoked_at, created_at, updated_at
+            FROM subscription_access_tokens
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref()
+            .map(subscription_access_token_from_row)
+            .transpose()
+    }
+
     /// Lists pack IDs in a subscription group.
     ///
     /// # Errors
@@ -1164,6 +1367,15 @@ fn validate_pat_id(id: &str) -> StorageResult<()> {
     Ok(())
 }
 
+fn validate_subscription_access_token_id(id: &str) -> StorageResult<()> {
+    if id.is_empty() || id.contains('_') {
+        return Err(StorageError::InvalidPersonalAccessToken {
+            reason: "subscription access token id must not be empty or contain '_'",
+        });
+    }
+    Ok(())
+}
+
 fn generate_pat_secret() -> StorageResult<String> {
     let mut bytes = [0_u8; 32];
     getrandom::fill(&mut bytes).map_err(|error| StorageError::Random {
@@ -1180,6 +1392,10 @@ fn hash_pat_secret(secret: &str) -> String {
 
 fn parse_pat_token(token: &str) -> Option<(&str, &str)> {
     token.strip_prefix("msm_pat_")?.split_once('_')
+}
+
+fn parse_subscription_access_token(token: &str) -> Option<(&str, &str)> {
+    token.strip_prefix("msm_sub_")?.split_once('_')
 }
 
 fn is_expired(expires_at: Option<&str>) -> bool {
@@ -1212,6 +1428,29 @@ fn pat_record_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<PersonalA
         expires_at: row.get("expires_at"),
         revoked_at: row.get("revoked_at"),
         created_at: row.get("created_at"),
+    })
+}
+
+fn subscription_access_token_from_row(
+    row: &SqliteRow,
+) -> StorageResult<SubscriptionAccessTokenRecord> {
+    let resource_type: String = row.get("resource_type");
+    let resource_type = SubscriptionAccessResourceType::from_storage(&resource_type).ok_or(
+        StorageError::InvalidPersonalAccessToken {
+            reason: "unknown subscription access token resource type",
+        },
+    )?;
+
+    Ok(SubscriptionAccessTokenRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        resource_type,
+        resource_id: row.get("resource_id"),
+        token_hash: row.get("token_hash"),
+        revoked_at: row.get("revoked_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
     })
 }
 

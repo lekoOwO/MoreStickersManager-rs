@@ -847,6 +847,19 @@
 - Updated PRD, roadmap, implementation matrix, and current status so the next
   slice can focus on persistent subscription secrets and link rotation.
 
+## 2026-05-09 Subscription Access Token Storage
+
+- Added `subscription_access_tokens` storage for pack and subscription-group
+  link credentials.
+- Added resource-type models for `pack` and `subscription_group` subscription
+  access tokens.
+- Added repository methods to create, verify, rotate, list, and revoke
+  subscription access tokens while only storing token hashes.
+- Added storage tests proving old tokens stop verifying after rotation and
+  revoked tokens stop verifying.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice wires token verification into public subscription endpoints.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,
