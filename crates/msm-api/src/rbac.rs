@@ -64,8 +64,19 @@ pub async fn require_tenant_resource_access(
         return Ok(());
     }
 
+    require_tenant_permission(state, pat, tenant_id, required, false, denied_message).await
+}
+
+pub async fn require_tenant_permission(
+    state: &ApiState,
+    pat: &VerifiedPat,
+    tenant_id: &str,
+    required: Permission,
+    allow_regular_user: bool,
+    denied_message: &'static str,
+) -> ApiResult<()> {
     let (role, permissions) = tenant_role_permissions(state, tenant_id, &pat.user_id).await?;
-    if role_allows_tenant_resource(&role, &permissions, required) {
+    if role_allows_tenant_permission(&role, &permissions, required, allow_regular_user) {
         Ok(())
     } else {
         Err(ApiError::Forbidden(denied_message.to_owned()))
@@ -100,14 +111,15 @@ async fn tenant_role_permissions(
     }
 }
 
-fn role_allows_tenant_resource(
+fn role_allows_tenant_permission(
     role: &Role,
     permissions: &BTreeSet<Permission>,
     required: Permission,
+    allow_regular_user: bool,
 ) -> bool {
     match role {
         Role::Admin => true,
-        Role::User => false,
+        Role::User => allow_regular_user,
         Role::Custom(_) => permissions.contains(&required),
     }
 }

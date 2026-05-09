@@ -124,11 +124,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Product metadata membership routes now use shared RBAC helpers, giving
   same-tenant admins scoped non-owner access to folder-pack, pack-tag, and
   subscription-group pack links while denying regular non-owners.
+- Export target management now requires tenant admin/custom-role authorization,
+  export job create/read/event routes support same-tenant admin delegation, and
+  Telegram publication reads use pack RBAC.
 
 ## Immediate Plan
 
-1. Continue fine-grained RBAC checks for export jobs, subscription-link
-   management, and Telegram publication reads.
+1. Continue fine-grained RBAC checks for subscription-link management.
 
 ## Later Planned Work
 

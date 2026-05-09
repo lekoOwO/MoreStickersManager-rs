@@ -1125,3 +1125,18 @@
 - Updated PRD, roadmap, implementation matrix, current status, and RBAC
   decisions; remaining RBAC work should cover export ownership,
   subscription-link management, and Telegram publication reads.
+
+## 2026-05-09 Export And Publication RBAC
+
+- Export target list now requires tenant membership, and export target
+  create/update/delete require tenant admin or custom-role authorization after
+  the route PAT scope gate.
+- Export job creation now uses pack RBAC for source-pack access, and export job
+  read/event routes use tenant resource RBAC so same-tenant admins can inspect
+  non-owned jobs.
+- Telegram publication list/get routes now use pack RBAC instead of direct
+  owner checks.
+- Added tests for regular target-management denial, admin non-owner export job
+  create/read/events, and admin non-owner Telegram publication reads.
+- Updated PRD, roadmap, implementation matrix, and current status; remaining
+  RBAC work should cover subscription-link management.

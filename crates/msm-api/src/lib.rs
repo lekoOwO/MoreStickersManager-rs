@@ -1056,6 +1056,101 @@ mod tests {
 
     #[tokio::test]
     #[allow(clippy::too_many_lines)]
+    async fn regular_tenant_member_cannot_manage_export_targets() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "member@example.com", "Member")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_export_target(NewExportTarget {
+                id: "target_existing",
+                tenant_id: "tenant_1",
+                kind: "telegram",
+                name: "Telegram",
+                config_json: r#"{"botUsername":"msm_bot","botToken":"123456:secret"}"#,
+                is_enabled: true,
+            })
+            .await
+            .unwrap();
+
+        let member_token = create_pat(
+            &state,
+            "membertarget",
+            "user_2",
+            [Permission::ExportTargetManage],
+        )
+        .await;
+        let create_body = serde_json::json!({
+            "id": "target_member",
+            "tenantId": "tenant_1",
+            "kind": "telegram",
+            "name": "Telegram Member",
+            "config": {
+                "botUsername": "msm_bot",
+                "botToken": "123456:secret"
+            },
+            "isEnabled": true
+        });
+        let create_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-targets")
+                    .header("authorization", format!("Bearer {member_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_response.status(), StatusCode::FORBIDDEN);
+
+        let update_body = serde_json::json!({
+            "name": "Telegram Member Updated",
+            "config": {
+                "botUsername": "msm_bot",
+                "botToken": "456:rotated"
+            },
+            "isEnabled": false
+        });
+        let update_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/v1/export-targets/target_existing")
+                    .header("authorization", format!("Bearer {member_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(update_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(update_response.status(), StatusCode::FORBIDDEN);
+
+        let delete_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/export-targets/target_existing")
+                    .header("authorization", format!("Bearer {member_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(delete_response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
     async fn export_job_routes_require_export_run_and_pack_owner() {
         let state = seeded_state().await;
         state
@@ -1180,6 +1275,123 @@ mod tests {
         let events: serde_json::Value = serde_json::from_slice(&events_body).unwrap();
         assert_eq!(events[0]["message"], "job queued");
         assert_eq!(events[0]["metadata"]["target"], "telegram");
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn tenant_admin_pat_can_run_and_read_export_jobs_for_other_user_pack() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "owner@example.com", "Owner")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_other",
+                "tenant_1",
+                "user_2",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("export-other"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_export_target(NewExportTarget {
+                id: "target_telegram",
+                tenant_id: "tenant_1",
+                kind: "telegram",
+                name: "Telegram",
+                config_json: r#"{"botUsername":"msm_bot","botToken":"123456:secret"}"#,
+                is_enabled: true,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_export_job(msm_storage::models::NewExportJob {
+                id: "job_other",
+                tenant_id: "tenant_1",
+                owner_user_id: "user_2",
+                source_pack_id: "pack_other",
+                target_id: "target_telegram",
+                request_json: r#"{"id":"job_other"}"#,
+                max_attempts: 3,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .append_export_job_event(NewExportJobEvent {
+                job_id: "job_other",
+                sequence: 1,
+                level: "info",
+                stage: "queued",
+                message: "job queued by owner",
+                metadata_json: r#"{"target":"telegram"}"#,
+            })
+            .await
+            .unwrap();
+
+        let admin_token = create_pat(
+            &state,
+            "adminexport",
+            "user_1",
+            [Permission::ExportRun, Permission::ExportRead],
+        )
+        .await;
+        let create_body = serde_json::json!({
+            "id": "job_admin",
+            "tenantId": "tenant_1",
+            "sourcePackId": "pack_other",
+            "targetId": "target_telegram",
+            "options": { "setNameSlug": "sample" }
+        });
+        let create_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-jobs")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(create_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+
+        let get_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/export-jobs/job_other")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(get_response.status(), StatusCode::OK);
+
+        let events_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/export-jobs/job_other/events")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(events_response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
@@ -2399,6 +2611,98 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(get_owner_mismatch.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn tenant_admin_pat_can_read_telegram_publications_for_other_user_pack() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "owner@example.com", "Owner")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_other",
+                "tenant_1",
+                "user_2",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("telegram-other"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_export_target(NewExportTarget {
+                id: "target_telegram",
+                tenant_id: "tenant_1",
+                kind: "telegram",
+                name: "Telegram",
+                config_json: r#"{"botUsername":"msm_bot","botToken":"123456:secret"}"#,
+                is_enabled: true,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_export_job(msm_storage::models::NewExportJob {
+                id: "job_other",
+                tenant_id: "tenant_1",
+                owner_user_id: "user_2",
+                source_pack_id: "pack_other",
+                target_id: "target_telegram",
+                request_json: r#"{"id":"job_other"}"#,
+                max_attempts: 3,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_telegram_publication(NewTelegramPublication {
+                id: "telegram_pub_other",
+                pack_id: "pack_other",
+                target_id: "target_telegram",
+                job_id: "job_other",
+                sticker_set_name: "other_by_msm_bot",
+                sticker_set_url: "https://t.me/addstickers/other_by_msm_bot",
+                sticker_count: 1,
+                sticker_type: "regular",
+            })
+            .await
+            .unwrap();
+
+        let admin_token =
+            create_pat(&state, "adminpubread", "user_1", [Permission::ExportRead]).await;
+        let list_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/telegram-publications?packId=pack_other")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_response.status(), StatusCode::OK);
+
+        let get_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/telegram-publications/telegram_pub_other")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(get_response.status(), StatusCode::OK);
     }
 
     #[tokio::test]

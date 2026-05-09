@@ -89,8 +89,7 @@ Status meanings:
 Work these in order unless a higher-risk bug appears:
 
 1. Continue fine-grained RBAC checks for remaining resource-owning operations:
-   export targets/jobs, subscription-link management, and Telegram publication
-   reads.
+   subscription-link management.
 
 Each queue item must update this section when completed or reordered.
 
@@ -144,7 +143,9 @@ tests and docs are updated.
   Progress: pack update/delete/export routes now use the domain policy
   evaluator, and product metadata membership routes use shared RBAC helpers, so
   same-tenant admins can manage non-owned packs and metadata memberships while
-  regular non-owners are denied.
+  regular non-owners are denied. Export target management now requires tenant
+  admin/custom-role authorization, export job create/read/event routes support
+  same-tenant admin delegation, and Telegram publication reads use pack RBAC.
 - [ ] PAT creation policy and scope templates by role.
 - [ ] Audit tests for cross-tenant isolation.
 
@@ -239,8 +240,9 @@ Current parity gaps:
 - Tenant/RBAC administration: tenant member, tenant settings, user
   disabled-status, and role template administration exist across API, CLI, MCP,
   and Web. Pack update/delete/export plus product metadata membership routes
-  use RBAC policy helpers; remaining resource-owner routes and OIDC/SSO remain
-  incomplete.
+  use RBAC policy helpers. Export target/job routes and Telegram publication
+  reads also use tenant/pack RBAC helpers; remaining subscription-link
+  resource-owner routes and OIDC/SSO remain incomplete.
 
 ## Open Product Questions
 

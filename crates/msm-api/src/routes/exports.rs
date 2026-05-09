@@ -3,7 +3,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use msm_domain::Permission;
+use msm_domain::{PackAction, Permission};
 use msm_exporters::{ExportCapabilities, ExportTarget, ExportTargetKind, MoreStickersExportTarget};
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, TelegramPublicationRecord,
@@ -17,6 +17,7 @@ use crate::{
         ExportJobResponse, ExportTargetKindResponse, ExportTargetResponse, ListExportTargetsQuery,
         ListTelegramPublicationsQuery, TelegramPublicationResponse, UpdateExportTargetRequest,
     },
+    rbac::{require_pack_access, require_tenant_permission, require_tenant_resource_access},
     ApiError, ApiResult, ApiState,
 };
 
@@ -66,7 +67,16 @@ pub async fn list_targets(
     headers: HeaderMap,
     Query(query): Query<ListExportTargetsQuery>,
 ) -> ApiResult<Json<Vec<ExportTargetResponse>>> {
-    let _pat = require_pat(&headers, &state, Permission::ExportRead).await?;
+    let pat = require_pat(&headers, &state, Permission::ExportRead).await?;
+    require_tenant_permission(
+        &state,
+        &pat,
+        &query.tenant_id,
+        Permission::ExportRead,
+        true,
+        "PAT user cannot access export targets for this tenant",
+    )
+    .await?;
     let targets = state
         .repository()
         .list_export_targets(&query.tenant_id)
@@ -102,7 +112,16 @@ pub async fn create_target(
     headers: HeaderMap,
     Json(request): Json<CreateExportTargetRequest>,
 ) -> ApiResult<(StatusCode, Json<ExportTargetResponse>)> {
-    let _pat = require_pat(&headers, &state, Permission::ExportTargetManage).await?;
+    let pat = require_pat(&headers, &state, Permission::ExportTargetManage).await?;
+    require_tenant_permission(
+        &state,
+        &pat,
+        &request.tenant_id,
+        Permission::ExportTargetManage,
+        false,
+        "PAT user cannot manage export targets for this tenant",
+    )
+    .await?;
     validate_target_kind(&request.kind)?;
     let config_json = serde_json::to_string(&request.config)
         .map_err(|error| ApiError::BadRequest(error.to_string()))?;
@@ -147,12 +166,21 @@ pub async fn update_target(
     Path(target_id): Path<String>,
     Json(request): Json<UpdateExportTargetRequest>,
 ) -> ApiResult<Json<ExportTargetResponse>> {
-    let _pat = require_pat(&headers, &state, Permission::ExportTargetManage).await?;
+    let pat = require_pat(&headers, &state, Permission::ExportTargetManage).await?;
     let existing = state
         .repository()
         .find_export_target(&target_id)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("export target not found: {target_id}")))?;
+    require_tenant_permission(
+        &state,
+        &pat,
+        &existing.tenant_id,
+        Permission::ExportTargetManage,
+        false,
+        "PAT user cannot manage export targets for this tenant",
+    )
+    .await?;
     validate_target_kind(&existing.kind)?;
     let config_json = serde_json::to_string(&request.config)
         .map_err(|error| ApiError::BadRequest(error.to_string()))?;
@@ -188,7 +216,21 @@ pub async fn delete_target(
     headers: HeaderMap,
     Path(target_id): Path<String>,
 ) -> ApiResult<StatusCode> {
-    let _pat = require_pat(&headers, &state, Permission::ExportTargetManage).await?;
+    let pat = require_pat(&headers, &state, Permission::ExportTargetManage).await?;
+    let existing = state
+        .repository()
+        .find_export_target(&target_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("export target not found: {target_id}")))?;
+    require_tenant_permission(
+        &state,
+        &pat,
+        &existing.tenant_id,
+        Permission::ExportTargetManage,
+        false,
+        "PAT user cannot manage export targets for this tenant",
+    )
+    .await?;
     let deleted = state.repository().delete_export_target(&target_id).await?;
     if deleted {
         Ok(StatusCode::NO_CONTENT)
@@ -224,21 +266,7 @@ pub async fn create_job(
     Json(request): Json<CreateExportJobRequest>,
 ) -> ApiResult<(StatusCode, Json<ExportJobResponse>)> {
     let pat = require_pat(&headers, &state, Permission::ExportRun).await?;
-    let pack = state
-        .repository()
-        .find_sticker_pack_record(&request.source_pack_id)
-        .await?
-        .ok_or_else(|| {
-            ApiError::NotFound(format!(
-                "sticker pack not found: {}",
-                request.source_pack_id
-            ))
-        })?;
-    if pack.owner_user_id != pat.user_id {
-        return Err(ApiError::Forbidden(
-            "PAT user does not own the source pack".to_owned(),
-        ));
-    }
+    let pack = require_pack_access(&state, &pat, PackAction::Read, &request.source_pack_id).await?;
     if pack.tenant_id != request.tenant_id {
         return Err(ApiError::BadRequest(
             "source pack tenant does not match request tenant".to_owned(),
@@ -303,7 +331,7 @@ pub async fn get_job(
     Path(job_id): Path<String>,
 ) -> ApiResult<Json<ExportJobResponse>> {
     let pat = require_pat(&headers, &state, Permission::ExportRead).await?;
-    let job = load_owned_job(&state, &job_id, &pat.user_id).await?;
+    let job = load_accessible_job(&state, &job_id, &pat).await?;
     export_job_response(job).map(Json)
 }
 
@@ -331,7 +359,7 @@ pub async fn list_job_events(
     Path(job_id): Path<String>,
 ) -> ApiResult<Json<Vec<ExportJobEventResponse>>> {
     let pat = require_pat(&headers, &state, Permission::ExportRead).await?;
-    let _job = load_owned_job(&state, &job_id, &pat.user_id).await?;
+    let _job = load_accessible_job(&state, &job_id, &pat).await?;
     let events = state.repository().list_export_job_events(&job_id).await?;
 
     events
@@ -365,7 +393,7 @@ pub async fn list_telegram_publications(
     Query(query): Query<ListTelegramPublicationsQuery>,
 ) -> ApiResult<Json<Vec<TelegramPublicationResponse>>> {
     let pat = require_pat(&headers, &state, Permission::ExportRead).await?;
-    let _pack = load_owned_pack(&state, &query.pack_id, &pat.user_id).await?;
+    let _pack = require_pack_access(&state, &pat, PackAction::Read, &query.pack_id).await?;
     let publications = state
         .repository()
         .list_telegram_publications_for_pack(&query.pack_id)
@@ -410,7 +438,7 @@ pub async fn get_telegram_publication(
         .ok_or_else(|| {
             ApiError::NotFound(format!("Telegram publication not found: {publication_id}"))
         })?;
-    let _pack = load_owned_pack(&state, &publication.pack_id, &pat.user_id).await?;
+    let _pack = require_pack_access(&state, &pat, PackAction::Read, &publication.pack_id).await?;
 
     Ok(Json(telegram_publication_response(publication)))
 }
@@ -515,42 +543,26 @@ fn telegram_publication_response(record: TelegramPublicationRecord) -> TelegramP
     }
 }
 
-async fn load_owned_job(
+async fn load_accessible_job(
     state: &ApiState,
     job_id: &str,
-    user_id: &str,
+    pat: &crate::auth::VerifiedPat,
 ) -> ApiResult<ExportJobRecord> {
     let job = state
         .repository()
         .find_export_job(job_id)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("export job not found: {job_id}")))?;
-    if job.owner_user_id == user_id {
-        Ok(job)
-    } else {
-        Err(ApiError::Forbidden(
-            "PAT user does not own the export job".to_owned(),
-        ))
-    }
-}
-
-async fn load_owned_pack(
-    state: &ApiState,
-    pack_id: &str,
-    user_id: &str,
-) -> ApiResult<msm_storage::models::StickerPackRecord> {
-    let pack = state
-        .repository()
-        .find_sticker_pack_record(pack_id)
-        .await?
-        .ok_or_else(|| ApiError::NotFound(format!("sticker pack not found: {pack_id}")))?;
-    if pack.owner_user_id == user_id {
-        Ok(pack)
-    } else {
-        Err(ApiError::Forbidden(
-            "PAT user does not own the source pack".to_owned(),
-        ))
-    }
+    require_tenant_resource_access(
+        state,
+        pat,
+        &job.tenant_id,
+        &job.owner_user_id,
+        Permission::ExportRead,
+        "PAT user cannot access this export job",
+    )
+    .await?;
+    Ok(job)
 }
 
 fn redacted_config(config_json: &str) -> ApiResult<serde_json::Value> {
