@@ -70,7 +70,7 @@ Status meanings:
 | Area | Status | Notes |
 | --- | --- | --- |
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
-| Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
+| Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, export, Telegram publication history, product metadata, and product membership commands exist. |
 | MCP | Partially complete | Pack, export, Telegram publication history, product metadata, and product membership tools exist. Session/SSE hardening remains incomplete. |
@@ -79,8 +79,8 @@ Status meanings:
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, and bootstrap admin exist. Full tenant admin, role management, and OIDC/SSO remain incomplete. |
-| Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Admin config and private asset access model are incomplete. |
+| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, and bootstrap admin exist. Full tenant admin, role management, and OIDC/SSO remain incomplete. |
+| Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack asset reads require owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
 
@@ -88,9 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Extend the pack/group access model for Web session access beyond PAT and
-   subscription-token endpoint checks.
-2. Start tenant administration and RBAC management surfaces.
+1. Start tenant administration and RBAC management surfaces.
 
 Each queue item must update this section when completed or reordered.
 
@@ -182,7 +180,7 @@ tests and docs are updated.
 - [ ] Admin UI/API for CDN URL configuration.
 - [x] Private asset authorization through pack subscription secret,
   subscription-group secret, or owner PAT.
-- [ ] Private asset authorization through Web session credentials.
+- [x] Private asset authorization through Web session credentials.
 - [x] Tests proving private images cannot be fetched anonymously.
 
 ### Phase I: Data Portability
@@ -234,9 +232,9 @@ Current parity gaps:
 
 Resolve these before implementing the related phase:
 
-- Subscription access: should subscription secrets grant temporary pack asset
-  access only through subscription routes, or should they also work as generic
-  pack credentials?
+- Subscription access decision: matching pack subscription tokens and
+  subscription-group tokens grant read access to private pack assets and
+  refresh/subscription endpoints; they do not grant management access.
 - Pack membership UI decision: the first complete surface lives in the
   Organize workspace as a dedicated membership console; a future pack-detail
   shortcut can be added only if it improves daily workflow density.

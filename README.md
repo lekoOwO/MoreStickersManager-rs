@@ -182,8 +182,9 @@ Subscription payload endpoints are available at
 `/api/public/packs/{pack_id}/subscription`,
 `/api/public/packs/{pack_id}/stickerpack`, and
 `/api/public/subscriptions/{subscription_group_id}`. Anonymous callers can read
-public packs/groups; private payloads currently require an owner PAT until
-dedicated subscription-secret rotation is implemented.
+public packs/groups; private payloads require an owner PAT or a matching
+subscription access token. Private pack assets also accept an owner
+`msm_session` Web session cookie from local login.
 
 With the default development profile, `npm run dev:start` automatically points
 the dashboard at `http://127.0.0.1:3000`, writes a development PAT to
@@ -200,12 +201,13 @@ npm run web:dev
 If `VITE_MSM_API_BASE_URL` is not set, the dashboard uses deterministic mock
 data for local preview and tests. P16 adds browser-local PAT storage, pack API
 Bearer forwarding, and a basic PAT create/list/revoke panel. The token is stored
-in localStorage key `msm.pat`; this is a bootstrap UX, not a replacement for
-future login/session storage.
+in localStorage key `msm.pat`; local login also receives an HttpOnly
+`msm_session` cookie from the API for Web-session protected reads.
 
 P19 adds Web local register/login controls backed by
 `/api/v1/auth/local/register` and `/api/v1/auth/local/login`. Successful login
-stores the returned PAT through the same `msm.pat` browser-local path.
+stores the returned PAT through the same `msm.pat` browser-local path and sets a
+server-verified `msm_session` cookie.
 
 ## Service Binary
 
@@ -330,7 +332,8 @@ P18 adds local password bootstrap APIs:
 - `POST /api/v1/auth/local/login`
 
 Passwords are stored as Argon2 PHC hashes. Login returns a newly created PAT
-using the same response shape as PAT creation.
+using the same response shape as PAT creation and sets an HttpOnly
+`msm_session` cookie for Web-session access.
 
 P20 lets local registration optionally bootstrap a tenant admin by passing
 `tenantId`, optional `tenantName`, and optional `tenantRole` fields. The role

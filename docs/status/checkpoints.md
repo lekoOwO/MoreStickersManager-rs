@@ -950,3 +950,16 @@
   product questions, and per-slice definition of done.
 - Kept the next active implementation focus on product membership MCP and Web
   parity.
+
+## 2026-05-09 Web Session Asset Authorization
+
+- Added `web_sessions` SQLite storage with hashed session secrets, expiry,
+  revocation, and repository verification helpers.
+- Local login now creates an HttpOnly `msm_session` cookie while preserving the
+  existing one-time PAT response body.
+- Private pack asset reads now accept an owner Web session credential in
+  addition to owner `asset.read` PATs and matching pack/subscription-group
+  subscription tokens.
+- Updated PRD, roadmap, implementation matrix, current status, README, user
+  docs, and architecture notes so the next queue item is tenant/RBAC
+  administration.

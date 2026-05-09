@@ -94,6 +94,6 @@ mod tests {
             .unwrap();
         let count: i64 = row.get("count");
 
-        assert!(count >= 19);
+        assert!(count >= 20);
     }
 }

@@ -146,3 +146,9 @@ returned at creation time. The database stores token IDs, SHA-256 token secret
 hashes, scope keys, expiry timestamps, and revocation timestamps. API/CLI/MCP
 middleware must use the repository verification method rather than reading token
 hashes directly.
+
+Local Web sessions use the same hash-only secret storage pattern in the
+`web_sessions` table. `/api/v1/auth/local/login` preserves the PAT response body
+for API/Web bootstrap compatibility and also sets an HttpOnly `msm_session`
+cookie. Asset authorization accepts that cookie only when the session user owns
+the private pack being read.

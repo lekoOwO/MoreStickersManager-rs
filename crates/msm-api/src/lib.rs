@@ -181,7 +181,7 @@ fn subscription_access_token_routes() -> Router<ApiState> {
 mod tests {
     use axum::{
         body::{to_bytes, Body},
-        http::{Request, StatusCode},
+        http::{header, Request, StatusCode},
     };
     use std::collections::BTreeSet;
 
@@ -2050,6 +2050,95 @@ mod tests {
             .await
             .unwrap()
             .is_some());
+    }
+
+    #[tokio::test]
+    async fn local_auth_session_cookie_reads_owned_private_asset() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_local_user_with_password(
+                "user_1",
+                "leko@example.com",
+                "Leko",
+                "correct horse battery staple",
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_1", "admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_1",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack(),
+            )
+            .await
+            .unwrap();
+        let key = msm_storage::AssetKey::new("pack_1", "sticker.webp").unwrap();
+        state
+            .asset_store()
+            .write(&key, b"owned-private-webp")
+            .await
+            .unwrap();
+
+        let login_body = serde_json::json!({
+            "email": "leko@example.com",
+            "password": "correct horse battery staple",
+            "tokenId": "webui",
+            "tokenName": "Web UI",
+            "scopes": ["pack.read", "asset.read"],
+            "expiresAt": null,
+        });
+        let login_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(login_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(login_response.status(), StatusCode::OK);
+        let set_cookie = login_response
+            .headers()
+            .get(header::SET_COOKIE)
+            .expect("login should set a Web session cookie")
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let session_cookie = set_cookie.split(';').next().unwrap().to_owned();
+        assert!(session_cookie.starts_with("msm_session=msm_session_"));
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/packs/pack_1/sticker.webp")
+                    .header(header::COOKIE, session_cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"owned-private-webp");
     }
 
     #[tokio::test]

@@ -75,10 +75,10 @@ Last completed:
 - Subscription access token MCP slice: added `msm.create_subscription_link`, `msm.list_subscription_links`, `msm.rotate_subscription_link`, and `msm.revoke_subscription_link` tools with matching resource-specific PAT enforcement, metadata-only list responses, and one-time raw secret responses for create/rotate.
 - Subscription access token Web slice: added ProductMetadataClient subscription link methods and Organize UI controls for list/create/rotate/revoke with one-time secret display after create/rotate.
 - Private asset authorization API slice: private pack asset paths now reject anonymous reads and accept owner `asset.read` PATs, matching pack subscription tokens, or subscription-group tokens that include the pack. Asset paths without a pack record remain readable for backward compatibility.
+- Web session asset authorization slice: local login now creates a hashed `msm_session` cookie, storage can verify/revoke Web sessions, and private pack assets accept an owner Web session credential in addition to owner PATs and subscription tokens.
 
 Current task:
-- Continue by extending pack/group access policy for Web session credentials
-  beyond PAT and subscription-token endpoint checks.
+- Start tenant administration and RBAC management surfaces from the PRD queue.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -157,9 +157,10 @@ Last verification:
 - Private asset authorization API slice: RED/GREEN test with `cargo test -p msm-api private_assets_require_owner_pat_or_subscription_token --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 - Documentation consolidation slice: added `docs/PRD.md` as the living product requirements, roadmap, progress, and completion source; reduced active Agent docs to `docs/agents/README.md`; removed legacy per-phase `docs/superpowers` plans/specs and duplicated Agent handoff files; verification with `git diff --check`.
 - PRD self-review hardening: clarified PRD status semantics, current implementation queue, current surface parity gaps, open product questions, and per-slice definition of done; verification with `git diff --check`.
+- Web session asset authorization slice: RED/GREEN tests with `cargo test -p msm-storage web_sessions_verify_and_revoke --locked` and `cargo test -p msm-api local_auth_session_cookie_reads_owned_private_asset --locked`; full verification with `cargo test -p msm-storage --locked`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Continue by extending pack/group access policy for Web session credentials beyond PAT and subscription-token endpoint checks.
+- Start tenant administration and RBAC management surfaces.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

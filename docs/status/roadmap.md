@@ -88,12 +88,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   private pack. Owner `asset.read` PATs, pack subscription tokens, and
   subscription-group tokens containing the pack can read the asset; anonymous
   callers cannot.
+- Local login now creates a hashed `msm_session` Web session cookie, and owner
+  Web sessions can read private assets for their packs without sending a PAT.
 
 ## Immediate Plan
 
-1. Extend subscription access policy enforcement to Web session credentials.
-2. Run targeted Rust/Web verification and update this roadmap, current status,
-   implementation matrix, and checkpoints.
+1. Start tenant administration and RBAC management surfaces.
+2. Add focused tests for tenant/user/role administration before introducing
+   new API contracts.
 
 ## Later Planned Work
 

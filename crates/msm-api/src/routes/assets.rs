@@ -10,7 +10,7 @@ use msm_storage::{
 };
 
 use crate::{
-    auth::{bearer_token, require_pat},
+    auth::{bearer_token, optional_web_session, require_pat},
     ApiError, ApiResult, ApiState,
 };
 
@@ -70,9 +70,24 @@ async fn require_asset_access(
     if subscription_token_can_read_pack_asset(state, headers, pack_id).await? {
         return Ok(());
     }
+    if web_session_can_read_pack_asset(state, headers, &pack.owner_user_id).await? {
+        return Ok(());
+    }
 
     let pat = require_pat(headers, state, Permission::AssetRead).await?;
     pat.require_user(&pack.owner_user_id)
+}
+
+async fn web_session_can_read_pack_asset(
+    state: &ApiState,
+    headers: &HeaderMap,
+    owner_user_id: &str,
+) -> ApiResult<bool> {
+    let Some(session) = optional_web_session(headers, state).await? else {
+        return Ok(false);
+    };
+    session.require_user(owner_user_id)?;
+    Ok(true)
 }
 
 async fn subscription_token_can_read_pack_asset(

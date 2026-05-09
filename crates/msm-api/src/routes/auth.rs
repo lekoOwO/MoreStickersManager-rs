@@ -1,6 +1,11 @@
 use std::collections::BTreeSet;
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{
+    extract::State,
+    http::{header::SET_COOKIE, HeaderValue, StatusCode},
+    response::IntoResponse,
+    Json,
+};
 use msm_domain::Permission;
 
 use crate::{
@@ -77,7 +82,7 @@ pub async fn register_local_user(
 pub async fn login_local_user(
     State(state): State<ApiState>,
     Json(request): Json<LoginLocalUserRequest>,
-) -> ApiResult<Json<CreatedPersonalAccessTokenResponse>> {
+) -> ApiResult<impl IntoResponse> {
     let user = state
         .repository()
         .verify_local_user_password(&request.email, &request.password)
@@ -94,8 +99,20 @@ pub async fn login_local_user(
             request.expires_at.as_deref(),
         )
         .await?;
+    let session = state
+        .repository()
+        .create_web_session(&request.token_id, &user.id, request.expires_at.as_deref())
+        .await?;
+    let cookie = HeaderValue::from_str(&format!(
+        "msm_session={}; Path=/; HttpOnly; SameSite=Lax",
+        session.token
+    ))
+    .map_err(|_| ApiError::Internal("failed to build Web session cookie".to_owned()))?;
 
-    Ok(Json(CreatedPersonalAccessTokenResponse::from(created)))
+    Ok((
+        [(SET_COOKIE, cookie)],
+        Json(CreatedPersonalAccessTokenResponse::from(created)),
+    ))
 }
 
 fn parse_scopes(scopes: &[String]) -> ApiResult<BTreeSet<Permission>> {

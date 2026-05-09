@@ -12,11 +12,11 @@ use subtle::ConstantTimeEq;
 
 use crate::{
     models::{
-        CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, FolderPackRecord, FolderRecord,
-        LocalUserCredentialRecord, NewTag, PackTagRecord, PackVisibility,
-        PersonalAccessTokenRecord, StickerPackRecord, SubscriptionAccessResourceType,
-        SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord, SubscriptionGroupRecord,
-        TagRecord, UserRecord,
+        CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, CreatedWebSession,
+        FolderPackRecord, FolderRecord, LocalUserCredentialRecord, NewTag, PackTagRecord,
+        PackVisibility, PersonalAccessTokenRecord, StickerPackRecord,
+        SubscriptionAccessResourceType, SubscriptionAccessTokenRecord, SubscriptionGroupPackRecord,
+        SubscriptionGroupRecord, TagRecord, UserRecord, WebSessionRecord,
     },
     DbPool, StorageError, StorageResult,
 };
@@ -1031,6 +1031,110 @@ impl StorageRepository {
         Ok(())
     }
 
+    /// Creates a Web session token and returns the raw cookie token once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the session ID is invalid, random generation fails, the repository is
+    /// not backed by `SQLite`, or SQL fails.
+    pub async fn create_web_session(
+        &self,
+        id: &str,
+        user_id: &str,
+        expires_at: Option<&str>,
+    ) -> StorageResult<CreatedWebSession> {
+        validate_web_session_id(id)?;
+        let secret = generate_pat_secret()?;
+        let token = format!("msm_session_{id}_{secret}");
+        let session_hash = hash_pat_secret(&secret);
+        let now = now();
+
+        sqlx::query(
+            "INSERT INTO web_sessions (
+                id, user_id, session_hash, expires_at, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(user_id)
+        .bind(&session_hash)
+        .bind(expires_at)
+        .bind(&now)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(CreatedWebSession {
+            record: WebSessionRecord {
+                id: id.to_owned(),
+                user_id: user_id.to_owned(),
+                session_hash,
+                expires_at: expires_at.map(ToOwned::to_owned),
+                revoked_at: None,
+                created_at: now.clone(),
+                updated_at: now,
+            },
+            token,
+        })
+    }
+
+    /// Verifies a Web session token and returns the active record when valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn verify_web_session(&self, token: &str) -> StorageResult<Option<WebSessionRecord>> {
+        let Some((id, secret)) = parse_web_session_token(token) else {
+            return Ok(None);
+        };
+        let row = sqlx::query(
+            "SELECT id, user_id, session_hash, expires_at, revoked_at, created_at, updated_at
+            FROM web_sessions
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let record = web_session_from_row(&row);
+        if record.revoked_at.is_some() || is_expired(record.expires_at.as_deref()) {
+            return Ok(None);
+        }
+
+        let presented_hash = hash_pat_secret(secret);
+        if presented_hash
+            .as_bytes()
+            .ct_eq(record.session_hash.as_bytes())
+            .into()
+        {
+            Ok(Some(record))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Revokes a Web session by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn revoke_web_session(&self, id: &str) -> StorageResult<()> {
+        let now = now();
+        sqlx::query(
+            "UPDATE web_sessions
+            SET revoked_at = ?, updated_at = ?
+            WHERE id = ?",
+        )
+        .bind(&now)
+        .bind(&now)
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+        Ok(())
+    }
+
     /// Creates a subscription access token and returns the raw token once.
     ///
     /// # Errors
@@ -1376,6 +1480,15 @@ fn validate_subscription_access_token_id(id: &str) -> StorageResult<()> {
     Ok(())
 }
 
+fn validate_web_session_id(id: &str) -> StorageResult<()> {
+    if id.is_empty() || id.contains('_') {
+        return Err(StorageError::InvalidPersonalAccessToken {
+            reason: "web session id must not be empty or contain '_'",
+        });
+    }
+    Ok(())
+}
+
 fn generate_pat_secret() -> StorageResult<String> {
     let mut bytes = [0_u8; 32];
     getrandom::fill(&mut bytes).map_err(|error| StorageError::Random {
@@ -1396,6 +1509,10 @@ fn parse_pat_token(token: &str) -> Option<(&str, &str)> {
 
 fn parse_subscription_access_token(token: &str) -> Option<(&str, &str)> {
     token.strip_prefix("msm_sub_")?.split_once('_')
+}
+
+fn parse_web_session_token(token: &str) -> Option<(&str, &str)> {
+    token.strip_prefix("msm_session_")?.split_once('_')
 }
 
 fn is_expired(expires_at: Option<&str>) -> bool {
@@ -1429,6 +1546,18 @@ fn pat_record_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<PersonalA
         revoked_at: row.get("revoked_at"),
         created_at: row.get("created_at"),
     })
+}
+
+fn web_session_from_row(row: &SqliteRow) -> WebSessionRecord {
+    WebSessionRecord {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        session_hash: row.get("session_hash"),
+        expires_at: row.get("expires_at"),
+        revoked_at: row.get("revoked_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
 }
 
 fn subscription_access_token_from_row(
@@ -1585,6 +1714,36 @@ mod tests {
             .expect_err("token IDs with underscores should be rejected");
 
         assert!(error.to_string().contains("token id"));
+    }
+
+    #[tokio::test]
+    async fn web_sessions_verify_and_revoke() {
+        let repo = test_repo().await;
+        repo.create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+
+        let created = repo
+            .create_web_session("session1", "user_1", None)
+            .await
+            .unwrap();
+
+        assert!(created.token.starts_with("msm_session_session1_"));
+        assert_ne!(created.record.session_hash, created.token);
+        let verified = repo
+            .verify_web_session(&created.token)
+            .await
+            .unwrap()
+            .expect("session should verify");
+        assert_eq!(verified.id, "session1");
+        assert_eq!(verified.user_id, "user_1");
+
+        repo.revoke_web_session("session1").await.unwrap();
+        assert!(repo
+            .verify_web_session(&created.token)
+            .await
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]

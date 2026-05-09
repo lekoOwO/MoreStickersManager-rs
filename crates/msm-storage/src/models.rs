@@ -126,6 +126,23 @@ pub struct CreatedPersonalAccessToken {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct WebSessionRecord {
+    pub id: String,
+    pub user_id: String,
+    pub session_hash: String,
+    pub expires_at: Option<String>,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CreatedWebSession {
+    pub record: WebSessionRecord,
+    pub token: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct SubscriptionAccessTokenRecord {
     pub id: String,
     pub tenant_id: String,

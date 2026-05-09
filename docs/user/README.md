@@ -314,10 +314,10 @@ Public subscription endpoints currently available:
 - `GET /api/public/subscriptions/{subscription_group_id}`
 
 Public packs and public subscription groups are readable without credentials.
-Private packs and private subscription groups require an owner PAT for now.
-Anonymous public subscription-group payloads only include public packs; private
-packs linked into the same group are filtered until subscription-secret access
-is implemented.
+Private packs and private subscription groups require an owner PAT or a matching
+subscription access token. Anonymous public subscription-group payloads only
+include public packs; private packs linked into the same group are filtered
+unless the caller presents a matching credential.
 
 Current service binary example:
 
@@ -386,6 +386,8 @@ PAT foundation status:
 - only the secret hash is stored;
 - scope keys include values such as `pack.read`, `asset.read`, and `pat.manage`;
 - API/CLI/MCP pack operations use Bearer PAT enforcement.
+- local login sets an HttpOnly `msm_session` cookie for Web-session protected
+  reads.
 
 PAT API endpoints:
 
@@ -447,7 +449,8 @@ PAT enforcement status:
   another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
   login and admin model is implemented.
-- asset privacy enforcement is not wired yet.
+- private pack asset paths reject anonymous reads and accept owner `asset.read`
+  PATs, matching subscription access tokens, or an owner `msm_session` cookie.
 
 Local auth bootstrap endpoints:
 
@@ -455,10 +458,11 @@ Local auth bootstrap endpoints:
 - `POST /api/v1/auth/local/login`
 
 Register creates a local user and Argon2 password credential. Login verifies
-the password and returns a raw PAT once.
+the password, returns a raw PAT once, and sets an HttpOnly `msm_session` cookie.
 
 The Web UI can call these endpoints when `VITE_MSM_API_BASE_URL` is configured.
-Successful Web login stores the returned PAT in browser localStorage.
+Successful Web login stores the returned PAT in browser localStorage and keeps
+the API-issued cookie for Web-session protected asset reads.
 
 Local register can also bootstrap a tenant admin:
 
