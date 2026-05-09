@@ -689,6 +689,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn import_pack_requires_target_tenant_membership() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_tenant("tenant_2", "Other")
+            .await
+            .unwrap();
+        let import_token = create_pat(&state, "patimport", "user_1", [Permission::ImportRun]).await;
+        let import_body = serde_json::json!({
+            "tenantId": "tenant_2",
+            "ownerUserId": "user_1",
+            "packId": "pack_cross",
+            "visibility": "private",
+            "pack": sample_pack(),
+        });
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/packs/import")
+                    .header("authorization", format!("Bearer {import_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(import_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
     async fn pat_enforcement_export_requires_pack_read() {
         let state = seeded_state().await;
         let asset_token = create_pat(&state, "patasset", "user_1", [Permission::AssetRead]).await;

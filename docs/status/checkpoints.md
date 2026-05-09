@@ -1251,3 +1251,12 @@
   as well as delegated administrators/custom roles.
 - Updated PRD and status docs; next work should continue the route-by-route
   fine-grained RBAC audit.
+
+## 2026-05-09 Pack Import Tenant Guard
+
+- Added a RED/GREEN API test proving a user PAT cannot import a pack into a
+  tenant where that user is not a member.
+- `POST /api/v1/packs/import` now validates target-tenant membership before
+  storing the imported `.stickerpack`.
+- Updated PRD and status docs; next work should continue the route-by-route
+  fine-grained RBAC audit.

@@ -148,6 +148,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   found during the RBAC route audit.
 - Owner-scoped folder and subscription-group create/list routes now require
   target-tenant membership even when the PAT user matches `ownerUserId`.
+- Pack import now requires membership in the target tenant before storing an
+  imported `.stickerpack`.
 
 ## Immediate Plan
 

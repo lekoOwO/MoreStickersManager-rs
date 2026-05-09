@@ -9,7 +9,7 @@ use msm_domain::{PackAction, Permission, StickerPack};
 use crate::{
     auth::require_pat,
     dto::{ImportPackRequest, ListPacksQuery, UpdatePackRequest},
-    rbac::require_pack_access,
+    rbac::{require_pack_access, require_tenant_resource_access},
     ApiError, ApiResult, ApiState,
 };
 
@@ -36,6 +36,15 @@ pub async fn import_pack(
 ) -> ApiResult<StatusCode> {
     let pat = require_pat(&headers, &state, Permission::ImportRun).await?;
     pat.require_user(&request.owner_user_id)?;
+    require_tenant_resource_access(
+        &state,
+        &pat,
+        &request.tenant_id,
+        &request.owner_user_id,
+        Permission::ImportRun,
+        "PAT user cannot import packs into this tenant",
+    )
+    .await?;
 
     let pack: StickerPack = serde_json::from_value(request.pack)
         .map_err(|error| ApiError::BadRequest(error.to_string()))?;
