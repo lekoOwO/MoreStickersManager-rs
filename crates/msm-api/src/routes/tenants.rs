@@ -8,8 +8,8 @@ use msm_domain::Permission;
 use crate::{
     auth::require_pat,
     dto::{
-        TenantMemberResponse, TenantSettingsResponse, UpdateTenantSettingsRequest,
-        UpsertTenantMemberRequest,
+        TenantMemberResponse, TenantSettingsResponse, TenantUserResponse,
+        UpdateTenantSettingsRequest, UpdateTenantUserStatusRequest, UpsertTenantMemberRequest,
     },
     ApiError, ApiResult, ApiState,
 };
@@ -171,6 +171,47 @@ pub async fn update_tenant_settings(
         .await?;
 
     Ok((StatusCode::OK, Json(TenantSettingsResponse::from(tenant))))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/tenants/{tenant_id}/users/{user_id}/status",
+    tag = "tenants",
+    params(
+        ("tenant_id" = String, Path, description = "Tenant ID"),
+        ("user_id" = String, Path, description = "User ID")
+    ),
+    request_body = UpdateTenantUserStatusRequest,
+    responses(
+        (status = 200, description = "Tenant user status updated", body = TenantUserResponse),
+        (status = 403, description = "Not a tenant admin", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Tenant user not found", body = crate::error::ApiErrorBody)
+    )
+)]
+/// Enables or disables a user that belongs to the tenant.
+///
+/// # Errors
+///
+/// Returns an API error when the caller lacks tenant admin access, the target user is not in the
+/// tenant, or storage fails.
+pub async fn update_tenant_user_status(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path((tenant_id, user_id)): Path<(String, String)>,
+    Json(request): Json<UpdateTenantUserStatusRequest>,
+) -> ApiResult<(StatusCode, Json<TenantUserResponse>)> {
+    require_tenant_admin(&state, &headers, &tenant_id, Permission::TenantManageUsers).await?;
+    state
+        .repository()
+        .find_tenant_member(&tenant_id, &user_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound("tenant user not found".to_owned()))?;
+    let user = state
+        .repository()
+        .set_user_disabled(&user_id, request.is_disabled)
+        .await?;
+
+    Ok((StatusCode::OK, Json(TenantUserResponse::from(user))))
 }
 
 async fn require_tenant_admin(

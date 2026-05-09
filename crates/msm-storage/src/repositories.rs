@@ -124,6 +124,55 @@ impl StorageRepository {
         Ok(())
     }
 
+    /// Finds a user by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
+    /// are invalid.
+    pub async fn find_user(&self, id: &str) -> StorageResult<Option<UserRecord>> {
+        let row = sqlx::query(
+            "SELECT id, email, display_name, is_disabled, created_at
+            FROM users
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.as_ref().map(user_from_row).transpose()
+    }
+
+    /// Enables or disables a user account.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, the user does
+    /// not exist, or timestamps are invalid.
+    pub async fn set_user_disabled(
+        &self,
+        id: &str,
+        is_disabled: bool,
+    ) -> StorageResult<UserRecord> {
+        let result = sqlx::query(
+            "UPDATE users
+            SET is_disabled = ?
+            WHERE id = ?",
+        )
+        .bind(i64::from(is_disabled))
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(StorageError::Sqlx(sqlx::Error::RowNotFound));
+        }
+
+        self.find_user(id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
     /// Creates a local user profile and password credential.
     ///
     /// # Errors
@@ -1570,6 +1619,18 @@ fn tenant_from_row(row: &SqliteRow) -> StorageResult<TenantRecord> {
     })
 }
 
+fn user_from_row(row: &SqliteRow) -> StorageResult<UserRecord> {
+    let created_at: String = row.get("created_at");
+    let is_disabled: i64 = row.get("is_disabled");
+    Ok(UserRecord {
+        id: row.get("id"),
+        email: row.get("email"),
+        display_name: row.get("display_name"),
+        is_disabled: is_disabled != 0,
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
 fn subscription_group_from_row(row: &SqliteRow) -> StorageResult<SubscriptionGroupRecord> {
     let visibility: String = row.get("visibility");
     let Some(visibility) = PackVisibility::from_storage(&visibility) else {
@@ -1858,6 +1919,21 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(cleared.public_asset_url, None);
+    }
+
+    #[tokio::test]
+    async fn user_disabled_status_can_be_updated() {
+        let repo = test_repo().await;
+        repo.create_user("user_1", "user@example.com", "User")
+            .await
+            .unwrap();
+
+        let disabled = repo.set_user_disabled("user_1", true).await.unwrap();
+        assert!(disabled.is_disabled);
+
+        let enabled = repo.set_user_disabled("user_1", false).await.unwrap();
+        assert!(!enabled.is_disabled);
+        assert!(!repo.find_user("user_1").await.unwrap().unwrap().is_disabled);
     }
 
     #[tokio::test]

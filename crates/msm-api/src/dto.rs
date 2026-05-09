@@ -245,6 +245,22 @@ pub struct TenantSettingsResponse {
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdateTenantUserStatusRequest {
+    pub is_disabled: bool,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TenantUserResponse {
+    pub id: String,
+    pub email: String,
+    pub display_name: String,
+    pub is_disabled: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginLocalUserRequest {
     pub email: String,
     pub password: String,
@@ -609,6 +625,18 @@ impl From<msm_storage::models::TenantRecord> for TenantSettingsResponse {
             tenant_id: record.id,
             name: record.name,
             public_asset_url: record.public_asset_url,
+            created_at: record.created_at.to_rfc3339(),
+        }
+    }
+}
+
+impl From<msm_storage::models::UserRecord> for TenantUserResponse {
+    fn from(record: msm_storage::models::UserRecord) -> Self {
+        Self {
+            id: record.id,
+            email: record.email,
+            display_name: record.display_name,
+            is_disabled: record.is_disabled,
             created_at: record.created_at.to_rfc3339(),
         }
     }

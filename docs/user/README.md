@@ -462,6 +462,8 @@ PAT enforcement status:
   target tenant.
 - `tenant.manage_settings` is required for tenant settings API routes, and the
   PAT user must be an `admin` member of the target tenant.
+- `tenant.manage_users` is required for tenant user status API routes, and the
+  PAT user must be an `admin` member of the target tenant.
 - user-scoped list/import/update/delete operations reject PATs belonging to
   another user.
 - PAT lifecycle endpoints are still bootstrap/admin placeholders until the
@@ -541,3 +543,17 @@ The `PUT` body replaces editable settings:
 ```
 
 Use `null` for `publicAssetUrl` to clear the tenant-level CDN/public asset URL.
+
+Tenant user status administration API endpoint:
+
+- `PUT /api/v1/tenants/{tenant_id}/users/{user_id}/status`
+
+The `PUT` body toggles whether the local user can authenticate:
+
+```json
+{
+  "isDisabled": true
+}
+```
+
+The target user must already be a member of the tenant.

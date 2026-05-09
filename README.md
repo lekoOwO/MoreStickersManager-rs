@@ -332,6 +332,7 @@ Bearer PAT scopes are enforced on protected API routes and MCP `tools/call`:
 - `tenant.manage_members`: list and update tenant member roles.
 - `tenant.manage_settings`: read and update tenant settings such as name and
   public asset URL.
+- `tenant.manage_users`: enable or disable tenant users.
 
 API `healthz`, OpenAPI, PAT lifecycle endpoints, MCP `initialize`, MCP `ping`,
 and MCP `tools/list` remain public in this bootstrap slice. OIDC-backed admin
@@ -371,6 +372,14 @@ Tenant settings administration currently has API/OpenAPI support:
 
 These routes require a Bearer PAT with `tenant.manage_settings`, and the PAT
 user must be an `admin` member of the target tenant.
+
+Tenant user status administration currently has API/OpenAPI support:
+
+- `PUT /api/v1/tenants/{tenant_id}/users/{user_id}/status`
+
+This route requires a Bearer PAT with `tenant.manage_users`, the PAT user must
+be an `admin` member of the target tenant, and the target user must also belong
+to that tenant.
 
 ## Project Docs
 

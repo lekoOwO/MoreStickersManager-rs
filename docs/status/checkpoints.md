@@ -1012,3 +1012,17 @@
 - Updated PRD, roadmap, implementation matrix, and current status; next slice
   should continue tenant administration API coverage for role templates and user
   status controls before adding parity surfaces.
+
+## 2026-05-09 Tenant User Status API
+
+- Added `tenant.manage_users` as a distinct PAT scope for tenant user status
+  administration.
+- Added storage helpers to find users and toggle `users.is_disabled`.
+- Added protected API/OpenAPI route:
+  `PUT /api/v1/tenants/{tenant_id}/users/{user_id}/status`.
+- Tenant user status updates require a PAT with `tenant.manage_users`, require
+  the PAT user to be an `admin` member of the target tenant, and require the
+  target user to belong to the tenant.
+- Updated PRD, roadmap, implementation matrix, current status, README, and user
+  docs; next slice should continue tenant administration API coverage for role
+  templates before adding parity surfaces.

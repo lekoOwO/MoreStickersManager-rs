@@ -80,9 +80,10 @@ Last completed:
 - Tenant member administration CLI/MCP slice: CLI now has `msm tenants members list` and `msm tenants members set-role`, and MCP now has `msm.list_tenant_members` and `msm.set_tenant_member_role` with `tenant.manage_members` plus admin tenant membership enforcement.
 - Tenant member administration Web slice: added a Tenant admin workspace with member list, admin/user counts, role assignment controls, API client support, selectable `tenant.manage_members` PAT scope, and Traditional Chinese/English labels.
 - Tenant settings API slice: storage can read/update tenant name and `public_asset_url`; API/OpenAPI exposes protected tenant settings read/update routes guarded by `tenant.manage_settings` plus an admin tenant membership check.
+- Tenant user status API slice: storage can toggle `users.is_disabled`; API/OpenAPI exposes protected tenant user status updates guarded by `tenant.manage_users` plus an admin tenant membership check.
 
 Current task:
-- Extend tenant administration APIs to role templates and user status controls from the PRD queue, then add CLI/MCP/Web parity for tenant settings.
+- Extend tenant administration APIs to role templates from the PRD queue, then add CLI/MCP/Web parity for tenant settings and user status controls.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -166,9 +167,10 @@ Last verification:
 - Tenant member administration CLI/MCP slice: RED/GREEN tests with `cargo test -p msm-cli tenant_member --locked`, `cargo test -p msm-mcp tenant_member --locked`, and `cargo test -p msm-mcp tools_list_returns_pack_and_export_tools --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-cli -p msm-mcp --locked`, `cargo clippy -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 - Tenant member administration Web slice: RED/GREEN tests with `npm run web:test -- tenant-admin api-client` and `npm run web:test -- PackDashboard tenant-admin api-client`; full verification with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, and `git diff --check`.
 - Tenant settings API slice: RED/GREEN tests with `cargo test -p msm-storage --lib tenant_settings_can_be_read_and_updated --locked` and `cargo test -p msm-api --lib tenant_settings_routes_require_tenant_admin_scope_and_role --locked`; full verification with `cargo fmt --all`, `cargo test -p msm-domain -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-domain -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
+- Tenant user status API slice: RED/GREEN tests with `cargo test -p msm-storage --lib user_disabled_status_can_be_updated --locked` and `cargo test -p msm-api --lib tenant_user_status_route_requires_tenant_admin_scope_and_role --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-domain -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-domain -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`.
 
 Next step:
-- Extend tenant administration APIs to role templates and user status controls.
+- Extend tenant administration APIs to role templates.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
