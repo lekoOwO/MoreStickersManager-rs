@@ -140,10 +140,13 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   same-user policy.
 - Web PAT/local-login dialogs now load the same scope policy and filter
   selectable scope cards when a `pat.manage` PAT is available.
+- Cross-tenant API audit coverage now verifies tenant-scoped admin PATs cannot
+  cross into another tenant's pack, export, subscription-link, publication,
+  PAT, or tenant-settings operations.
 
 ## Immediate Plan
 
-1. Add cross-tenant isolation audit tests for RBAC-protected resource
+1. Review and close remaining fine-grained RBAC gaps for resource-owning
    operations.
 
 ## Later Planned Work

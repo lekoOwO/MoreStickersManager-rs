@@ -88,7 +88,8 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add cross-tenant isolation audit tests for RBAC-protected resource operations.
+1. Review and close remaining fine-grained RBAC gaps for resource-owning
+   operations.
 
 Each queue item must update this section when completed or reordered.
 
@@ -156,7 +157,11 @@ tests and docs are updated.
   `msm.get_pat_scope_policy`, and Web PAT/local-login dialogs filter selectable
   scope cards from the live scope-policy endpoint when a `pat.manage` PAT is
   available.
-- [ ] Audit tests for cross-tenant isolation.
+- [x] Audit tests for cross-tenant isolation.
+  Progress: API audit coverage now verifies that an admin PAT scoped for one
+  tenant is rejected when attempting to manage another tenant's pack metadata,
+  export target, subscription access token, Telegram publication history, PAT
+  list, and tenant settings.
 
 ### Phase D: Auth Providers
 

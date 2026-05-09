@@ -878,6 +878,187 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn cross_tenant_admin_pat_cannot_manage_other_tenant_resources() {
+        let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant One")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_tenant("tenant_2", "Tenant Two")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("admin_1", "admin@example.com", "Admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_user("user_2", "owner@example.com", "Owner")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "admin_1", "admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_2", "user_2", "user")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_tenant_2",
+                "tenant_2",
+                "user_2",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("tenant-2"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_tenant_2",
+                "tenant_2",
+                "user_2",
+                "Tenant Two Feed",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "crossadmin",
+            "admin_1",
+            [
+                Permission::PackRead,
+                Permission::PackUpdate,
+                Permission::PackManageAccess,
+                Permission::SubscriptionManageAccess,
+                Permission::ExportRead,
+                Permission::ExportTargetManage,
+                Permission::TenantManageSettings,
+                Permission::PatManage,
+            ],
+        )
+        .await;
+
+        let update_pack = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/v1/packs/pack_tenant_2")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({ "title": "Cross tenant", "visibility": "public" })
+                            .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(update_pack.status(), StatusCode::FORBIDDEN);
+
+        let create_export_target = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-targets")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "id": "target_cross",
+                            "tenantId": "tenant_2",
+                            "kind": "morestickers",
+                            "name": "Cross",
+                            "config": {},
+                            "isEnabled": true
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_export_target.status(), StatusCode::FORBIDDEN);
+
+        let create_pack_link = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/subscription-access-tokens")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "id": "crosspacklink",
+                            "resourceType": "pack",
+                            "resourceId": "pack_tenant_2"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_pack_link.status(), StatusCode::FORBIDDEN);
+
+        let list_publications = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/telegram-publications?packId=pack_tenant_2")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_publications.status(), StatusCode::FORBIDDEN);
+
+        let list_pats = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/pats?userId=user_2")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list_pats.status(), StatusCode::FORBIDDEN);
+
+        let update_tenant_settings = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/tenants/tenant_2/settings")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "name": "Cross tenant",
+                            "publicAssetUrl": null
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(update_tenant_settings.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
     async fn non_owner_pat_cannot_export_private_pack_without_delegated_access() {
         let state = empty_state_with_owner().await;
         state

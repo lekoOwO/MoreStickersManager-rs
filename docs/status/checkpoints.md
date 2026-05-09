@@ -1217,3 +1217,16 @@
   absence check, and `git diff --check`.
 - Updated PRD and status docs; next work should add cross-tenant isolation
   audit tests for RBAC-protected operations.
+
+## 2026-05-09 Cross-Tenant RBAC Audit
+
+- Added an API audit test proving a tenant_1 admin PAT with relevant scopes
+  cannot manage tenant_2 pack metadata, export targets, subscription access
+  tokens, Telegram publication history, PAT listing, or tenant settings.
+- This is coverage-only for existing behavior and intentionally does not
+  change production authorization logic.
+- Verified with `cargo fmt --all -- --check`, `cargo test -p msm-api
+  --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`,
+  and `git diff --check` with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD and status docs; next work should review and close any remaining
+  fine-grained RBAC gaps for resource-owning operations.
