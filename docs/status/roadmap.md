@@ -78,11 +78,15 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - CLI `subscription-links` commands now create, list, rotate, and revoke
   subscription access tokens, including one-time secret output for create and
   rotate.
+- MCP `msm.create_subscription_link`, `msm.list_subscription_links`,
+  `msm.rotate_subscription_link`, and `msm.revoke_subscription_link` tools now
+  expose the same link management controls with raw secrets returned only for
+  create/rotate.
 
 ## Immediate Plan
 
-1. Add MCP/Web controls for subscription link creation, rotation,
-   revocation, and visibility.
+1. Add Web controls for subscription link creation, rotation, revocation, and
+   visibility.
 2. Extend subscription access policy enforcement beyond public/private/PAT to
    subscription secrets and Web session credentials.
 3. Run targeted Rust/Web verification and update this roadmap, current status,

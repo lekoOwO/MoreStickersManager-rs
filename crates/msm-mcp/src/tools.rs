@@ -24,6 +24,10 @@ pub const CREATE_SUBSCRIPTION_GROUP: &str = "msm.create_subscription_group";
 pub const LIST_SUBSCRIPTION_GROUP_PACKS: &str = "msm.list_subscription_group_packs";
 pub const ADD_PACK_TO_SUBSCRIPTION_GROUP: &str = "msm.add_pack_to_subscription_group";
 pub const REMOVE_PACK_FROM_SUBSCRIPTION_GROUP: &str = "msm.remove_pack_from_subscription_group";
+pub const CREATE_SUBSCRIPTION_LINK: &str = "msm.create_subscription_link";
+pub const LIST_SUBSCRIPTION_LINKS: &str = "msm.list_subscription_links";
+pub const ROTATE_SUBSCRIPTION_LINK: &str = "msm.rotate_subscription_link";
+pub const REVOKE_SUBSCRIPTION_LINK: &str = "msm.revoke_subscription_link";
 pub const LIST_EXPORT_TARGET_KINDS: &str = "msm.list_export_target_kinds";
 pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
 pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
@@ -57,6 +61,10 @@ pub fn list_tools_result() -> ListToolsResult {
             list_subscription_group_packs_tool(),
             add_pack_to_subscription_group_tool(),
             remove_pack_from_subscription_group_tool(),
+            create_subscription_link_tool(),
+            list_subscription_links_tool(),
+            rotate_subscription_link_tool(),
+            revoke_subscription_link_tool(),
             list_export_target_kinds_tool(),
             list_export_targets_tool(),
             create_export_target_tool(),
@@ -478,6 +486,85 @@ fn remove_pack_from_subscription_group_tool() -> ToolDefinition {
     }
 }
 
+fn create_subscription_link_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: CREATE_SUBSCRIPTION_LINK,
+        title: "Create subscription link",
+        description:
+            "Create a pack or subscription-group access link and return its raw secret once.",
+        input_schema: object_schema(
+            &json!({
+                "id": { "type": "string" },
+                "resourceType": { "type": "string", "enum": ["pack", "subscriptionGroup"] },
+                "resourceId": { "type": "string" }
+            }),
+            &["id", "resourceType", "resourceId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn list_subscription_links_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_SUBSCRIPTION_LINKS,
+        title: "List subscription links",
+        description:
+            "List subscription access link metadata for a user without raw secrets or hashes.",
+        input_schema: object_schema(
+            &json!({
+                "userId": { "type": "string" }
+            }),
+            &["userId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn rotate_subscription_link_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: ROTATE_SUBSCRIPTION_LINK,
+        title: "Rotate subscription link",
+        description: "Rotate a subscription access link and return the new raw secret once.",
+        input_schema: object_schema(
+            &json!({
+                "tokenId": { "type": "string" }
+            }),
+            &["tokenId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn revoke_subscription_link_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: REVOKE_SUBSCRIPTION_LINK,
+        title: "Revoke subscription link",
+        description: "Revoke a subscription access link.",
+        input_schema: object_schema(
+            &json!({
+                "tokenId": { "type": "string" }
+            }),
+            &["tokenId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: true,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
 fn list_export_target_kinds_tool() -> ToolDefinition {
     ToolDefinition {
         name: LIST_EXPORT_TARGET_KINDS,
@@ -644,12 +731,14 @@ mod tests {
     use crate::tools::{
         list_tools_result, ADD_PACK_TO_FOLDER, ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK,
         CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP,
-        CREATE_TAG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
-        GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
-        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS,
-        LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_TAGS,
+        CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK,
+        GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
+        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
+        LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
         LIST_TELEGRAM_PUBLICATIONS, REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP,
-        REMOVE_TAG_FROM_PACK, UPDATE_STICKER_PACK,
+        REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
+        UPDATE_STICKER_PACK,
     };
 
     #[test]
@@ -680,6 +769,10 @@ mod tests {
                 LIST_SUBSCRIPTION_GROUP_PACKS,
                 ADD_PACK_TO_SUBSCRIPTION_GROUP,
                 REMOVE_PACK_FROM_SUBSCRIPTION_GROUP,
+                CREATE_SUBSCRIPTION_LINK,
+                LIST_SUBSCRIPTION_LINKS,
+                ROTATE_SUBSCRIPTION_LINK,
+                REVOKE_SUBSCRIPTION_LINK,
                 LIST_EXPORT_TARGET_KINDS,
                 LIST_EXPORT_TARGETS,
                 CREATE_EXPORT_TARGET,

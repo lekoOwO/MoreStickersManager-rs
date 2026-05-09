@@ -899,6 +899,18 @@
 - Updated PRD, roadmap, implementation matrix, and current status so the next
   slice can add MCP/Web controls.
 
+## 2026-05-09 Subscription Access Token MCP
+
+- Added `msm.create_subscription_link`, `msm.list_subscription_links`,
+  `msm.rotate_subscription_link`, and `msm.revoke_subscription_link` tools.
+- Matched API authorization semantics: pack links require `pack.manage_access`,
+  subscription-group links require `subscription.manage_access`, and both
+  require resource ownership.
+- MCP list responses expose metadata only; create and rotate responses expose
+  the raw `msm_sub_*` secret once.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice can add Web controls.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,

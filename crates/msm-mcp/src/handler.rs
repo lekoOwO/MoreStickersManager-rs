@@ -14,8 +14,8 @@ use msm_exporters::{
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
-    NewExportTarget, NewTag, PackVisibility, StickerPackRecord, SubscriptionGroupRecord, TagRecord,
-    TelegramPublicationRecord,
+    NewExportTarget, NewTag, PackVisibility, StickerPackRecord, SubscriptionAccessResourceType,
+    SubscriptionAccessTokenRecord, SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -25,13 +25,14 @@ use crate::{
     tools::{
         execution_error_result, list_tools_result, success_result, ADD_PACK_TO_FOLDER,
         ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
-        CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_TAG, DELETE_STICKER_PACK,
-        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION, IMPORT_STICKER_PACK,
-        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS,
-        LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
-        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS,
-        REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
-        UPDATE_STICKER_PACK,
+        CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG,
+        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_TELEGRAM_PUBLICATION,
+        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
+        LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS,
+        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
+        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, REMOVE_PACK_FROM_FOLDER,
+        REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK, REVOKE_SUBSCRIPTION_LINK,
+        ROTATE_SUBSCRIPTION_LINK, UPDATE_STICKER_PACK,
     },
 };
 
@@ -108,6 +109,10 @@ async fn call_tool(
         REMOVE_PACK_FROM_SUBSCRIPTION_GROUP => {
             remove_pack_from_subscription_group(&state, headers, arguments).await
         }
+        CREATE_SUBSCRIPTION_LINK => create_subscription_link(&state, headers, arguments).await,
+        LIST_SUBSCRIPTION_LINKS => list_subscription_links(&state, headers, arguments).await,
+        ROTATE_SUBSCRIPTION_LINK => rotate_subscription_link(&state, headers, arguments).await,
+        REVOKE_SUBSCRIPTION_LINK => revoke_subscription_link(&state, headers, arguments).await,
         LIST_EXPORT_TARGET_KINDS => list_export_target_kinds(&state, headers, arguments).await,
         LIST_EXPORT_TARGETS => list_export_targets(&state, headers, arguments).await,
         CREATE_EXPORT_TARGET => create_export_target(&state, headers, arguments).await,
@@ -649,6 +654,102 @@ async fn remove_pack_from_subscription_group(
     ))
 }
 
+async fn create_subscription_link(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<CreateSubscriptionLinkArgs>(arguments)?;
+    let (tenant_id, owner_user_id, resource_type) =
+        authorize_subscription_link_create(state, headers, &args).await?;
+    let created = state
+        .repository()
+        .create_subscription_access_token(
+            &args.id,
+            &tenant_id,
+            &owner_user_id,
+            resource_type,
+            &args.resource_id,
+        )
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Created subscription link `{}`.", args.id),
+        json!({
+            "subscriptionLink": subscription_access_token_value(&created.record),
+            "token": created.token
+        }),
+    ))
+}
+
+async fn list_subscription_links(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ListSubscriptionLinksArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::SubscriptionManageAccess).await?;
+    pat.require_user(&args.user_id)
+        .map_err(auth_error_message)?;
+    let links = state
+        .repository()
+        .list_subscription_access_tokens(&args.user_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .iter()
+        .map(subscription_access_token_value)
+        .collect::<Vec<_>>();
+
+    Ok(success_result(
+        format!("Found {} subscription link(s).", links.len()),
+        json!({ "subscriptionLinks": links }),
+    ))
+}
+
+async fn rotate_subscription_link(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<SubscriptionLinkTokenArgs>(arguments)?;
+    let record = require_subscription_access_token(state, &args.token_id).await?;
+    authorize_subscription_link_existing(state, headers, &record).await?;
+    let rotated = state
+        .repository()
+        .rotate_subscription_access_token(&args.token_id)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Rotated subscription link `{}`.", args.token_id),
+        json!({
+            "subscriptionLink": subscription_access_token_value(&rotated.record),
+            "token": rotated.token
+        }),
+    ))
+}
+
+async fn revoke_subscription_link(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<SubscriptionLinkTokenArgs>(arguments)?;
+    let record = require_subscription_access_token(state, &args.token_id).await?;
+    authorize_subscription_link_existing(state, headers, &record).await?;
+    state
+        .repository()
+        .revoke_subscription_access_token(&args.token_id)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Revoked subscription link `{}`.", args.token_id),
+        json!({ "revoked": true, "tokenId": args.token_id }),
+    ))
+}
+
 async fn list_export_target_kinds(
     state: &ApiState,
     headers: &HeaderMap,
@@ -1014,6 +1115,28 @@ fn subscription_group_value(record: &SubscriptionGroupRecord) -> Value {
     })
 }
 
+fn subscription_access_token_value(record: &SubscriptionAccessTokenRecord) -> Value {
+    json!({
+        "id": record.id,
+        "tenantId": record.tenant_id,
+        "ownerUserId": record.owner_user_id,
+        "resourceType": subscription_access_resource_type_value(&record.resource_type),
+        "resourceId": record.resource_id,
+        "revokedAt": record.revoked_at,
+        "createdAt": record.created_at,
+        "updatedAt": record.updated_at
+    })
+}
+
+fn subscription_access_resource_type_value(
+    resource_type: &SubscriptionAccessResourceType,
+) -> &'static str {
+    match resource_type {
+        SubscriptionAccessResourceType::Pack => "pack",
+        SubscriptionAccessResourceType::SubscriptionGroup => "subscriptionGroup",
+    }
+}
+
 async fn load_owned_export_job(
     state: &ApiState,
     job_id: &str,
@@ -1093,6 +1216,62 @@ async fn require_owned_subscription_group(
     } else {
         Err("PAT user does not own the subscription group".to_owned())
     }
+}
+
+async fn authorize_subscription_link_create(
+    state: &ApiState,
+    headers: &HeaderMap,
+    args: &CreateSubscriptionLinkArgs,
+) -> Result<(String, String, SubscriptionAccessResourceType), String> {
+    match args.resource_type.as_str() {
+        "pack" => {
+            let pat = require_tool_pat(state, headers, Permission::PackManageAccess).await?;
+            let pack = load_owned_pack_record(state, &args.resource_id, &pat.user_id).await?;
+            Ok((
+                pack.tenant_id,
+                pack.owner_user_id,
+                SubscriptionAccessResourceType::Pack,
+            ))
+        }
+        "subscriptionGroup" => {
+            let pat =
+                require_tool_pat(state, headers, Permission::SubscriptionManageAccess).await?;
+            let group =
+                require_owned_subscription_group(state, &args.resource_id, &pat.user_id).await?;
+            Ok((
+                group.tenant_id,
+                group.owner_user_id,
+                SubscriptionAccessResourceType::SubscriptionGroup,
+            ))
+        }
+        _ => Err("resourceType must be `pack` or `subscriptionGroup`".to_owned()),
+    }
+}
+
+async fn authorize_subscription_link_existing(
+    state: &ApiState,
+    headers: &HeaderMap,
+    record: &SubscriptionAccessTokenRecord,
+) -> Result<(), String> {
+    let permission = match record.resource_type {
+        SubscriptionAccessResourceType::Pack => Permission::PackManageAccess,
+        SubscriptionAccessResourceType::SubscriptionGroup => Permission::SubscriptionManageAccess,
+    };
+    let pat = require_tool_pat(state, headers, permission).await?;
+    pat.require_user(&record.owner_user_id)
+        .map_err(auth_error_message)
+}
+
+async fn require_subscription_access_token(
+    state: &ApiState,
+    token_id: &str,
+) -> Result<SubscriptionAccessTokenRecord, String> {
+    state
+        .repository()
+        .find_subscription_access_token(token_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Subscription link `{token_id}` was not found."))
 }
 
 fn require_same_tenant(left_tenant_id: &str, right_tenant_id: &str) -> Result<(), String> {
@@ -1289,6 +1468,26 @@ struct AddPackToSubscriptionGroupArgs {
 struct RemovePackFromSubscriptionGroupArgs {
     subscription_group_id: String,
     pack_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateSubscriptionLinkArgs {
+    id: String,
+    resource_type: String,
+    resource_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ListSubscriptionLinksArgs {
+    user_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SubscriptionLinkTokenArgs {
+    token_id: String,
 }
 
 #[derive(Deserialize)]
