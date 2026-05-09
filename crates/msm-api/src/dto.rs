@@ -143,6 +143,55 @@ pub struct SubscriptionGroupPackResponse {
     pub sort_order: i64,
 }
 
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum SubscriptionAccessResourceTypeDto {
+    Pack,
+    SubscriptionGroup,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSubscriptionAccessTokenRequest {
+    pub id: String,
+    pub resource_type: SubscriptionAccessResourceTypeDto,
+    pub resource_id: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionAccessTokenResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub resource_type: SubscriptionAccessResourceTypeDto,
+    pub resource_id: String,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatedSubscriptionAccessTokenResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub resource_type: SubscriptionAccessResourceTypeDto,
+    pub resource_id: String,
+    pub token: String,
+    pub revoked_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
+pub struct ListSubscriptionAccessTokensQuery {
+    pub user_id: String,
+}
+
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct RegisterLocalUserRequest {
@@ -440,6 +489,64 @@ impl From<msm_storage::models::SubscriptionGroupPackRecord> for SubscriptionGrou
             subscription_group_id: record.subscription_group_id,
             pack_id: record.pack_id,
             sort_order: record.sort_order,
+        }
+    }
+}
+
+impl From<SubscriptionAccessResourceTypeDto>
+    for msm_storage::models::SubscriptionAccessResourceType
+{
+    fn from(value: SubscriptionAccessResourceTypeDto) -> Self {
+        match value {
+            SubscriptionAccessResourceTypeDto::Pack => Self::Pack,
+            SubscriptionAccessResourceTypeDto::SubscriptionGroup => Self::SubscriptionGroup,
+        }
+    }
+}
+
+impl From<msm_storage::models::SubscriptionAccessResourceType>
+    for SubscriptionAccessResourceTypeDto
+{
+    fn from(value: msm_storage::models::SubscriptionAccessResourceType) -> Self {
+        match value {
+            msm_storage::models::SubscriptionAccessResourceType::Pack => Self::Pack,
+            msm_storage::models::SubscriptionAccessResourceType::SubscriptionGroup => {
+                Self::SubscriptionGroup
+            }
+        }
+    }
+}
+
+impl From<msm_storage::models::SubscriptionAccessTokenRecord> for SubscriptionAccessTokenResponse {
+    fn from(record: msm_storage::models::SubscriptionAccessTokenRecord) -> Self {
+        Self {
+            id: record.id,
+            tenant_id: record.tenant_id,
+            owner_user_id: record.owner_user_id,
+            resource_type: record.resource_type.into(),
+            resource_id: record.resource_id,
+            revoked_at: record.revoked_at,
+            created_at: record.created_at,
+            updated_at: record.updated_at,
+        }
+    }
+}
+
+impl From<msm_storage::models::CreatedSubscriptionAccessToken>
+    for CreatedSubscriptionAccessTokenResponse
+{
+    fn from(created: msm_storage::models::CreatedSubscriptionAccessToken) -> Self {
+        let record = SubscriptionAccessTokenResponse::from(created.record);
+        Self {
+            id: record.id,
+            tenant_id: record.tenant_id,
+            owner_user_id: record.owner_user_id,
+            resource_type: record.resource_type,
+            resource_id: record.resource_id,
+            token: created.token,
+            revoked_at: record.revoked_at,
+            created_at: record.created_at,
+            updated_at: record.updated_at,
         }
     }
 }

@@ -6,17 +6,22 @@ use utoipa::OpenApi;
 use crate::{
     dto::{
         CreateExportJobRequest, CreateExportTargetRequest, CreateFolderRequest,
-        CreatePersonalAccessTokenRequest, CreateSubscriptionGroupRequest, CreateTagRequest,
-        CreatedPersonalAccessTokenResponse, ExportJobEventResponse, ExportJobResponse,
+        CreatePersonalAccessTokenRequest, CreateSubscriptionAccessTokenRequest,
+        CreateSubscriptionGroupRequest, CreateTagRequest, CreatedPersonalAccessTokenResponse,
+        CreatedSubscriptionAccessTokenResponse, ExportJobEventResponse, ExportJobResponse,
         ExportTargetKindResponse, ExportTargetResponse, FolderPackResponse, FolderResponse,
         HealthResponse, ImportPackRequest, LocalUserResponse, LoginLocalUserRequest,
         PackTagResponse, PersonalAccessTokenResponse, RegisterLocalUserRequest,
+        SubscriptionAccessResourceTypeDto, SubscriptionAccessTokenResponse,
         SubscriptionGroupPackResponse, SubscriptionGroupResponse, TagResponse,
         TelegramExportJobOptions, TelegramPublicationResponse, TelegramReconcileModeOption,
         UpdateExportTargetRequest, UpdatePackRequest, UpsertPackMembershipRequest,
     },
     error::ApiErrorBody,
-    routes::{assets, auth, exports, health, metadata, packs, pats, subscriptions},
+    routes::{
+        assets, auth, exports, health, metadata, packs, pats, subscription_access_tokens,
+        subscriptions,
+    },
 };
 
 #[derive(OpenApi)]
@@ -61,7 +66,11 @@ use crate::{
         exports::get_telegram_publication,
         pats::create_pat,
         pats::list_pats,
-        pats::revoke_pat
+        pats::revoke_pat,
+        subscription_access_tokens::create_subscription_access_token,
+        subscription_access_tokens::list_subscription_access_tokens,
+        subscription_access_tokens::rotate_subscription_access_token,
+        subscription_access_tokens::revoke_subscription_access_token
     ),
     components(schemas(
         HealthResponse,
@@ -93,7 +102,11 @@ use crate::{
         TelegramPublicationResponse,
         CreatePersonalAccessTokenRequest,
         CreatedPersonalAccessTokenResponse,
-        PersonalAccessTokenResponse
+        PersonalAccessTokenResponse,
+        SubscriptionAccessResourceTypeDto,
+        CreateSubscriptionAccessTokenRequest,
+        SubscriptionAccessTokenResponse,
+        CreatedSubscriptionAccessTokenResponse
     )),
     tags((name = "system", description = "System endpoints"))
 )]

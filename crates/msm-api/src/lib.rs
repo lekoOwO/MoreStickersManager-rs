@@ -23,6 +23,7 @@ pub fn build_router(state: ApiState) -> Router {
         .merge(metadata_routes())
         .merge(export_routes())
         .merge(pat_routes())
+        .merge(subscription_access_token_routes())
         .with_state(state)
 }
 
@@ -159,6 +160,23 @@ fn pat_routes() -> Router<ApiState> {
         .route("/api/v1/pats/{token_id}", delete(routes::pats::revoke_pat))
 }
 
+fn subscription_access_token_routes() -> Router<ApiState> {
+    Router::new()
+        .route(
+            "/api/v1/subscription-access-tokens",
+            get(routes::subscription_access_tokens::list_subscription_access_tokens)
+                .post(routes::subscription_access_tokens::create_subscription_access_token),
+        )
+        .route(
+            "/api/v1/subscription-access-tokens/{token_id}/rotate",
+            patch(routes::subscription_access_tokens::rotate_subscription_access_token),
+        )
+        .route(
+            "/api/v1/subscription-access-tokens/{token_id}",
+            delete(routes::subscription_access_tokens::revoke_subscription_access_token),
+        )
+}
+
 #[cfg(test)]
 mod tests {
     use axum::{
@@ -245,6 +263,15 @@ mod tests {
             .is_some());
         assert!(json["paths"]
             .get("/api/v1/subscription-groups/{subscription_group_id}/packs/{pack_id}")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/v1/subscription-access-tokens")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/v1/subscription-access-tokens/{token_id}/rotate")
+            .is_some());
+        assert!(json["paths"]
+            .get("/api/v1/subscription-access-tokens/{token_id}")
             .is_some());
         assert!(json["paths"].get("/api/v1/telegram-publications").is_some());
         assert!(json["paths"]
@@ -1516,6 +1543,171 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(wrong_resource_token.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn subscription_access_token_routes_manage_links() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_private",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("private"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_private",
+                "tenant_1",
+                "user_1",
+                "Private Feed",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+
+        let pack_manage_token = create_pat(
+            &state,
+            "packaccess",
+            "user_1",
+            [Permission::PackManageAccess],
+        )
+        .await;
+        let subscription_manage_token = create_pat(
+            &state,
+            "subaccess",
+            "user_1",
+            [Permission::SubscriptionManageAccess],
+        )
+        .await;
+
+        let create_pack_body = serde_json::json!({
+            "id": "packlink",
+            "resourceType": "pack",
+            "resourceId": "pack_private"
+        });
+        let create_pack = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/subscription-access-tokens")
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {pack_manage_token}"))
+                    .body(Body::from(create_pack_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_pack.status(), StatusCode::CREATED);
+        let body = to_bytes(create_pack.into_body(), usize::MAX).await.unwrap();
+        let pack_link: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let pack_subscription_token = pack_link["token"].as_str().unwrap();
+        assert!(pack_subscription_token.starts_with("msm_sub_packlink_"));
+        assert_eq!(pack_link["resourceType"], "pack");
+        assert_eq!(pack_link["resourceId"], "pack_private");
+        assert!(pack_link.get("tokenHash").is_none());
+
+        let create_group_body = serde_json::json!({
+            "id": "grouplink",
+            "resourceType": "subscriptionGroup",
+            "resourceId": "sub_private"
+        });
+        let create_group = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/subscription-access-tokens")
+                    .header("content-type", "application/json")
+                    .header(
+                        "authorization",
+                        format!("Bearer {subscription_manage_token}"),
+                    )
+                    .body(Body::from(create_group_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_group.status(), StatusCode::CREATED);
+
+        let list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/subscription-access-tokens?userId=user_1")
+                    .header(
+                        "authorization",
+                        format!("Bearer {subscription_manage_token}"),
+                    )
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list.status(), StatusCode::OK);
+        let body = to_bytes(list.into_body(), usize::MAX).await.unwrap();
+        let links: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(links.as_array().unwrap().len(), 2);
+        assert!(links[0].get("token").is_none());
+        assert!(links[0].get("tokenHash").is_none());
+
+        let rotate = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/api/v1/subscription-access-tokens/packlink/rotate")
+                    .header("authorization", format!("Bearer {pack_manage_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(rotate.status(), StatusCode::OK);
+        let body = to_bytes(rotate.into_body(), usize::MAX).await.unwrap();
+        let rotated: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let rotated_pack_token = rotated["token"].as_str().unwrap();
+        assert_ne!(rotated_pack_token, pack_subscription_token);
+
+        let revoked_old_pack_link = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_private/stickerpack")
+                    .header("authorization", format!("Bearer {pack_subscription_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(revoked_old_pack_link.status(), StatusCode::UNAUTHORIZED);
+
+        let delete = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/subscription-access-tokens/grouplink")
+                    .header(
+                        "authorization",
+                        format!("Bearer {subscription_manage_token}"),
+                    )
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(delete.status(), StatusCode::NO_CONTENT);
+
+        let group_record = state
+            .repository()
+            .find_subscription_access_token("grouplink")
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(group_record.revoked_at.is_some());
     }
 
     #[tokio::test]

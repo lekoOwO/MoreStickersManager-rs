@@ -72,10 +72,14 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   access tokens for private pack refreshes and private subscription groups,
   and protected dynamic payloads include refresh `Authorization` headers only
   for subscription-token access.
+- API/OpenAPI controls now create, list, rotate, and revoke subscription
+  access tokens for pack default links and subscription-group links with
+  resource-specific manage-access PAT checks.
 
 ## Immediate Plan
 
-1. Add API/CLI/MCP/Web controls for subscription link rotation and visibility.
+1. Add CLI/MCP/Web controls for subscription link creation, rotation,
+   revocation, and visibility.
 2. Extend subscription access policy enforcement beyond public/private/PAT to
    subscription secrets and Web session credentials.
 3. Run targeted Rust/Web verification and update this roadmap, current status,

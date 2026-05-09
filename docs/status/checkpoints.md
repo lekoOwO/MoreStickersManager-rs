@@ -875,6 +875,19 @@
   slice can expose subscription link creation, rotation, and revocation
   controls across API/CLI/MCP/Web.
 
+## 2026-05-09 Subscription Access Token Management API
+
+- Added `/api/v1/subscription-access-tokens` create/list routes and
+  `/api/v1/subscription-access-tokens/{token_id}` rotate/revoke routes.
+- Create and rotate responses return the raw `msm_sub_*` secret once; list
+  responses return metadata only and never expose raw secrets or token hashes.
+- Pack default subscription links require `pack.manage_access` and pack
+  ownership; subscription-group links require `subscription.manage_access` and
+  group ownership.
+- Added OpenAPI schemas and path registration for the new management routes.
+- Updated PRD, roadmap, implementation matrix, and current status so the next
+  slice can add CLI/MCP/Web controls on top of the API contract.
+
 ## 2026-05-09 Documentation Consolidation
 
 - Added `docs/PRD.md` as the living requirements, current status, roadmap,

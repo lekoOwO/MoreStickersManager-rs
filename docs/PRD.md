@@ -88,7 +88,8 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add API/CLI/MCP/Web controls for subscription link rotation and visibility.
+1. Add CLI/MCP/Web controls for subscription link creation, rotation,
+   revocation, and visibility.
 2. Extend the pack/group access model for Web session
    access beyond the current public/private/PAT endpoint checks.
 3. Start tenant administration and RBAC management surfaces.
@@ -123,7 +124,10 @@ tests and docs are updated.
 - [x] Add moreStickers-compatible subscription payload contract.
 - [x] Add persistent subscription secret/link rotation storage.
 - [x] Enforce subscription secret access on public subscription endpoints.
-- [ ] Add API/CLI/MCP/Web controls for subscription link rotation and visibility.
+- [x] Add API/OpenAPI controls for subscription link creation, listing,
+  rotation, and revocation.
+- [ ] Add CLI/MCP/Web controls for subscription link creation, listing,
+  rotation, and revocation.
 
 ### Phase C: Multi-Tenant Administration
 
