@@ -84,7 +84,7 @@ pub async fn list_packs(
 
     let packs = state
         .repository()
-        .list_user_sticker_packs(&query.user_id)
+        .list_user_accessible_sticker_packs(&query.user_id)
         .await?;
     packs
         .into_iter()

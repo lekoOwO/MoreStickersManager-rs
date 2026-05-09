@@ -1209,6 +1209,36 @@ impl StorageRepository {
             .collect()
     }
 
+    /// Lists sticker packs owned by a user in tenants where the user is still a member.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL/JSON parsing fails.
+    pub async fn list_user_accessible_sticker_packs(
+        &self,
+        user_id: &str,
+    ) -> StorageResult<Vec<StickerPack>> {
+        let rows = sqlx::query(
+            "SELECT sticker_packs.sticker_pack_json
+            FROM sticker_packs
+            INNER JOIN tenant_members
+                ON tenant_members.tenant_id = sticker_packs.tenant_id
+                AND tenant_members.user_id = sticker_packs.owner_user_id
+            WHERE sticker_packs.owner_user_id = ?
+            ORDER BY sticker_packs.title, sticker_packs.id",
+        )
+        .bind(user_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let json: String = row.get("sticker_pack_json");
+                StickerPack::from_json_str(&json).map_err(Into::into)
+            })
+            .collect()
+    }
+
     /// Creates a Personal Access Token and returns the raw token once.
     ///
     /// # Errors

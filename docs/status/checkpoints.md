@@ -1272,3 +1272,12 @@
   are not tied to a user membership check.
 - Updated PRD and status docs; next work should continue the route-by-route
   fine-grained RBAC audit.
+
+## 2026-05-10 Pack List Tenant Membership Guard
+
+- Added a RED/GREEN API test proving pack listing does not return packs whose
+  owner is no longer a member of the pack tenant.
+- Added a storage query for owner packs joined through `tenant_members`, and
+  wired `GET /api/v1/packs?userId=...` to that tenant-filtered query.
+- Updated PRD and status docs; next work should continue the route-by-route
+  fine-grained RBAC audit.

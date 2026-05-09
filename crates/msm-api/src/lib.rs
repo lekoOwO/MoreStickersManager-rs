@@ -680,6 +680,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn pack_list_filters_packs_outside_user_tenant_memberships() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_tenant("tenant_2", "Other")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_visible",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("visible"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_hidden",
+                "tenant_2",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("hidden"),
+            )
+            .await
+            .unwrap();
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/packs?userId=user_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let packs: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(packs.as_array().unwrap().len(), 1);
+        assert_eq!(packs[0]["title"], "Sample visible");
+    }
+
+    #[tokio::test]
     async fn pat_enforcement_rejects_pack_list_missing_scope() {
         let state = seeded_state().await;
         let token = create_pat(&state, "patasset", "user_1", [Permission::AssetRead]).await;

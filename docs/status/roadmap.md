@@ -153,6 +153,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 - Owner PAT/Web-session reads of private assets, private pack refreshes, and
   private subscription groups now require owner membership in the resource
   tenant; subscription secrets remain explicit sharing credentials.
+- Pack listing now filters out packs whose owner is no longer a member of the
+  pack tenant.
 
 ## Immediate Plan
 
