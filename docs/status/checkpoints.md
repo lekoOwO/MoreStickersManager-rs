@@ -986,3 +986,14 @@
   membership, matching the API authorization model.
 - Updated PRD, roadmap, implementation matrix, current status, README, and user
   docs; next slice should add Web parity for tenant member administration.
+
+## 2026-05-09 Tenant Member Administration Web
+
+- Added Web API client support for tenant member list and role updates.
+- Added a Tenant admin workspace with member counts, member listing, and
+  `admin`/`user` role assignment controls.
+- Added `tenant.manage_members` to selectable PAT scope controls and translated
+  tenant administration labels in Traditional Chinese and English.
+- Updated PRD, roadmap, implementation matrix, current status, README, and user
+  docs; next slice should extend tenant administration APIs for settings, role
+  templates, and user status controls.

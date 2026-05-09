@@ -516,5 +516,10 @@ Tenant member administration MCP tools:
 - `msm.list_tenant_members`
 - `msm.set_tenant_member_role`
 
-Valid roles are currently `admin` and `user`. Web controls are planned but not
-implemented yet.
+Tenant member administration Web surface:
+
+- Open the Tenant admin workspace.
+- Review member counts and current member roles.
+- Enter a user ID and choose `admin` or `user` to add or update a tenant member.
+
+Valid roles are currently `admin` and `user`.

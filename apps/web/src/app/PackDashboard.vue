@@ -4,12 +4,14 @@ import { computed, onMounted, ref, watch } from "vue";
 import ExportTargetPanel from "@/components/ExportTargetPanel.vue";
 import PackExportWizard from "@/components/PackExportWizard.vue";
 import ProductMetadataPanel from "@/components/ProductMetadataPanel.vue";
+import TenantAdminPanel from "@/components/TenantAdminPanel.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   createPackClient,
   type PackClient,
   type ProductMetadataClient,
+  type TenantAdminClient,
   type WritablePackVisibility,
 } from "@/lib/api-client";
 import type { ExportClient } from "@/lib/exportApi";
@@ -22,6 +24,7 @@ const props = defineProps<{
   patToken?: string;
   packClient?: PackClient;
   metadataClient?: ProductMetadataClient;
+  tenantAdminClient?: TenantAdminClient;
   exportClient?: ExportClient;
   tenantId?: string;
   ownerUserId?: string;
@@ -50,9 +53,11 @@ const currentSectionLabel = computed(() =>
       ? labels.value.packs
       : currentSection.value === "metadata"
         ? labels.value.productMetadata
-        : currentSection.value === "exports"
-          ? labels.value.exportPack
-          : labels.value.exportTargets,
+        : currentSection.value === "admin"
+          ? labels.value.tenantAdmin
+          : currentSection.value === "exports"
+            ? labels.value.exportPack
+            : labels.value.exportTargets,
 );
 const totalStickers = computed(() => packs.value.reduce((sum, pack) => sum + pack.stickerCount, 0));
 const publicPackCount = computed(() => packs.value.filter((pack) => pack.visibility === "public").length);
@@ -67,6 +72,7 @@ const sectionTabs = computed<Array<{ key: WorkspaceSection; label: string }>>(()
   { key: "overview", label: labels.value.overview },
   { key: "packs", label: labels.value.packs },
   { key: "metadata", label: labels.value.productMetadata },
+  { key: "admin", label: labels.value.tenantAdmin },
   { key: "exports", label: labels.value.exportPack },
   { key: "targets", label: labels.value.exportTargets },
 ]);
@@ -431,6 +437,15 @@ function visibilityVariant(visibility: PackVisibility) {
         :pat-token="patToken"
         :tenant-id="tenantId"
         :owner-user-id="ownerUserId"
+      />
+    </section>
+
+    <section v-show="currentSection === 'admin'">
+      <TenantAdminPanel
+        :locale="locale"
+        :pat-token="patToken"
+        :tenant-admin-client="tenantAdminClient"
+        :tenant-id="tenantId"
       />
     </section>
 

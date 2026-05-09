@@ -97,11 +97,12 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   tenant member administration.
 - MCP `msm.list_tenant_members` and `msm.set_tenant_member_role` now expose the
   same tenant member administration contract.
+- Web now has a Tenant admin workspace for listing members and assigning
+  `admin` or `user` roles.
 
 ## Immediate Plan
 
-1. Add Web parity for tenant member administration.
-2. Extend tenant admin API coverage to tenant settings, role templates, and
+1. Extend tenant admin API coverage to tenant settings, role templates, and
    user status controls.
 
 ## Later Planned Work

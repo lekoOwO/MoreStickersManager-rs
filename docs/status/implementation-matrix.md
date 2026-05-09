@@ -26,9 +26,9 @@ roadmap, and completion definition.
 | Web UI foundation | Implemented | Vue/Vite, Tailwind CSS v4, Shadcn Vue-style local primitives, collapsible desktop navigation rail, separate mobile pack-card layout, Ant Design-inspired blue/gray theme tokens, theme toggle, i18n, shell-owned workspace navigation, dialogs, and Edge-based E2E regression coverage exist. |
 | Web API integration | Implemented | Web pack and export API clients can use API-backed pack/export operations with stored PAT; Vite reads repository-root env files for development, and pack list still has mock fallback when API base URL is intentionally absent. |
 | Web auth/PAT UI | Implemented | Local register/login and PAT create/list/revoke are exposed through dialogs, with selectable PAT scope controls instead of free-form scope text input. Local login also receives an HttpOnly `msm_session` cookie from the API. |
-| Web pack management | Implemented | Dashboard supports shell-selected pack list, rename, visibility edit, delete, pasted `.stickerpack` import dialog, folder/tag/subscription-group metadata management, folder-pack/pack-tag/subscription-group pack membership controls, export target setup, export job queue/status views, Telegram publication history links, and Telegram reconciliation controls for selected packs. |
+| Web pack management | Implemented | Dashboard supports shell-selected pack list, rename, visibility edit, delete, pasted `.stickerpack` import dialog, folder/tag/subscription-group metadata management, folder-pack/pack-tag/subscription-group pack membership controls, tenant member administration, export target setup, export job queue/status views, Telegram publication history links, and Telegram reconciliation controls for selected packs. |
 | Local auth bootstrap | Implemented | Register/login APIs store Argon2 password credentials; login returns a PAT and creates a hashed Web session cookie. Registration can bootstrap a tenant admin. |
-| Multi-tenant model | Partially implemented | Tenant/user records, bootstrap admin path, tenant member storage helpers, protected tenant member list/upsert API routes, CLI commands, and MCP tools exist. Web tenant admin parity, tenant settings, role templates, and complete RBAC management are not implemented. |
+| Multi-tenant model | Partially implemented | Tenant/user records, bootstrap admin path, tenant member storage helpers, protected tenant member list/upsert API routes, CLI commands, MCP tools, and Web controls exist. Tenant settings, role templates, and complete RBAC management are not implemented. |
 | PAT support | Implemented | Raw token is returned once, only the secret hash is stored, and protected pack API/MCP operations enforce scopes. |
 | GitHub Actions | Implemented | CI, Docker publish, prerelease, and tag release workflows exist. Local Docker verification is blocked by missing Docker CLI. |
 
@@ -48,11 +48,11 @@ roadmap, and completion definition.
 | Asset privacy enforcement | Future phase | Private pack asset paths reject anonymous reads and accept owner `asset.read` PATs, pack subscription tokens, subscription-group tokens containing the pack, or an owner `msm_session` Web session cookie. |
 | OIDC/SSO | Future phase | Local auth bootstrap exists; OIDC/SSO provider configuration and login flow are not implemented. |
 | System-wide CDN public asset URL | Future phase | Domain URL resolver supports CDN preference; admin configuration UI/API is not implemented. |
-| Tenant admin console | Future phase | Bootstrap admin plus tenant member API/CLI/MCP surfaces exist; Web admin surface is not implemented. |
+| Tenant admin console | Future phase | Bootstrap admin plus tenant member API/CLI/MCP/Web surfaces exist; tenant settings, role templates, and user status controls are not implemented. |
 | Full user migration UI/API | Future phase | Storage portability helpers exist; complete Web/API/CLI migration workflow is not implemented. |
 | Future providers | Future phases | Signal, WhatsApp, Kakao, Band, OGQ, and Viber are registered as planned only. |
 | Remote target sync/update/delete | P33+ | Telegram reconciliation policies are defined in `msm-exporters` for create-only, append-missing, and mirror operations. `msm-telegram` can execute title/add/replace/delete mutation sequences and fetch remote sticker set metadata, storage can persist source-sticker-to-Telegram-file mappings, successful publication and reconciliation mutation jobs populate mappings from fetched remote state, worker dry-run jobs can summarize planned operations from supplied remote state, append-missing non-dry-run jobs can execute mutations with `executeReconciliation:true`, omitted remote state can be derived from stored mappings plus fetched Telegram metadata, mirror replace/delete also requires `allowDestructiveReconciliation:true`, and Web/CLI/MCP expose named controls for these options. |
 
 ## Current Next Phase
 
-Continue with Web parity for tenant member administration.
+Continue with tenant settings, role templates, and user status controls.

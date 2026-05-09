@@ -12,6 +12,7 @@ import {
   SettingsIcon,
   SunIcon,
   TagsIcon,
+  UsersRoundIcon,
   XIcon,
 } from "lucide-vue-next";
 import { computed, ref, watch, type Component } from "vue";
@@ -63,6 +64,7 @@ const defaultPatScopes = [
   "export.read",
   "export.run",
   "export.target.manage",
+  "tenant.manage_members",
   "subscription.create",
   "subscription.read",
   "pat.manage",
@@ -131,6 +133,11 @@ const scopeOptions = computed(() => [
     label: labels.value.scopeExportTargetManage,
     help: labels.value.scopeExportTargetManageHelp,
   },
+  {
+    key: "tenant.manage_members",
+    label: labels.value.scopeTenantManageMembers,
+    help: labels.value.scopeTenantManageMembersHelp,
+  },
   { key: "subscription.create", label: labels.value.scopeSubscriptionCreate, help: labels.value.scopeSubscriptionCreateHelp },
   { key: "subscription.read", label: labels.value.scopeSubscriptionRead, help: labels.value.scopeSubscriptionReadHelp },
   { key: "pat.manage", label: labels.value.scopePatManage, help: labels.value.scopePatManageHelp },
@@ -140,6 +147,7 @@ const navigationItems = computed<Array<{ key: WorkspaceSection; label: string; i
   { key: "overview", label: labels.value.overview, icon: LayoutDashboardIcon },
   { key: "packs", label: labels.value.packs, icon: DatabaseIcon },
   { key: "metadata", label: labels.value.productMetadata, icon: TagsIcon },
+  { key: "admin", label: labels.value.tenantAdmin, icon: UsersRoundIcon },
   { key: "exports", label: labels.value.exportPack, icon: SettingsIcon },
   { key: "targets", label: labels.value.exportTargets, icon: KeyRoundIcon },
 ]);
@@ -173,9 +181,11 @@ function currentSectionLabel() {
       ? labels.value.packs
       : activeSection.value === "metadata"
         ? labels.value.productMetadata
-        : activeSection.value === "exports"
-          ? labels.value.exportPack
-          : labels.value.exportTargets;
+        : activeSection.value === "admin"
+          ? labels.value.tenantAdmin
+          : activeSection.value === "exports"
+            ? labels.value.exportPack
+            : labels.value.exportTargets;
 }
 
 function saveToken() {

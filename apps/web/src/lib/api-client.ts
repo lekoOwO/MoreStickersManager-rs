@@ -114,6 +114,24 @@ export interface LocalAuthClient {
   loginLocalUser(request: LoginLocalUserRequest): Promise<CreatedPersonalAccessTokenResponse>;
 }
 
+export type TenantMemberRole = "admin" | "user";
+
+export interface TenantMemberResponse {
+  tenantId: string;
+  userId: string;
+  role: TenantMemberRole;
+  createdAt: string;
+}
+
+export interface TenantAdminClient {
+  listTenantMembers(tenantId: string): Promise<TenantMemberResponse[]>;
+  setTenantMemberRole(
+    tenantId: string,
+    userId: string,
+    role: TenantMemberRole,
+  ): Promise<TenantMemberResponse>;
+}
+
 export interface ProductMetadataFolder {
   id: string;
   tenantId: string;
@@ -492,6 +510,38 @@ export function createProductMetadataClient(options: PackClientOptions = {}): Pr
   };
 }
 
+export function createTenantAdminClient(options: PackClientOptions = {}): TenantAdminClient {
+  const baseUrl = options.baseUrl?.trim();
+  if (!baseUrl) {
+    return mockTenantAdminClient();
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  return {
+    async listTenantMembers(tenantId) {
+      const response = await fetchOptional(fetchImpl, tenantMemberListUrl(baseUrl, tenantId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list tenant members: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as TenantMemberResponse[];
+    },
+    async setTenantMemberRole(tenantId, userId, role) {
+      const response = await fetchImpl(tenantMemberUrl(baseUrl, tenantId, userId), {
+        method: "PUT",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify({ role }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to set tenant member role: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as TenantMemberResponse;
+    },
+  };
+}
+
 export function createPatClient(options: PackClientOptions = {}): PatClient {
   const baseUrl = options.baseUrl?.trim();
   if (!baseUrl) {
@@ -631,6 +681,14 @@ export function packTagListUrl(baseUrl: string, packId: string) {
 
 export function subscriptionGroupPackListUrl(baseUrl: string, subscriptionGroupId: string) {
   return `${trimBaseUrl(baseUrl)}/api/v1/subscription-groups/${encodeURIComponent(subscriptionGroupId)}/packs`;
+}
+
+export function tenantMemberListUrl(baseUrl: string, tenantId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/tenants/${encodeURIComponent(tenantId)}/members`;
+}
+
+export function tenantMemberUrl(baseUrl: string, tenantId: string, userId: string) {
+  return `${tenantMemberListUrl(baseUrl, tenantId)}/${encodeURIComponent(userId)}`;
 }
 
 function trimBaseUrl(baseUrl: string) {
@@ -785,6 +843,45 @@ function mockProductMetadataClient(): ProductMetadataClient {
     },
     async revokeSubscriptionLink(tokenId) {
       throw new Error(`Subscription link revocation requires VITE_MSM_API_BASE_URL: ${tokenId}`);
+    },
+  };
+}
+
+function mockTenantAdminClient(): TenantAdminClient {
+  let members: TenantMemberResponse[] = [
+    {
+      tenantId: "tenant_1",
+      userId: "user_1",
+      role: "admin",
+      createdAt: "2026-05-09T00:00:00Z",
+    },
+    {
+      tenantId: "tenant_1",
+      userId: "user_2",
+      role: "user",
+      createdAt: "2026-05-09T00:00:00Z",
+    },
+  ];
+
+  return {
+    async listTenantMembers() {
+      return [...members];
+    },
+    async setTenantMemberRole(tenantId, userId, role) {
+      const existing = members.find((member) => member.tenantId === tenantId && member.userId === userId);
+      if (existing) {
+        existing.role = role;
+        return { ...existing };
+      }
+
+      const created = {
+        tenantId,
+        userId,
+        role,
+        createdAt: "2026-05-09T00:00:00Z",
+      };
+      members = [...members, created];
+      return created;
     },
   };
 }

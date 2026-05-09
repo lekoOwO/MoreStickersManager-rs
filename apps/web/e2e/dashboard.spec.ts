@@ -23,6 +23,36 @@ test.beforeEach(async ({ page }) => {
       ]),
     });
   });
+  await page.route("**/api/v1/tenants/*/members", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          tenantId: "tenant_1",
+          userId: "user_1",
+          role: "admin",
+          createdAt: "2026-05-09T00:00:00Z",
+        },
+        {
+          tenantId: "tenant_1",
+          userId: "user_2",
+          role: "user",
+          createdAt: "2026-05-09T00:00:00Z",
+        },
+      ]),
+    });
+  });
+  await page.route("**/api/v1/tenants/*/members/*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        tenantId: "tenant_1",
+        userId: "user_3",
+        role: "admin",
+        createdAt: "2026-05-09T00:00:00Z",
+      }),
+    });
+  });
 });
 
 test("uses live API state instead of mock preview when env and PAT are present", async ({ page }) => {
@@ -74,7 +104,25 @@ test("PAT scopes are selectable controls instead of a raw text field", async ({ 
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("checkbox", { name: /Read packs/ })).toBeChecked();
   await expect(dialog.getByRole("checkbox", { name: /Manage PATs/ })).toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: /Manage tenant members/ })).toBeChecked();
   await expect(dialog.getByRole("textbox", { name: "Scopes" })).toHaveCount(0);
+});
+
+test("tenant admin workspace lists members and exposes role assignment", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  if (testInfo.project.name === "mobile") {
+    await page.getByRole("button", { name: "Navigation" }).click();
+  }
+  await page.getByRole("button", { name: "Tenant admin" }).first().click();
+
+  await expect(page.getByRole("main").getByRole("heading", { name: "Tenant admin" }).first()).toBeVisible();
+  const tenantAdminSection = page.getByTestId("tenant-admin-section");
+  await expect(tenantAdminSection.locator("p:visible", { hasText: "user_1" }).first()).toBeVisible();
+  await page.getByLabel("Member user ID").fill("user_3");
+  await page.getByLabel("Member role").first().selectOption("admin");
+  await page.getByRole("button", { name: "Set member role" }).click();
+  await expect(tenantAdminSection.locator("p:visible", { hasText: "user_2" }).first()).toBeVisible();
 });
 
 test("zh-TW chrome translates the fixed dashboard and access-token labels", async ({ page }, testInfo) => {

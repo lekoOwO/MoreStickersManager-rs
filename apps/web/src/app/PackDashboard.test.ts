@@ -2,7 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 
 import PackDashboard from "./PackDashboard.vue";
-import type { PackClient } from "@/lib/api-client";
+import type { PackClient, TenantAdminClient } from "@/lib/api-client";
 
 describe("PackDashboard", () => {
   it("renders mock pack metrics and provider labels", async () => {
@@ -108,5 +108,45 @@ describe("PackDashboard", () => {
       pack,
     });
     expect(client.listStickerPacks).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders tenant administration workspace when selected by the shell", async () => {
+    const packClient: PackClient = {
+      listStickerPacks: vi.fn(async () => []),
+      importStickerPack: vi.fn(async () => {}),
+      updateStickerPack: vi.fn(async () => {}),
+      deleteStickerPack: vi.fn(async () => {}),
+    };
+    const tenantAdminClient: TenantAdminClient = {
+      listTenantMembers: vi.fn(async () => [
+        {
+          tenantId: "tenant_1",
+          userId: "user_1",
+          role: "admin",
+          createdAt: "2026-05-09T00:00:00Z",
+        },
+      ]),
+      setTenantMemberRole: vi.fn(async (tenantId, userId, role) => ({
+        tenantId,
+        userId,
+        role,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+    };
+    const wrapper = mount(PackDashboard, {
+      props: {
+        locale: "en",
+        activeSection: "admin",
+        packClient,
+        tenantAdminClient,
+        tenantId: "tenant_1",
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Tenant admin");
+    expect(wrapper.text()).toContain("user_1");
+    expect(tenantAdminClient.listTenantMembers).toHaveBeenCalledWith("tenant_1");
   });
 });

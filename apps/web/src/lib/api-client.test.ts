@@ -5,6 +5,7 @@ import {
   createLocalAuthClient,
   createPatClient,
   createProductMetadataClient,
+  createTenantAdminClient,
   folderListUrl,
   folderPackListUrl,
   mapApiPackRecord,
@@ -14,6 +15,8 @@ import {
   subscriptionGroupListUrl,
   subscriptionLinkListUrl,
   tagListUrl,
+  tenantMemberListUrl,
+  tenantMemberUrl,
   type ApiStickerPackRecord,
 } from "./api-client";
 
@@ -188,6 +191,75 @@ describe("pack API client", () => {
     expect(summary.provider).toBe("LINE Emojis");
     expect(summary.visibility).toBe("private");
     expect(summary.stickerCount).toBe(1);
+  });
+});
+
+describe("tenant admin API client", () => {
+  it("constructs tenant member URLs with encoded path segments", () => {
+    expect(tenantMemberListUrl("https://msm.example.test/", "tenant 1")).toBe(
+      "https://msm.example.test/api/v1/tenants/tenant%201/members",
+    );
+    expect(tenantMemberUrl("https://msm.example.test/", "tenant 1", "user 2")).toBe(
+      "https://msm.example.test/api/v1/tenants/tenant%201/members/user%202",
+    );
+  });
+
+  it("lists and updates tenant member roles with bearer auth", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        return new Response(
+          JSON.stringify({
+            tenantId: "tenant_1",
+            userId: "user_2",
+            role: "admin",
+            createdAt: "2026-05-09T00:00:00Z",
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(
+        JSON.stringify([
+          {
+            tenantId: "tenant_1",
+            userId: "user_1",
+            role: "admin",
+            createdAt: "2026-05-09T00:00:00Z",
+          },
+          {
+            tenantId: "tenant_1",
+            userId: "user_2",
+            role: "user",
+            createdAt: "2026-05-09T00:00:00Z",
+          },
+        ]),
+        { status: 200 },
+      );
+    });
+    const client = createTenantAdminClient({
+      baseUrl: "https://msm.example.test/",
+      authToken: "msm_pat_admin_secret",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const members = await client.listTenantMembers("tenant_1");
+    const updated = await client.setTenantMemberRole("tenant_1", "user_2", "admin");
+
+    expect(members).toHaveLength(2);
+    expect(updated.role).toBe("admin");
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/tenants/tenant_1/members", {
+      headers: {
+        Authorization: "Bearer msm_pat_admin_secret",
+      },
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/tenants/tenant_1/members/user_2", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_admin_secret",
+      },
+      body: JSON.stringify({ role: "admin" }),
+    });
   });
 });
 

@@ -358,8 +358,9 @@ Tenant member administration currently has API/OpenAPI, CLI, and MCP support:
 - `msm.set_tenant_member_role`
 
 These management surfaces require a Bearer PAT with `tenant.manage_members`,
-and the PAT user must be an `admin` member of the target tenant. Web admin
-parity is planned next.
+and the PAT user must be an `admin` member of the target tenant. The Web UI
+exposes the same member list and role assignment workflow from the Tenant admin
+workspace.
 
 ## Project Docs
 
