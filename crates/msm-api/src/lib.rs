@@ -236,7 +236,10 @@ mod tests {
         body::{to_bytes, Body},
         http::{header, Request, StatusCode},
     };
-    use std::collections::BTreeSet;
+    use std::{
+        collections::BTreeSet,
+        sync::{Arc, Mutex},
+    };
 
     use msm_domain::{Permission, Sticker};
     use msm_storage::{
@@ -248,7 +251,14 @@ mod tests {
     };
     use tower::ServiceExt;
 
-    use crate::{build_router, ApiState};
+    use crate::{
+        build_router,
+        oidc::{
+            OidcTokenExchangeFuture, OidcTokenExchangeRequest, OidcTokenExchanger,
+            OidcTokenResponse,
+        },
+        ApiState,
+    };
 
     #[tokio::test]
     async fn health_endpoint_returns_ok() {
@@ -4111,6 +4121,96 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn oidc_callback_exchanges_authorization_code_before_creating_session() {
+        let exchanger = Arc::new(RecordingOidcTokenExchanger::new());
+        let state = test_state()
+            .await
+            .with_oidc_token_exchanger(exchanger.clone());
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from(["email".to_owned(), "openid".to_owned()]);
+        state
+            .repository()
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_google",
+                tenant_id: "tenant_1",
+                display_name: "Google",
+                issuer_url: "https://accounts.google.com",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+        let start_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/auth/oidc/tenant_1/oidc_google/login?redirectUri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let start_body = to_bytes(start_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&start_body).unwrap();
+        let callback_body = serde_json::json!({
+            "state": started["state"].as_str().unwrap(),
+            "nonce": started["nonce"].as_str().unwrap(),
+            "authorizationCode": "provider-code-123",
+            "issuer": "https://accounts.google.com",
+            "audience": "client-id",
+            "providerSubject": "google-subject-1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "tokenId": "oidcwebcode",
+            "tokenName": "OIDC Web",
+            "scopes": ["pack.read"],
+            "expiresAt": null
+        });
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/oidc/callback")
+                    .header("content-type", "application/json")
+                    .body(Body::from(callback_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let requests = exchanger.requests.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].token_endpoint_url,
+            "https://accounts.google.com/token"
+        );
+        assert_eq!(
+            requests[0].form,
+            vec![
+                ("grant_type".to_owned(), "authorization_code".to_owned()),
+                ("code".to_owned(), "provider-code-123".to_owned()),
+                (
+                    "redirect_uri".to_owned(),
+                    "https://msm.example/auth/callback".to_owned()
+                ),
+                ("client_id".to_owned(), "client-id".to_owned()),
+                ("client_secret".to_owned(), "client-secret".to_owned()),
+            ]
+        );
+    }
+
+    #[tokio::test]
     async fn local_auth_session_cookie_reads_owned_private_asset() {
         let state = test_state().await;
         state
@@ -4797,6 +4897,31 @@ mod tests {
         let roles: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
         assert_eq!(roles.as_array().unwrap().len(), 1);
         assert_eq!(roles[0]["name"], "Editors");
+    }
+
+    #[derive(Default)]
+    struct RecordingOidcTokenExchanger {
+        requests: Mutex<Vec<OidcTokenExchangeRequest>>,
+    }
+
+    impl RecordingOidcTokenExchanger {
+        fn new() -> Self {
+            Self::default()
+        }
+    }
+
+    impl OidcTokenExchanger for RecordingOidcTokenExchanger {
+        fn exchange(&self, request: OidcTokenExchangeRequest) -> OidcTokenExchangeFuture {
+            self.requests.lock().unwrap().push(request);
+            Box::pin(async {
+                Ok(OidcTokenResponse {
+                    access_token: "access-token".to_owned(),
+                    token_type: "Bearer".to_owned(),
+                    id_token: Some("id-token".to_owned()),
+                    expires_in: Some(3600),
+                })
+            })
+        }
     }
 
     async fn test_state() -> ApiState {

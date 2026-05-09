@@ -344,6 +344,7 @@ pub struct OidcLoginStartResponse {
 pub struct CompleteOidcLoginRequest {
     pub state: String,
     pub nonce: String,
+    pub authorization_code: Option<String>,
     pub issuer: String,
     pub audience: String,
     pub provider_subject: String,

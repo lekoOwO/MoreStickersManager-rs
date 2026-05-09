@@ -1,13 +1,28 @@
 #![doc = "OIDC helper types for authorization-code callback hardening."]
 
 use msm_storage::models::OidcProviderConfigRecord;
+use std::{future::Future, pin::Pin};
+use url::Url;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OidcError {
     #[error("OIDC token response is invalid: {0}")]
     InvalidTokenResponse(String),
+    #[error("OIDC token endpoint is invalid: {0}")]
+    InvalidTokenEndpoint(String),
+    #[error("OIDC token endpoint rejected the exchange: {0}")]
+    TokenEndpointStatus(reqwest::StatusCode),
+    #[error("OIDC token exchange HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
     #[error("OIDC JSON error: {0}")]
     Json(#[from] serde_json::Error),
+}
+
+/// Owned request data for exchanging an OIDC authorization code for tokens.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OidcTokenExchangeRequest {
+    pub token_endpoint_url: String,
+    pub form: Vec<(String, String)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,6 +39,70 @@ struct RawTokenResponse {
     token_type: Option<String>,
     id_token: Option<String>,
     expires_in: Option<u64>,
+}
+
+/// Boxed future returned by an OIDC token exchanger implementation.
+pub type OidcTokenExchangeFuture =
+    Pin<Box<dyn Future<Output = Result<OidcTokenResponse, OidcError>> + Send>>;
+
+/// Exchanges an authorization code with a provider token endpoint.
+pub trait OidcTokenExchanger: Send + Sync {
+    fn exchange(&self, request: OidcTokenExchangeRequest) -> OidcTokenExchangeFuture;
+}
+
+/// HTTP implementation of [`OidcTokenExchanger`].
+#[derive(Clone, Debug)]
+pub struct HttpOidcTokenExchanger {
+    client: reqwest::Client,
+}
+
+impl Default for HttpOidcTokenExchanger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HttpOidcTokenExchanger {
+    /// Creates an HTTP OIDC token exchanger with the default reqwest client.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+impl OidcTokenExchanger for HttpOidcTokenExchanger {
+    fn exchange(&self, request: OidcTokenExchangeRequest) -> OidcTokenExchangeFuture {
+        let client = self.client.clone();
+        Box::pin(async move {
+            let response = client
+                .post(&request.token_endpoint_url)
+                .form(&request.form)
+                .send()
+                .await?;
+            let status = response.status();
+            if !status.is_success() {
+                return Err(OidcError::TokenEndpointStatus(status));
+            }
+            let body = response.text().await?;
+            parse_token_response(&body)
+        })
+    }
+}
+
+/// Builds the token endpoint URL from the configured issuer URL.
+///
+/// # Errors
+///
+/// Returns an error when the issuer URL is not a valid absolute URL.
+pub fn token_endpoint_url(issuer_url: &str) -> Result<String, OidcError> {
+    let mut url = Url::parse(issuer_url)
+        .map_err(|error| OidcError::InvalidTokenEndpoint(error.to_string()))?;
+    let token_path = format!("{}/token", url.path().trim_end_matches('/'));
+    url.set_path(&token_path);
+    url.set_query(None);
+    Ok(url.to_string())
 }
 
 /// Builds the `application/x-www-form-urlencoded` body for an OIDC token exchange.

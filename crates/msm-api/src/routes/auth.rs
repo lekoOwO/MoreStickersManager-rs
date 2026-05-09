@@ -16,6 +16,7 @@ use crate::{
         LoginLocalUserRequest, OidcLoginStartResponse, RegisterLocalUserRequest,
         StartOidcLoginQuery,
     },
+    oidc::{build_token_exchange_form, token_endpoint_url, OidcTokenExchangeRequest},
     rbac::require_user_pat_scopes_allowed,
     ApiError, ApiResult, ApiState,
 };
@@ -213,6 +214,28 @@ pub async fn complete_oidc_login(
         .ok_or_else(|| ApiError::Unauthorized("OIDC provider not found".to_owned()))?;
     if !provider.is_enabled {
         return Err(ApiError::Unauthorized("OIDC provider not found".to_owned()));
+    }
+    if let Some(authorization_code) = request
+        .authorization_code
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let token_endpoint_url = token_endpoint_url(&provider.issuer_url).map_err(|error| {
+            ApiError::Unauthorized(format!("OIDC token exchange failed: {error}"))
+        })?;
+        let form =
+            build_token_exchange_form(&provider, authorization_code, &login_state.redirect_uri);
+        state
+            .oidc_token_exchanger()
+            .exchange(OidcTokenExchangeRequest {
+                token_endpoint_url,
+                form,
+            })
+            .await
+            .map_err(|error| {
+                ApiError::Unauthorized(format!("OIDC token exchange failed: {error}"))
+            })?;
     }
     validate_oidc_claims(&provider.issuer_url, &provider.client_id, &request)?;
     state

@@ -1361,3 +1361,13 @@
   exchange form bodies and parsing Bearer token responses.
 - Kept callback integration, discovery/JWKS validation, and userinfo/ID-token
   signature/expiry validation as the next Phase D work.
+
+## 2026-05-10 OIDC Token Exchange Callback Wiring
+
+- Added injectable OIDC token exchanger support to API state and an HTTP
+  implementation backed by reqwest.
+- Callback requests can include an authorization code; MSM exchanges it with
+  the provider token endpoint using the stored redirect URI before continuing
+  trusted-claim validation and session/PAT creation.
+- Kept discovery/JWKS validation and userinfo/ID-token claim derivation as the
+  next Phase D work.

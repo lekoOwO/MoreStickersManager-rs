@@ -1339,6 +1339,7 @@ dependencies = [
  "msm-domain",
  "msm-exporters",
  "msm-storage",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",

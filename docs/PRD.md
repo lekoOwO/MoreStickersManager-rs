@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Wire the OIDC token exchange helpers into the callback path, then add discovery/JWKS and ID-token/userinfo validation.
+1. Add OIDC discovery/JWKS plus ID-token/userinfo validation and derive callback claims from provider-validated data.
 
 Each queue item must update this section when completed or reordered.
 
@@ -194,10 +194,11 @@ tests and docs are updated.
   verifies state/nonce, validates trusted issuer and audience claims, then
   consumes state, links or creates tenant users when provider registration is
   enabled, issues PATs, and creates Web sessions for already-validated provider
-  claims. Token-exchange form construction and token-response parsing helpers
-  now exist as the next integration foundation. Remaining work: callback-path
-  authorization-code HTTP exchange, discovery/JWKS validation, and
-  userinfo/ID-token signature/expiry validation.
+  claims. Callback requests may now include an authorization code; the API
+  exchanges it against the provider token endpoint using the stored redirect URI
+  before creating the session. Remaining work: discovery/JWKS validation and
+  userinfo/ID-token signature/expiry validation, then deriving claims from
+  validated provider responses instead of trusting callback-supplied claim fields.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
 
@@ -288,7 +289,7 @@ Current parity gaps:
   tenant/pack RBAC helpers. Subscription-link management routes use
   pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
   enforce `pat.manage` and role-allowed scopes across API, CLI, MCP, and Web.
-  Cross-tenant audit tests exist; OIDC/SSO remains incomplete, with token-exchange parsing helpers present but not yet wired to the callback path.
+  Cross-tenant audit tests exist; OIDC/SSO remains incomplete, with callback-path authorization-code token exchange wired but signed/userinfo claim validation still outstanding.
 
 ## Open Product Questions
 
