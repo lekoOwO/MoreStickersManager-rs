@@ -1804,3 +1804,10 @@
 - Added shared sticker-pack repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
 - Updated PRD/status docs to reflect PostgreSQL repository progress while keeping auth/export/metadata/provider/portability parity open.
 - Verification: `cargo test -p msm-storage pack_records_work_on_sqlite --locked`; `cargo test -p msm-storage pack_records_work_on_postgres_when_configured --locked`.
+
+## 2026-05-10 PostgreSQL Folder Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for folder create, list, and find operations.
+- Added shared folder repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
+- Updated PRD/status docs to show folder metadata PostgreSQL progress while keeping tag/subscription metadata and other repositories open.
+- Verification: `cargo test -p msm-storage folder_records_work_on_sqlite --locked`; `cargo test -p msm-storage folder_records_work_on_postgres_when_configured --locked`.

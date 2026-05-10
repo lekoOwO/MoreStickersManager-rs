@@ -1115,7 +1115,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn create_folder(
         &self,
         id: &str,
@@ -1124,17 +1124,34 @@ impl StorageRepository {
         name: &str,
     ) -> StorageResult<FolderRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO folders (id, tenant_id, owner_user_id, name, created_at)
-            VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(id)
-        .bind(tenant_id)
-        .bind(owner_user_id)
-        .bind(name)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO folders (id, tenant_id, owner_user_id, name, created_at)
+                    VALUES (?, ?, ?, ?, ?)",
+                )
+                .bind(id)
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .bind(name)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO folders (id, tenant_id, owner_user_id, name, created_at)
+                    VALUES ($1, $2, $3, $4, $5)",
+                )
+                .bind(id)
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .bind(name)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(FolderRecord {
             id: id.to_owned(),
@@ -1149,24 +1166,42 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL/timestamp parsing fails.
+    /// Returns an error when SQL/timestamp parsing fails.
     pub async fn list_folders(
         &self,
         tenant_id: &str,
         owner_user_id: &str,
     ) -> StorageResult<Vec<FolderRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, name, created_at
-            FROM folders
-            WHERE tenant_id = ? AND owner_user_id = ?
-            ORDER BY created_at, id",
-        )
-        .bind(tenant_id)
-        .bind(owner_user_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, name, created_at
+                    FROM folders
+                    WHERE tenant_id = ? AND owner_user_id = ?
+                    ORDER BY created_at, id",
+                )
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .fetch_all(pool)
+                .await?;
 
-        rows.iter().map(folder_from_row).collect()
+                rows.iter().map(folder_from_sqlite_row).collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, name, created_at
+                    FROM folders
+                    WHERE tenant_id = $1 AND owner_user_id = $2
+                    ORDER BY created_at, id",
+                )
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .fetch_all(pool)
+                .await?;
+
+                rows.iter().map(folder_from_pg_row).collect()
+            }
+        }
     }
 
     /// Renames a folder.
@@ -1203,23 +1238,38 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamp
-    /// parsing fails.
+    /// Returns an error when SQL fails or timestamp parsing fails.
     pub async fn find_folder_record(&self, id: &str) -> StorageResult<Option<FolderRecord>> {
         self.find_folder(id).await
     }
 
     async fn find_folder(&self, id: &str) -> StorageResult<Option<FolderRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, name, created_at
-            FROM folders
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, name, created_at
+                    FROM folders
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.as_ref().map(folder_from_row).transpose()
+                row.as_ref().map(folder_from_sqlite_row).transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, name, created_at
+                    FROM folders
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+
+                row.as_ref().map(folder_from_pg_row).transpose()
+            }
+        }
     }
 
     /// Adds a sticker pack to a folder.
@@ -2340,7 +2390,18 @@ fn parse_rfc3339(value: &str) -> StorageResult<DateTime<Utc>> {
         })
 }
 
-fn folder_from_row(row: &SqliteRow) -> StorageResult<FolderRecord> {
+fn folder_from_sqlite_row(row: &SqliteRow) -> StorageResult<FolderRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(FolderRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        name: row.get("name"),
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn folder_from_pg_row(row: &PgRow) -> StorageResult<FolderRecord> {
     let created_at: String = row.get("created_at");
     Ok(FolderRecord {
         id: row.get("id"),
@@ -2789,6 +2850,21 @@ mod tests {
         assert_pack_contract(&repo, "postgres_pack").await;
     }
 
+    #[tokio::test]
+    async fn folder_records_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_folder_contract(&repo, "sqlite_folder").await;
+    }
+
+    #[tokio::test]
+    async fn folder_records_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_folder_contract(&repo, "postgres_folder").await;
+    }
+
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
         let suffix = uuid::Uuid::new_v4().simple().to_string();
         let tenant_id = format!("{prefix}_tenant_{suffix}");
@@ -2870,6 +2946,40 @@ mod tests {
         assert_eq!(record.owner_user_id, user_id);
         assert_eq!(record.visibility, PackVisibility::Private);
         assert_eq!(record.sticker_pack, pack);
+    }
+
+    async fn assert_folder_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let tenant_id = format!("{prefix}_tenant_{suffix}");
+        let user_id = format!("{prefix}_user_{suffix}");
+        let email = format!("{prefix}_{suffix}@example.com");
+        let folder_id = format!("{prefix}_folder_{suffix}");
+
+        repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+        repo.create_user(&user_id, &email, "User").await.unwrap();
+        repo.add_tenant_member(&tenant_id, &user_id, "admin")
+            .await
+            .unwrap();
+
+        let created = repo
+            .create_folder(&folder_id, &tenant_id, &user_id, "Favorites")
+            .await
+            .unwrap();
+        assert_eq!(created.id, folder_id);
+        assert_eq!(created.tenant_id, tenant_id);
+        assert_eq!(created.owner_user_id, user_id);
+        assert_eq!(created.name, "Favorites");
+
+        assert_eq!(
+            repo.find_folder_record(&created.id).await.unwrap(),
+            Some(created.clone())
+        );
+        assert_eq!(
+            repo.list_folders(&created.tenant_id, &created.owner_user_id)
+                .await
+                .unwrap(),
+            vec![created]
+        );
     }
 
     #[tokio::test]

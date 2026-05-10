@@ -15,6 +15,7 @@ compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Folder create/list/find repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Sticker-pack upsert/find/list/read-record repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Core tenant/user/tenant-member repository operations now have backend-aware SQLite/PostgreSQL execution paths and shared contract tests, with PostgreSQL execution enabled by `MSM_TEST_POSTGRES_URL`.
 - Storage migrations now have backend-specific SQLite and PostgreSQL migrator sets, with `DbPool::run_migrations` selecting by pool kind.
@@ -182,7 +183,7 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Move auth/PAT and product metadata repository operations off SQLite-only pool access toward backend-aware SQL execution.
+1. Move tag/subscription metadata and auth/PAT repository operations off SQLite-only pool access toward backend-aware SQL execution.
 2. Continue expanding shared contract tests before adding PostgreSQL CI service wiring.
 
 ## Later Planned Work
