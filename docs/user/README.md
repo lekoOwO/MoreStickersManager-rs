@@ -514,6 +514,13 @@ PAT API endpoints:
 - `GET /api/v1/pats/scope-policy?userId=...`
 - `DELETE /api/v1/pats/{token_id}`
 
+Portable user migration API endpoints:
+
+- `GET /api/v1/portable/user-export?userId=<user_id>` with a same-user
+  `pack.read` PAT exports portable user data, packs, and subscription groups.
+- `POST /api/v1/portable/user-import` with a same-user `import.run` PAT imports
+  that export into an existing tenant where the user has import access.
+
 PAT CLI commands:
 
 - `msm pats scope-policy --user-id <user_id>`

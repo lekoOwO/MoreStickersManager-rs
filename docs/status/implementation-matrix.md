@@ -50,10 +50,11 @@ roadmap, and completion definition.
 | Tenant CDN public asset URL | Implemented | Tenant public asset URL is configurable through API/OpenAPI, CLI, MCP, and Web. Protected pack exports and public subscription payloads rewrite local sticker asset URLs to the tenant CDN base when configured. |
 | System-wide CDN public asset URL | Implemented | `MSM_PUBLIC_ASSET_URL` provides an app-wide fallback CDN base for exported pack and subscription payloads; tenant public asset URLs take precedence. |
 | Tenant admin console | Current phase | Bootstrap admin plus tenant member/settings/local-registration/user-status/role-template API/CLI/MCP/Web surfaces exist, and route-by-route fine-grained RBAC audit/closure is complete for current API tenant/resource-owning routes. Remaining work is role assignment semantics beyond templates and SSO-backed account documentation. |
-| Full user migration UI/API | Future phase | Storage portability helpers exist; complete Web/API/CLI migration workflow is not implemented. |
+| User data portability API | Implemented | Protected API/OpenAPI endpoints can export one user's portable data and import a portable export into an existing tenant. |
+| Full user migration CLI/Web | Future phase | Storage and API portability surfaces exist; CLI/Web migration workflow is not implemented. |
 | Future providers | Future phases | Signal, WhatsApp, Kakao, Band, OGQ, and Viber are registered as planned only. |
 | Remote target sync/update/delete | P33+ | Telegram reconciliation policies are defined in `msm-exporters` for create-only, append-missing, and mirror operations. `msm-telegram` can execute title/add/replace/delete mutation sequences and fetch remote sticker set metadata, storage can persist source-sticker-to-Telegram-file mappings, successful publication and reconciliation mutation jobs populate mappings from fetched remote state, worker dry-run jobs can summarize planned operations from supplied remote state, append-missing non-dry-run jobs can execute mutations with `executeReconciliation:true`, omitted remote state can be derived from stored mappings plus fetched Telegram metadata, mirror replace/delete also requires `allowDestructiveReconciliation:true`, and Web/CLI/MCP expose named controls for these options. |
 
 ## Current Next Phase
 
-Continue by documenting CDN environment behavior in user/developer docs, then move to Phase I data portability surfaces.
+Continue Phase I with CLI export/import commands backed by the portable user API, followed by Web migration workflow controls.

@@ -147,6 +147,20 @@ pub struct ListPacksQuery {
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
+pub struct ExportUserDataQuery {
+    pub user_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportUserDataRequest {
+    pub tenant_id: String,
+    pub export: serde_json::Value,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
 pub struct ListFoldersQuery {
     pub tenant_id: String,
     pub owner_user_id: String,

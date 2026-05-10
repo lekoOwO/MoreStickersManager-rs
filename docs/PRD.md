@@ -81,14 +81,14 @@ Status meanings:
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
 | Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
 | Asset privacy/CDN | Partially complete | Tenant public asset/CDN URL settings exist across API/OpenAPI, CLI, MCP, and Web. `MSM_PUBLIC_ASSET_URL` provides a system-wide fallback CDN base, and tenant settings take precedence. Protected pack exports and public pack/subscription payloads rewrite local sticker asset URLs to the selected CDN base when configured. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. |
-| Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
+| Data portability | Partially complete | Storage helpers and protected API/OpenAPI user export/import endpoints exist. CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
 
 ## Current Implementation Queue
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue Phase H asset privacy/CDN work: verify/document asset URL fallback behavior across user/admin docs and then move to Phase I data portability.
+1. Continue Phase I data portability: add CLI export/import commands backed by the portable user API.
 
 Each queue item must update this section when completed or reordered.
 
@@ -298,7 +298,7 @@ tests and docs are updated.
 
 ### Phase I: Data Portability
 
-- [ ] API export/import endpoints for user data.
+- [x] API export/import endpoints for user data.
 - [ ] CLI export/import commands.
 - [ ] Web migration flow.
 - [ ] Compatibility tests for moving between MSM instances.

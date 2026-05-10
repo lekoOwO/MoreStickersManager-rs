@@ -1747,3 +1747,10 @@
 - Public pack/subscription payload rewriting now uses precedence: tenant `public_asset_url`, then `MSM_PUBLIC_ASSET_URL`, then the request-derived MSM app URL.
 - Added focused API coverage for system fallback plus tenant precedence, and app config coverage for the new environment variable.
 - Updated the PRD/status docs to mark system-wide CDN fallback complete; remaining Phase H work is documentation polish before Phase I data portability.
+
+## 2026-05-10 Data Portability API
+
+- Added protected API routes `GET /api/v1/portable/user-export?userId=...` and `POST /api/v1/portable/user-import` backed by storage portability helpers.
+- Export requires a same-user `pack.read` PAT; import requires a same-user `import.run` PAT plus target-tenant access.
+- Added OpenAPI registration and focused API coverage proving a user export can be imported into another tenant.
+- Updated PRD/status docs; next Phase I slice is CLI export/import commands.

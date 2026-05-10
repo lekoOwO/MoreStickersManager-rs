@@ -30,6 +30,7 @@ pub fn build_router(state: ApiState) -> Router {
         .merge(provider_config_routes())
         .merge(provider_import_routes())
         .merge(subscription_access_token_routes())
+        .merge(portability_routes())
         .merge(tenant_routes())
         .with_state(state)
 }
@@ -233,6 +234,18 @@ fn subscription_access_token_routes() -> Router<ApiState> {
         )
 }
 
+fn portability_routes() -> Router<ApiState> {
+    Router::new()
+        .route(
+            "/api/v1/portable/user-export",
+            get(routes::portability::export_user),
+        )
+        .route(
+            "/api/v1/portable/user-import",
+            post(routes::portability::import_user),
+        )
+}
+
 fn tenant_routes() -> Router<ApiState> {
     Router::new()
         .route(
@@ -404,6 +417,8 @@ mod tests {
         assert!(json["paths"]
             .get("/api/v1/telegram-publications/{publication_id}")
             .is_some());
+        assert!(json["paths"].get("/api/v1/portable/user-export").is_some());
+        assert!(json["paths"].get("/api/v1/portable/user-import").is_some());
     }
 
     #[tokio::test]
@@ -3199,6 +3214,102 @@ mod tests {
             payload["stickers"][0]["image"],
             "https://tenant-cdn.example.test/msm/assets/packs/pack_public/file.webp"
         );
+    }
+
+    #[tokio::test]
+    async fn portability_routes_export_and_import_user_data() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_tenant("tenant_2", "Target")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_2", "user_1", "admin")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_portable",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &sample_pack_with_suffix("portable"),
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_subscription_group(
+                "sub_portable",
+                "tenant_1",
+                "user_1",
+                "Portable",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_pack_to_subscription_group("sub_portable", "pack_portable", 0)
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "portable",
+            "user_1",
+            [Permission::PackRead, Permission::ImportRun],
+        )
+        .await;
+
+        let export_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/portable/user-export?userId=user_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(export_response.status(), StatusCode::OK);
+        let body = to_bytes(export_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let export_payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(export_payload["version"], 1);
+        assert_eq!(export_payload["packs"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            export_payload["subscriptionGroups"][0]["packIds"],
+            serde_json::json!(["pack_portable"])
+        );
+
+        let import_body = serde_json::json!({
+            "tenantId": "tenant_2",
+            "export": export_payload,
+        });
+        let import_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/portable/user-import")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(import_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(import_response.status(), StatusCode::CREATED);
+        assert!(state
+            .repository()
+            .find_tenant_member("tenant_2", "user_1")
+            .await
+            .unwrap()
+            .is_some());
     }
 
     #[tokio::test]

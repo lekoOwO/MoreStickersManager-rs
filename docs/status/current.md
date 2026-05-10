@@ -3,6 +3,7 @@
 Phase: Asset privacy and CDN.
 
 Last completed:
+- Data portability API slice: added protected API/OpenAPI portable user export/import endpoints backed by existing storage portability helpers.
 - System CDN fallback slice: `MSM_PUBLIC_ASSET_URL` now supplies an app-wide public asset/CDN base for API pack/subscription payload rewriting, and tenant `public_asset_url` takes precedence when set.
 - Tenant CDN payload rewriting slice: protected pack exports and public pack/subscription payloads now rewrite local sticker asset URLs to the tenant `public_asset_url` when configured, with focused API coverage.
 - P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
@@ -125,7 +126,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Finish Phase H documentation for CDN fallback/precedence, then move to Phase I data portability surfaces.
+- Continue Phase I data portability with CLI export/import commands backed by the portable user API.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -276,7 +277,7 @@ Last verification:
 - Export target parity slice: CLI and MCP now support export target update/delete, closing the implemented export target/job operation parity gap across API, CLI, MCP, and Web.
 
 Next step:
-- Document `MSM_PUBLIC_ASSET_URL` versus tenant `publicAssetUrl` behavior in user/developer docs, then start Phase I API export/import workflow work.
+- Add CLI portable user export/import commands, then continue to Web migration workflow controls.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
