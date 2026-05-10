@@ -592,6 +592,10 @@ pub enum ExportJobCommand {
         #[arg(long)]
         job_id: String,
     },
+    Requeue {
+        #[arg(long)]
+        job_id: String,
+    },
     Events {
         #[arg(long)]
         job_id: String,
@@ -1238,6 +1242,10 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                 }
                 ExportJobCommand::Get { job_id } => {
                     let job = client.get_export_job(&job_id).await?;
+                    format_export_job(cli.output_format, &job)
+                }
+                ExportJobCommand::Requeue { job_id } => {
+                    let job = client.requeue_export_job(&job_id).await?;
                     format_export_job(cli.output_format, &job)
                 }
                 ExportJobCommand::Events { job_id } => {
@@ -3279,6 +3287,18 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn executes_export_job_requeue_command() {
+        let output = execute_with_client(
+            Cli::parse_from(["msm", "exports", "jobs", "requeue", "--job-id", "job_1"]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(output, "job_1\tqueued\t0/3");
+    }
+
+    #[tokio::test]
     async fn executes_export_publication_commands() {
         let list_output = execute_with_client(
             Cli::parse_from([
@@ -3986,6 +4006,10 @@ mod tests {
         }
 
         async fn get_export_job(&self, _job_id: &str) -> CliResult<ExportJob> {
+            Ok(sample_export_job())
+        }
+
+        async fn requeue_export_job(&self, _job_id: &str) -> CliResult<ExportJob> {
             Ok(sample_export_job())
         }
 

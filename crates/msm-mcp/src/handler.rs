@@ -18,10 +18,10 @@ use msm_providers::{
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
-    NewExportTarget, NewOidcProviderConfig, NewProviderConfig, NewProviderImportJob,
-    NewProviderImportJobEvent, NewTag, OidcProviderConfigRecord, PackVisibility,
-    ProviderConfigRecord, ProviderImportJobEventRecord, ProviderImportJobRecord, RoleRecord,
-    StickerPackRecord, SubscriptionAccessResourceType, SubscriptionAccessTokenRecord,
+    NewExportJobEvent, NewExportTarget, NewOidcProviderConfig, NewProviderConfig,
+    NewProviderImportJob, NewProviderImportJobEvent, NewTag, OidcProviderConfigRecord,
+    PackVisibility, ProviderConfigRecord, ProviderImportJobEventRecord, ProviderImportJobRecord,
+    RoleRecord, StickerPackRecord, SubscriptionAccessResourceType, SubscriptionAccessTokenRecord,
     SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord, TenantMemberRecord,
     TenantRecord, UserRecord,
 };
@@ -44,9 +44,9 @@ use crate::{
         LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
         LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
-        REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
-        SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER,
-        UPSERT_PROVIDER_CONFIG, UPSERT_TENANT_ROLE,
+        REQUEUE_EXPORT_JOB, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
+        SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK,
+        UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER, UPSERT_PROVIDER_CONFIG, UPSERT_TENANT_ROLE,
     },
 };
 
@@ -154,6 +154,7 @@ async fn call_tool(
         CREATE_EXPORT_TARGET => create_export_target(&state, headers, arguments).await,
         CREATE_EXPORT_JOB => create_export_job(&state, headers, arguments).await,
         GET_EXPORT_JOB => get_export_job(&state, headers, arguments).await,
+        REQUEUE_EXPORT_JOB => requeue_export_job(&state, headers, arguments).await,
         LIST_EXPORT_JOB_EVENTS => list_export_job_events(&state, headers, arguments).await,
         LIST_TELEGRAM_PUBLICATIONS => list_telegram_publications(&state, headers, arguments).await,
         GET_TELEGRAM_PUBLICATION => get_telegram_publication(&state, headers, arguments).await,
@@ -1511,6 +1512,55 @@ async fn get_export_job(
         format!("Read export job `{}`.", args.job_id),
         json!({ "job": export_job_value(&job)? }),
     ))
+}
+
+async fn requeue_export_job(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ExportJobArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ExportRun).await?;
+    let job = load_owned_export_job(state, &args.job_id, &pat.user_id).await?;
+    let requeued = state
+        .repository()
+        .requeue_export_job_for_recovery(&job.id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| {
+            "Export job must be failed or cancelled before it can be requeued.".to_owned()
+        })?;
+    append_export_requeue_event(state, &job.id).await?;
+
+    Ok(success_result(
+        format!("Requeued export job `{}`.", args.job_id),
+        json!({ "job": export_job_value(&requeued)? }),
+    ))
+}
+
+async fn append_export_requeue_event(state: &ApiState, job_id: &str) -> Result<(), String> {
+    let event_count = state
+        .repository()
+        .list_export_job_events(job_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .len();
+    let sequence = i64::try_from(event_count)
+        .map_err(|_| "export job event sequence overflow".to_owned())?
+        + 1;
+    state
+        .repository()
+        .append_export_job_event(NewExportJobEvent {
+            job_id,
+            sequence,
+            level: "info",
+            stage: "requeued",
+            message: "export job requeued for recovery",
+            metadata_json: "{}",
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 async fn list_export_job_events(

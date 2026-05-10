@@ -111,6 +111,7 @@ export interface ExportClient {
   deleteExportTarget(targetId: string): Promise<void>;
   createExportJob(request: CreateExportJobRequest): Promise<ExportJob>;
   getExportJob(jobId: string): Promise<ExportJob>;
+  requeueExportJob(jobId: string): Promise<ExportJob>;
   listExportJobEvents(jobId: string): Promise<ExportJobEvent[]>;
   listTelegramPublications(packId: string): Promise<TelegramPublication[]>;
   getTelegramPublication(publicationId: string): Promise<TelegramPublication>;
@@ -194,6 +195,14 @@ export function createExportClient(options: ExportClientOptions = {}): ExportCli
         authInit(options.authToken),
       );
       await requireOk(response, "get export job");
+      return (await response.json()) as ExportJob;
+    },
+    async requeueExportJob(jobId) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/export-jobs/${encodeURIComponent(jobId)}/requeue`, {
+        method: "POST",
+        ...authInit(options.authToken),
+      });
+      await requireOk(response, "requeue export job");
       return (await response.json()) as ExportJob;
     },
     async listExportJobEvents(jobId) {

@@ -11,13 +11,13 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 Phase G export/publication targets are the active focus. MoreStickers export,
 Telegram planning/publication/reconciliation, prepared-media conversion, and
 non-Telegram remote target execution boundaries now exist. The next work is
-API recovery requeue for failed/cancelled export jobs now exists. The next work
-is CLI/MCP/Web recovery controls and target parity checks for every implemented
-target.
+Recovery requeue for failed/cancelled export jobs now exists across API, CLI,
+MCP, and Web. The next work is target parity checks for every implemented
+export target and job operation.
 
 ## Recently Completed
 
-- Export jobs can now be requeued for operator recovery through the protected API/OpenAPI route `POST /api/v1/export-jobs/{job_id}/requeue`, resetting failed/cancelled jobs to queued and recording a recovery event.
+- Export jobs can now be requeued for operator recovery across API/OpenAPI, CLI, MCP, and Web. The recovery flow resets failed/cancelled jobs to queued and records/refreshes recovery events for operator handoff.
 - Non-Telegram remote export targets now dispatch through `RemoteExportTargetExecutor`, an injectable worker boundary that receives job/target/config/pack snapshots and returns target-neutral remote execution summaries while the default executor safely rejects unsupported future targets.
 - Provider config CLI commands now exist for list/upsert/delete with human/JSON
   output and PAT forwarding to the protected API.
@@ -174,8 +174,8 @@ target.
 
 ## Immediate Plan
 
-1. Add CLI, MCP, and Web controls for export job recovery requeue.
-2. Verify/close Web/API/CLI/MCP parity for implemented export targets and job operations.
+1. Verify/close Web/API/CLI/MCP parity for implemented export targets and job operations.
+2. Continue toward the next PRD phase once Phase G parity is closed.
 
 ## Later Planned Work
 

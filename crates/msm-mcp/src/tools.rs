@@ -51,6 +51,7 @@ pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
 pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
 pub const CREATE_EXPORT_JOB: &str = "msm.create_export_job";
 pub const GET_EXPORT_JOB: &str = "msm.get_export_job";
+pub const REQUEUE_EXPORT_JOB: &str = "msm.requeue_export_job";
 pub const LIST_EXPORT_JOB_EVENTS: &str = "msm.list_export_job_events";
 pub const LIST_TELEGRAM_PUBLICATIONS: &str = "msm.list_telegram_publications";
 pub const GET_TELEGRAM_PUBLICATION: &str = "msm.get_telegram_publication";
@@ -106,6 +107,7 @@ pub fn list_tools_result() -> ListToolsResult {
             create_export_target_tool(),
             create_export_job_tool(),
             get_export_job_tool(),
+            requeue_export_job_tool(),
             list_export_job_events_tool(),
             list_telegram_publications_tool(),
             get_telegram_publication_tool(),
@@ -1068,6 +1070,26 @@ fn get_export_job_tool() -> ToolDefinition {
     }
 }
 
+fn requeue_export_job_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: REQUEUE_EXPORT_JOB,
+        title: "Requeue export job",
+        description: "Requeue a failed or cancelled MSM export job for operator recovery.",
+        input_schema: object_schema(
+            &json!({
+                "jobId": { "type": "string" }
+            }),
+            &["jobId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
 fn list_export_job_events_tool() -> ToolDefinition {
     ToolDefinition {
         name: LIST_EXPORT_JOB_EVENTS,
@@ -1146,9 +1168,9 @@ mod tests {
         LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
         LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
-        REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
-        SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER,
-        UPSERT_PROVIDER_CONFIG, UPSERT_TENANT_ROLE,
+        REQUEUE_EXPORT_JOB, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
+        SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK,
+        UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER, UPSERT_PROVIDER_CONFIG, UPSERT_TENANT_ROLE,
     };
 
     #[test]
@@ -1206,6 +1228,7 @@ mod tests {
                 CREATE_EXPORT_TARGET,
                 CREATE_EXPORT_JOB,
                 GET_EXPORT_JOB,
+                REQUEUE_EXPORT_JOB,
                 LIST_EXPORT_JOB_EVENTS,
                 LIST_TELEGRAM_PUBLICATIONS,
                 GET_TELEGRAM_PUBLICATION,

@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 50);
+        assert_eq!(tools.len(), 51);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools
             .iter()
@@ -715,6 +715,43 @@ mod tests {
             response["result"]["structuredContent"]["events"][0]["message"],
             "job queued"
         );
+    }
+
+    #[tokio::test]
+    async fn tools_call_requeues_failed_export_job() {
+        let state = seeded_state_with_export_job().await;
+        state
+            .repository()
+            .record_export_job_failure("job_1", "telegram api down")
+            .await
+            .unwrap();
+        let token = create_pat(&state, "exportrun", "user_1", [Permission::ExportRun]).await;
+        let response = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.requeue_export_job",
+                    "arguments": { "jobId": "job_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(response["result"]["isError"], false);
+        assert_eq!(
+            response["result"]["structuredContent"]["job"]["status"],
+            "queued"
+        );
+        let events = state
+            .repository()
+            .list_export_job_events("job_1")
+            .await
+            .unwrap();
+        assert_eq!(events.last().unwrap().stage, "requeued");
     }
 
     #[tokio::test]

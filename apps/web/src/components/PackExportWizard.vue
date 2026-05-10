@@ -108,6 +108,20 @@ async function refreshExportJob() {
   }
 }
 
+async function requeueExportJob() {
+  if (!activeJob.value) {
+    return;
+  }
+
+  actionError.value = "";
+  try {
+    activeJob.value = await exportClient().requeueExportJob(activeJob.value.id);
+    events.value = await exportClient().listExportJobEvents(activeJob.value.id);
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
 async function loadPublications() {
   publicationError.value = "";
   if (!selectedPackId.value) {
@@ -328,6 +342,15 @@ function exportOptions() {
           </Button>
           <Button type="button" variant="outline" :aria-label="labels.refreshExportJob" @click="refreshExportJob">
             {{ labels.refreshExportJob }}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            :aria-label="labels.requeueExportJob"
+            :disabled="!activeJob || !['failed', 'cancelled'].includes(activeJob.status)"
+            @click="requeueExportJob"
+          >
+            {{ labels.requeueExportJob }}
           </Button>
           <p v-if="actionError" class="text-sm text-muted-foreground">{{ actionError }}</p>
         </div>

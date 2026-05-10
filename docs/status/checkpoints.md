@@ -1715,3 +1715,12 @@
 - Requeue resets attempt count, error summary, result payload, and next-attempt scheduling, then appends a `requeued` recovery event for handoff/audit history.
 - Added focused API coverage proving failed jobs can be requeued and recovery events are recorded.
 - Updated PRD/status docs; next Phase G slice should add CLI/MCP/Web recovery controls.
+
+
+## 2026-05-10 Export Job Recovery Surfaces
+
+- Added CLI command `msm exports jobs requeue --job-id ...` backed by the protected requeue API.
+- Added MCP tool `msm.requeue_export_job` with `export.run` enforcement and recovery event recording for direct MCP execution.
+- Added Web export client and wizard controls to requeue failed/cancelled jobs and refresh job timelines.
+- Added focused CLI, MCP, Web client, and Web component coverage for the recovery workflow.
+- Updated PRD/status docs; next Phase G slice should verify target/job operation parity across API, CLI, MCP, and Web.

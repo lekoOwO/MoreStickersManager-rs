@@ -101,6 +101,9 @@ describe("export API client", () => {
           { status: 200 },
         );
       }
+      if (url.endsWith("/requeue")) {
+        return new Response(JSON.stringify({ ...job, status: "queued", attemptCount: 0 }), { status: 200 });
+      }
 
       return new Response(JSON.stringify(job), { status: init?.method === "POST" ? 201 : 200 });
     });
@@ -118,9 +121,11 @@ describe("export API client", () => {
       options: {},
     });
     const events = await client.listExportJobEvents("job_1");
+    const requeued = await client.requeueExportJob("job_1");
 
     expect(created.status).toBe("queued");
     expect(events[0]?.message).toBe("job queued");
+    expect(requeued.status).toBe("queued");
     expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/export-jobs", {
       method: "POST",
       headers: {
@@ -134,6 +139,12 @@ describe("export API client", () => {
         targetId: "target_telegram",
         options: {},
       }),
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/export-jobs/job_1/requeue", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer msm_pat_web_secret",
+      },
     });
   });
 

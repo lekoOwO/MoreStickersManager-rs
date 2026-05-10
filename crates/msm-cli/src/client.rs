@@ -606,6 +606,7 @@ pub trait MsmClient {
     ) -> CliResult<ExportTarget>;
     async fn create_export_job(&self, payload: CreateExportJobPayload) -> CliResult<ExportJob>;
     async fn get_export_job(&self, job_id: &str) -> CliResult<ExportJob>;
+    async fn requeue_export_job(&self, job_id: &str) -> CliResult<ExportJob>;
     async fn list_export_job_events(&self, job_id: &str) -> CliResult<Vec<ExportJobEvent>>;
     async fn list_telegram_publications(
         &self,
@@ -1365,6 +1366,19 @@ impl MsmClient for ReqwestMsmClient {
             .authorize(
                 self.http
                     .get(self.endpoint(&format!("/api/v1/export-jobs/{job_id}"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn requeue_export_job(&self, job_id: &str) -> CliResult<ExportJob> {
+        Ok(self
+            .authorize(
+                self.http
+                    .post(self.endpoint(&format!("/api/v1/export-jobs/{job_id}/requeue"))?),
             )
             .send()
             .await?

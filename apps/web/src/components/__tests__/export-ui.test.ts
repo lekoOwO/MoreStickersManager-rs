@@ -26,6 +26,7 @@ describe("export UI", () => {
       deleteExportTarget: vi.fn(),
       createExportJob: vi.fn(),
       getExportJob: vi.fn(),
+      requeueExportJob: vi.fn(),
       listExportJobEvents: vi.fn(),
       listTelegramPublications: vi.fn(),
       getTelegramPublication: vi.fn(),
@@ -73,6 +74,7 @@ describe("export UI", () => {
       deleteExportTarget: vi.fn(),
       createExportJob: vi.fn(),
       getExportJob: vi.fn(),
+      requeueExportJob: vi.fn(),
       listExportJobEvents: vi.fn(),
       listTelegramPublications: vi.fn(),
       getTelegramPublication: vi.fn(),
@@ -115,6 +117,7 @@ describe("export UI", () => {
       deleteExportTarget: vi.fn(),
       createExportJob: vi.fn(async () => job),
       getExportJob: vi.fn(async () => job),
+      requeueExportJob: vi.fn(async () => job),
       listExportJobEvents: vi.fn(async () => [
         {
           jobId: "job_1",
@@ -153,6 +156,62 @@ describe("export UI", () => {
     expect(wrapper.text()).toContain("job queued");
   });
 
+  it("requeues failed export jobs from the wizard", async () => {
+    const failedJob = { ...sampleJob(), status: "failed", errorSummary: "telegram api down", attemptCount: 3 };
+    const requeuedJob = { ...sampleJob(), status: "queued", errorSummary: null, attemptCount: 0 };
+    const client: ExportClient = {
+      listExportTargetKinds: vi.fn(),
+      listExportTargets: vi.fn(async () => [sampleTarget()]),
+      createExportTarget: vi.fn(),
+      updateExportTarget: vi.fn(),
+      deleteExportTarget: vi.fn(),
+      createExportJob: vi.fn(async () => failedJob),
+      getExportJob: vi.fn(async () => failedJob),
+      requeueExportJob: vi.fn(async () => requeuedJob),
+      listExportJobEvents: vi.fn(async () => [
+        {
+          jobId: "job_1",
+          sequence: 2,
+          level: "info",
+          stage: "requeued",
+          message: "export job requeued for recovery",
+          metadata: {},
+          createdAt: "2026-05-07T00:00:00Z",
+        },
+      ]),
+      listTelegramPublications: vi.fn(async () => []),
+      getTelegramPublication: vi.fn(),
+    };
+    const wrapper = mount(PackExportWizard, {
+      props: {
+        locale: "en",
+        tenantId: "tenant_1",
+        packs: [
+          {
+            id: "pack_1",
+            title: "Cats",
+            provider: "Telegram",
+            visibility: "private",
+            stickerCount: 2,
+            subscriptionReady: true,
+            updatedAt: "2026-05-07",
+          },
+        ],
+        exportClient: client,
+      },
+    });
+
+    await flushPromises();
+    await wrapper.get('[aria-label="Export job ID"]').setValue("job_1");
+    await wrapper.get('[aria-label="Queue export job"]').trigger("click");
+    await flushPromises();
+    await wrapper.get('[aria-label="Requeue export job"]').trigger("click");
+    await flushPromises();
+
+    expect(client.requeueExportJob).toHaveBeenCalledWith("job_1");
+    expect(wrapper.text()).toContain("export job requeued for recovery");
+  });
+
   it("queues Telegram reconciliation options from explicit controls", async () => {
     const job = sampleJob();
     const packs: StickerPackSummary[] = [
@@ -174,6 +233,7 @@ describe("export UI", () => {
       deleteExportTarget: vi.fn(),
       createExportJob: vi.fn(async () => job),
       getExportJob: vi.fn(async () => job),
+      requeueExportJob: vi.fn(async () => job),
       listExportJobEvents: vi.fn(async () => []),
       listTelegramPublications: vi.fn(async () => []),
       getTelegramPublication: vi.fn(),
@@ -229,6 +289,7 @@ describe("export UI", () => {
       deleteExportTarget: vi.fn(),
       createExportJob: vi.fn(async () => publishedJob),
       getExportJob: vi.fn(async () => publishedJob),
+      requeueExportJob: vi.fn(async () => publishedJob),
       listExportJobEvents: vi.fn(async () => []),
       listTelegramPublications: vi.fn(async () => []),
       getTelegramPublication: vi.fn(),
@@ -272,6 +333,7 @@ describe("export UI", () => {
         throw new Error("Telegram set already exists");
       }),
       getExportJob: vi.fn(),
+      requeueExportJob: vi.fn(),
       listExportJobEvents: vi.fn(),
       listTelegramPublications: vi.fn(async () => []),
       getTelegramPublication: vi.fn(),
@@ -312,6 +374,7 @@ describe("export UI", () => {
       deleteExportTarget: vi.fn(),
       createExportJob: vi.fn(async () => sampleJob()),
       getExportJob: vi.fn(async () => sampleJob()),
+      requeueExportJob: vi.fn(async () => sampleJob()),
       listExportJobEvents: vi.fn(async () => []),
       listTelegramPublications: vi.fn(async () => [
         {

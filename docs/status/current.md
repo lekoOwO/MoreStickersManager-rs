@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase G export/publication target work with CLI/MCP/Web recovery controls for failed export jobs, then parity checks for implemented targets.
+- Continue Phase G export/publication target work with parity checks for implemented export targets and job operations.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -270,9 +270,10 @@ Last verification:
 - Target-specific media validation slice: `PreparedMediaSpec::validate_probe_report` validates ffprobe dimensions, file size, and duration against reusable target profile constraints.
 - Non-Telegram remote export target abstraction slice: `RemoteExportTargetExecutor` now dispatches future target kinds with job/target/config/pack snapshots and serializes target-neutral `remoteTarget` results while the default executor safely rejects unsupported kinds.
 - Export job API recovery slice: failed or cancelled export jobs can be requeued through the protected API/OpenAPI route, resetting attempt/error state and appending a recovery event.
+- Export job recovery surface slice: CLI, MCP, and Web now expose the failed/cancelled export job requeue workflow and refresh visible job state/events.
 
 Next step:
-- Phase G should continue with CLI/MCP/Web recovery controls, then target parity checks for implemented export operations.
+- Phase G should continue with parity checks for implemented export targets and job operations.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
