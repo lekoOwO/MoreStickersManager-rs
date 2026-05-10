@@ -1882,3 +1882,10 @@
 - Added optional PostgreSQL export job repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite retry/status/event coverage active.
 - Updated PRD/status docs to show export-job PostgreSQL progress while keeping prepared-media, Telegram publication/mapping, provider, and portability parity open.
 - Verification: `cargo test -p msm-storage export_job --locked`.
+
+## 2026-05-11 PostgreSQL Prepared Media Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for prepared-media cache upsert/find operations.
+- Added optional PostgreSQL prepared-media repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite upsert/find coverage active.
+- Updated PRD/status docs to show prepared-media PostgreSQL progress while keeping Telegram publication/mapping, provider, and portability parity open.
+- Verification: `cargo test -p msm-storage prepared_media --locked`.

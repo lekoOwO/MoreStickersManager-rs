@@ -3,7 +3,8 @@
 Phase: PostgreSQL support.
 
 Last completed:
-- PostgreSQL export-job repository slice: export job create/find/queue/retry/status/recovery/event operations now have backend-aware SQL paths and optional PostgreSQL contract coverage. Prepared-media cache, Telegram publication/mapping, provider, and portability repositories remain follow-up parity work.
+- PostgreSQL prepared-media repository slice: prepared media cache upsert/find operations now have backend-aware SQL paths and optional PostgreSQL contract coverage. Telegram publication/mapping, provider, and portability repositories remain follow-up parity work.
+- PostgreSQL export-job repository slice: export job create/find/queue/retry/status/recovery/event operations now have backend-aware SQL paths and optional PostgreSQL contract coverage. Telegram publication/mapping, provider, and portability repositories remain follow-up parity work.
 - PostgreSQL export-target repository slice: export target create/list/find/update/delete operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
 - PostgreSQL subscription access-token repository slice: subscription access-token create/list/find/verify/rotate/revoke operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL OIDC repository slice: OIDC provider configuration, login-state, and provider-user-link operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
@@ -144,7 +145,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase J PostgreSQL support by moving prepared-media cache, Telegram publication/mapping, provider, and portability storage surfaces toward backend-aware SQL execution with shared backend test coverage.
+- Continue Phase J PostgreSQL support by moving Telegram publication/mapping, provider, and portability storage surfaces toward backend-aware SQL execution with shared backend test coverage.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,

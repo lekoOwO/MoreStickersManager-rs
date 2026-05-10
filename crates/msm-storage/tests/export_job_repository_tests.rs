@@ -344,6 +344,53 @@ async fn prepared_media_assets_upsert_by_source_hash_and_profile_key() {
 }
 
 #[tokio::test]
+async fn postgres_prepared_media_assets_upsert_when_configured() {
+    let Some(repo) = postgres_repo().await else {
+        return;
+    };
+    let suffix = unique_suffix();
+    let source_hash = format!("sha256:source:{suffix}");
+    let profile_key = format!("telegram.sticker.static.v1.{suffix}");
+
+    let created = repo
+        .upsert_prepared_media_asset(NewPreparedMediaAsset {
+            source_asset_hash: &source_hash,
+            profile_key: &profile_key,
+            output_asset_key: "prepared/first.png",
+            mime_type: "image/png",
+            width_px: 512,
+            height_px: 512,
+            duration_ms: None,
+            file_size_bytes: 1024,
+        })
+        .await
+        .unwrap();
+    assert_eq!(created.output_asset_key, "prepared/first.png");
+
+    let updated = repo
+        .upsert_prepared_media_asset(NewPreparedMediaAsset {
+            source_asset_hash: &source_hash,
+            profile_key: &profile_key,
+            output_asset_key: "prepared/second.png",
+            mime_type: "image/png",
+            width_px: 512,
+            height_px: 512,
+            duration_ms: None,
+            file_size_bytes: 2048,
+        })
+        .await
+        .unwrap();
+    assert_eq!(updated.output_asset_key, "prepared/second.png");
+    assert_eq!(updated.file_size_bytes, 2048);
+    assert_eq!(
+        repo.find_prepared_media_asset(&source_hash, &profile_key)
+            .await
+            .unwrap(),
+        Some(updated)
+    );
+}
+
+#[tokio::test]
 async fn telegram_publications_can_be_found_and_listed() {
     let repo = seeded_export_job_repo().await;
 

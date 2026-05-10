@@ -1011,38 +1011,67 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn upsert_prepared_media_asset(
         &self,
         asset: NewPreparedMediaAsset<'_>,
     ) -> StorageResult<PreparedMediaAssetRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO prepared_media_assets (
-                source_asset_hash, profile_key, output_asset_key, mime_type,
-                width_px, height_px, duration_ms, file_size_bytes, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(source_asset_hash, profile_key) DO UPDATE SET
-                output_asset_key = excluded.output_asset_key,
-                mime_type = excluded.mime_type,
-                width_px = excluded.width_px,
-                height_px = excluded.height_px,
-                duration_ms = excluded.duration_ms,
-                file_size_bytes = excluded.file_size_bytes,
-                updated_at = excluded.updated_at",
-        )
-        .bind(asset.source_asset_hash)
-        .bind(asset.profile_key)
-        .bind(asset.output_asset_key)
-        .bind(asset.mime_type)
-        .bind(asset.width_px)
-        .bind(asset.height_px)
-        .bind(asset.duration_ms)
-        .bind(asset.file_size_bytes)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO prepared_media_assets (
+                    source_asset_hash, profile_key, output_asset_key, mime_type,
+                    width_px, height_px, duration_ms, file_size_bytes, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT(source_asset_hash, profile_key) DO UPDATE SET
+                    output_asset_key = excluded.output_asset_key,
+                    mime_type = excluded.mime_type,
+                    width_px = excluded.width_px,
+                    height_px = excluded.height_px,
+                    duration_ms = excluded.duration_ms,
+                    file_size_bytes = excluded.file_size_bytes,
+                    updated_at = excluded.updated_at",
+            )
+            .bind(asset.source_asset_hash)
+            .bind(asset.profile_key)
+            .bind(asset.output_asset_key)
+            .bind(asset.mime_type)
+            .bind(asset.width_px)
+            .bind(asset.height_px)
+            .bind(asset.duration_ms)
+            .bind(asset.file_size_bytes)
+            .bind(&now)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO prepared_media_assets (
+                    source_asset_hash, profile_key, output_asset_key, mime_type,
+                    width_px, height_px, duration_ms, file_size_bytes, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(source_asset_hash, profile_key) DO UPDATE SET
+                    output_asset_key = excluded.output_asset_key,
+                    mime_type = excluded.mime_type,
+                    width_px = excluded.width_px,
+                    height_px = excluded.height_px,
+                    duration_ms = excluded.duration_ms,
+                    file_size_bytes = excluded.file_size_bytes,
+                    updated_at = excluded.updated_at",
+            )
+            .bind(asset.source_asset_hash)
+            .bind(asset.profile_key)
+            .bind(asset.output_asset_key)
+            .bind(asset.mime_type)
+            .bind(asset.width_px)
+            .bind(asset.height_px)
+            .bind(asset.duration_ms)
+            .bind(asset.file_size_bytes)
+            .bind(&now)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         self.find_prepared_media_asset(asset.source_asset_hash, asset.profile_key)
             .await?
@@ -1053,35 +1082,39 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn find_prepared_media_asset(
         &self,
         source_asset_hash: &str,
         profile_key: &str,
     ) -> StorageResult<Option<PreparedMediaAssetRecord>> {
-        let row = sqlx::query(
-            "SELECT source_asset_hash, profile_key, output_asset_key, mime_type,
-                width_px, height_px, duration_ms, file_size_bytes, created_at, updated_at
-            FROM prepared_media_assets
-            WHERE source_asset_hash = ? AND profile_key = ?",
-        )
-        .bind(source_asset_hash)
-        .bind(profile_key)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(
+                "SELECT source_asset_hash, profile_key, output_asset_key, mime_type,
+                    width_px, height_px, duration_ms, file_size_bytes, created_at, updated_at
+                FROM prepared_media_assets
+                WHERE source_asset_hash = $1 AND profile_key = $2",
+            )
+            .bind(source_asset_hash)
+            .bind(profile_key)
+            .fetch_optional(pool)
+            .await?;
 
-        Ok(row.map(|row| PreparedMediaAssetRecord {
-            source_asset_hash: row.get("source_asset_hash"),
-            profile_key: row.get("profile_key"),
-            output_asset_key: row.get("output_asset_key"),
-            mime_type: row.get("mime_type"),
-            width_px: row.get("width_px"),
-            height_px: row.get("height_px"),
-            duration_ms: row.get("duration_ms"),
-            file_size_bytes: row.get("file_size_bytes"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }))
+            Ok(row.as_ref().map(prepared_media_asset_from_pg_row))
+        } else {
+            let row = sqlx::query(
+                "SELECT source_asset_hash, profile_key, output_asset_key, mime_type,
+                    width_px, height_px, duration_ms, file_size_bytes, created_at, updated_at
+                FROM prepared_media_assets
+                WHERE source_asset_hash = ? AND profile_key = ?",
+            )
+            .bind(source_asset_hash)
+            .bind(profile_key)
+            .fetch_optional(self.sqlite()?)
+            .await?;
+
+            Ok(row.as_ref().map(prepared_media_asset_from_sqlite_row))
+        }
     }
 
     /// Inserts or updates a Telegram publication by `(target_id, sticker_set_name)`.
@@ -1453,6 +1486,36 @@ fn provider_config_from_row(row: &sqlx::sqlite::SqliteRow) -> ProviderConfigReco
         name: row.get("name"),
         config_json: row.get("config_json"),
         is_enabled: is_enabled != 0,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn prepared_media_asset_from_sqlite_row(row: &SqliteRow) -> PreparedMediaAssetRecord {
+    PreparedMediaAssetRecord {
+        source_asset_hash: row.get("source_asset_hash"),
+        profile_key: row.get("profile_key"),
+        output_asset_key: row.get("output_asset_key"),
+        mime_type: row.get("mime_type"),
+        width_px: row.get("width_px"),
+        height_px: row.get("height_px"),
+        duration_ms: row.get("duration_ms"),
+        file_size_bytes: row.get("file_size_bytes"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn prepared_media_asset_from_pg_row(row: &PgRow) -> PreparedMediaAssetRecord {
+    PreparedMediaAssetRecord {
+        source_asset_hash: row.get("source_asset_hash"),
+        profile_key: row.get("profile_key"),
+        output_asset_key: row.get("output_asset_key"),
+        mime_type: row.get("mime_type"),
+        width_px: row.get("width_px"),
+        height_px: row.get("height_px"),
+        duration_ms: row.get("duration_ms"),
+        file_size_bytes: row.get("file_size_bytes"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }
