@@ -1988,3 +1988,8 @@
 - Documented API/MCP/Web secret redaction behavior, private asset credential rules, CDN caveats, structured log hygiene, and residual hardening backlog.
 - Updated PRD/status/README/user docs to mark the Phase K token/redaction/asset-access security review complete.
 - Verification: `git diff --check`.
+## 2026-05-11 MCP Transport Contract
+
+- Documented `/mcp` as a stateless JSON-RPC-over-POST endpoint with no server-side MCP session IDs and no SSE/resumability support in the current contract.
+- Recorded Bearer PAT header requirements, no-store response behavior, proxy/deployment expectations, and regression-test evidence in `docs/dev/mcp-transport-contract.md`.
+- Updated PRD/status docs so Phase K MCP session/auth/SSE hardening is closed and the next step is the end-to-end PRD completion audit.

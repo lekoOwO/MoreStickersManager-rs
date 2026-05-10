@@ -73,7 +73,7 @@ Status meanings:
 | Storage foundation | Partially complete | SQLite migrations/repositories and backend-specific PostgreSQL migrations exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. Storage repository surfaces now have backend-aware SQLite/PostgreSQL execution paths with shared tests, PostgreSQL CI service coverage, and user-facing deployment notes for both backends. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, export job recovery requeue, provider import plan/job routes, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import job, provider credential/config, and portable user export/import commands exist. |
-| MCP | Partially complete | Pack, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, provider import job tools, provider credential/config tools, and portable user export/import tools exist. Session/SSE hardening remains incomplete. |
+| MCP | Implemented | Pack, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, provider import job tools, provider credential/config tools, and portable user export/import tools exist. `/mcp` is intentionally stateless JSON-RPC over POST, returns no-store responses, rejects SSE GET negotiation, and is documented in `docs/dev/mcp-transport-contract.md`. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job/recovery UI, publication history, Telegram reconciliation controls, and portable user migration controls exist. |
 | Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, planned-provider registry placeholders, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Provider import worker credential consumption now exists for enabled tenant-scoped configs; concrete future-provider implementations remain incomplete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. Non-Telegram remote targets now dispatch through an injectable execution boundary with target-neutral result reporting; concrete future target implementations remain incomplete. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue Phase K production hardening: close MCP auth/session/SSE hardening and run an end-to-end completion audit across PRD requirements before release readiness.
+1. Run an end-to-end completion audit across PRD requirements before release readiness, starting with stale unchecked items in Phase D/E and any remaining partial-status rows.
 
 Each queue item must update this section when completed or reordered.
 
@@ -315,8 +315,8 @@ tests and docs are updated.
 
 ### Phase K: Production Hardening
 
-- [ ] MCP session/auth/SSE hardening.
-  Progress: `/mcp` now explicitly operates as stateless JSON-RPC over POST, returns `Cache-Control: no-store`, and rejects SSE GET negotiation with a structured JSON response. Deeper session lifecycle support remains open if stateful MCP sessions are required.
+- [x] MCP session/auth/SSE hardening.
+  Progress: `/mcp` intentionally supports stateless JSON-RPC over POST, returns `Cache-Control: no-store`, rejects SSE GET negotiation with a structured JSON response, and documents the supported session/auth/proxy contract in `docs/dev/mcp-transport-contract.md`. Protected `tools/call` operations continue to use Bearer PAT scope enforcement and shared tenant/RBAC checks. Stateful MCP sessions or SSE resumability are out of the current contract and require a future PRD item before implementation.
 - [x] Rate limits and request size limits for upload/import routes.
   Progress: API/app routers now apply a configurable `MSM_REQUEST_BODY_LIMIT_BYTES` request body cap (default 10 MiB) before JSON import handling. Pack import, portable user import, provider import planning, and provider import job creation also pass through an in-memory per-identity rate limiter configured by `MSM_IMPORT_RATE_LIMIT_REQUESTS` and `MSM_IMPORT_RATE_LIMIT_WINDOW_SECS`.
 - [x] Structured logs and operator-facing health diagnostics.

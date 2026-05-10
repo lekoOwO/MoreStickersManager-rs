@@ -320,9 +320,12 @@ The runtime image listens on `0.0.0.0:3000` and stores SQLite/assets under
 - `msm.list_telegram_publications`
 - `msm.get_telegram_publication`
 
-The MCP endpoint returns `application/json` responses and does not yet implement
-SSE streams or session management. Protected MCP `tools/call` operations use
-Bearer PAT enforcement.
+The MCP endpoint is intentionally stateless JSON-RPC over POST. It returns
+`application/json` responses with `Cache-Control: no-store`, rejects SSE GET
+negotiation with structured JSON, and does not issue MCP session IDs. Protected
+MCP `tools/call` operations use Bearer PAT enforcement. See
+`docs/dev/mcp-transport-contract.md` for the supported transport/security
+contract.
 
 ## PAT Foundation
 

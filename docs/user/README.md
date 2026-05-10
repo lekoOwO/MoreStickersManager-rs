@@ -390,7 +390,10 @@ POST /mcp
 ```
 
 Supported methods are `initialize`, `ping`, `tools/list`, and `tools/call`.
-
+The endpoint is stateless JSON-RPC over POST, returns `Cache-Control: no-store`,
+and rejects SSE/session negotiation on `GET /mcp`. Send protected tool tokens in
+the HTTP `Authorization: Bearer msm_pat_...` header, not inside JSON-RPC params.
+See `docs/dev/mcp-transport-contract.md` for the deployment/proxy contract.
 
 Portability MCP tools:
 

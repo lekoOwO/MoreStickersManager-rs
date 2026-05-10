@@ -1,8 +1,9 @@
 # Current Status
 
-Phase: Production hardening.
+Phase: Completion audit after production hardening.
 
 Last completed:
+- MCP transport contract slice: closed the Phase K MCP session/auth/SSE hardening item by documenting `/mcp` as stateless JSON-RPC over POST, no-store, Bearer-PAT protected for `tools/call`, and intentionally non-SSE/non-sessioned in `docs/dev/mcp-transport-contract.md`.
 - Security review slice: added `docs/status/security-review.md` covering token/session/subscription/OIDC storage, local password hashing, API/MCP/Web redaction behavior, private asset authorization, CDN/logging caveats, and residual hardening follow-ups.
 - Backup/restore runbook slice: added `docs/user/backup-restore-runbook.md` covering SQLite/PostgreSQL backups, asset/prepared-media directories, secrets/config, restore steps, portable migration boundaries, `/readyz` verification, and restore drills.
 - Production diagnostics slice: `msm-app` now emits structured JSON service/request logs, `/readyz` reports database and asset-store readiness diagnostics, and OpenAPI/user docs expose the operator endpoint.
