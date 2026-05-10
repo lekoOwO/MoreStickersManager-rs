@@ -1839,3 +1839,10 @@
 - Added shared PAT repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
 - Updated PRD/status docs to show PAT PostgreSQL progress while keeping local/Web/OIDC auth, subscription-token, export/provider/portability parity open.
 - Verification: `cargo test -p msm-storage personal_access_token_records_work_on_sqlite --locked`; `cargo test -p msm-storage personal_access_token_records_work_on_postgres_when_configured --locked`.
+
+## 2026-05-10 PostgreSQL Web Session Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for Web-session create/verify/revoke operations.
+- Added shared Web-session repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
+- Updated PRD/status docs to show Web-session PostgreSQL progress while keeping local/OIDC auth, subscription-token, export/provider/portability parity open.
+- Verification: `cargo test -p msm-storage web_session_records_work_on_sqlite --locked`; `cargo test -p msm-storage web_session_records_work_on_postgres_when_configured --locked`.

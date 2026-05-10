@@ -2222,7 +2222,7 @@ impl StorageRepository {
     /// # Errors
     ///
     /// Returns an error when the session ID is invalid, random generation fails, the repository is
-    /// not backed by `SQLite`, or SQL fails.
+    /// SQL fails.
     pub async fn create_web_session(
         &self,
         id: &str,
@@ -2235,19 +2235,38 @@ impl StorageRepository {
         let session_hash = hash_pat_secret(&secret);
         let now = now();
 
-        sqlx::query(
-            "INSERT INTO web_sessions (
-                id, user_id, session_hash, expires_at, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(id)
-        .bind(user_id)
-        .bind(&session_hash)
-        .bind(expires_at)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO web_sessions (
+                        id, user_id, session_hash, expires_at, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)",
+                )
+                .bind(id)
+                .bind(user_id)
+                .bind(&session_hash)
+                .bind(expires_at)
+                .bind(&now)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO web_sessions (
+                        id, user_id, session_hash, expires_at, created_at, updated_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6)",
+                )
+                .bind(id)
+                .bind(user_id)
+                .bind(&session_hash)
+                .bind(expires_at)
+                .bind(&now)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(CreatedWebSession {
             record: WebSessionRecord {
@@ -2267,24 +2286,39 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn verify_web_session(&self, token: &str) -> StorageResult<Option<WebSessionRecord>> {
         let Some((id, secret)) = parse_web_session_token(token) else {
             return Ok(None);
         };
-        let row = sqlx::query(
-            "SELECT id, user_id, session_hash, expires_at, revoked_at, created_at, updated_at
-            FROM web_sessions
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
 
-        let Some(row) = row else {
+        let record = match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, user_id, session_hash, expires_at, revoked_at, created_at, updated_at
+                    FROM web_sessions
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref().map(web_session_from_sqlite_row)
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, user_id, session_hash, expires_at, revoked_at, created_at, updated_at
+                    FROM web_sessions
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref().map(web_session_from_pg_row)
+            }
+        };
+        let Some(record) = record else {
             return Ok(None);
         };
-        let record = web_session_from_row(&row);
         if record.revoked_at.is_some() || is_expired(record.expires_at.as_deref()) {
             return Ok(None);
         }
@@ -2305,19 +2339,35 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn revoke_web_session(&self, id: &str) -> StorageResult<()> {
         let now = now();
-        sqlx::query(
-            "UPDATE web_sessions
-            SET revoked_at = ?, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(&now)
-        .bind(&now)
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "UPDATE web_sessions
+                    SET revoked_at = ?, updated_at = ?
+                    WHERE id = ?",
+                )
+                .bind(&now)
+                .bind(&now)
+                .bind(id)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "UPDATE web_sessions
+                    SET revoked_at = $1, updated_at = $2
+                    WHERE id = $3",
+                )
+                .bind(&now)
+                .bind(&now)
+                .bind(id)
+                .execute(pool)
+                .await?;
+            }
+        }
         Ok(())
     }
 
@@ -3046,8 +3096,8 @@ fn pat_record_from_values(values: PatRecordValues) -> StorageResult<PersonalAcce
     })
 }
 
-fn web_session_from_row(row: &SqliteRow) -> WebSessionRecord {
-    WebSessionRecord {
+fn web_session_from_sqlite_row(row: &SqliteRow) -> WebSessionRecord {
+    web_session_from_values(WebSessionValues {
         id: row.get("id"),
         user_id: row.get("user_id"),
         session_hash: row.get("session_hash"),
@@ -3055,6 +3105,40 @@ fn web_session_from_row(row: &SqliteRow) -> WebSessionRecord {
         revoked_at: row.get("revoked_at"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
+    })
+}
+
+fn web_session_from_pg_row(row: &PgRow) -> WebSessionRecord {
+    web_session_from_values(WebSessionValues {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        session_hash: row.get("session_hash"),
+        expires_at: row.get("expires_at"),
+        revoked_at: row.get("revoked_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+struct WebSessionValues {
+    id: String,
+    user_id: String,
+    session_hash: String,
+    expires_at: Option<String>,
+    revoked_at: Option<String>,
+    created_at: String,
+    updated_at: String,
+}
+
+fn web_session_from_values(values: WebSessionValues) -> WebSessionRecord {
+    WebSessionRecord {
+        id: values.id,
+        user_id: values.user_id,
+        session_hash: values.session_hash,
+        expires_at: values.expires_at,
+        revoked_at: values.revoked_at,
+        created_at: values.created_at,
+        updated_at: values.updated_at,
     }
 }
 
@@ -3227,6 +3311,21 @@ mod tests {
         };
 
         assert_personal_access_token_contract(&repo, "postgres_pat").await;
+    }
+
+    #[tokio::test]
+    async fn web_session_records_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_web_session_contract(&repo, "sqlite_session").await;
+    }
+
+    #[tokio::test]
+    async fn web_session_records_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_web_session_contract(&repo, "postgres_session").await;
     }
 
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
@@ -3639,6 +3738,40 @@ mod tests {
         assert!(revoked.revoked_at.is_some());
         assert!(repo
             .verify_personal_access_token(&created.token)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    async fn assert_web_session_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let user_id = format!("{prefix}_user_{suffix}");
+        let session_id = format!("{}session{}", prefix.replace('_', ""), suffix);
+        let email = format!("{prefix}_{suffix}@example.com");
+
+        repo.create_user(&user_id, &email, "User").await.unwrap();
+        let created = repo
+            .create_web_session(&session_id, &user_id, None)
+            .await
+            .unwrap();
+
+        assert!(created
+            .token
+            .starts_with(&format!("msm_session_{session_id}_")));
+        assert_ne!(created.record.session_hash, created.token);
+        assert_eq!(
+            repo.verify_web_session(&created.token).await.unwrap(),
+            Some(created.record.clone())
+        );
+        assert!(repo
+            .verify_web_session(&created.token.replace('a', "b"))
+            .await
+            .unwrap()
+            .is_none());
+
+        repo.revoke_web_session(&session_id).await.unwrap();
+        assert!(repo
+            .verify_web_session(&created.token)
             .await
             .unwrap()
             .is_none());
