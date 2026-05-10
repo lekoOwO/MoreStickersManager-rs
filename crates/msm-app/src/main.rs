@@ -12,7 +12,7 @@ async fn main() -> AppResult<()> {
         state.asset_store().clone(),
         config.provider_import_worker,
     );
-    let router = build_app_router(state, config.web_dist_dir);
+    let router = build_app_router(state, config.web_dist_dir, config.request_body_limit_bytes);
     let listener = TcpListener::bind(config.bind_addr).await?;
     axum::serve(listener, router).await?;
     Ok(())

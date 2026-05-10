@@ -234,6 +234,7 @@ Environment variables:
 - `MSM_DATABASE_URL`: database URL, default `sqlite:data/msm.sqlite3`.
 - `MSM_ASSET_DIR`: local asset directory, default `data/assets`.
 - `MSM_WEB_DIST_DIR`: Web UI dist directory, default `apps/web/dist`.
+- `MSM_REQUEST_BODY_LIMIT_BYTES`: maximum request body size accepted by the API/app router before JSON upload/import parsing, default `10485760` (10 MiB).
 - `MSM_FFMPEG_PATH`: ffmpeg path for future export conversion execution, default `ffmpeg`.
 - `MSM_FFPROBE_PATH`: ffprobe path for future export probing execution, default `ffprobe`.
 - `MSM_PREPARED_MEDIA_DIR`: prepared media output directory, default `data/prepared-media`.

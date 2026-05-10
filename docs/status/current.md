@@ -3,6 +3,7 @@
 Phase: Production hardening.
 
 Last completed:
+- API request body limit slice: app/API routers now apply configurable `MSM_REQUEST_BODY_LIMIT_BYTES` body caps before import JSON handling, app config rejects zero/invalid limits, and API/app tests cover oversized request rejection.
 - PostgreSQL CI/deployment slice: CI now starts a PostgreSQL service for the Rust job with `MSM_TEST_POSTGRES_URL`, and README/user docs now cover SQLite/PostgreSQL deployment URLs and migration behavior. Phase J is complete.
 - PostgreSQL final repository helper slice: folder rename/delete, tag delete, subscription-group rename/delete, sticker-pack metadata update/delete, and accessible pack listing now have backend-aware SQL paths and shared SQLite/optional PostgreSQL coverage. Repository parity is now ready for PostgreSQL CI/deployment work.
 - PostgreSQL tenant admin helper slice: tenant settings updates, user disabled-status updates, tenant member upsert, and role template upsert/list/find now have backend-aware SQL paths plus SQLite and optional PostgreSQL contract coverage.

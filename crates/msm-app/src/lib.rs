@@ -17,7 +17,7 @@ use axum::{
 };
 use bytes::Bytes;
 use include_dir::{include_dir, Dir};
-use msm_api::{build_router, ApiState};
+use msm_api::{build_router_with_body_limit, ApiState};
 use msm_storage::models::NewExportTarget;
 use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 
@@ -53,6 +53,7 @@ pub struct AppConfig {
     pub asset_dir: PathBuf,
     pub web_dist_dir: PathBuf,
     pub public_asset_url: Option<String>,
+    pub request_body_limit_bytes: usize,
     pub export_worker: ExportWorkerConfig,
     pub provider_import_worker: ProviderImportWorkerConfig,
     pub bootstrap_export_targets: Vec<BootstrapExportTargetConfig>,
@@ -106,6 +107,7 @@ impl AppConfig {
     pub const DEFAULT_PROVIDER_IMPORT_WORKER_ENABLED: bool = false;
     pub const DEFAULT_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS: u64 = 5_000;
     pub const DEFAULT_PROVIDER_IMPORT_RETRY_BACKOFF_MS: u64 = 60_000;
+    pub const DEFAULT_REQUEST_BODY_LIMIT_BYTES: usize = msm_api::DEFAULT_REQUEST_BODY_LIMIT_BYTES;
 
     /// Reads service configuration from process environment variables.
     ///
@@ -145,6 +147,11 @@ impl AppConfig {
             asset_dir: PathBuf::from(read(vars, "MSM_ASSET_DIR", Self::DEFAULT_ASSET_DIR)),
             web_dist_dir: PathBuf::from(read(vars, "MSM_WEB_DIST_DIR", Self::DEFAULT_WEB_DIST_DIR)),
             public_asset_url: read_optional(vars, "MSM_PUBLIC_ASSET_URL"),
+            request_body_limit_bytes: read_usize(
+                vars,
+                "MSM_REQUEST_BODY_LIMIT_BYTES",
+                Self::DEFAULT_REQUEST_BODY_LIMIT_BYTES,
+            )?,
             export_worker: ExportWorkerConfig {
                 enabled: read_bool(
                     vars,
@@ -249,9 +256,13 @@ async fn bootstrap_export_targets(
     Ok(())
 }
 
-pub fn build_app_router(state: ApiState, web_dist_dir: impl Into<PathBuf>) -> Router {
+pub fn build_app_router(
+    state: ApiState,
+    web_dist_dir: impl Into<PathBuf>,
+    request_body_limit_bytes: usize,
+) -> Router {
     let assets = WebAssets::new(web_dist_dir.into());
-    build_router(state.clone())
+    build_router_with_body_limit(state.clone(), request_body_limit_bytes)
         .merge(msm_mcp::build_router(state))
         .fallback(get(move |OriginalUri(uri): OriginalUri| {
             serve_web_asset(uri, assets.clone())
@@ -465,6 +476,10 @@ mod tests {
         assert_eq!(config.asset_dir, PathBuf::from("data/assets"));
         assert_eq!(config.web_dist_dir, PathBuf::from("apps/web/dist"));
         assert_eq!(config.public_asset_url, None);
+        assert_eq!(
+            config.request_body_limit_bytes,
+            AppConfig::DEFAULT_REQUEST_BODY_LIMIT_BYTES
+        );
         assert_eq!(config.export_worker.ffmpeg_path, PathBuf::from("ffmpeg"));
         assert_eq!(config.export_worker.ffprobe_path, PathBuf::from("ffprobe"));
         assert_eq!(
@@ -507,6 +522,7 @@ mod tests {
         );
         vars.insert("MSM_ASSET_DIR".to_owned(), "tmp/assets".to_owned());
         vars.insert("MSM_WEB_DIST_DIR".to_owned(), "tmp/web".to_owned());
+        vars.insert("MSM_REQUEST_BODY_LIMIT_BYTES".to_owned(), "4096".to_owned());
         vars.insert(
             "MSM_PUBLIC_ASSET_URL".to_owned(),
             "https://global-cdn.example.test/msm".to_owned(),
@@ -551,6 +567,7 @@ mod tests {
         assert_eq!(config.database_url, "sqlite:data/test.sqlite3");
         assert_eq!(config.asset_dir, PathBuf::from("tmp/assets"));
         assert_eq!(config.web_dist_dir, PathBuf::from("tmp/web"));
+        assert_eq!(config.request_body_limit_bytes, 4096);
         assert_eq!(
             config.public_asset_url.as_deref(),
             Some("https://global-cdn.example.test/msm")
@@ -636,6 +653,16 @@ mod tests {
         let error = AppConfig::from_env_map(&vars).expect_err("zero concurrency must fail");
 
         assert!(error.to_string().contains("MSM_EXPORT_MAX_CONCURRENT_JOBS"));
+    }
+
+    #[test]
+    fn config_rejects_invalid_request_body_limit() {
+        let mut vars = BTreeMap::new();
+        vars.insert("MSM_REQUEST_BODY_LIMIT_BYTES".to_owned(), "0".to_owned());
+
+        let error = AppConfig::from_env_map(&vars).expect_err("zero body limit must fail");
+
+        assert!(error.to_string().contains("MSM_REQUEST_BODY_LIMIT_BYTES"));
     }
 
     #[test]

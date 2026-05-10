@@ -11,6 +11,7 @@ pub mod routes;
 pub mod state;
 
 use axum::{
+    extract::DefaultBodyLimit,
     routing::{delete, get, patch, post, put},
     Router,
 };
@@ -19,7 +20,13 @@ pub use error::{ApiError, ApiResult};
 pub use rbac::{allowed_pat_scopes_for_user, require_tenant_resource_access};
 pub use state::ApiState;
 
+pub const DEFAULT_REQUEST_BODY_LIMIT_BYTES: usize = 10 * 1024 * 1024;
+
 pub fn build_router(state: ApiState) -> Router {
+    build_router_with_body_limit(state, DEFAULT_REQUEST_BODY_LIMIT_BYTES)
+}
+
+pub fn build_router_with_body_limit(state: ApiState, request_body_limit_bytes: usize) -> Router {
     Router::new()
         .merge(system_routes())
         .merge(auth_routes())
@@ -32,6 +39,7 @@ pub fn build_router(state: ApiState) -> Router {
         .merge(subscription_access_token_routes())
         .merge(portability_routes())
         .merge(tenant_routes())
+        .layer(DefaultBodyLimit::max(request_body_limit_bytes))
         .with_state(state)
 }
 
@@ -305,7 +313,7 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::{
-        build_router,
+        build_router, build_router_with_body_limit,
         oidc::{
             OidcDiscoveryDocument, OidcDiscoveryFetcher, OidcDiscoveryFuture, OidcJwk,
             OidcJwksDocument, OidcJwksFetcher, OidcJwksFuture, OidcTokenExchangeFuture,
@@ -419,6 +427,26 @@ mod tests {
             .is_some());
         assert!(json["paths"].get("/api/v1/portable/user-export").is_some());
         assert!(json["paths"].get("/api/v1/portable/user-import").is_some());
+    }
+
+    #[tokio::test]
+    async fn oversized_json_requests_are_rejected_before_import_handling() {
+        let response = build_router_with_body_limit(test_state().await, 64)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/packs/import")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(format!(
+                        r#"{{"tenantId":"tenant_1","ownerUserId":"user_1","packId":"pack_1","visibility":"private","pack":{{"id":"{}"}}}}"#,
+                        "x".repeat(256)
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 
     #[tokio::test]

@@ -350,8 +350,10 @@ cargo run -p msm-app
 ```
 
 By default the service listens on `127.0.0.1:3000`, uses
-`sqlite:data/msm.sqlite3`, stores assets under `data/assets`, and serves the Web
-UI from `apps/web/dist` when present. The binary also embeds Web assets at
+`sqlite:data/msm.sqlite3`, stores assets under `data/assets`, serves the Web
+UI from `apps/web/dist` when present, and caps request bodies at 10 MiB.
+Set `MSM_REQUEST_BODY_LIMIT_BYTES` when import/upload deployments need a
+different body-size ceiling. The binary also embeds Web assets at
 compile time; run `npm run web:build` before `cargo build -p msm-app` to embed
 the full UI instead of the placeholder.
 

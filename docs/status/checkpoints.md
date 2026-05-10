@@ -1954,3 +1954,10 @@
 - Added MCP route tests covering no-store POST responses and unsupported SSE GET negotiation.
 - Updated PRD/status docs to record the stateless transport progress and keep deeper MCP session lifecycle decisions open.
 - Verification: `cargo test -p msm-mcp mcp_ --locked`; `cargo test -p msm-mcp --locked`; `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`.
+## 2026-05-11 API Request Body Limit Hardening
+
+- Added `DefaultBodyLimit` to the API router with a 10 MiB default request-body cap and an app-level `MSM_REQUEST_BODY_LIMIT_BYTES` override.
+- Added app config validation for non-zero request-body limits and startup wiring through the composed API/MCP/Web app router.
+- Added API coverage proving oversized import JSON is rejected with `413 Payload Too Large` before import handling.
+- Updated PRD/status/user docs to record request-size hardening progress while leaving route/user/IP rate limiting open.
+- Verification: `cargo test -p msm-api -p msm-app --locked`; `cargo clippy -p msm-api -p msm-app --all-targets --locked -- -D warnings`; `cargo fmt --all -- --check`; `git diff --check`.
