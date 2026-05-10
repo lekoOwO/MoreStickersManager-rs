@@ -1394,3 +1394,11 @@
   `kid` plus algorithm.
 - Kept ID-token header/claim parsing, JWKS-backed signature validation, and
   provider-derived callback claims as the next Phase D work.
+
+## 2026-05-10 OIDC ID Token Parser Foundation
+
+- Added tested compact ID-token header and claim parsing for issuer, subject,
+  audience, email/name, nonce, expiration, issued-at, signing input, and
+  signature bytes before trust is granted.
+- Kept JWKS-backed signature validation, expiry/nonce enforcement, and
+  provider-derived callback claims as the next Phase D work.

@@ -1,5 +1,6 @@
 #![doc = "OIDC helper types for authorization-code callback hardening."]
 
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use msm_storage::models::OidcProviderConfigRecord;
 use std::{future::Future, pin::Pin};
 use url::Url;
@@ -8,6 +9,8 @@ use url::Url;
 pub enum OidcError {
     #[error("OIDC token response is invalid: {0}")]
     InvalidTokenResponse(String),
+    #[error("OIDC ID token is invalid: {0}")]
+    InvalidIdToken(String),
     #[error("OIDC token endpoint is invalid: {0}")]
     InvalidTokenEndpoint(String),
     #[error("OIDC token endpoint rejected the exchange: {0}")]
@@ -53,6 +56,41 @@ pub struct OidcJwk {
     pub e: Option<String>,
 }
 
+/// Parsed ID-token header and claims before signature verification.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OidcIdTokenParts {
+    pub header: OidcIdTokenHeader,
+    pub claims: OidcIdTokenClaims,
+    pub signing_input: String,
+    pub signature: Vec<u8>,
+}
+
+/// Parsed ID-token JOSE header fields MSM needs for validation.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+pub struct OidcIdTokenHeader {
+    pub alg: String,
+    pub kid: Option<String>,
+    pub typ: Option<String>,
+}
+
+/// Parsed ID-token claims MSM needs for validation and user linking.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+pub struct OidcIdTokenClaims {
+    #[serde(rename = "iss")]
+    pub issuer: String,
+    #[serde(rename = "sub")]
+    pub subject: String,
+    #[serde(rename = "aud", deserialize_with = "deserialize_audience")]
+    pub audience: Vec<String>,
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub nonce: Option<String>,
+    #[serde(rename = "exp")]
+    pub expires_at: i64,
+    #[serde(rename = "iat")]
+    pub issued_at: Option<i64>,
+}
+
 impl OidcJwksDocument {
     /// Selects a signature key matching an optional JWT `kid` and `alg`.
     #[must_use]
@@ -95,6 +133,13 @@ struct RawDiscoveryDocument {
 #[derive(serde::Deserialize)]
 struct RawJwksDocument {
     keys: Vec<OidcJwk>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum AudienceClaim {
+    Single(String),
+    Multiple(Vec<String>),
 }
 
 /// Boxed future returned by an OIDC token exchanger implementation.
@@ -285,6 +330,61 @@ pub fn parse_jwks_document(body: &str) -> Result<OidcJwksDocument, OidcError> {
     Ok(OidcJwksDocument { keys })
 }
 
+/// Parses the header and claims of a compact ID token before signature verification.
+///
+/// # Errors
+///
+/// Returns an error when the token is not compact JWT-shaped, contains invalid
+/// base64url segments, or has JSON header/claims that do not include required
+/// OIDC fields.
+pub fn parse_id_token_unverified(token: &str) -> Result<OidcIdTokenParts, OidcError> {
+    let parts = token.split('.').collect::<Vec<_>>();
+    if parts.len() != 3 {
+        return Err(OidcError::InvalidIdToken(
+            "expected compact JWT with three segments".to_owned(),
+        ));
+    }
+    let header_bytes = decode_jwt_segment(parts[0], "header")?;
+    let claims_bytes = decode_jwt_segment(parts[1], "claims")?;
+    let signature = decode_jwt_segment(parts[2], "signature")?;
+    let header = serde_json::from_slice::<OidcIdTokenHeader>(&header_bytes)?;
+    let claims = serde_json::from_slice::<OidcIdTokenClaims>(&claims_bytes)?;
+    if header.alg.trim().is_empty() {
+        return Err(OidcError::InvalidIdToken("missing alg".to_owned()));
+    }
+    if claims.issuer.trim().is_empty() || claims.subject.trim().is_empty() {
+        return Err(OidcError::InvalidIdToken(
+            "missing issuer or subject".to_owned(),
+        ));
+    }
+    if claims.audience.is_empty() || claims.audience.iter().any(|value| value.trim().is_empty()) {
+        return Err(OidcError::InvalidIdToken("missing audience".to_owned()));
+    }
+    Ok(OidcIdTokenParts {
+        header,
+        claims,
+        signing_input: format!("{}.{}", parts[0], parts[1]),
+        signature,
+    })
+}
+
+fn decode_jwt_segment(segment: &str, label: &str) -> Result<Vec<u8>, OidcError> {
+    URL_SAFE_NO_PAD
+        .decode(segment.as_bytes())
+        .map_err(|error| OidcError::InvalidIdToken(format!("invalid {label}: {error}")))
+}
+
+fn deserialize_audience<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let audience = serde::Deserialize::deserialize(deserializer)?;
+    Ok(match audience {
+        AudienceClaim::Single(value) => vec![value],
+        AudienceClaim::Multiple(values) => values,
+    })
+}
+
 fn required_url_field(value: Option<String>, field: &str) -> Result<String, OidcError> {
     let value = value
         .filter(|value| !value.trim().is_empty())
@@ -451,6 +551,39 @@ mod tests {
             .select_signature_key(Some("enc-key"), Some("RS256"))
             .is_none());
         assert!(super::parse_jwks_document(r#"{"keys":[]}"#).is_err());
+    }
+
+    #[test]
+    fn id_token_parser_decodes_header_and_claims_without_trusting_signature() {
+        let token = [
+            r#"{"alg":"RS256","kid":"active-key","typ":"JWT"}"#,
+            r#"{"iss":"https://issuer.example","sub":"subject-1","aud":["client-id","other-client"],"email":"leko@example.com","name":"Leko","nonce":"nonce-1","exp":1893456000,"iat":1704067200}"#,
+            "signature",
+        ]
+        .into_iter()
+        .map(base64_url_no_pad)
+        .collect::<Vec<_>>()
+        .join(".");
+
+        let parsed = super::parse_id_token_unverified(&token)
+            .expect("well-formed ID token should parse before signature validation");
+
+        assert_eq!(parsed.header.alg, "RS256");
+        assert_eq!(parsed.header.kid.as_deref(), Some("active-key"));
+        assert_eq!(parsed.claims.issuer, "https://issuer.example");
+        assert_eq!(parsed.claims.subject, "subject-1");
+        assert_eq!(parsed.claims.audience, vec!["client-id", "other-client"]);
+        assert_eq!(parsed.claims.email.as_deref(), Some("leko@example.com"));
+        assert_eq!(parsed.claims.name.as_deref(), Some("Leko"));
+        assert_eq!(parsed.claims.nonce.as_deref(), Some("nonce-1"));
+        assert_eq!(parsed.claims.expires_at, 1_893_456_000);
+        assert!(super::parse_id_token_unverified("not.a.jwt.with.extra.parts").is_err());
+    }
+
+    fn base64_url_no_pad(value: &str) -> String {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+
+        URL_SAFE_NO_PAD.encode(value.as_bytes())
     }
 
     fn sample_provider() -> OidcProviderConfigRecord {

@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add OIDC ID-token header/claim parsing, JWKS-backed signature validation, and userinfo claim derivation.
+1. Add OIDC JWKS-backed ID-token signature validation, expiry/nonce checks, and userinfo claim derivation.
 
 Each queue item must update this section when completed or reordered.
 
@@ -198,8 +198,8 @@ tests and docs are updated.
   exchanges it against the provider token endpoint using the stored redirect URI
   before creating the session. Discovery document parsing now validates issuer and required endpoint URLs,
   and callback authorization-code exchange uses the discovered token endpoint
-  through an injectable discovery fetcher. JWKS parsing and signature-key selection now exist. Remaining work:
-  ID-token header/claim parsing, JWKS-backed signature validation,
+  through an injectable discovery fetcher. JWKS parsing/signature-key selection and unverified ID-token header/claim
+  parsing now exist. Remaining work: JWKS-backed signature validation,
   userinfo/ID-token expiry/nonce checks, and deriving claims from validated
   provider responses instead of trusting callback-supplied claim fields.
 - [ ] Web SSO login controls.

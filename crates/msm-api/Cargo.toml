@@ -7,6 +7,7 @@ repository.workspace = true
 
 [dependencies]
 axum = { version = "0.8", features = ["json"] }
+base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 http-body-util = "0.1"
 mime_guess = "2"
