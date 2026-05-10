@@ -174,7 +174,7 @@ downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-sco
 
 ## Immediate Plan
 
-1. Start Phase F media conversion with ffprobe probing and richer execution diagnostics.
+1. Continue Phase F media conversion with ffmpeg execution hardening and richer diagnostics.
 2. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band,
    OGQ, and Viber if any are still missing.
 

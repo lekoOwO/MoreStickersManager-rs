@@ -14,4 +14,11 @@ pub enum MediaPlanError {
         /// Source media kind that could not be planned.
         source_kind: MediaKind,
     },
+
+    /// ffprobe output could not be parsed into normalized media facts.
+    #[error("ffprobe output parse error: {message}")]
+    ProbeParse {
+        /// Human-readable parser failure summary.
+        message: String,
+    },
 }

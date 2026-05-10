@@ -77,7 +77,7 @@ Status meanings:
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, planned-provider registry placeholders, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Provider import worker credential consumption now exists for enabled tenant-scoped configs; concrete future-provider implementations remain incomplete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
-| Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
+| Media conversion | Partially complete | Profiles, ffmpeg command plans, and ffprobe command/report parsing exist. Richer execution diagnostics, cache completion, and surface visibility remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
 | Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Start Phase F media conversion with ffprobe probing and richer diagnostics.
+1. Continue Phase F media conversion with ffmpeg execution hardening and richer diagnostics.
 
 Each queue item must update this section when completed or reordered.
 
@@ -262,7 +262,8 @@ tests and docs are updated.
 ### Phase F: Media Conversion
 
 - [x] Media profiles and command planning.
-- [ ] ffprobe probing.
+- [x] ffprobe probing.
+  Progress: `msm-media` exposes shell-free `MediaProbeCommand`/`MediaProbeToolchain` plus `MediaProbeReport::from_ffprobe_json` for static image, animated image, and video classification with dimensions, duration, size, and codec facts.
 - [ ] ffmpeg execution hardening and diagnostics.
 - [ ] Prepared media cache completion.
 - [ ] Web/API/CLI/MCP visibility into conversion errors and output metadata.

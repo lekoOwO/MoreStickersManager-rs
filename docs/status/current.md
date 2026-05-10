@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Start Phase F media conversion with ffprobe probing and richer diagnostics.
+- Continue Phase F media conversion with ffmpeg execution hardening and richer diagnostics.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -263,9 +263,10 @@ Last verification:
 - Provider config Web slice: added provider config API client methods, provider workspace controls for list/upsert/delete, redacted JSON display, and focused client/component tests. Focused RED/GREEN verification used `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client`.
 - Provider config worker consumption slice: provider import worker now loads the first enabled tenant-scoped provider config for the job provider, uses config `apiBaseUrl`/`baseUrl` when the job has no override, and replaces Telegram `<token>` placeholders from `botToken`/`token` before metadata, getFile, and file download execution.
 - Planned provider registry slice: confirmed and documented `msm-providers` planned metadata for Signal, WhatsApp, Kakao, Band, OGQ, and Viber with `ProviderStatus::Planned` coverage.
+- ffprobe media probing slice: `msm-media` now has shell-free ffprobe command planning and JSON report parsing for static image, animated image, and video facts.
 
 Next step:
-- Phase E provider ingestion is now ready to hand off to Phase F media conversion: next slice should add ffprobe probing and richer diagnostics.
+- Phase F media conversion is active: next slice should harden ffmpeg execution diagnostics and prepared-media cache completion.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

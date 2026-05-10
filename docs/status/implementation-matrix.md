@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue with Phase F media conversion: ffprobe probing, execution diagnostics, cache completion, and surface visibility.
+Continue with Phase F media conversion: ffmpeg execution diagnostics, prepared-media cache completion, and surface visibility.

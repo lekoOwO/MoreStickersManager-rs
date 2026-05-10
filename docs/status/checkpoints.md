@@ -1667,3 +1667,9 @@
 
 - Confirmed `msm-providers` already exposes planned-provider metadata for Signal, WhatsApp, Kakao, Band, OGQ, and Viber with `ProviderStatus::Planned`.
 - Updated PRD/status/provider docs so Phase E can hand off to Phase F media conversion work without duplicating existing registry placeholders.
+
+## 2026-05-10 ffprobe Media Probing
+
+- Added `MediaProbeToolchain` and shell-free `MediaProbeCommand` for ffprobe JSON probing.
+- Added `MediaProbeReport::from_ffprobe_json` to parse dimensions, duration, file size, codec, and source `MediaKind` for static image, animated image, and video sources.
+- Added focused media probe tests; next Phase F slice should harden ffmpeg execution diagnostics and prepared-media cache completion.
