@@ -1586,3 +1586,11 @@
 - Added config coverage for defaults, overrides, and invalid provider import worker booleans.
 - Verification: `cargo test -p msm-app config_ --locked`, `cargo test -p msm-app provider_import_worker --locked`, plus final msm-app fmt/test/clippy/diff checks passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider/user docs; next Phase E slice should add CLI/MCP/Web provider import job controls.
+
+## 2026-05-10 Provider Import Job CLI
+
+- Added `msm providers jobs create`, `msm providers jobs get`, and `msm providers jobs events`.
+- Added CLI client DTOs/methods for provider import job create/read/event routes plus human/JSON output formatting.
+- Added parser and fake-client execution coverage for provider import job commands.
+- Verification: `cargo test -p msm-cli provider_import --locked` passed with Rust temp paths pointed at `D:\Temp`; final full CLI fmt/test/clippy/diff checks were run before commit.
+- Updated PRD/status/provider/user docs; next Phase E slice should add MCP/Web provider import job controls.

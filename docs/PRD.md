@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add CLI/MCP/Web provider import job controls.
+1. Add MCP/Web provider import job controls.
 2. Implement Telegram provider import `getFile`/file download execution and LINE
    product metadata parsing beyond fixture-schema direct URL payloads.
 
@@ -251,7 +251,7 @@ tests and docs are updated.
   for LINE direct-asset imports. `MSM_PROVIDER_IMPORT_WORKER_ENABLED`,
   `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS`,
   `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS`, and `MSM_PUBLIC_ASSET_BASE_URL` wire
-  the worker into service startup. CLI/MCP/Web job controls remain.
+  the worker into service startup. MCP/Web job controls remain; CLI job create/get/events controls now exist.
 - [ ] Placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ,
   Viber without pretending they are implemented.
 

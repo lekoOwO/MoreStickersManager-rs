@@ -4,9 +4,9 @@ use crate::{
     client::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
         ExportTarget, ExportTargetKind, Folder, FolderPack, OidcProvider, PackTag, PatScopePolicy,
-        PersonalAccessToken, ProviderImportPlan, SubscriptionAccessToken, SubscriptionGroup,
-        SubscriptionGroupPack, Tag, TelegramPublication, TenantMember, TenantRole, TenantSettings,
-        TenantUser,
+        PersonalAccessToken, ProviderImportJob, ProviderImportJobEvent, ProviderImportPlan,
+        SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
+        TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
     },
     command::OutputFormat,
     CliResult,
@@ -122,6 +122,48 @@ pub fn format_provider_import_plan(
             plan.metadata_request.url
         )),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(plan)?),
+    }
+}
+
+/// Formats provider import job responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_provider_import_job(
+    format: OutputFormat,
+    job: &ProviderImportJob,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!(
+            "{}\t{}\t{}\t{}/{}",
+            job.id, job.provider_id, job.status, job.attempt_count, job.max_attempts
+        )),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(job)?),
+    }
+}
+
+/// Formats provider import job events.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_provider_import_job_events(
+    format: OutputFormat,
+    events: &[ProviderImportJobEvent],
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(events
+            .iter()
+            .map(|event| {
+                format!(
+                    "{}\t{}\t{}\t{}",
+                    event.sequence, event.level, event.stage, event.message
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(events)?),
     }
 }
 

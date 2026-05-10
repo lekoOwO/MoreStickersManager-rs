@@ -24,6 +24,18 @@ pub struct CreateProviderImportPlanPayload {
     pub base_url: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateProviderImportJobPayload {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub provider_id: String,
+    pub remote_id: String,
+    pub target_pack_id: Option<String>,
+    pub base_url: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderImportPlan {
@@ -46,6 +58,38 @@ pub struct ProviderHttpRequestPlan {
 pub struct ProviderHttpHeader {
     pub name: String,
     pub value: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderImportJob {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub provider_id: String,
+    pub remote_id: String,
+    pub target_pack_id: Option<String>,
+    pub status: String,
+    pub request: serde_json::Value,
+    pub result: Option<serde_json::Value>,
+    pub error_summary: Option<String>,
+    pub attempt_count: i64,
+    pub max_attempts: i64,
+    pub next_attempt_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderImportJobEvent {
+    pub job_id: String,
+    pub sequence: i64,
+    pub level: String,
+    pub stage: String,
+    pub message: String,
+    pub metadata: serde_json::Value,
+    pub created_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -419,6 +463,15 @@ pub trait MsmClient {
         &self,
         payload: CreateProviderImportPlanPayload,
     ) -> CliResult<ProviderImportPlan>;
+    async fn create_provider_import_job(
+        &self,
+        payload: CreateProviderImportJobPayload,
+    ) -> CliResult<ProviderImportJob>;
+    async fn get_provider_import_job(&self, job_id: &str) -> CliResult<ProviderImportJob>;
+    async fn list_provider_import_job_events(
+        &self,
+        job_id: &str,
+    ) -> CliResult<Vec<ProviderImportJobEvent>>;
     async fn export_pack(&self, pack_id: &str) -> CliResult<StickerPack>;
     async fn update_pack(&self, payload: UpdatePackPayload) -> CliResult<()>;
     async fn delete_pack(&self, pack_id: &str) -> CliResult<()>;
@@ -636,6 +689,52 @@ impl MsmClient for ReqwestMsmClient {
                     .post(self.endpoint("/api/v1/provider-imports/plan")?),
             )
             .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn create_provider_import_job(
+        &self,
+        payload: CreateProviderImportJobPayload,
+    ) -> CliResult<ProviderImportJob> {
+        Ok(self
+            .authorize(
+                self.http
+                    .post(self.endpoint("/api/v1/provider-import-jobs")?),
+            )
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn get_provider_import_job(&self, job_id: &str) -> CliResult<ProviderImportJob> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/provider-import-jobs/{job_id}"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn list_provider_import_job_events(
+        &self,
+        job_id: &str,
+    ) -> CliResult<Vec<ProviderImportJobEvent>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/provider-import-jobs/{job_id}/events"))?),
+            )
             .send()
             .await?
             .error_for_status()?

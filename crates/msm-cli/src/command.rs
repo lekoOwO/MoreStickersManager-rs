@@ -6,11 +6,12 @@ use msm_domain::StickerPack;
 use crate::{
     client::{
         CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
-        CreatePersonalAccessTokenPayload, CreateProviderImportPlanPayload,
-        CreateSubscriptionAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
-        ImportPackPayload, MsmClient, ReqwestMsmClient, SubscriptionAccessResourceType,
-        UpdatePackPayload, UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload,
-        UpsertOidcProviderPayload, UpsertTenantRolePayload,
+        CreatePersonalAccessTokenPayload, CreateProviderImportJobPayload,
+        CreateProviderImportPlanPayload, CreateSubscriptionAccessTokenPayload,
+        CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, MsmClient,
+        ReqwestMsmClient, SubscriptionAccessResourceType, UpdatePackPayload,
+        UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertOidcProviderPayload,
+        UpsertTenantRolePayload,
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
@@ -19,12 +20,13 @@ use crate::{
         format_oidc_provider, format_oidc_provider_delete, format_oidc_providers,
         format_pack_delete, format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag,
         format_pat_create, format_pat_list, format_pat_revoke, format_pat_scope_policy,
-        format_provider_import_plan, format_subscription_group, format_subscription_group_pack,
-        format_subscription_groups, format_subscription_link_revoke,
-        format_subscription_link_secret, format_subscription_links, format_tag, format_tag_ids,
-        format_tags, format_telegram_publication, format_telegram_publications,
-        format_tenant_member, format_tenant_members, format_tenant_role, format_tenant_roles,
-        format_tenant_settings, format_tenant_user,
+        format_provider_import_job, format_provider_import_job_events, format_provider_import_plan,
+        format_subscription_group, format_subscription_group_pack, format_subscription_groups,
+        format_subscription_link_revoke, format_subscription_link_secret,
+        format_subscription_links, format_tag, format_tag_ids, format_tags,
+        format_telegram_publication, format_telegram_publications, format_tenant_member,
+        format_tenant_members, format_tenant_role, format_tenant_roles, format_tenant_settings,
+        format_tenant_user,
     },
     CliError, CliResult,
 };
@@ -129,6 +131,38 @@ pub enum ProviderCommand {
         remote_id: String,
         #[arg(long)]
         base_url: Option<String>,
+    },
+    Jobs {
+        #[command(subcommand)]
+        command: ProviderImportJobCommand,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum ProviderImportJobCommand {
+    Create {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        owner_user_id: String,
+        #[arg(long)]
+        provider_id: String,
+        #[arg(long)]
+        remote_id: String,
+        #[arg(long)]
+        target_pack_id: Option<String>,
+        #[arg(long)]
+        base_url: Option<String>,
+    },
+    Get {
+        #[arg(long)]
+        job_id: String,
+    },
+    Events {
+        #[arg(long)]
+        job_id: String,
     },
 }
 
@@ -697,6 +731,38 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                     .await?;
                 format_provider_import_plan(cli.output_format, &plan)
             }
+            ProviderCommand::Jobs { command } => match command {
+                ProviderImportJobCommand::Create {
+                    id,
+                    tenant_id,
+                    owner_user_id,
+                    provider_id,
+                    remote_id,
+                    target_pack_id,
+                    base_url,
+                } => {
+                    let job = client
+                        .create_provider_import_job(CreateProviderImportJobPayload {
+                            id,
+                            tenant_id,
+                            owner_user_id,
+                            provider_id,
+                            remote_id,
+                            target_pack_id,
+                            base_url,
+                        })
+                        .await?;
+                    format_provider_import_job(cli.output_format, &job)
+                }
+                ProviderImportJobCommand::Get { job_id } => {
+                    let job = client.get_provider_import_job(&job_id).await?;
+                    format_provider_import_job(cli.output_format, &job)
+                }
+                ProviderImportJobCommand::Events { job_id } => {
+                    let events = client.list_provider_import_job_events(&job_id).await?;
+                    format_provider_import_job_events(cli.output_format, &events)
+                }
+            },
         },
         Command::Pats { command } => match command {
             PatCommand::Create {
@@ -1248,24 +1314,26 @@ mod tests {
     use crate::{
         client::{
             CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
-            CreatePersonalAccessTokenPayload, CreateProviderImportPlanPayload,
-            CreateSubscriptionAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
-            CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
-            ExportTarget, ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient,
-            OidcProvider, PackTag, PatScopePolicy, PersonalAccessToken, ProviderHttpRequestPlan,
-            ProviderImportPlan, SubscriptionAccessResourceType, SubscriptionAccessToken,
-            SubscriptionGroup, SubscriptionGroupPack, Tag, TelegramPublication, TenantMember,
-            TenantRole, TenantSettings, TenantUser, UpdateTenantSettingsPayload,
-            UpdateTenantUserStatusPayload, UpsertOidcProviderPayload, UpsertTenantRolePayload,
+            CreatePersonalAccessTokenPayload, CreateProviderImportJobPayload,
+            CreateProviderImportPlanPayload, CreateSubscriptionAccessTokenPayload,
+            CreateSubscriptionGroupPayload, CreateTagPayload, CreatedPersonalAccessToken,
+            CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent, ExportTarget,
+            ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, OidcProvider,
+            PackTag, PatScopePolicy, PersonalAccessToken, ProviderHttpRequestPlan,
+            ProviderImportJob, ProviderImportJobEvent, ProviderImportPlan,
+            SubscriptionAccessResourceType, SubscriptionAccessToken, SubscriptionGroup,
+            SubscriptionGroupPack, Tag, TelegramPublication, TenantMember, TenantRole,
+            TenantSettings, TenantUser, UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload,
+            UpsertOidcProviderPayload, UpsertTenantRolePayload,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
             ExportPublicationCommand, ExportTargetCommand, FolderCommand, FolderPackCommand,
             MetadataCommand, OutputFormat, PackCommand, PackTagCommand, PackVisibility, PatCommand,
-            ProviderCommand, SubscriptionGroupCommand, SubscriptionGroupPackCommand,
-            SubscriptionLinkCommand, SubscriptionLinkResourceType, TagCommand, TenantCommand,
-            TenantMemberCommand, TenantMemberRoleArg, TenantOidcProviderCommand, TenantRoleCommand,
-            TenantSettingsCommand, TenantUserCommand,
+            ProviderCommand, ProviderImportJobCommand, SubscriptionGroupCommand,
+            SubscriptionGroupPackCommand, SubscriptionLinkCommand, SubscriptionLinkResourceType,
+            TagCommand, TenantCommand, TenantMemberCommand, TenantMemberRoleArg,
+            TenantOidcProviderCommand, TenantRoleCommand, TenantSettingsCommand, TenantUserCommand,
         },
         output::HealthResponse,
         CliResult,
@@ -1322,6 +1390,83 @@ mod tests {
                 && provider_id == "line-stickers"
                 && remote_id == "line_cats"
                 && base_url.as_deref() == Some("https://store.line.me")
+        ));
+    }
+
+    #[test]
+    fn parses_provider_import_job_commands() {
+        let create = Cli::parse_from([
+            "msm",
+            "providers",
+            "jobs",
+            "create",
+            "--id",
+            "provider_job_1",
+            "--tenant-id",
+            "tenant_1",
+            "--owner-user-id",
+            "user_1",
+            "--provider-id",
+            "line-stickers",
+            "--remote-id",
+            "line_cats",
+            "--target-pack-id",
+            "pack_line_cats",
+        ]);
+        assert!(matches!(
+            create.command,
+            Command::Providers {
+                command: ProviderCommand::Jobs {
+                    command: ProviderImportJobCommand::Create {
+                        ref id,
+                        ref tenant_id,
+                        ref owner_user_id,
+                        ref provider_id,
+                        ref remote_id,
+                        ref target_pack_id,
+                        ..
+                    }
+                }
+            } if id == "provider_job_1"
+                && tenant_id == "tenant_1"
+                && owner_user_id == "user_1"
+                && provider_id == "line-stickers"
+                && remote_id == "line_cats"
+                && target_pack_id.as_deref() == Some("pack_line_cats")
+        ));
+
+        let get = Cli::parse_from([
+            "msm",
+            "providers",
+            "jobs",
+            "get",
+            "--job-id",
+            "provider_job_1",
+        ]);
+        assert!(matches!(
+            get.command,
+            Command::Providers {
+                command: ProviderCommand::Jobs {
+                    command: ProviderImportJobCommand::Get { ref job_id }
+                }
+            } if job_id == "provider_job_1"
+        ));
+
+        let events = Cli::parse_from([
+            "msm",
+            "providers",
+            "jobs",
+            "events",
+            "--job-id",
+            "provider_job_1",
+        ]);
+        assert!(matches!(
+            events.command,
+            Command::Providers {
+                command: ProviderCommand::Jobs {
+                    command: ProviderImportJobCommand::Events { ref job_id }
+                }
+            } if job_id == "provider_job_1"
         ));
     }
 
@@ -2180,6 +2325,73 @@ mod tests {
         let payload = client.provider_import_plan.lock().unwrap().clone().unwrap();
         assert_eq!(payload.provider_id, "line-stickers");
         assert_eq!(payload.remote_id, "line_cats");
+    }
+
+    #[tokio::test]
+    async fn executes_provider_import_job_commands() {
+        let client = FakeClient::default();
+
+        let created = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "providers",
+                "jobs",
+                "create",
+                "--id",
+                "provider_job_1",
+                "--tenant-id",
+                "tenant_1",
+                "--owner-user-id",
+                "user_1",
+                "--provider-id",
+                "line-stickers",
+                "--remote-id",
+                "line_cats",
+                "--target-pack-id",
+                "pack_line_cats",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(created, "provider_job_1\tline-stickers\tqueued\t0/3");
+        let payload = client
+            .created_provider_import_job
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(payload.target_pack_id.as_deref(), Some("pack_line_cats"));
+
+        let fetched = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "providers",
+                "jobs",
+                "get",
+                "--job-id",
+                "provider_job_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(fetched, "provider_job_1\tline-stickers\tqueued\t0/3");
+
+        let events = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "providers",
+                "jobs",
+                "events",
+                "--job-id",
+                "provider_job_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(events, "1\tinfo\tqueued\tprovider import job queued");
     }
 
     #[tokio::test]
@@ -3082,6 +3294,7 @@ mod tests {
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
         provider_import_plan: Mutex<Option<CreateProviderImportPlanPayload>>,
+        created_provider_import_job: Mutex<Option<CreateProviderImportJobPayload>>,
         renamed_pack: Mutex<Option<crate::client::UpdatePackPayload>>,
         deleted_pack: Mutex<Option<String>>,
         created_pat: Mutex<Option<CreatePersonalAccessTokenPayload>>,
@@ -3140,6 +3353,33 @@ mod tests {
                 },
                 asset_strategy: "directRemoteUrls".to_owned(),
             })
+        }
+
+        async fn create_provider_import_job(
+            &self,
+            payload: CreateProviderImportJobPayload,
+        ) -> CliResult<ProviderImportJob> {
+            *self.created_provider_import_job.lock().unwrap() = Some(payload);
+            Ok(sample_provider_import_job())
+        }
+
+        async fn get_provider_import_job(&self, _job_id: &str) -> CliResult<ProviderImportJob> {
+            Ok(sample_provider_import_job())
+        }
+
+        async fn list_provider_import_job_events(
+            &self,
+            _job_id: &str,
+        ) -> CliResult<Vec<ProviderImportJobEvent>> {
+            Ok(vec![ProviderImportJobEvent {
+                job_id: "provider_job_1".to_owned(),
+                sequence: 1,
+                level: "info".to_owned(),
+                stage: "queued".to_owned(),
+                message: "provider import job queued".to_owned(),
+                metadata: serde_json::json!({}),
+                created_at: "2026-05-10T00:00:00Z".to_owned(),
+            }])
         }
 
         async fn export_pack(&self, _pack_id: &str) -> CliResult<msm_domain::StickerPack> {
@@ -3511,6 +3751,26 @@ mod tests {
             _publication_id: &str,
         ) -> CliResult<TelegramPublication> {
             Ok(sample_telegram_publication())
+        }
+    }
+
+    fn sample_provider_import_job() -> ProviderImportJob {
+        ProviderImportJob {
+            id: "provider_job_1".to_owned(),
+            tenant_id: "tenant_1".to_owned(),
+            owner_user_id: "user_1".to_owned(),
+            provider_id: "line-stickers".to_owned(),
+            remote_id: "line_cats".to_owned(),
+            target_pack_id: Some("pack_line_cats".to_owned()),
+            status: "queued".to_owned(),
+            request: serde_json::json!({ "providerId": "line-stickers" }),
+            result: None,
+            error_summary: None,
+            attempt_count: 0,
+            max_attempts: 3,
+            next_attempt_at: None,
+            created_at: "2026-05-10T00:00:00Z".to_owned(),
+            updated_at: "2026-05-10T00:00:00Z".to_owned(),
         }
     }
 

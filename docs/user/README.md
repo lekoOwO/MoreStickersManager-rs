@@ -425,11 +425,14 @@ These currently return a safe fetch plan for Telegram or LINE provider imports.
 Executable provider import jobs and runtime parsing/download completion are
 still pending.
 
-Provider import job API foundation:
+Provider import job surfaces:
 
-- `POST /api/v1/provider-import-jobs`
-- `GET /api/v1/provider-import-jobs/{job_id}`
-- `GET /api/v1/provider-import-jobs/{job_id}/events`
+- API `POST /api/v1/provider-import-jobs`
+- API `GET /api/v1/provider-import-jobs/{job_id}`
+- API `GET /api/v1/provider-import-jobs/{job_id}/events`
+- CLI `msm providers jobs create --id <job_id> --tenant-id <tenant_id> --owner-user-id <user_id> --provider-id telegram|line-stickers --remote-id <remote_id> [--target-pack-id <pack_id>] [--base-url <url>]`
+- CLI `msm providers jobs get --job-id <job_id>`
+- CLI `msm providers jobs events --job-id <job_id>`
 
 These routes persist and read queued provider import jobs with `provider.import`
 authorization. The app crate now has a tested worker foundation that can execute
@@ -523,8 +526,8 @@ PAT enforcement status:
   MCP tools.
 - `pack.delete` is required for pack delete API routes and MCP tools.
 - `import.run` is required for pack import API routes and MCP tools.
-- `provider.import` is required for provider import planning API/CLI/MCP
-  surfaces.
+- `provider.import` is required for provider import planning and job
+  create/read/event API/CLI/MCP surfaces where implemented.
 - `export.read` is required for export target/job/publication read API routes
   and MCP tools.
 - `export.run` is required for export job creation API routes and MCP tools.
