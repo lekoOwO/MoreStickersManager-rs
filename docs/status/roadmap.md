@@ -8,13 +8,14 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 ## Current Focus
 
-Phase I data portability is the active focus. Storage portability helpers,
-protected API/OpenAPI user export/import endpoints, CLI export/import commands,
-Web migration controls, and MCP export/import tools now exist. The next work is
-a migration completeness audit and compatibility coverage before PostgreSQL support.
+Phase J PostgreSQL support is the active focus. Phase I data portability is now
+closed across storage, API/OpenAPI, CLI, MCP, Web, and cross-instance API
+compatibility coverage. The next work is PostgreSQL migration/repository
+compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Cross-instance portable user migration is now covered at the API layer by exporting from one MSM instance and importing into a separate target instance.
 - MCP portable user export/import tools now expose instance migration workflows through `msm.export_user_data` and `msm.import_user_data` with same-user PAT checks and target-tenant import authorization.
 - Export jobs can now be requeued for operator recovery across API/OpenAPI, CLI, MCP, and Web. The recovery flow resets failed/cancelled jobs to queued and records/refreshes recovery events for operator handoff.
 - Tenant CDN URL payload rewriting now applies to protected pack exports and public pack/subscription payloads while preserving MoreStickers-compatible JSON shape.
@@ -178,8 +179,8 @@ a migration completeness audit and compatibility coverage before PostgreSQL supp
 
 ## Immediate Plan
 
-1. Audit remaining Phase I migration gaps and add compatibility coverage.
-2. Begin Phase J PostgreSQL support once Phase I is fully checked.
+1. Plan PostgreSQL migration/repository compatibility boundaries.
+2. Add shared SQLite/PostgreSQL repository/API test coverage and then wire PostgreSQL runtime support.
 
 ## Later Planned Work
 

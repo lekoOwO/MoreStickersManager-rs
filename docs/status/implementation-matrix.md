@@ -50,7 +50,7 @@ roadmap, and completion definition.
 | Tenant CDN public asset URL | Implemented | Tenant public asset URL is configurable through API/OpenAPI, CLI, MCP, and Web. Protected pack exports and public subscription payloads rewrite local sticker asset URLs to the tenant CDN base when configured. |
 | System-wide CDN public asset URL | Implemented | `MSM_PUBLIC_ASSET_URL` provides an app-wide fallback CDN base for exported pack and subscription payloads; tenant public asset URLs take precedence. |
 | Tenant admin console | Current phase | Bootstrap admin plus tenant member/settings/local-registration/user-status/role-template API/CLI/MCP/Web surfaces exist, and route-by-route fine-grained RBAC audit/closure is complete for current API tenant/resource-owning routes. Remaining work is role assignment semantics beyond templates and SSO-backed account documentation. |
-| User data portability API | Implemented | Protected API/OpenAPI endpoints can export one user's portable data and import a portable export into an existing tenant. |
+| User data portability API | Implemented | Protected API/OpenAPI endpoints can export one user's portable data and import a portable export into an existing tenant, including cross-instance migration coverage. |
 | User data portability CLI | Implemented | CLI can export portable user data to a file/stdout and import a portable export file into an existing tenant. |
 | User data portability Web | Implemented | Web migration workspace can export portable user JSON and import pasted portable JSON into a target tenant through the API client. |
 | User data portability MCP | Implemented | MCP can export portable user data and import a portable export into a target tenant through `msm.export_user_data` and `msm.import_user_data`. |
@@ -59,4 +59,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue Phase I with a migration completeness audit and compatibility coverage before moving to PostgreSQL support.
+Begin Phase J PostgreSQL support with backend migration/repository compatibility and shared SQLite/PostgreSQL test coverage.

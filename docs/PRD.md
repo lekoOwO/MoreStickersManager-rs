@@ -81,14 +81,14 @@ Status meanings:
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
 | Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
 | Asset privacy/CDN | Partially complete | Tenant public asset/CDN URL settings exist across API/OpenAPI, CLI, MCP, and Web. `MSM_PUBLIC_ASSET_URL` provides a system-wide fallback CDN base, and tenant settings take precedence. Protected pack exports and public pack/subscription payloads rewrite local sticker asset URLs to the selected CDN base when configured. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. |
-| Data portability | Partially complete | Storage helpers plus API/OpenAPI, CLI, Web, and MCP portable user export/import surfaces exist. Compatibility coverage/audit for moving between MSM instances remains. |
+| Data portability | Implemented | Storage helpers plus API/OpenAPI, CLI, Web, and MCP portable user export/import surfaces exist, with cross-instance API compatibility coverage for moving user data between MSM instances. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
 
 ## Current Implementation Queue
 
 Work these in order unless a higher-risk bug appears:
 
-1. Finish Phase I data portability audit, then begin Phase J PostgreSQL support.
+1. Begin Phase J PostgreSQL support: add PostgreSQL migration/repository compatibility and shared SQLite/PostgreSQL test coverage.
 
 Each queue item must update this section when completed or reordered.
 
@@ -302,7 +302,7 @@ tests and docs are updated.
 - [x] CLI export/import commands.
 - [x] Web migration flow.
 - [x] MCP export/import tools.
-- [ ] Compatibility tests for moving between MSM instances.
+- [x] Compatibility tests for moving between MSM instances.
 
 ### Phase J: PostgreSQL Support
 
@@ -338,7 +338,7 @@ Current parity gaps:
 - Telegram export/reconciliation: API, CLI, MCP, and Web controls exist, but
   operator recovery polish remains.
 - User data migration: storage helpers plus API/OpenAPI, CLI, Web, and MCP
-  workflows exist; compatibility coverage/audit remains before closing Phase I.
+  workflows exist, and cross-instance API compatibility coverage closes Phase I.
 - Tenant/RBAC administration: tenant member, tenant settings including local
   registration enable/disable, user disabled-status, and role template
   administration exist across API, CLI, MCP, and Web. Pack

@@ -3313,6 +3313,110 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn portability_routes_move_user_data_between_api_instances() {
+        let source = empty_state_with_owner().await;
+        let pack = sample_pack_with_suffix("migrate");
+        source
+            .repository()
+            .upsert_sticker_pack(
+                &pack.id,
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Private,
+                Some("telegram"),
+                &pack,
+            )
+            .await
+            .unwrap();
+        source
+            .repository()
+            .create_subscription_group(
+                "sub_migrate",
+                "tenant_1",
+                "user_1",
+                "Migration",
+                msm_storage::models::PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        source
+            .repository()
+            .add_pack_to_subscription_group("sub_migrate", &pack.id, 0)
+            .await
+            .unwrap();
+        let export_token =
+            create_pat(&source, "source-export", "user_1", [Permission::PackRead]).await;
+
+        let export_response = build_router(source)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/portable/user-export?userId=user_1")
+                    .header("authorization", format!("Bearer {export_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(export_response.status(), StatusCode::OK);
+        let body = to_bytes(export_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let export_payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        let target = test_state().await;
+        target
+            .repository()
+            .create_tenant("tenant_target", "Target")
+            .await
+            .unwrap();
+        target
+            .repository()
+            .create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+        target
+            .repository()
+            .add_tenant_member("tenant_target", "user_1", "admin")
+            .await
+            .unwrap();
+        let import_token =
+            create_pat(&target, "target-import", "user_1", [Permission::ImportRun]).await;
+        let import_body = serde_json::json!({
+            "tenantId": "tenant_target",
+            "export": export_payload,
+        });
+
+        let import_response = build_router(target.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/portable/user-import")
+                    .header("authorization", format!("Bearer {import_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(import_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(import_response.status(), StatusCode::CREATED);
+
+        let packs = target
+            .repository()
+            .list_user_sticker_packs("user_1")
+            .await
+            .unwrap();
+        assert_eq!(packs, vec![pack.clone()]);
+        assert_eq!(
+            target
+                .repository()
+                .list_subscription_pack_ids("sub_migrate")
+                .await
+                .unwrap(),
+            vec![pack.id]
+        );
+    }
+
+    #[tokio::test]
     #[allow(clippy::too_many_lines)]
     async fn public_subscription_routes_accept_subscription_access_tokens() {
         let state = empty_state_with_owner().await;

@@ -1775,3 +1775,10 @@
 - Enforced same-user PAT scope checks for export/import and target-tenant import authorization.
 - Updated user/PRD/status docs to show API, CLI, Web, and MCP portability parity.
 - Verification: `cargo test -p msm-mcp tools_call_exports_and_imports_portable_user_data --locked`; `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`.
+
+## 2026-05-10 Data Portability Compatibility
+
+- Added API-level compatibility coverage for moving portable user data between separate MSM instances.
+- Verified the target instance can import exported packs and subscription-group membership through the protected portability API.
+- Updated PRD/status docs to close Phase I and move the active queue to PostgreSQL support.
+- Verification: `cargo test -p msm-api portability_routes_move_user_data_between_api_instances --locked`.
