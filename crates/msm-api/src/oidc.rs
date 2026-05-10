@@ -150,6 +150,9 @@ pub type OidcTokenExchangeFuture =
 pub type OidcDiscoveryFuture =
     Pin<Box<dyn Future<Output = Result<OidcDiscoveryDocument, OidcError>> + Send>>;
 
+/// Boxed future returned by an OIDC JWKS fetcher implementation.
+pub type OidcJwksFuture = Pin<Box<dyn Future<Output = Result<OidcJwksDocument, OidcError>> + Send>>;
+
 /// Exchanges an authorization code with a provider token endpoint.
 pub trait OidcTokenExchanger: Send + Sync {
     fn exchange(&self, request: OidcTokenExchangeRequest) -> OidcTokenExchangeFuture;
@@ -158,6 +161,11 @@ pub trait OidcTokenExchanger: Send + Sync {
 /// Fetches and validates OIDC discovery metadata for an issuer.
 pub trait OidcDiscoveryFetcher: Send + Sync {
     fn discover(&self, issuer_url: String) -> OidcDiscoveryFuture;
+}
+
+/// Fetches and validates provider JWKS metadata.
+pub trait OidcJwksFetcher: Send + Sync {
+    fn fetch_jwks(&self, jwks_uri: String) -> OidcJwksFuture;
 }
 
 /// HTTP implementation of [`OidcTokenExchanger`].
@@ -172,6 +180,12 @@ pub struct HttpOidcDiscoveryFetcher {
     client: reqwest::Client,
 }
 
+/// HTTP implementation of [`OidcJwksFetcher`].
+#[derive(Clone, Debug)]
+pub struct HttpOidcJwksFetcher {
+    client: reqwest::Client,
+}
+
 impl Default for HttpOidcTokenExchanger {
     fn default() -> Self {
         Self::new()
@@ -179,6 +193,12 @@ impl Default for HttpOidcTokenExchanger {
 }
 
 impl Default for HttpOidcDiscoveryFetcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for HttpOidcJwksFetcher {
     fn default() -> Self {
         Self::new()
     }
@@ -196,6 +216,16 @@ impl HttpOidcTokenExchanger {
 
 impl HttpOidcDiscoveryFetcher {
     /// Creates an HTTP OIDC discovery fetcher with the default reqwest client.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+impl HttpOidcJwksFetcher {
+    /// Creates an HTTP OIDC JWKS fetcher with the default reqwest client.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -235,6 +265,21 @@ impl OidcDiscoveryFetcher for HttpOidcDiscoveryFetcher {
             }
             let body = response.text().await?;
             parse_discovery_document(&body, &issuer_url)
+        })
+    }
+}
+
+impl OidcJwksFetcher for HttpOidcJwksFetcher {
+    fn fetch_jwks(&self, jwks_uri: String) -> OidcJwksFuture {
+        let client = self.client.clone();
+        Box::pin(async move {
+            let response = client.get(jwks_uri).send().await?;
+            let status = response.status();
+            if !status.is_success() {
+                return Err(OidcError::TokenEndpointStatus(status));
+            }
+            let body = response.text().await?;
+            parse_jwks_document(&body)
         })
     }
 }

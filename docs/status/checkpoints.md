@@ -1416,3 +1416,14 @@
   signing keys using the parsed JWT signing input and signature bytes.
 - Kept callback wiring from validated ID-token claims and userinfo fallback as
   the next Phase D work.
+
+## 2026-05-10 OIDC Callback Validated Claim Wiring
+
+- Added injectable JWKS fetcher support and wired authorization-code callback
+  completion to verify returned ID-token signatures and issuer/audience/nonce/
+  expiration claims.
+- Callback user linking now derives provider subject, email, and display name
+  from validated ID-token claims when available instead of callback-supplied
+  fields.
+- Kept userinfo fallback/claim derivation and non-API SSO surfaces as the next
+  Phase D work.

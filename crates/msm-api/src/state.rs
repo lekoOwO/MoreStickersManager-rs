@@ -3,7 +3,8 @@ use std::sync::Arc;
 use msm_storage::{LocalAssetStore, StorageRepository};
 
 use crate::oidc::{
-    HttpOidcDiscoveryFetcher, HttpOidcTokenExchanger, OidcDiscoveryFetcher, OidcTokenExchanger,
+    HttpOidcDiscoveryFetcher, HttpOidcJwksFetcher, HttpOidcTokenExchanger, OidcDiscoveryFetcher,
+    OidcJwksFetcher, OidcTokenExchanger,
 };
 
 #[derive(Clone)]
@@ -12,6 +13,7 @@ pub struct ApiState {
     asset_store: LocalAssetStore,
     oidc_token_exchanger: Arc<dyn OidcTokenExchanger>,
     oidc_discovery_fetcher: Arc<dyn OidcDiscoveryFetcher>,
+    oidc_jwks_fetcher: Arc<dyn OidcJwksFetcher>,
 }
 
 impl ApiState {
@@ -22,6 +24,7 @@ impl ApiState {
             asset_store,
             oidc_token_exchanger: Arc::new(HttpOidcTokenExchanger::new()),
             oidc_discovery_fetcher: Arc::new(HttpOidcDiscoveryFetcher::new()),
+            oidc_jwks_fetcher: Arc::new(HttpOidcJwksFetcher::new()),
         }
     }
 
@@ -44,6 +47,12 @@ impl ApiState {
     }
 
     #[must_use]
+    pub fn with_oidc_jwks_fetcher(mut self, oidc_jwks_fetcher: Arc<dyn OidcJwksFetcher>) -> Self {
+        self.oidc_jwks_fetcher = oidc_jwks_fetcher;
+        self
+    }
+
+    #[must_use]
     pub fn repository(&self) -> &StorageRepository {
         &self.repository
     }
@@ -61,5 +70,10 @@ impl ApiState {
     #[must_use]
     pub fn oidc_discovery_fetcher(&self) -> &dyn OidcDiscoveryFetcher {
         self.oidc_discovery_fetcher.as_ref()
+    }
+
+    #[must_use]
+    pub fn oidc_jwks_fetcher(&self) -> &dyn OidcJwksFetcher {
+        self.oidc_jwks_fetcher.as_ref()
     }
 }

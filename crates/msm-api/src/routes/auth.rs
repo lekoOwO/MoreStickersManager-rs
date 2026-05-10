@@ -8,6 +8,7 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use msm_domain::Permission;
+use msm_storage::models::{OidcLoginStateRecord, OidcProviderConfigRecord};
 use url::Url;
 
 use crate::{
@@ -16,7 +17,10 @@ use crate::{
         LoginLocalUserRequest, OidcLoginStartResponse, RegisterLocalUserRequest,
         StartOidcLoginQuery,
     },
-    oidc::{build_token_exchange_form, OidcTokenExchangeRequest},
+    oidc::{
+        build_token_exchange_form, parse_id_token_unverified, validate_id_token_claims,
+        verify_id_token_signature, OidcTokenExchangeRequest,
+    },
     rbac::require_user_pat_scopes_allowed,
     ApiError, ApiResult, ApiState,
 };
@@ -215,31 +219,10 @@ pub async fn complete_oidc_login(
     if !provider.is_enabled {
         return Err(ApiError::Unauthorized("OIDC provider not found".to_owned()));
     }
-    if let Some(authorization_code) = request
-        .authorization_code
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        let discovery = state
-            .oidc_discovery_fetcher()
-            .discover(provider.issuer_url.clone())
-            .await
-            .map_err(|error| ApiError::Unauthorized(format!("OIDC discovery failed: {error}")))?;
-        let form =
-            build_token_exchange_form(&provider, authorization_code, &login_state.redirect_uri);
-        state
-            .oidc_token_exchanger()
-            .exchange(OidcTokenExchangeRequest {
-                token_endpoint_url: discovery.token_endpoint,
-                form,
-            })
-            .await
-            .map_err(|error| {
-                ApiError::Unauthorized(format!("OIDC token exchange failed: {error}"))
-            })?;
+    let claims = derive_oidc_callback_claims(&state, &request, &login_state, &provider).await?;
+    if !claims.validated_provider_claims {
+        validate_oidc_claims(&provider.issuer_url, &provider.client_id, &request)?;
     }
-    validate_oidc_claims(&provider.issuer_url, &provider.client_id, &request)?;
     state
         .repository()
         .consume_oidc_login_state(&request.state, &request.nonce)
@@ -250,7 +233,7 @@ pub async fn complete_oidc_login(
         .find_oidc_user_link(
             &login_state.tenant_id,
             &login_state.provider_id,
-            &request.provider_subject,
+            &claims.provider_subject,
         )
         .await?
     {
@@ -264,11 +247,11 @@ pub async fn complete_oidc_login(
         let user_id = oidc_user_id(
             &login_state.tenant_id,
             &login_state.provider_id,
-            &request.provider_subject,
+            &claims.provider_subject,
         );
         state
             .repository()
-            .create_user(&user_id, &request.email, &request.display_name)
+            .create_user(&user_id, &claims.email, &claims.display_name)
             .await?;
         state
             .repository()
@@ -281,10 +264,10 @@ pub async fn complete_oidc_login(
         .upsert_oidc_user_link(
             &login_state.tenant_id,
             &login_state.provider_id,
-            &request.provider_subject,
+            &claims.provider_subject,
             &user_id,
-            &request.email,
-            &request.display_name,
+            &claims.email,
+            &claims.display_name,
         )
         .await?;
     let scopes = parse_scopes(&request.scopes)?;
@@ -308,6 +291,93 @@ fn parse_scopes(scopes: &[String]) -> ApiResult<BTreeSet<Permission>> {
                 .ok_or_else(|| ApiError::BadRequest(format!("unknown PAT scope `{scope}`")))
         })
         .collect()
+}
+
+struct OidcCallbackClaims {
+    provider_subject: String,
+    email: String,
+    display_name: String,
+    validated_provider_claims: bool,
+}
+
+async fn derive_oidc_callback_claims(
+    state: &ApiState,
+    request: &CompleteOidcLoginRequest,
+    login_state: &OidcLoginStateRecord,
+    provider: &OidcProviderConfigRecord,
+) -> ApiResult<OidcCallbackClaims> {
+    let fallback = || OidcCallbackClaims {
+        provider_subject: request.provider_subject.clone(),
+        email: request.email.clone(),
+        display_name: request.display_name.clone(),
+        validated_provider_claims: false,
+    };
+    let Some(authorization_code) = request
+        .authorization_code
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(fallback());
+    };
+
+    let discovery = state
+        .oidc_discovery_fetcher()
+        .discover(provider.issuer_url.clone())
+        .await
+        .map_err(|error| ApiError::Unauthorized(format!("OIDC discovery failed: {error}")))?;
+    let form = build_token_exchange_form(provider, authorization_code, &login_state.redirect_uri);
+    let token_response = state
+        .oidc_token_exchanger()
+        .exchange(OidcTokenExchangeRequest {
+            token_endpoint_url: discovery.token_endpoint,
+            form,
+        })
+        .await
+        .map_err(|error| ApiError::Unauthorized(format!("OIDC token exchange failed: {error}")))?;
+    let Some(id_token) = token_response.id_token.as_deref() else {
+        return Ok(fallback());
+    };
+
+    let token = parse_id_token_unverified(id_token).map_err(|error| {
+        ApiError::Unauthorized(format!("OIDC ID token validation failed: {error}"))
+    })?;
+    let jwks = state
+        .oidc_jwks_fetcher()
+        .fetch_jwks(discovery.jwks_uri)
+        .await
+        .map_err(|error| ApiError::Unauthorized(format!("OIDC JWKS failed: {error}")))?;
+    verify_id_token_signature(&token, &jwks).map_err(|error| {
+        ApiError::Unauthorized(format!("OIDC ID token validation failed: {error}"))
+    })?;
+    validate_id_token_claims(
+        &token.claims,
+        &provider.issuer_url,
+        &provider.client_id,
+        &request.nonce,
+        Utc::now().timestamp(),
+    )
+    .map_err(|error| ApiError::Unauthorized(format!("OIDC ID token validation failed: {error}")))?;
+
+    let provider_subject = token.claims.subject;
+    let email = token.claims.email.unwrap_or_else(|| {
+        format!(
+            "{}@{}.oidc.local",
+            provider_subject,
+            login_state.provider_id.replace(['@', '/'], "_")
+        )
+    });
+    let display_name = token
+        .claims
+        .name
+        .or_else(|| Some(email.clone()))
+        .unwrap_or_else(|| provider_subject.clone());
+    Ok(OidcCallbackClaims {
+        provider_subject,
+        email,
+        display_name,
+        validated_provider_claims: true,
+    })
 }
 
 async fn create_pat_and_session_response(

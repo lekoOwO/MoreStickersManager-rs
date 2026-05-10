@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Wire validated ID-token claims into the OIDC callback path and add userinfo fallback/claim derivation.
+1. Add OIDC userinfo fallback/claim derivation and complete non-API SSO admin/client surfaces.
 
 Each queue item must update this section when completed or reordered.
 
@@ -200,9 +200,11 @@ tests and docs are updated.
   and callback authorization-code exchange uses the discovered token endpoint
   through an injectable discovery fetcher. JWKS parsing/signature-key selection, unverified ID-token header/claim
   parsing, issuer/audience/nonce/expiration claim validation, and RS256
-  JWKS-backed signature verification now exist. Remaining work: wiring
-  validated ID-token claims into callback user/link creation, userinfo fallback,
-  and removing trust in callback-supplied claim fields.
+  JWKS-backed signature verification now exist. Callback authorization-code
+  completion now verifies ID-token signatures/claims and uses validated subject,
+  email, and display-name claims for user-link creation when an ID token is
+  returned. Remaining work: userinfo fallback/claim derivation for providers
+  that omit profile claims, and non-API SSO admin/client surfaces.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
 

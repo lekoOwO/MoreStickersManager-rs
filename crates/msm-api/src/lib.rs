@@ -254,9 +254,9 @@ mod tests {
     use crate::{
         build_router,
         oidc::{
-            OidcDiscoveryDocument, OidcDiscoveryFetcher, OidcDiscoveryFuture,
-            OidcTokenExchangeFuture, OidcTokenExchangeRequest, OidcTokenExchanger,
-            OidcTokenResponse,
+            OidcDiscoveryDocument, OidcDiscoveryFetcher, OidcDiscoveryFuture, OidcJwk,
+            OidcJwksDocument, OidcJwksFetcher, OidcJwksFuture, OidcTokenExchangeFuture,
+            OidcTokenExchangeRequest, OidcTokenExchanger, OidcTokenResponse,
         },
         ApiState,
     };
@@ -4308,6 +4308,112 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn oidc_callback_uses_verified_id_token_claims_for_user_linking() {
+        let exchanger = Arc::new(RecordingOidcTokenExchanger::new());
+        let signed_key = signed_id_token_key();
+        let discovery = Arc::new(StaticOidcDiscoveryFetcher::new(OidcDiscoveryDocument {
+            issuer: "https://issuer.example".to_owned(),
+            authorization_endpoint: Some("https://issuer.example/auth".to_owned()),
+            token_endpoint: "https://issuer.example/token".to_owned(),
+            jwks_uri: "https://issuer.example/jwks".to_owned(),
+            userinfo_endpoint: None,
+        }));
+        let jwks = Arc::new(StaticOidcJwksFetcher::new(signed_key.jwks.clone()));
+        let state = test_state()
+            .await
+            .with_oidc_token_exchanger(exchanger.clone())
+            .with_oidc_discovery_fetcher(discovery)
+            .with_oidc_jwks_fetcher(jwks.clone());
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from(["email".to_owned(), "openid".to_owned()]);
+        state
+            .repository()
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_verified",
+                tenant_id: "tenant_1",
+                display_name: "Verified",
+                issuer_url: "https://issuer.example",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+        let start_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/auth/oidc/tenant_1/oidc_verified/login?redirectUri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let start_body = to_bytes(start_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&start_body).unwrap();
+        exchanger.set_id_token(signed_key.sign(
+            "https://issuer.example",
+            "client-id",
+            "token-subject-1",
+            started["nonce"].as_str().unwrap(),
+        ));
+        let callback_body = serde_json::json!({
+            "state": started["state"].as_str().unwrap(),
+            "nonce": started["nonce"].as_str().unwrap(),
+            "authorizationCode": "provider-code-789",
+            "issuer": "https://evil.example",
+            "audience": "evil-client",
+            "providerSubject": "attacker-controlled-subject",
+            "email": "attacker@example.com",
+            "displayName": "Attacker",
+            "tokenId": "oidcverified",
+            "tokenName": "OIDC Verified",
+            "scopes": ["pack.read"],
+            "expiresAt": null
+        });
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/oidc/callback")
+                    .header("content-type", "application/json")
+                    .body(Body::from(callback_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            jwks.uris.lock().unwrap().as_slice(),
+            ["https://issuer.example/jwks"]
+        );
+        let link = state
+            .repository()
+            .find_oidc_user_link("tenant_1", "oidc_verified", "token-subject-1")
+            .await
+            .unwrap()
+            .expect("validated ID-token subject should be linked");
+        assert_eq!(link.email, "token-user@example.com");
+        assert_eq!(link.display_name, "Token User");
+        assert!(state
+            .repository()
+            .find_oidc_user_link("tenant_1", "oidc_verified", "attacker-controlled-subject")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
     async fn local_auth_session_cookie_reads_owned_private_asset() {
         let state = test_state().await;
         state
@@ -4999,22 +5105,28 @@ mod tests {
     #[derive(Default)]
     struct RecordingOidcTokenExchanger {
         requests: Mutex<Vec<OidcTokenExchangeRequest>>,
+        id_token: Mutex<Option<String>>,
     }
 
     impl RecordingOidcTokenExchanger {
         fn new() -> Self {
             Self::default()
         }
+
+        fn set_id_token(&self, id_token: String) {
+            *self.id_token.lock().unwrap() = Some(id_token);
+        }
     }
 
     impl OidcTokenExchanger for RecordingOidcTokenExchanger {
         fn exchange(&self, request: OidcTokenExchangeRequest) -> OidcTokenExchangeFuture {
             self.requests.lock().unwrap().push(request);
+            let id_token = self.id_token.lock().unwrap().clone();
             Box::pin(async {
                 Ok(OidcTokenResponse {
                     access_token: "access-token".to_owned(),
                     token_type: "Bearer".to_owned(),
-                    id_token: Some("id-token".to_owned()),
+                    id_token,
                     expires_in: Some(3600),
                 })
             })
@@ -5040,6 +5152,87 @@ mod tests {
             self.issuers.lock().unwrap().push(issuer_url);
             let document = self.document.clone();
             Box::pin(async move { Ok(document) })
+        }
+    }
+
+    struct StaticOidcJwksFetcher {
+        document: OidcJwksDocument,
+        uris: Mutex<Vec<String>>,
+    }
+
+    impl StaticOidcJwksFetcher {
+        fn new(document: OidcJwksDocument) -> Self {
+            Self {
+                document,
+                uris: Mutex::default(),
+            }
+        }
+    }
+
+    impl OidcJwksFetcher for StaticOidcJwksFetcher {
+        fn fetch_jwks(&self, jwks_uri: String) -> OidcJwksFuture {
+            self.uris.lock().unwrap().push(jwks_uri);
+            let document = self.document.clone();
+            Box::pin(async move { Ok(document) })
+        }
+    }
+
+    struct SignedIdTokenKey {
+        private_key: rsa::RsaPrivateKey,
+        jwks: OidcJwksDocument,
+    }
+
+    impl SignedIdTokenKey {
+        fn sign(&self, issuer: &str, audience: &str, subject: &str, nonce: &str) -> String {
+            use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+            use rsa::{
+                pkcs1v15::SigningKey,
+                signature::{RandomizedSigner, SignatureEncoding},
+            };
+            use sha2::Sha256;
+
+            let header = URL_SAFE_NO_PAD
+                .encode(r#"{"alg":"RS256","kid":"active-key","typ":"JWT"}"#.as_bytes());
+            let claims = URL_SAFE_NO_PAD.encode(
+                serde_json::json!({
+                    "iss": issuer,
+                    "sub": subject,
+                    "aud": audience,
+                    "email": "token-user@example.com",
+                    "name": "Token User",
+                    "nonce": nonce,
+                    "exp": 1_893_456_000_i64,
+                    "iat": 1_704_067_200_i64
+                })
+                .to_string()
+                .as_bytes(),
+            );
+            let signing_input = format!("{header}.{claims}");
+            let signature = SigningKey::<Sha256>::new(self.private_key.clone())
+                .sign_with_rng(&mut rsa::rand_core::OsRng, signing_input.as_bytes())
+                .to_vec();
+            format!("{signing_input}.{}", URL_SAFE_NO_PAD.encode(signature))
+        }
+    }
+
+    fn signed_id_token_key() -> SignedIdTokenKey {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use rsa::{rand_core::OsRng, traits::PublicKeyParts, RsaPrivateKey, RsaPublicKey};
+
+        let private_key = RsaPrivateKey::new(&mut OsRng, 2048).unwrap();
+        let public_key = RsaPublicKey::from(&private_key);
+        SignedIdTokenKey {
+            private_key,
+            jwks: OidcJwksDocument {
+                keys: vec![OidcJwk {
+                    kty: "RSA".to_owned(),
+                    kid: Some("active-key".to_owned()),
+                    key_use: Some("sig".to_owned()),
+                    alg: Some("RS256".to_owned()),
+                    n: Some(URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be())),
+                    e: Some(URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be())),
+                }],
+            },
         }
     }
 
