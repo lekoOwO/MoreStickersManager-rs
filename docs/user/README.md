@@ -113,13 +113,16 @@ role-allowed scopes from `GET /api/v1/pats/scope-policy?userId=...` and filter
 the selectable scope cards. If no suitable PAT or API is available, the dialogs
 fall back to the built-in scope catalog.
 
-The auth dialog can also start an OIDC/SSO login against a configured tenant
-provider. Set or confirm the tenant ID, provider ID, and redirect URI, then use
-the SSO/OIDC action to call
+The auth dialog can also start and complete an OIDC/SSO login against a
+configured tenant provider. Set or confirm the tenant ID, provider ID, and
+redirect URI, then use the SSO/OIDC action to call
 `GET /api/v1/auth/oidc/{tenant_id}/{provider_id}/login?redirectUri=...`. The UI
 shows the returned provider authorization URL plus state, nonce, and expiry.
-Web callback completion UX is still in progress; the API callback endpoint is
-available for clients that already handle the provider redirect.
+After the provider redirects back, enter the authorization code, state, nonce,
+and fallback claim fields in the callback completion area. A successful callback
+stores the returned PAT through the same browser-local path as local login. Full
+SSO-backed account documentation and automatic redirect parsing polish are still
+in progress.
 
 The dashboard can rename packs, change public/private visibility, and delete
 packs when the stored PAT has `pack.update` and `pack.delete`.
@@ -631,7 +634,7 @@ MCP tools:
 - `msm.upsert_oidc_provider`
 - `msm.delete_oidc_provider`
 
-The Web Tenant admin workspace can list providers, create or update a provider, toggle provider enablement, toggle provider-backed registration, and delete providers. The Web auth dialog can start OIDC login with a configured provider and display the authorization URL/state/nonce response. Callback completion UX and SSO-backed account documentation are still in progress. The API request body is:
+The Web Tenant admin workspace can list providers, create or update a provider, toggle provider enablement, toggle provider-backed registration, and delete providers. The Web auth dialog can start OIDC login with a configured provider, display the authorization URL/state/nonce response, complete the callback request, and store the returned PAT. Full SSO-backed account documentation remains in progress. The API request body is:
 
 ```json
 {

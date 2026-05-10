@@ -62,6 +62,17 @@ const oidcRedirectUri = ref(
     ? "http://127.0.0.1:5173/auth/oidc/callback"
     : `${window.location.origin}/auth/oidc/callback`,
 );
+const oidcAuthorizationCode = ref("");
+const oidcCallbackState = ref("");
+const oidcCallbackNonce = ref("");
+const oidcIssuer = ref("");
+const oidcAudience = ref("");
+const oidcProviderSubject = ref("");
+const oidcEmail = ref("");
+const oidcDisplayName = ref("");
+const oidcTokenId = ref("webui-oidc");
+const oidcTokenName = ref("Web OIDC");
+const oidcScopes = ref<string[]>(["pack.read"]);
 const oidcStartResult = ref<OidcLoginStartResponse | null>(null);
 const defaultPatScopes = [
   "pack.create",
@@ -302,6 +313,32 @@ async function startOidcLogin() {
       providerId: oidcProviderId.value.trim(),
       redirectUri: oidcRedirectUri.value.trim(),
     });
+    oidcCallbackState.value = oidcStartResult.value.state;
+    oidcCallbackNonce.value = oidcStartResult.value.nonce;
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function completeOidcLogin() {
+  authError.value = "";
+  authResult.value = null;
+  try {
+    authResult.value = await requireOidcAuthClient().completeOidcLogin({
+      state: oidcCallbackState.value.trim(),
+      nonce: oidcCallbackNonce.value.trim(),
+      authorizationCode: oidcAuthorizationCode.value.trim() || null,
+      issuer: oidcIssuer.value.trim(),
+      audience: oidcAudience.value.trim(),
+      providerSubject: oidcProviderSubject.value.trim(),
+      email: oidcEmail.value.trim(),
+      displayName: oidcDisplayName.value.trim(),
+      tokenId: oidcTokenId.value.trim() || "webui-oidc",
+      tokenName: oidcTokenName.value.trim() || "Web OIDC",
+      scopes: oidcScopes.value,
+      expiresAt: null,
+    });
+    emit("updatePatToken", authResult.value.token);
   } catch (error) {
     authError.value = error instanceof Error ? error.message : String(error);
   }
@@ -692,6 +729,80 @@ function requirePatClient() {
               </div>
             </dl>
           </div>
+          <details class="mt-4 rounded-xl border bg-background/70 p-3 text-sm" open>
+            <summary class="cursor-pointer font-semibold">{{ labels.oidcCallbackCompletion }}</summary>
+            <p class="mt-2 text-xs leading-5 text-muted-foreground">{{ labels.oidcCallbackHelp }}</p>
+            <div class="mt-4 grid gap-3 md:grid-cols-2">
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcAuthorizationCode }}
+                <input
+                  v-model="oidcAuthorizationCode"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcAuthorizationCode"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcCallbackState }}
+                <input
+                  v-model="oidcCallbackState"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcCallbackState"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcCallbackNonce }}
+                <input
+                  v-model="oidcCallbackNonce"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcCallbackNonce"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcIssuer }}
+                <input
+                  v-model="oidcIssuer"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcIssuer"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcAudience }}
+                <input
+                  v-model="oidcAudience"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcAudience"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcProviderSubject }}
+                <input
+                  v-model="oidcProviderSubject"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcProviderSubject"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcEmail }}
+                <input
+                  v-model="oidcEmail"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcEmail"
+                  type="email"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcProfileDisplayName }}
+                <input
+                  v-model="oidcDisplayName"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcProfileDisplayName"
+                />
+              </label>
+            </div>
+            <Button type="button" class="mt-4" :aria-label="labels.completeOidcLogin" @click="completeOidcLogin">
+              {{ labels.completeOidcLogin }}
+            </Button>
+          </details>
         </section>
         <p v-if="authResult" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm">
           {{ labels.loginTokenStored }} <code class="font-mono">{{ authResult.token }}</code>

@@ -88,7 +88,9 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Complete Web OIDC callback completion UX and SSO-backed account documentation.
+1. Complete SSO-backed account documentation and decide whether automatic Web
+   redirect parsing is required beyond the current manual callback completion
+   controls.
 
 Each queue item must update this section when completed or reordered.
 
@@ -206,16 +208,19 @@ tests and docs are updated.
   returned. Userinfo response parsing now validates subject and normalizes display-name
   fallback. Callback completion now fetches userinfo when a verified ID token
   omits email/name, validates userinfo subject against the ID-token subject, and
-  uses validated userinfo profile claims for user/link creation. Remaining work:
-  Web callback completion UX and user-facing SSO documentation.
-- [ ] Web SSO login controls.
+  uses validated userinfo profile claims for user/link creation. Web auth can
+  now start login and complete callback requests from the dialog. Remaining work:
+  user-facing SSO documentation and any automatic redirect parsing polish.
+- [x] Web SSO login controls.
   Progress: Web tenant administration now lists, creates/updates, and deletes
   OIDC providers. The Web auth dialog can start OIDC login, call the live
   login-start endpoint, and show the provider authorization URL with state,
-  nonce, and expiry details; callback completion UX still remains.
+  nonce, and expiry details. It can also submit authorization code/state/nonce
+  plus fallback claims to the callback endpoint, store the returned PAT, and
+  reuse the existing role-filtered scope picker defaults.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
   Progress: CLI, MCP, and Web tenant administration now manage OIDC providers;
-  SSO-backed PAT usage docs still need completion after callback UX is wired.
+  SSO-backed PAT usage docs still need completion.
 
 ### Phase E: Provider Ingestion
 

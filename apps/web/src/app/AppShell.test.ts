@@ -109,4 +109,91 @@ describe("AppShell PAT scope policy", () => {
     expect(wrapper.text()).toContain("Open provider authorization URL");
     expect(wrapper.text()).toContain("state_1");
   });
+
+  it("completes OIDC login from the auth dialog and stores the returned PAT", async () => {
+    vi.stubEnv("VITE_MSM_API_BASE_URL", "https://msm.example.test");
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      if (url.includes("/api/v1/auth/oidc/tenant_1/google/login")) {
+        return new Response(
+          JSON.stringify({
+            tenantId: "tenant_1",
+            providerId: "google",
+            authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth?state=state_1",
+            state: "state_1",
+            nonce: "nonce_1",
+            expiresAt: "2026-05-10T00:10:00Z",
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/api/v1/auth/oidc/callback") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            id: "web_oidc",
+            userId: "oidc-user",
+            name: "Web OIDC",
+            token: "msm_pat_oidc_secret",
+            scopes: ["pack.read"],
+            expiresAt: null,
+            revokedAt: null,
+            createdAt: "2026-05-10T00:00:00Z",
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ userId: "user_1", allowedScopes: ["pack.read"] }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const wrapper = mount(AppShell, {
+      props: {
+        locale: "en",
+        patToken: "",
+        theme: "light",
+      },
+      global: {
+        stubs: {
+          PackDashboard: { template: "<main />" },
+        },
+      },
+    });
+
+    await flushPromises();
+    const loginButton = wrapper.findAll("button").find((button) => button.text().trim() === "Local Login");
+    expect(loginButton).toBeTruthy();
+    await loginButton!.trigger("click");
+    await wrapper.get('[aria-label="Start OIDC login"]').trigger("click");
+    await flushPromises();
+
+    await wrapper.get('[aria-label="OIDC authorization code"]').setValue("provider-code-1");
+    await wrapper.get('[aria-label="OIDC issuer"]').setValue("https://accounts.google.com");
+    await wrapper.get('[aria-label="OIDC audience"]').setValue("client_1");
+    await wrapper.get('[aria-label="OIDC provider subject"]').setValue("subject_1");
+    await wrapper.get('[aria-label="OIDC email"]').setValue("user@example.test");
+    await wrapper.get('[aria-label="OIDC display name"]').setValue("OIDC User");
+    await wrapper.get('[aria-label="Complete OIDC login"]').trigger("click");
+    await flushPromises();
+
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/auth/oidc/callback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        state: "state_1",
+        nonce: "nonce_1",
+        authorizationCode: "provider-code-1",
+        issuer: "https://accounts.google.com",
+        audience: "client_1",
+        providerSubject: "subject_1",
+        email: "user@example.test",
+        displayName: "OIDC User",
+        tokenId: "webui-oidc",
+        tokenName: "Web OIDC",
+        scopes: ["pack.read"],
+        expiresAt: null,
+      }),
+    });
+    expect(wrapper.emitted("updatePatToken")?.at(-1)).toEqual(["msm_pat_oidc_secret"]);
+    expect(wrapper.text()).toContain("msm_pat_oidc_secret");
+  });
 });

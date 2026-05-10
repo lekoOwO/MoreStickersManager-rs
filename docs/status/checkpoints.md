@@ -1489,3 +1489,11 @@
 - Added Traditional Chinese and English labels for the SSO/OIDC login-start workflow.
 - Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding controls, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (55 tests), and `pnpm --filter @morestickersmanager/web build` passed.
 - Updated PRD/status/user docs; next Phase D slice should wire Web OIDC callback completion UX and SSO-backed account documentation.
+
+## 2026-05-10 OIDC Web Callback Completion
+
+- Added Web auth dialog callback-completion controls for authorization code, state, nonce, issuer, audience, provider subject, email, and display name.
+- Callback completion now calls the OIDC callback API, stores the returned PAT through the same Web auth path, and shows the one-time token result.
+- Added Traditional Chinese and English labels for the callback completion workflow.
+- Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding callback controls, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (56 tests), and `pnpm --filter @morestickersmanager/web build` passed.
+- Updated PRD/status/user docs; next Phase D slice should finish SSO-backed account documentation and decide whether automatic callback redirect parsing is required.
