@@ -15,6 +15,7 @@ compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Provider config upsert/list/find/delete repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
 - Telegram publication and sticker mapping upsert/find/list repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
 - Prepared-media upsert/find repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
 - Export job create/find/queue/retry/status/recovery/event repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
@@ -195,7 +196,7 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Move provider and portability repository operations off SQLite-only pool access toward backend-aware SQL execution.
+1. Move provider import-job and portability repository operations off SQLite-only pool access toward backend-aware SQL execution.
 2. Continue expanding portability shared contract tests before adding PostgreSQL CI service wiring.
 
 ## Later Planned Work

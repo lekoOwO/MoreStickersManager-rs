@@ -18,35 +18,59 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, the
-    /// referenced tenant does not exist, or SQL fails.
+    /// Returns an error when the referenced tenant does not exist or SQL fails.
     pub async fn upsert_provider_config(
         &self,
         config: NewProviderConfig<'_>,
     ) -> StorageResult<ProviderConfigRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO provider_configs (
-                id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                tenant_id = excluded.tenant_id,
-                provider_id = excluded.provider_id,
-                name = excluded.name,
-                config_json = excluded.config_json,
-                is_enabled = excluded.is_enabled,
-                updated_at = excluded.updated_at",
-        )
-        .bind(config.id)
-        .bind(config.tenant_id)
-        .bind(config.provider_id)
-        .bind(config.name)
-        .bind(config.config_json)
-        .bind(i64::from(config.is_enabled))
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO provider_configs (
+                    id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT(id) DO UPDATE SET
+                    tenant_id = excluded.tenant_id,
+                    provider_id = excluded.provider_id,
+                    name = excluded.name,
+                    config_json = excluded.config_json,
+                    is_enabled = excluded.is_enabled,
+                    updated_at = excluded.updated_at",
+            )
+            .bind(config.id)
+            .bind(config.tenant_id)
+            .bind(config.provider_id)
+            .bind(config.name)
+            .bind(config.config_json)
+            .bind(config.is_enabled)
+            .bind(&now)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO provider_configs (
+                    id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    tenant_id = excluded.tenant_id,
+                    provider_id = excluded.provider_id,
+                    name = excluded.name,
+                    config_json = excluded.config_json,
+                    is_enabled = excluded.is_enabled,
+                    updated_at = excluded.updated_at",
+            )
+            .bind(config.id)
+            .bind(config.tenant_id)
+            .bind(config.provider_id)
+            .bind(config.name)
+            .bind(config.config_json)
+            .bind(i64::from(config.is_enabled))
+            .bind(&now)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         self.find_provider_config(config.id)
             .await?
@@ -62,20 +86,31 @@ impl StorageRepository {
         &self,
         tenant_id: &str,
     ) -> StorageResult<Vec<ProviderConfigRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
-            FROM provider_configs
-            WHERE tenant_id = ?
-            ORDER BY provider_id, name, id",
-        )
-        .bind(tenant_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let rows = sqlx::query(
+                "SELECT id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+                FROM provider_configs
+                WHERE tenant_id = $1
+                ORDER BY provider_id, name, id",
+            )
+            .bind(tenant_id)
+            .fetch_all(pool)
+            .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| provider_config_from_row(&row))
-            .collect())
+            Ok(rows.iter().map(provider_config_from_pg_row).collect())
+        } else {
+            let rows = sqlx::query(
+                "SELECT id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+                FROM provider_configs
+                WHERE tenant_id = ?
+                ORDER BY provider_id, name, id",
+            )
+            .bind(tenant_id)
+            .fetch_all(self.sqlite()?)
+            .await?;
+
+            Ok(rows.iter().map(provider_config_from_sqlite_row).collect())
+        }
     }
 
     /// Finds one provider import configuration by ID.
@@ -87,30 +122,52 @@ impl StorageRepository {
         &self,
         id: &str,
     ) -> StorageResult<Option<ProviderConfigRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
-            FROM provider_configs
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(
+                "SELECT id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+                FROM provider_configs
+                WHERE id = $1",
+            )
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
 
-        Ok(row.map(|row| provider_config_from_row(&row)))
+            Ok(row.as_ref().map(provider_config_from_pg_row))
+        } else {
+            let row = sqlx::query(
+                "SELECT id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+                FROM provider_configs
+                WHERE id = ?",
+            )
+            .bind(id)
+            .fetch_optional(self.sqlite()?)
+            .await?;
+
+            Ok(row.as_ref().map(provider_config_from_sqlite_row))
+        }
     }
 
     /// Deletes one provider import configuration by ID.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn delete_provider_config(&self, id: &str) -> StorageResult<bool> {
-        let result = sqlx::query("DELETE FROM provider_configs WHERE id = ?")
-            .bind(id)
-            .execute(self.sqlite()?)
-            .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query("DELETE FROM provider_configs WHERE id = $1")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected()
+        } else {
+            sqlx::query("DELETE FROM provider_configs WHERE id = ?")
+                .bind(id)
+                .execute(self.sqlite()?)
+                .await?
+                .rows_affected()
+        };
 
-        Ok(result.rows_affected() == 1)
+        Ok(rows_affected == 1)
     }
 
     /// Creates an export target.
@@ -1572,7 +1629,7 @@ fn export_target_from_pg_row(row: &PgRow) -> ExportTargetRecord {
     }
 }
 
-fn provider_config_from_row(row: &sqlx::sqlite::SqliteRow) -> ProviderConfigRecord {
+fn provider_config_from_sqlite_row(row: &SqliteRow) -> ProviderConfigRecord {
     let is_enabled: i64 = row.get("is_enabled");
     ProviderConfigRecord {
         id: row.get("id"),
@@ -1581,6 +1638,19 @@ fn provider_config_from_row(row: &sqlx::sqlite::SqliteRow) -> ProviderConfigReco
         name: row.get("name"),
         config_json: row.get("config_json"),
         is_enabled: is_enabled != 0,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn provider_config_from_pg_row(row: &PgRow) -> ProviderConfigRecord {
+    ProviderConfigRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        provider_id: row.get("provider_id"),
+        name: row.get("name"),
+        config_json: row.get("config_json"),
+        is_enabled: row.get("is_enabled"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }

@@ -1897,3 +1897,10 @@
 - Added optional PostgreSQL Telegram publication/mapping repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite publication and mapping coverage active.
 - Updated PRD/status docs to show Telegram publication/mapping PostgreSQL progress while keeping provider and portability parity open.
 - Verification: `cargo test -p msm-storage telegram --locked`.
+
+## 2026-05-11 PostgreSQL Provider Config Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for provider config upsert/list/find/delete operations.
+- Added optional PostgreSQL provider config repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite provider config coverage active.
+- Updated PRD/status docs to show provider config PostgreSQL progress while keeping provider import-job and portability parity open.
+- Verification: `cargo test -p msm-storage provider_config --locked`.

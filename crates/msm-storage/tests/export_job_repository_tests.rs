@@ -2,7 +2,7 @@ use msm_domain::{Sticker, StickerPack};
 use msm_storage::{
     models::{
         ExportJobStatus, NewExportJob, NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset,
-        NewTelegramPublication, NewTelegramStickerMapping, PackVisibility,
+        NewProviderConfig, NewTelegramPublication, NewTelegramStickerMapping, PackVisibility,
     },
     DatabaseConfig, DbPool, StorageRepository,
 };
@@ -80,6 +80,64 @@ async fn export_targets_jobs_and_events_roundtrip() {
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].sequence, 1);
     assert_eq!(events[1].sequence, 2);
+}
+
+#[tokio::test]
+async fn postgres_provider_configs_roundtrip_when_configured() {
+    let Some(repo) = postgres_repo().await else {
+        return;
+    };
+    let suffix = unique_suffix();
+    let tenant_id = format!("tenant_provider_config_{suffix}");
+    let provider_config_id = format!("provider_telegram_{suffix}");
+    repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+
+    let created = repo
+        .upsert_provider_config(NewProviderConfig {
+            id: &provider_config_id,
+            tenant_id: &tenant_id,
+            provider_id: "telegram",
+            name: "Telegram Import Bot",
+            config_json: r#"{"botToken":"123456:secret"}"#,
+            is_enabled: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(created.provider_id, "telegram");
+    assert!(created.is_enabled);
+
+    let updated = repo
+        .upsert_provider_config(NewProviderConfig {
+            id: &provider_config_id,
+            tenant_id: &tenant_id,
+            provider_id: "telegram",
+            name: "Telegram Import Bot Updated",
+            config_json: r#"{"botToken":"456:rotated"}"#,
+            is_enabled: false,
+        })
+        .await
+        .unwrap();
+    assert_eq!(updated.name, "Telegram Import Bot Updated");
+    assert!(!updated.is_enabled);
+    assert_eq!(
+        repo.list_provider_configs(&tenant_id).await.unwrap(),
+        vec![updated.clone()]
+    );
+    assert_eq!(
+        repo.find_provider_config(&provider_config_id)
+            .await
+            .unwrap(),
+        Some(updated)
+    );
+    assert!(repo
+        .delete_provider_config(&provider_config_id)
+        .await
+        .unwrap());
+    assert!(repo
+        .find_provider_config(&provider_config_id)
+        .await
+        .unwrap()
+        .is_none());
 }
 
 #[tokio::test]
