@@ -54,6 +54,38 @@ pub struct CreateProviderImportJobRequest {
     pub base_url: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+#[serde(rename_all = "camelCase")]
+pub struct ListProviderConfigsQuery {
+    pub tenant_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertProviderConfigRequest {
+    pub tenant_id: String,
+    pub provider_id: String,
+    pub name: String,
+    #[schema(value_type = Object)]
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderConfigResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub provider_id: String,
+    pub name: String,
+    #[schema(value_type = Object)]
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderImportJobResponse {

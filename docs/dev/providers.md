@@ -24,7 +24,9 @@ normalize payloads and preserve MoreStickers-compatible export output.
 ## Current Scope
 
 The provider crate accepts already-fetched JSON and now exposes testable remote
-fetch plan boundaries. `telegram_sticker_set_fetch_plan` describes the Telegram
+fetch plan boundaries. Provider import credentials are modeled as tenant-scoped
+configuration records rather than export targets, because providers are input-side
+normalizers and tenant admins need a separate lifecycle for provider secrets. `telegram_sticker_set_fetch_plan` describes the Telegram
 Bot API `getStickerSet` metadata request without embedding a bot token and marks
 assets as requiring Telegram `getFile`/file download resolution.
 `line_sticker_pack_fetch_plan` describes a LINE sticker-shop product metadata

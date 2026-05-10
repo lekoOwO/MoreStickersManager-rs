@@ -26,6 +26,7 @@ pub fn build_router(state: ApiState) -> Router {
         .merge(metadata_routes())
         .merge(export_routes())
         .merge(pat_routes())
+        .merge(provider_config_routes())
         .merge(provider_import_routes())
         .merge(subscription_access_token_routes())
         .merge(tenant_routes())
@@ -197,6 +198,19 @@ fn provider_import_routes() -> Router<ApiState> {
         )
 }
 
+fn provider_config_routes() -> Router<ApiState> {
+    Router::new()
+        .route(
+            "/api/v1/provider-configs",
+            get(routes::provider_configs::list_provider_configs),
+        )
+        .route(
+            "/api/v1/provider-configs/{config_id}",
+            put(routes::provider_configs::upsert_provider_config)
+                .delete(routes::provider_configs::delete_provider_config),
+        )
+}
+
 fn subscription_access_token_routes() -> Router<ApiState> {
     Router::new()
         .route(
@@ -331,6 +345,7 @@ mod tests {
         assert!(json["paths"].get("/api/v1/export-target-kinds").is_some());
         assert!(json["paths"].get("/api/v1/export-targets").is_some());
         assert!(json["paths"].get("/api/v1/export-jobs").is_some());
+        assert!(json["paths"].get("/api/v1/provider-configs").is_some());
         assert!(json["paths"].get("/api/v1/folders").is_some());
         assert!(json["paths"]
             .get("/api/v1/folders/{folder_id}/packs")
@@ -565,6 +580,143 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn provider_config_routes_redact_secrets_and_require_tenant_admin() {
+        let state = empty_state_with_owner().await;
+        state
+            .repository()
+            .create_user("user_2", "member@example.com", "Member")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_1", "user_2", "user")
+            .await
+            .unwrap();
+        let admin_token = create_pat(
+            &state,
+            "providerconfigadmin",
+            "user_1",
+            [Permission::ProviderImport],
+        )
+        .await;
+        let member_token = create_pat(
+            &state,
+            "providerconfigmember",
+            "user_2",
+            [Permission::ProviderImport],
+        )
+        .await;
+        let read_token = create_pat(
+            &state,
+            "providerconfigread",
+            "user_1",
+            [Permission::ExportRead],
+        )
+        .await;
+        let body = serde_json::json!({
+            "tenantId": "tenant_1",
+            "providerId": "telegram",
+            "name": "Telegram Import Bot",
+            "config": {
+                "botToken": "123456:secret",
+                "apiBaseUrl": "https://api.telegram.org",
+                "nested": {
+                    "clientSecret": "deep-secret"
+                }
+            },
+            "isEnabled": true
+        });
+
+        let forbidden_scope = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/provider-configs/provider_telegram")
+                    .header("authorization", format!("Bearer {read_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(forbidden_scope.status(), StatusCode::FORBIDDEN);
+
+        let forbidden_role = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/provider-configs/provider_telegram")
+                    .header("authorization", format!("Bearer {member_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(forbidden_role.status(), StatusCode::FORBIDDEN);
+
+        let upsert = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/provider-configs/provider_telegram")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(upsert.status(), StatusCode::OK);
+        let upsert_body = to_bytes(upsert.into_body(), usize::MAX).await.unwrap();
+        let created: serde_json::Value = serde_json::from_slice(&upsert_body).unwrap();
+        assert_eq!(created["providerId"], "telegram");
+        assert_eq!(created["config"]["botToken"], "<redacted>");
+        assert_eq!(created["config"]["nested"]["clientSecret"], "<redacted>");
+        assert!(!contains_bytes(&upsert_body, b"123456:secret"));
+        assert!(!contains_bytes(&upsert_body, b"deep-secret"));
+
+        let stored = state
+            .repository()
+            .find_provider_config("provider_telegram")
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(stored.config_json.contains("123456:secret"));
+
+        let list = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/provider-configs?tenantId=tenant_1")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list.status(), StatusCode::OK);
+        let list_body = to_bytes(list.into_body(), usize::MAX).await.unwrap();
+        let configs: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
+        assert_eq!(configs.as_array().unwrap().len(), 1);
+        assert_eq!(configs[0]["config"]["botToken"], "<redacted>");
+        assert!(!contains_bytes(&list_body, b"123456:secret"));
+
+        let deleted = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/provider-configs/provider_telegram")
+                    .header("authorization", format!("Bearer {admin_token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(deleted.status(), StatusCode::NO_CONTENT);
     }
 
     #[tokio::test]

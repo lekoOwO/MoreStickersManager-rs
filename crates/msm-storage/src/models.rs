@@ -287,6 +287,28 @@ pub struct NewExportTarget<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct ProviderConfigRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub provider_id: String,
+    pub name: String,
+    pub config_json: String,
+    pub is_enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewProviderConfig<'a> {
+    pub id: &'a str,
+    pub tenant_id: &'a str,
+    pub provider_id: &'a str,
+    pub name: &'a str,
+    pub config_json: &'a str,
+    pub is_enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct ExportJobRecord {
     pub id: String,
     pub tenant_id: String,

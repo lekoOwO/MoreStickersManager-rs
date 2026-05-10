@@ -4,15 +4,115 @@ use sqlx::Row;
 use crate::{
     models::{
         ExportJobEventRecord, ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJob,
-        NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset, NewProviderImportJob,
-        NewProviderImportJobEvent, NewTelegramPublication, NewTelegramStickerMapping,
-        PreparedMediaAssetRecord, ProviderImportJobEventRecord, ProviderImportJobRecord,
-        TelegramPublicationRecord, TelegramStickerMappingRecord,
+        NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset, NewProviderConfig,
+        NewProviderImportJob, NewProviderImportJobEvent, NewTelegramPublication,
+        NewTelegramStickerMapping, PreparedMediaAssetRecord, ProviderConfigRecord,
+        ProviderImportJobEventRecord, ProviderImportJobRecord, TelegramPublicationRecord,
+        TelegramStickerMappingRecord,
     },
     StorageError, StorageRepository, StorageResult,
 };
 
 impl StorageRepository {
+    /// Creates or replaces a provider import configuration for a tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, the
+    /// referenced tenant does not exist, or SQL fails.
+    pub async fn upsert_provider_config(
+        &self,
+        config: NewProviderConfig<'_>,
+    ) -> StorageResult<ProviderConfigRecord> {
+        let now = now();
+        sqlx::query(
+            "INSERT INTO provider_configs (
+                id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                tenant_id = excluded.tenant_id,
+                provider_id = excluded.provider_id,
+                name = excluded.name,
+                config_json = excluded.config_json,
+                is_enabled = excluded.is_enabled,
+                updated_at = excluded.updated_at",
+        )
+        .bind(config.id)
+        .bind(config.tenant_id)
+        .bind(config.provider_id)
+        .bind(config.name)
+        .bind(config.config_json)
+        .bind(i64::from(config.is_enabled))
+        .bind(&now)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        self.find_provider_config(config.id)
+            .await?
+            .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
+    }
+
+    /// Lists provider import configurations for one tenant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn list_provider_configs(
+        &self,
+        tenant_id: &str,
+    ) -> StorageResult<Vec<ProviderConfigRecord>> {
+        let rows = sqlx::query(
+            "SELECT id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+            FROM provider_configs
+            WHERE tenant_id = ?
+            ORDER BY provider_id, name, id",
+        )
+        .bind(tenant_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| provider_config_from_row(&row))
+            .collect())
+    }
+
+    /// Finds one provider import configuration by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn find_provider_config(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<ProviderConfigRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, provider_id, name, config_json, is_enabled, created_at, updated_at
+            FROM provider_configs
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        Ok(row.map(|row| provider_config_from_row(&row)))
+    }
+
+    /// Deletes one provider import configuration by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn delete_provider_config(&self, id: &str) -> StorageResult<bool> {
+        let result = sqlx::query("DELETE FROM provider_configs WHERE id = ?")
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?;
+
+        Ok(result.rows_affected() == 1)
+    }
+
     /// Creates an export target.
     ///
     /// # Errors
@@ -1046,6 +1146,20 @@ fn export_target_from_row(row: &sqlx::sqlite::SqliteRow) -> ExportTargetRecord {
     }
 }
 
+fn provider_config_from_row(row: &sqlx::sqlite::SqliteRow) -> ProviderConfigRecord {
+    let is_enabled: i64 = row.get("is_enabled");
+    ProviderConfigRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        provider_id: row.get("provider_id"),
+        name: row.get("name"),
+        config_json: row.get("config_json"),
+        is_enabled: is_enabled != 0,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
 fn telegram_publication_from_row(row: &sqlx::sqlite::SqliteRow) -> TelegramPublicationRecord {
     TelegramPublicationRecord {
         id: row.get("id"),
@@ -1093,9 +1207,71 @@ fn now() -> String {
 #[cfg(test)]
 mod tests {
     use crate::{
-        models::{ExportJobStatus, NewProviderImportJob, NewProviderImportJobEvent},
+        models::{
+            ExportJobStatus, NewProviderConfig, NewProviderImportJob, NewProviderImportJobEvent,
+        },
         DatabaseConfig, DbPool, StorageRepository,
     };
+
+    #[tokio::test]
+    async fn provider_configs_can_be_upserted_listed_found_and_deleted() {
+        let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
+        let pool = DbPool::connect(&config).await.unwrap();
+        pool.run_migrations().await.unwrap();
+        let repo = StorageRepository::new(pool);
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+
+        let created = repo
+            .upsert_provider_config(NewProviderConfig {
+                id: "provider_telegram",
+                tenant_id: "tenant_1",
+                provider_id: "telegram",
+                name: "Telegram Import Bot",
+                config_json: r#"{"botToken":"123456:secret","apiBaseUrl":"https://api.telegram.org"}"#,
+                is_enabled: true,
+            })
+            .await
+            .unwrap();
+        assert_eq!(created.provider_id, "telegram");
+        assert!(created.is_enabled);
+        assert!(created.config_json.contains("123456:secret"));
+
+        let updated = repo
+            .upsert_provider_config(NewProviderConfig {
+                id: "provider_telegram",
+                tenant_id: "tenant_1",
+                provider_id: "telegram",
+                name: "Telegram Import Bot Updated",
+                config_json: r#"{"botToken":"456:rotated","apiBaseUrl":"https://api.telegram.org"}"#,
+                is_enabled: false,
+            })
+            .await
+            .unwrap();
+        assert_eq!(updated.name, "Telegram Import Bot Updated");
+        assert!(!updated.is_enabled);
+
+        let listed = repo.list_provider_configs("tenant_1").await.unwrap();
+        assert_eq!(listed, vec![updated.clone()]);
+        assert_eq!(
+            repo.find_provider_config("provider_telegram")
+                .await
+                .unwrap(),
+            Some(updated)
+        );
+        assert!(repo
+            .delete_provider_config("provider_telegram")
+            .await
+            .unwrap());
+        assert!(repo
+            .find_provider_config("provider_telegram")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(!repo
+            .delete_provider_config("provider_telegram")
+            .await
+            .unwrap());
+    }
 
     #[tokio::test]
     async fn provider_import_jobs_can_be_created_and_read_with_events() {

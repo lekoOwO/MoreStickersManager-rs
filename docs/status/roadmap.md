@@ -15,7 +15,7 @@ from the service loop when enabled.
 
 Provider import execution now handles LINE fixture-schema/direct-asset payloads,
 LINE product pages with embedded metadata, and Telegram `getFile` asset
-downloads. API, CLI, MCP, and Web provider import job controls exist.
+downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-scoped provider credential/config storage and API/OpenAPI management now exist; CLI/MCP/Web controls and worker credential consumption remain next.
 
 ## Recently Completed
 
@@ -137,6 +137,7 @@ downloads. API, CLI, MCP, and Web provider import job controls exist.
 - Tenant settings now include a local-registration enable/disable switch across
   storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
   new local registrations.
+- Tenant-scoped provider import config storage and API/OpenAPI routes now exist for Telegram and LINE provider secrets, with recursive token/secret redaction and tenant admin/custom-role write authorization.
 - OIDC provider configuration storage now exists for per-tenant issuer, client,
   scope, enabled-state, and registration-policy settings. API OIDC start/state and callback completion now exist with authorization-code exchange, discovery, signed ID-token validation, and userinfo fallback. CLI, MCP, and Web provider list/upsert/delete management now exist; Web can start OIDC login, show authorization state, prefill provider callback redirects, complete callback requests, and store returned PATs. User docs now cover SSO-backed PAT usage for Web/API/CLI/MCP.
 
@@ -171,8 +172,8 @@ downloads. API, CLI, MCP, and Web provider import job controls exist.
 
 ## Immediate Plan
 
-1. Add provider credential/config UI and API for production Telegram tokens and
-   other provider secrets.
+1. Add CLI/MCP/Web provider credential/config controls and wire provider import jobs
+   to consume enabled provider configs.
 2. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band,
    OGQ, and Viber if any are still missing.
 

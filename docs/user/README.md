@@ -425,6 +425,33 @@ These currently return a safe fetch plan for Telegram or LINE provider imports.
 Executable provider import jobs can be queued/read through API, CLI, MCP, and Web;
 broader runtime parsing/download completion is still pending.
 
+Provider import credential API endpoints currently available:
+
+- `GET /api/v1/provider-configs?tenantId=...`
+- `PUT /api/v1/provider-configs/{config_id}`
+- `DELETE /api/v1/provider-configs/{config_id}`
+
+Provider config responses redact keys containing `token` or `secret` at any JSON
+depth. Update requests replace the stored config with the submitted JSON.
+Listing requires `provider.import` and tenant membership; create/update/delete
+require `provider.import` plus tenant admin or a custom role that grants provider
+import management. CLI, MCP, Web controls and worker consumption of these stored
+configs are still in progress.
+
+Example API body for a Telegram import config:
+
+```json
+{
+  "tenantId": "tenant_1",
+  "providerId": "telegram",
+  "name": "Telegram Import Bot",
+  "config": {
+    "botToken": "123456:secret",
+    "apiBaseUrl": "https://api.telegram.org"
+  },
+  "isEnabled": true
+}
+```
 Provider import job surfaces:
 
 - API `POST /api/v1/provider-import-jobs`
@@ -530,8 +557,9 @@ PAT enforcement status:
   MCP tools.
 - `pack.delete` is required for pack delete API routes and MCP tools.
 - `import.run` is required for pack import API routes and MCP tools.
-- `provider.import` is required for provider import planning and job
-  create/read/event API/CLI/MCP surfaces where implemented.
+- `provider.import` is required for provider import planning, provider config, and job
+  create/read/event API/CLI/MCP surfaces where implemented. Provider config
+  writes also require tenant admin/custom-role authorization.
 - `export.read` is required for export target/job/publication read API routes
   and MCP tools.
 - `export.run` is required for export job creation API routes and MCP tools.

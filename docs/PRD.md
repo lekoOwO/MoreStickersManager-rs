@@ -75,7 +75,7 @@ Status meanings:
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, and provider import job tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
-| Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, and LINE product-page embedded metadata normalization exist. Some provider network credential/config and future-provider flows remain incomplete. |
+| Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, and tenant-scoped provider credential/config storage plus API/OpenAPI redacted management exist. CLI/MCP/Web credential controls, worker credential consumption, and future-provider flows remain incomplete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add provider credential/config UI and API.
+1. Add CLI/MCP/Web provider credential/config controls and wire provider import jobs to consume enabled configs.
 2. Add placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ, and
    Viber without pretending they are implemented.
 
@@ -249,6 +249,7 @@ tests and docs are updated.
   CLI/MCP/Web can request/display those plans, and CLI/MCP/Web can create/read
   provider import jobs and list job events.
 - [ ] Provider credential/config UI and API.
+  Progress: SQLite storage and API/OpenAPI routes now manage tenant-scoped provider configs through `GET /api/v1/provider-configs?tenantId=...`, `PUT /api/v1/provider-configs/{config_id}`, and `DELETE /api/v1/provider-configs/{config_id}`. Responses recursively redact token/secret fields while retaining raw secrets in storage. Management requires `provider.import` plus tenant admin/custom-role authorization; same-tenant users with `provider.import` may list configs but cannot modify them. Remaining work: CLI/MCP/Web controls and worker consumption of enabled provider configs.
 - [ ] Provider job progress and retry model.
   Progress: SQLite/API job persistence exists; `msm-app` now has a tested
   queued-job worker foundation with running/succeeded/failed/retry transitions
@@ -348,7 +349,7 @@ Resolve these before implementing the related phase:
 - PostgreSQL strategy: use SQLx compile-time checked queries per backend, query
   builder abstraction, or repository trait with backend-specific
   implementations?
-- Provider credentials: store per tenant, per user, or per export/import target?
+- Provider credentials decision: provider import configs are tenant-scoped records because provider imports create tenant resources and should be managed by tenant admins/custom roles. Per-user or per-job credential overrides may be added later only when a concrete sharing model requires them.
 
 When a question is answered, replace it with the decision or move the decision
 to `docs/status/decisions.md`.

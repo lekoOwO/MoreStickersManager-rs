@@ -1624,3 +1624,11 @@
 - Added provider and worker tests proving LINE product pages with embedded metadata normalize into MoreStickers packs and execute through provider import worker asset internalization.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-providers line --locked` (5 focused tests), `cargo test -p msm-app provider_import_worker --locked` (4 worker tests plus filtered config coverage), `cargo test -p msm-providers -p msm-app --locked` (40 tests), `cargo clippy -p msm-providers -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider/user docs; next Phase E slice should add provider credential/config UI and API.
+
+## 2026-05-10 Provider Config API Foundation
+
+- Added SQLite storage for tenant-scoped provider import configs with provider ID, display name, raw config JSON, enabled state, timestamps, and list/find/delete/upsert repository methods.
+- Added protected API/OpenAPI routes for `GET /api/v1/provider-configs?tenantId=...`, `PUT /api/v1/provider-configs/{config_id}`, and `DELETE /api/v1/provider-configs/{config_id}`.
+- Responses recursively redact JSON keys containing `token` or `secret`; raw values remain stored for later worker consumption. Config writes require `provider.import` plus tenant admin/custom-role authorization.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-storage provider_configs --locked`, `cargo test -p msm-api provider_config --locked`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider/user docs; next Phase E slice should add CLI/MCP/Web provider config controls and then worker config consumption.
