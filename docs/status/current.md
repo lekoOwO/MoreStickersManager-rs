@@ -3,6 +3,7 @@
 Phase: Asset privacy and CDN.
 
 Last completed:
+- Tenant CDN payload rewriting slice: protected pack exports and public pack/subscription payloads now rewrite local sticker asset URLs to the tenant `public_asset_url` when configured, with focused API coverage.
 - P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
 - P24 Telegram export pipeline analysis: documented moe-sticker-bot-inspired media conversion, export target, Telegram Bot API, job, Web/API/CLI/MCP parity, and phased implementation plan.
 - P24 status/documentation cleanup: added `docs/status/implementation-matrix.md` as the implemented-versus-planned source of truth.
@@ -123,7 +124,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Start Phase H asset privacy/CDN work with tenant/system public asset URL configuration parity and CDN URL behavior verification.
+- Continue Phase H asset privacy/CDN work with system-wide public asset URL fallback/default configuration and precedence verification against tenant CDN URLs.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -274,7 +275,7 @@ Last verification:
 - Export target parity slice: CLI and MCP now support export target update/delete, closing the implemented export target/job operation parity gap across API, CLI, MCP, and Web.
 
 Next step:
-- Start Phase H asset privacy/CDN work with public asset URL configuration parity and CDN URL behavior verification.
+- Add system-wide public asset URL fallback/default configuration, then verify tenant CDN URLs take precedence in pack exports and subscription payloads.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

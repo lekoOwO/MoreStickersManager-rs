@@ -14,6 +14,7 @@ use msm_storage::models::{
 };
 
 use crate::{
+    asset_urls::{pack_with_resolved_asset_urls, public_base_url},
     auth::{bearer_token, optional_web_session, require_pat},
     rbac::require_tenant_resource_access,
     ApiError, ApiResult, ApiState,
@@ -48,6 +49,8 @@ pub async fn public_pack_stickerpack(
         .find_sticker_pack(&pack_id)
         .await?
         .ok_or_else(|| ApiError::NotFound("Pack not found".to_owned()))?;
+    let pack =
+        pack_with_resolved_asset_urls(&state, &headers, &record.tenant_id, &pack_id, pack).await?;
     serde_json::to_value(pack)
         .map(Json)
         .map_err(|error| ApiError::Internal(error.to_string()))
@@ -83,6 +86,8 @@ pub async fn public_pack_subscription(
         .find_sticker_pack(&pack_id)
         .await?
         .ok_or_else(|| ApiError::NotFound("Pack not found".to_owned()))?;
+    let pack =
+        pack_with_resolved_asset_urls(&state, &headers, &record.tenant_id, &pack_id, pack).await?;
     let payload = build_dynamic_subscription_payload(SubscriptionPayloadInput {
         id: pack_id.clone(),
         version: Some("1".to_owned()),
@@ -140,6 +145,9 @@ pub async fn public_subscription_group(
                 .find_sticker_pack(&pack_id)
                 .await?
                 .ok_or_else(|| ApiError::NotFound(format!("pack `{pack_id}` not found")))?;
+            let pack =
+                pack_with_resolved_asset_urls(&state, &headers, &record.tenant_id, &pack_id, pack)
+                    .await?;
             packs.push(SubscriptionPackInput {
                 pack,
                 refresh_url: format!("{base_url}/api/public/packs/{pack_id}/stickerpack"),
@@ -369,18 +377,4 @@ async fn user_has_tenant_membership(
         .find_tenant_member(tenant_id, user_id)
         .await?
         .is_some())
-}
-
-fn public_base_url(headers: &HeaderMap) -> String {
-    let scheme = headers
-        .get("x-forwarded-proto")
-        .and_then(|value| value.to_str().ok())
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or("http");
-    let host = headers
-        .get("host")
-        .and_then(|value| value.to_str().ok())
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or("127.0.0.1:3000");
-    format!("{scheme}://{}", host.trim_end_matches('/'))
 }

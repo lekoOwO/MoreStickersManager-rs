@@ -7,6 +7,7 @@ use axum::{
 use msm_domain::{PackAction, Permission, StickerPack};
 
 use crate::{
+    asset_urls::pack_with_resolved_asset_urls,
     auth::require_pat,
     dto::{ImportPackRequest, ListPacksQuery, UpdatePackRequest},
     rbac::{require_pack_access, require_tenant_resource_access},
@@ -197,12 +198,14 @@ pub async fn export_pack(
     Path(pack_id): Path<String>,
 ) -> ApiResult<Json<serde_json::Value>> {
     let pat = require_pat(&headers, &state, Permission::PackRead).await?;
-    require_pack_access(&state, &pat, PackAction::Read, &pack_id).await?;
+    let record = require_pack_access(&state, &pat, PackAction::Read, &pack_id).await?;
     let pack = state
         .repository()
         .find_sticker_pack(&pack_id)
         .await?
         .ok_or_else(|| ApiError::NotFound("Pack not found".to_owned()))?;
+    let pack =
+        pack_with_resolved_asset_urls(&state, &headers, &record.tenant_id, &pack_id, pack).await?;
     serde_json::to_value(pack)
         .map(Json)
         .map_err(|error| ApiError::Internal(error.to_string()))

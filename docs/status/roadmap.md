@@ -8,16 +8,16 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 ## Current Focus
 
-Phase G export/publication targets are the active focus. MoreStickers export,
-Telegram planning/publication/reconciliation, prepared-media conversion, and
-non-Telegram remote target execution boundaries now exist. The next work is
-Phase G export/publication parity is closed for implemented targets and job
-operations. The next work is Phase H asset privacy/CDN configuration parity and
-CDN URL behavior verification.
+Phase H asset privacy/CDN is the active focus. Tenant-level public asset URL
+configuration exists across API/OpenAPI, CLI, MCP, and Web, and protected pack
+exports plus public subscription payloads now rewrite local sticker asset URLs
+to the tenant CDN base when configured. The next work is system-wide public
+asset URL fallback/default configuration and precedence verification.
 
 ## Recently Completed
 
 - Export jobs can now be requeued for operator recovery across API/OpenAPI, CLI, MCP, and Web. The recovery flow resets failed/cancelled jobs to queued and records/refreshes recovery events for operator handoff.
+- Tenant CDN URL payload rewriting now applies to protected pack exports and public pack/subscription payloads while preserving MoreStickers-compatible JSON shape.
 - Non-Telegram remote export targets now dispatch through `RemoteExportTargetExecutor`, an injectable worker boundary that receives job/target/config/pack snapshots and returns target-neutral remote execution summaries while the default executor safely rejects unsupported future targets.
 - Provider config CLI commands now exist for list/upsert/delete with human/JSON
   output and PAT forwarding to the protected API.
@@ -174,8 +174,8 @@ CDN URL behavior verification.
 
 ## Immediate Plan
 
-1. Start Phase H with tenant/system public asset URL configuration parity.
-2. Verify CDN URL behavior for sticker pack, subscription, and asset responses.
+1. Add system-wide public asset URL fallback/default configuration.
+2. Verify precedence: tenant CDN URL overrides system-wide CDN URL, and system-wide CDN URL overrides the request-derived MSM app URL.
 
 ## Later Planned Work
 

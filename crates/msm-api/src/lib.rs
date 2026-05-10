@@ -1,5 +1,6 @@
 #![doc = "HTTP API and `OpenAPI` surface for MoreStickersManager-rs."]
 
+mod asset_urls;
 pub mod auth;
 pub mod dto;
 pub mod error;
@@ -451,6 +452,16 @@ mod tests {
             .unwrap();
         state
             .repository()
+            .update_tenant_settings(
+                "tenant_1",
+                "Tenant",
+                Some("https://cdn.example.test/msm"),
+                true,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
             .create_user("user_1", "leko@example.com", "Leko")
             .await
             .unwrap();
@@ -518,6 +529,10 @@ mod tests {
             .unwrap();
         let exported: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(exported["id"], "MoreStickers:Telegram:Pack:sample");
+        assert_eq!(
+            exported["stickers"][0]["image"],
+            "https://cdn.example.test/msm/assets/packs/pack_1/file.webp"
+        );
     }
 
     #[tokio::test]
@@ -2884,6 +2899,16 @@ mod tests {
         let state = empty_state_with_owner().await;
         state
             .repository()
+            .update_tenant_settings(
+                "tenant_1",
+                "Tenant",
+                Some("https://cdn.example.test/msm"),
+                true,
+            )
+            .await
+            .unwrap();
+        state
+            .repository()
             .upsert_sticker_pack(
                 "pack_public",
                 "tenant_1",
@@ -2962,6 +2987,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(public_pack.status(), StatusCode::OK);
+        let body = to_bytes(public_pack.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            payload["stickers"][0]["image"],
+            "https://cdn.example.test/msm/assets/packs/pack_public/file.webp"
+        );
 
         let private_pack = build_router(state.clone())
             .oneshot(
@@ -3007,6 +3038,10 @@ mod tests {
             payload["packs"][0]["dynamic"]["refreshUrl"],
             "http://msm.example/api/public/packs/pack_public/stickerpack"
         );
+        assert_eq!(
+            payload["packs"][0]["logo"]["image"],
+            "https://cdn.example.test/msm/assets/packs/pack_public/file.webp"
+        );
 
         let private_pack_subscription = build_router(state.clone())
             .oneshot(
@@ -3042,6 +3077,10 @@ mod tests {
         assert_eq!(
             payload["packs"][0]["dynamic"]["refreshUrl"],
             "http://msm.example/api/public/packs/pack_public/stickerpack"
+        );
+        assert_eq!(
+            payload["packs"][0]["logo"]["image"],
+            "https://cdn.example.test/msm/assets/packs/pack_public/file.webp"
         );
 
         let subscription_with_owner_pat = build_router(state.clone())

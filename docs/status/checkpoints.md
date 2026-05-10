@@ -1732,3 +1732,11 @@
 - Added MCP tools `msm.update_export_target` and `msm.delete_export_target` backed by storage repository update/delete methods.
 - Updated MCP tool registry expectations and focused CLI/MCP tests for target update/delete.
 - Phase G implemented target/job operation parity is now closed in the PRD; next phase is asset privacy/CDN.
+
+
+## 2026-05-10 Tenant CDN Payload Rewriting
+
+- Added API-side asset URL rewriting for protected pack exports and public pack/subscription payloads.
+- Tenant `public_asset_url` now replaces the request-derived MSM app URL for local sticker asset paths when configured, while preserving the MoreStickers-compatible payload shape.
+- Added focused API coverage for protected pack export and public dynamic subscription payload CDN behavior.
+- Updated the PRD to mark tenant CDN configuration and payload rewriting complete; remaining Phase H work is system-wide CDN fallback/default configuration and precedence verification.
