@@ -353,7 +353,7 @@ Current parity gaps:
   tenant/pack RBAC helpers. Subscription-link management routes use
   pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
   enforce `pat.manage` and role-allowed scopes across API, CLI, MCP, and Web.
-  Cross-tenant audit tests exist; OIDC/SSO remains incomplete, with authorization-code exchange, discovery, signed ID-token validation, and userinfo fallback wired in the API; remaining gaps are Web OIDC callback completion UX and SSO-backed account documentation.
+  Cross-tenant audit tests exist; OIDC/SSO login-start, callback completion, authorization-code exchange, discovery, signed ID-token validation, userinfo fallback, Web callback UX, SSO-backed PAT/session issuance, and SSO usage documentation are complete for the current contract.
 
 ## Open Product Questions
 
