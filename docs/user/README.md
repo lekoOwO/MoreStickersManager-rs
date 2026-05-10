@@ -118,11 +118,12 @@ configured tenant provider. Set or confirm the tenant ID, provider ID, and
 redirect URI, then use the SSO/OIDC action to call
 `GET /api/v1/auth/oidc/{tenant_id}/{provider_id}/login?redirectUri=...`. The UI
 shows the returned provider authorization URL plus state, nonce, and expiry.
-After the provider redirects back, enter the authorization code, state, nonce,
-and fallback claim fields in the callback completion area. A successful callback
-stores the returned PAT through the same browser-local path as local login. Full
-SSO-backed account documentation and automatic redirect parsing polish are still
-in progress.
+The browser stores the pending state/nonce and pre-fills the callback form when
+the provider redirects back to `/auth/oidc/callback?code=...&state=...`. Confirm
+or enter the authorization code, state, nonce, and fallback claim fields in the
+callback completion area. A successful callback stores the returned PAT through
+the same browser-local path as local login. Full SSO-backed account
+documentation is still in progress.
 
 The dashboard can rename packs, change public/private visibility, and delete
 packs when the stored PAT has `pack.update` and `pack.delete`.

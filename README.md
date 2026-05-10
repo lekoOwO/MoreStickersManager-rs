@@ -213,8 +213,9 @@ server-verified `msm_session` cookie.
 
 The auth dialog can also start OIDC login through
 `GET /api/v1/auth/oidc/{tenant_id}/{provider_id}/login?redirectUri=...`, show
-the returned provider authorization URL/state/nonce/expiry, submit callback
-completion data, and store the returned PAT.
+the returned provider authorization URL/state/nonce/expiry, persist pending
+state/nonce, pre-fill callback fields from `/auth/oidc/callback?code=...&state=...`,
+submit callback completion data, and store the returned PAT.
 
 ## Service Binary
 

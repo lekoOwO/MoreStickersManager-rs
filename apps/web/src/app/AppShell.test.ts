@@ -7,6 +7,8 @@ describe("AppShell PAT scope policy", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    window.localStorage.clear();
+    window.history.pushState({}, "", "/");
   });
 
   it("loads role-allowed PAT scopes before rendering the PAT picker", async () => {
@@ -195,5 +197,48 @@ describe("AppShell PAT scope policy", () => {
     });
     expect(wrapper.emitted("updatePatToken")?.at(-1)).toEqual(["msm_pat_oidc_secret"]);
     expect(wrapper.text()).toContain("msm_pat_oidc_secret");
+  });
+
+  it("prefills OIDC callback fields from the redirect URL and pending login state", async () => {
+    vi.stubEnv("VITE_MSM_API_BASE_URL", "https://msm.example.test");
+    window.localStorage.setItem(
+      "msm.oidc.pending",
+      JSON.stringify({
+        state: "state_2",
+        nonce: "nonce_2",
+        tenantId: "tenant_1",
+        providerId: "google",
+        redirectUri: "https://app.example.test/auth/oidc/callback",
+        expiresAt: "2026-05-10T00:10:00Z",
+      }),
+    );
+    window.history.pushState({}, "", "/auth/oidc/callback?code=provider-code-2&state=state_2");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ userId: "user_1", allowedScopes: ["pack.read"] }), { status: 200 })),
+    );
+
+    const wrapper = mount(AppShell, {
+      props: {
+        locale: "en",
+        patToken: "",
+        theme: "light",
+      },
+      global: {
+        stubs: {
+          PackDashboard: { template: "<main />" },
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect((wrapper.get('[aria-label="OIDC authorization code"]').element as HTMLInputElement).value).toBe(
+      "provider-code-2",
+    );
+    expect((wrapper.get('[aria-label="OIDC state"]').element as HTMLInputElement).value).toBe("state_2");
+    expect((wrapper.get('[aria-label="OIDC nonce"]').element as HTMLInputElement).value).toBe("nonce_2");
+    expect((wrapper.get('[aria-label="OIDC tenant ID"]').element as HTMLInputElement).value).toBe("tenant_1");
+    expect((wrapper.get('[aria-label="OIDC provider ID"]').element as HTMLInputElement).value).toBe("google");
   });
 });

@@ -15,7 +15,7 @@ import {
   UsersRoundIcon,
   XIcon,
 } from "lucide-vue-next";
-import { computed, ref, watch, type Component } from "vue";
+import { computed, onMounted, ref, watch, type Component } from "vue";
 
 import PackDashboard from "@/app/PackDashboard.vue";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,7 @@ const emit = defineEmits<{
   updatePatToken: [token: string];
 }>();
 
+const oidcPendingStorageKey = "msm.oidc.pending";
 const mobileNavOpen = ref(false);
 const sidebarExpanded = ref(false);
 const activeSection = ref<WorkspaceSection>("packs");
@@ -243,6 +244,10 @@ watch([accessDialogOpen, authDialogOpen, () => props.patToken], ([isAccessOpen, 
   }
 });
 
+onMounted(() => {
+  applyOidcCallbackFromLocation();
+});
+
 function selectSection(section: WorkspaceSection) {
   activeSection.value = section;
   mobileNavOpen.value = false;
@@ -315,6 +320,7 @@ async function startOidcLogin() {
     });
     oidcCallbackState.value = oidcStartResult.value.state;
     oidcCallbackNonce.value = oidcStartResult.value.nonce;
+    storePendingOidcLogin(oidcStartResult.value);
   } catch (error) {
     authError.value = error instanceof Error ? error.message : String(error);
   }
@@ -338,10 +344,78 @@ async function completeOidcLogin() {
       scopes: oidcScopes.value,
       expiresAt: null,
     });
+    clearPendingOidcLogin();
     emit("updatePatToken", authResult.value.token);
   } catch (error) {
     authError.value = error instanceof Error ? error.message : String(error);
   }
+}
+
+function storePendingOidcLogin(start: OidcLoginStartResponse) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(
+    oidcPendingStorageKey,
+    JSON.stringify({
+      state: start.state,
+      nonce: start.nonce,
+      tenantId: start.tenantId,
+      providerId: start.providerId,
+      redirectUri: oidcRedirectUri.value.trim(),
+      expiresAt: start.expiresAt,
+    }),
+  );
+}
+
+function readPendingOidcLogin() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const raw = window.localStorage.getItem(oidcPendingStorageKey);
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as {
+      state?: string;
+      nonce?: string;
+      tenantId?: string;
+      providerId?: string;
+      redirectUri?: string;
+      expiresAt?: string;
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingOidcLogin() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(oidcPendingStorageKey);
+  }
+}
+
+function applyOidcCallbackFromLocation() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const authorizationCode = params.get("code")?.trim() ?? "";
+  const callbackState = params.get("state")?.trim() ?? "";
+  if (!authorizationCode && !callbackState && !window.location.pathname.includes("/auth/oidc/callback")) {
+    return;
+  }
+
+  const pending = readPendingOidcLogin();
+  oidcAuthorizationCode.value = authorizationCode;
+  oidcCallbackState.value = callbackState || pending?.state || oidcCallbackState.value;
+  oidcCallbackNonce.value = pending?.nonce || oidcCallbackNonce.value;
+  oidcTenantId.value = pending?.tenantId || oidcTenantId.value;
+  oidcProviderId.value = pending?.providerId || oidcProviderId.value;
+  oidcRedirectUri.value = pending?.redirectUri || oidcRedirectUri.value;
+  authDialogOpen.value = true;
 }
 
 async function loadPatScopePolicy() {

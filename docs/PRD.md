@@ -88,9 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Complete SSO-backed account documentation and decide whether automatic Web
-   redirect parsing is required beyond the current manual callback completion
-   controls.
+1. Complete SSO-backed account documentation for Web/API/CLI/MCP users.
 
 Each queue item must update this section when completed or reordered.
 
@@ -210,14 +208,16 @@ tests and docs are updated.
   omits email/name, validates userinfo subject against the ID-token subject, and
   uses validated userinfo profile claims for user/link creation. Web auth can
   now start login and complete callback requests from the dialog. Remaining work:
-  user-facing SSO documentation and any automatic redirect parsing polish.
+  user-facing SSO documentation.
 - [x] Web SSO login controls.
   Progress: Web tenant administration now lists, creates/updates, and deletes
   OIDC providers. The Web auth dialog can start OIDC login, call the live
   login-start endpoint, and show the provider authorization URL with state,
   nonce, and expiry details. It can also submit authorization code/state/nonce
   plus fallback claims to the callback endpoint, store the returned PAT, and
-  reuse the existing role-filtered scope picker defaults.
+  reuse the existing role-filtered scope picker defaults. The Web app persists
+  pending state/nonce in browser storage and pre-fills callback fields when the
+  provider redirects back to `/auth/oidc/callback?code=...&state=...`.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
   Progress: CLI, MCP, and Web tenant administration now manage OIDC providers;
   SSO-backed PAT usage docs still need completion.

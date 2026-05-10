@@ -1497,3 +1497,10 @@
 - Added Traditional Chinese and English labels for the callback completion workflow.
 - Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding callback controls, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (56 tests), and `pnpm --filter @morestickersmanager/web build` passed.
 - Updated PRD/status/user docs; next Phase D slice should finish SSO-backed account documentation and decide whether automatic callback redirect parsing is required.
+
+## 2026-05-10 OIDC Web Redirect Prefill
+
+- Stored pending OIDC state/nonce, tenant, provider, redirect URI, and expiry in browser localStorage after login-start.
+- On `/auth/oidc/callback?code=...&state=...`, the Web shell opens the auth dialog and pre-fills authorization code, state, nonce, tenant, provider, and redirect URI fields from the redirect URL plus pending login state.
+- Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before implementing redirect prefill, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build` passed.
+- Updated PRD/status/user docs; next Phase D slice should finish SSO-backed account documentation for Web/API/CLI/MCP users.
