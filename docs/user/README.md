@@ -359,6 +359,8 @@ identity; tune `MSM_IMPORT_RATE_LIMIT_REQUESTS` and
 compile time; run `npm run web:build` before `cargo build -p msm-app` to embed
 the full UI instead of the placeholder.
 
+Backup/restore runbook: see `docs/user/backup-restore-runbook.md` for complete instance backup coverage, SQLite/PostgreSQL restore commands, asset directory handling, CDN/public URL checks, and restore verification drills.
+
 Database deployment choices:
 
 - SQLite is the default and is suitable for local/small deployments. Set

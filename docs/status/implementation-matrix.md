@@ -55,10 +55,11 @@ roadmap, and completion definition.
 | User data portability Web | Implemented | Web migration workspace can export portable user JSON and import pasted portable JSON into a target tenant through the API client. |
 | User data portability MCP | Implemented | MCP can export portable user data and import a portable export into a target tenant through `msm.export_user_data` and `msm.import_user_data`. |
 | Future providers | Future phases | Signal, WhatsApp, Kakao, Band, OGQ, and Viber are registered as planned only. |
+| Backup and restore | Phase K | Implemented: `docs/user/backup-restore-runbook.md` covers SQLite/PostgreSQL database backups, local asset and prepared-media backups, runtime secrets/config, restore procedures, portable export/import boundaries, readiness checks, and restore drills. |
 | Production diagnostics | Phase K | Implemented: service startup/listening and HTTP request summaries emit JSON lines from `msm-app`, and `/readyz` reports database and asset-store readiness diagnostics through API/OpenAPI. |
 | Production request hardening | Phase K | Implemented for import/upload surfaces: API/app routers apply configurable `MSM_REQUEST_BODY_LIMIT_BYTES` request body caps before JSON import handling, and pack import, portable user import, provider import planning, and provider import job creation share a configurable in-memory per-identity rate limiter. |
 | Remote target sync/update/delete | P33+ | Telegram reconciliation policies are defined in `msm-exporters` for create-only, append-missing, and mirror operations. `msm-telegram` can execute title/add/replace/delete mutation sequences and fetch remote sticker set metadata, storage can persist source-sticker-to-Telegram-file mappings, successful publication and reconciliation mutation jobs populate mappings from fetched remote state, worker dry-run jobs can summarize planned operations from supplied remote state, append-missing non-dry-run jobs can execute mutations with `executeReconciliation:true`, omitted remote state can be derived from stored mappings plus fetched Telegram metadata, mirror replace/delete also requires `allowDestructiveReconciliation:true`, and Web/CLI/MCP expose named controls for these options. |
 
 ## Current Next Phase
 
-Continue Phase K by adding backup/restore guidance, security review notes, and the final MCP stateless/session contract decision.
+Continue Phase K by adding production security review notes and the final MCP stateless/session contract decision.

@@ -1975,3 +1975,10 @@
 - Added structured JSON stderr logs for service startup, listen, and HTTP request summaries without query strings or credentials.
 - Updated PRD/status/user docs to mark structured logs and operator-facing health diagnostics complete.
 - Verification: `cargo test -p msm-storage -p msm-api -p msm-app --locked`; `cargo clippy -p msm-storage -p msm-api -p msm-app --all-targets --locked -- -D warnings`; `cargo fmt --all -- --check`; `git diff --check`.
+## 2026-05-11 Backup and Restore Runbook
+
+- Added `docs/user/backup-restore-runbook.md` covering complete instance backup inputs: database, assets, prepared media, runtime secrets/config, and release artifact provenance.
+- Documented SQLite `.backup`, PostgreSQL `pg_dump`/`pg_restore`, local asset archive examples, CDN/public URL caveats, and restore steps.
+- Added restore verification and periodic drill checklists using `/readyz`, Web/API/CLI flows, asset privacy, subscription links, provider config redaction, and Telegram mappings.
+- Updated PRD/status/README/user docs to mark Phase K backup/restore guidance complete.
+- Verification: `git diff --check`.

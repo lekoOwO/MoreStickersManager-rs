@@ -3,6 +3,7 @@
 Phase: Production hardening.
 
 Last completed:
+- Backup/restore runbook slice: added `docs/user/backup-restore-runbook.md` covering SQLite/PostgreSQL backups, asset/prepared-media directories, secrets/config, restore steps, portable migration boundaries, `/readyz` verification, and restore drills.
 - Production diagnostics slice: `msm-app` now emits structured JSON service/request logs, `/readyz` reports database and asset-store readiness diagnostics, and OpenAPI/user docs expose the operator endpoint.
 - Import rate-limit hardening slice: pack import, portable user import, provider import planning, and provider import job creation now share a configurable in-memory per-identity rate limiter with `429` responses; app config exposes `MSM_IMPORT_RATE_LIMIT_REQUESTS` and `MSM_IMPORT_RATE_LIMIT_WINDOW_SECS`.
 - API request body limit slice: app/API routers now apply configurable `MSM_REQUEST_BODY_LIMIT_BYTES` body caps before import JSON handling, app config rejects zero/invalid limits, and API/app tests cover oversized request rejection.

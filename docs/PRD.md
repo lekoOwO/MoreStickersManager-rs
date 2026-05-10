@@ -321,7 +321,8 @@ tests and docs are updated.
   Progress: API/app routers now apply a configurable `MSM_REQUEST_BODY_LIMIT_BYTES` request body cap (default 10 MiB) before JSON import handling. Pack import, portable user import, provider import planning, and provider import job creation also pass through an in-memory per-identity rate limiter configured by `MSM_IMPORT_RATE_LIMIT_REQUESTS` and `MSM_IMPORT_RATE_LIMIT_WINDOW_SECS`.
 - [x] Structured logs and operator-facing health diagnostics.
   Progress: `msm-app` emits JSON lines for service startup/listening and HTTP request summaries without logging query strings or credentials. `/readyz` returns operator diagnostics for database query readiness and local asset-store directory readiness, and OpenAPI documents the endpoint.
-- [ ] Backup/restore guidance.
+- [x] Backup/restore guidance.
+  Progress: `docs/user/backup-restore-runbook.md` documents complete instance backups for SQLite/PostgreSQL, assets, prepared media, secrets/config, restore steps, cross-instance portable-data migration boundaries, readiness verification, and restore drills.
 - [ ] Security review of token storage, secret redaction, and asset access.
 
 ## Surface Parity Rule

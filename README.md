@@ -251,6 +251,8 @@ Structured operator logs and readiness diagnostics:
 
 - `msm-app` writes JSON lines to stderr for `service_starting`, `service_listening`, and `http_request` events. HTTP request logs include method, path, status, and elapsed milliseconds, and intentionally omit query strings and credentials.
 - `GET /readyz` returns dependency diagnostics for the database and local asset store. It returns `200` when all components are ready and `503` when any component is degraded.
+Backup and restore: see `docs/user/backup-restore-runbook.md` for SQLite/PostgreSQL database backups, asset/prepared-media backups, deployment secrets, restore verification, and cross-instance portable-data migration boundaries.
+
 Database backends:
 
 - SQLite: use `sqlite:data/msm.sqlite3` or another `sqlite:<path>` URL. Ensure
