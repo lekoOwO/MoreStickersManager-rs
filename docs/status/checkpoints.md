@@ -1535,3 +1535,11 @@
 - Supports Telegram and LINE sticker provider plan creation with default provider base URLs and redacted request metadata.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-api provider_import --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider docs; next Phase E slice should add CLI/MCP/Web provider import plan controls, then executable provider import jobs.
+
+## 2026-05-10 Provider Import Planning CLI
+
+- Added `msm providers plan --tenant-id ... --owner-user-id ... --provider-id ... --remote-id ... [--base-url ...]`.
+- Added CLI client DTOs/method for `POST /api/v1/provider-imports/plan` and human/JSON output formatting for returned provider fetch plans.
+- Added CLI parsing/execution tests backed by the fake client.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked` (53 tests), `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider docs; next Phase E slice should add MCP/Web provider import plan controls, then executable provider import jobs.

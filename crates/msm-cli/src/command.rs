@@ -6,11 +6,11 @@ use msm_domain::StickerPack;
 use crate::{
     client::{
         CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
-        CreatePersonalAccessTokenPayload, CreateSubscriptionAccessTokenPayload,
-        CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, MsmClient,
-        ReqwestMsmClient, SubscriptionAccessResourceType, UpdatePackPayload,
-        UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertOidcProviderPayload,
-        UpsertTenantRolePayload,
+        CreatePersonalAccessTokenPayload, CreateProviderImportPlanPayload,
+        CreateSubscriptionAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
+        ImportPackPayload, MsmClient, ReqwestMsmClient, SubscriptionAccessResourceType,
+        UpdatePackPayload, UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload,
+        UpsertOidcProviderPayload, UpsertTenantRolePayload,
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
@@ -19,12 +19,12 @@ use crate::{
         format_oidc_provider, format_oidc_provider_delete, format_oidc_providers,
         format_pack_delete, format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag,
         format_pat_create, format_pat_list, format_pat_revoke, format_pat_scope_policy,
-        format_subscription_group, format_subscription_group_pack, format_subscription_groups,
-        format_subscription_link_revoke, format_subscription_link_secret,
-        format_subscription_links, format_tag, format_tag_ids, format_tags,
-        format_telegram_publication, format_telegram_publications, format_tenant_member,
-        format_tenant_members, format_tenant_role, format_tenant_roles, format_tenant_settings,
-        format_tenant_user,
+        format_provider_import_plan, format_subscription_group, format_subscription_group_pack,
+        format_subscription_groups, format_subscription_link_revoke,
+        format_subscription_link_secret, format_subscription_links, format_tag, format_tag_ids,
+        format_tags, format_telegram_publication, format_telegram_publications,
+        format_tenant_member, format_tenant_members, format_tenant_role, format_tenant_roles,
+        format_tenant_settings, format_tenant_user,
     },
     CliError, CliResult,
 };
@@ -72,6 +72,10 @@ pub enum Command {
         #[command(subcommand)]
         command: ExportCommand,
     },
+    Providers {
+        #[command(subcommand)]
+        command: ProviderCommand,
+    },
 }
 
 #[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
@@ -109,6 +113,22 @@ pub enum PackCommand {
     Delete {
         #[arg(long)]
         pack_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum ProviderCommand {
+    Plan {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        owner_user_id: String,
+        #[arg(long)]
+        provider_id: String,
+        #[arg(long)]
+        remote_id: String,
+        #[arg(long)]
+        base_url: Option<String>,
     },
 }
 
@@ -656,6 +676,26 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
             PackCommand::Delete { pack_id } => {
                 client.delete_pack(&pack_id).await?;
                 format_pack_delete(cli.output_format, &pack_id)
+            }
+        },
+        Command::Providers { command } => match command {
+            ProviderCommand::Plan {
+                tenant_id,
+                owner_user_id,
+                provider_id,
+                remote_id,
+                base_url,
+            } => {
+                let plan = client
+                    .create_provider_import_plan(CreateProviderImportPlanPayload {
+                        tenant_id,
+                        owner_user_id,
+                        provider_id,
+                        remote_id,
+                        base_url,
+                    })
+                    .await?;
+                format_provider_import_plan(cli.output_format, &plan)
             }
         },
         Command::Pats { command } => match command {
@@ -1208,23 +1248,23 @@ mod tests {
     use crate::{
         client::{
             CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
-            CreatePersonalAccessTokenPayload, CreateSubscriptionAccessTokenPayload,
-            CreateSubscriptionGroupPayload, CreateTagPayload, CreatedPersonalAccessToken,
-            CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent, ExportTarget,
-            ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, OidcProvider,
-            PackTag, PatScopePolicy, PersonalAccessToken, SubscriptionAccessResourceType,
-            SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
-            TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
-            UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertOidcProviderPayload,
-            UpsertTenantRolePayload,
+            CreatePersonalAccessTokenPayload, CreateProviderImportPlanPayload,
+            CreateSubscriptionAccessTokenPayload, CreateSubscriptionGroupPayload, CreateTagPayload,
+            CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
+            ExportTarget, ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient,
+            OidcProvider, PackTag, PatScopePolicy, PersonalAccessToken, ProviderHttpRequestPlan,
+            ProviderImportPlan, SubscriptionAccessResourceType, SubscriptionAccessToken,
+            SubscriptionGroup, SubscriptionGroupPack, Tag, TelegramPublication, TenantMember,
+            TenantRole, TenantSettings, TenantUser, UpdateTenantSettingsPayload,
+            UpdateTenantUserStatusPayload, UpsertOidcProviderPayload, UpsertTenantRolePayload,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
             ExportPublicationCommand, ExportTargetCommand, FolderCommand, FolderPackCommand,
             MetadataCommand, OutputFormat, PackCommand, PackTagCommand, PackVisibility, PatCommand,
-            SubscriptionGroupCommand, SubscriptionGroupPackCommand, SubscriptionLinkCommand,
-            SubscriptionLinkResourceType, TagCommand, TenantCommand, TenantMemberCommand,
-            TenantMemberRoleArg, TenantOidcProviderCommand, TenantRoleCommand,
+            ProviderCommand, SubscriptionGroupCommand, SubscriptionGroupPackCommand,
+            SubscriptionLinkCommand, SubscriptionLinkResourceType, TagCommand, TenantCommand,
+            TenantMemberCommand, TenantMemberRoleArg, TenantOidcProviderCommand, TenantRoleCommand,
             TenantSettingsCommand, TenantUserCommand,
         },
         output::HealthResponse,
@@ -1247,6 +1287,42 @@ mod tests {
         let cli = Cli::parse_from(["msm", "--pat", "msm_pat_cli1_secret", "health"]);
 
         assert_eq!(cli.pat.as_deref(), Some("msm_pat_cli1_secret"));
+    }
+
+    #[test]
+    fn parses_provider_import_plan_command() {
+        let cli = Cli::parse_from([
+            "msm",
+            "providers",
+            "plan",
+            "--tenant-id",
+            "tenant_1",
+            "--owner-user-id",
+            "user_1",
+            "--provider-id",
+            "line-stickers",
+            "--remote-id",
+            "line_cats",
+            "--base-url",
+            "https://store.line.me",
+        ]);
+
+        assert!(matches!(
+            cli.command,
+            Command::Providers {
+                command: ProviderCommand::Plan {
+                    ref tenant_id,
+                    ref owner_user_id,
+                    ref provider_id,
+                    ref remote_id,
+                    ref base_url,
+                }
+            } if tenant_id == "tenant_1"
+                && owner_user_id == "user_1"
+                && provider_id == "line-stickers"
+                && remote_id == "line_cats"
+                && base_url.as_deref() == Some("https://store.line.me")
+        ));
     }
 
     #[test]
@@ -2072,6 +2148,38 @@ mod tests {
             client.imported.lock().unwrap().as_ref().unwrap().pack_id,
             "pack_1"
         );
+    }
+
+    #[tokio::test]
+    async fn executes_provider_import_plan_command() {
+        let client = FakeClient::default();
+
+        let output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "providers",
+                "plan",
+                "--tenant-id",
+                "tenant_1",
+                "--owner-user-id",
+                "user_1",
+                "--provider-id",
+                "line-stickers",
+                "--remote-id",
+                "line_cats",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            output,
+            "line-stickers\tline_cats\tGET\thttps://store.line.me/stickershop/product/line_cats/en"
+        );
+        let payload = client.provider_import_plan.lock().unwrap().clone().unwrap();
+        assert_eq!(payload.provider_id, "line-stickers");
+        assert_eq!(payload.remote_id, "line_cats");
     }
 
     #[tokio::test]
@@ -2973,6 +3081,7 @@ mod tests {
     #[derive(Default)]
     struct FakeClient {
         imported: Mutex<Option<ImportPackPayload>>,
+        provider_import_plan: Mutex<Option<CreateProviderImportPlanPayload>>,
         renamed_pack: Mutex<Option<crate::client::UpdatePackPayload>>,
         deleted_pack: Mutex<Option<String>>,
         created_pat: Mutex<Option<CreatePersonalAccessTokenPayload>>,
@@ -3014,6 +3123,23 @@ mod tests {
         async fn import_pack(&self, payload: ImportPackPayload) -> CliResult<()> {
             *self.imported.lock().unwrap() = Some(payload);
             Ok(())
+        }
+
+        async fn create_provider_import_plan(
+            &self,
+            payload: CreateProviderImportPlanPayload,
+        ) -> CliResult<ProviderImportPlan> {
+            *self.provider_import_plan.lock().unwrap() = Some(payload);
+            Ok(ProviderImportPlan {
+                provider_id: "line-stickers".to_owned(),
+                remote_id: "line_cats".to_owned(),
+                metadata_request: ProviderHttpRequestPlan {
+                    method: "GET".to_owned(),
+                    url: "https://store.line.me/stickershop/product/line_cats/en".to_owned(),
+                    redacted_headers: vec![],
+                },
+                asset_strategy: "directRemoteUrls".to_owned(),
+            })
         }
 
         async fn export_pack(&self, _pack_id: &str) -> CliResult<msm_domain::StickerPack> {

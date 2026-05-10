@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add CLI/MCP/Web provider import plan controls, then wire executable provider
+1. Add MCP/Web provider import plan controls, then wire executable provider
    import jobs.
 
 Each queue item must update this section when completed or reordered.
@@ -234,14 +234,16 @@ tests and docs are updated.
   asset strategy. `msm-app` now has injected runtime metadata fetch and direct
   asset internalization helpers; Telegram-specific `getFile` execution and
   executable import workflow wiring remain. API can now create protected
-  provider import fetch plans for Telegram sources.
+  provider import fetch plans for Telegram sources, and CLI can request/display
+  those plans.
 - [ ] LINE network fetch with asset download/internalization.
   Progress: `msm-providers` now exposes a testable LINE sticker-shop product
   fetch plan boundary and direct remote URL asset strategy. `msm-app` can execute
   planned metadata fetches through an injected runtime and download direct remote
   sticker assets into `LocalAssetStore` while rewriting pack image URLs. Parsing
   and executable import workflow wiring remain. API can now create protected
-  provider import fetch plans for LINE sticker sources.
+  provider import fetch plans for LINE sticker sources, and CLI can
+  request/display those plans.
 - [ ] Provider credential/config UI and API.
 - [ ] Provider job progress and retry model.
 - [ ] Placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ,

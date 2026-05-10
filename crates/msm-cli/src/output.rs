@@ -4,8 +4,9 @@ use crate::{
     client::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
         ExportTarget, ExportTargetKind, Folder, FolderPack, OidcProvider, PackTag, PatScopePolicy,
-        PersonalAccessToken, SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack,
-        Tag, TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
+        PersonalAccessToken, ProviderImportPlan, SubscriptionAccessToken, SubscriptionGroup,
+        SubscriptionGroupPack, Tag, TelegramPublication, TenantMember, TenantRole, TenantSettings,
+        TenantUser,
     },
     command::OutputFormat,
     CliResult,
@@ -100,6 +101,27 @@ pub fn format_import(format: OutputFormat, pack_id: &str) -> CliResult<String> {
             status: "imported",
             pack_id: pack_id.to_owned(),
         })?),
+    }
+}
+
+/// Formats a provider import fetch plan.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_provider_import_plan(
+    format: OutputFormat,
+    plan: &ProviderImportPlan,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!(
+            "{}\t{}\t{}\t{}",
+            plan.provider_id,
+            plan.remote_id,
+            plan.metadata_request.method,
+            plan.metadata_request.url
+        )),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(plan)?),
     }
 }
 

@@ -50,8 +50,9 @@ product data into the existing LINE fixture schema.
 The API exposes the first protected workflow surface at
 `POST /api/v1/provider-imports/plan`. It requires `provider.import`, validates
 same-user tenant access, and returns Telegram or LINE fetch plans suitable for
-runtime execution. CLI, MCP, Web controls, and executable import jobs are still
-pending.
+runtime execution. CLI can call the same surface with
+`msm providers plan --tenant-id ... --owner-user-id ... --provider-id ... --remote-id ...`.
+MCP, Web controls, and executable import jobs are still pending.
 
 ## Provider Versus Export Target
 

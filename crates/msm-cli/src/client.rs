@@ -16,6 +16,40 @@ pub struct ImportPackPayload {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CreateProviderImportPlanPayload {
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub provider_id: String,
+    pub remote_id: String,
+    pub base_url: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderImportPlan {
+    pub provider_id: String,
+    pub remote_id: String,
+    pub metadata_request: ProviderHttpRequestPlan,
+    pub asset_strategy: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderHttpRequestPlan {
+    pub method: String,
+    pub url: String,
+    pub redacted_headers: Vec<ProviderHttpHeader>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderHttpHeader {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdatePackPayload {
     pub pack_id: String,
     pub title: String,
@@ -381,6 +415,10 @@ pub trait MsmClient {
     async fn health(&self) -> CliResult<HealthResponse>;
     async fn list_packs(&self, user_id: &str) -> CliResult<Vec<StickerPack>>;
     async fn import_pack(&self, payload: ImportPackPayload) -> CliResult<()>;
+    async fn create_provider_import_plan(
+        &self,
+        payload: CreateProviderImportPlanPayload,
+    ) -> CliResult<ProviderImportPlan>;
     async fn export_pack(&self, pack_id: &str) -> CliResult<StickerPack>;
     async fn update_pack(&self, payload: UpdatePackPayload) -> CliResult<()>;
     async fn delete_pack(&self, pack_id: &str) -> CliResult<()>;
@@ -586,6 +624,23 @@ impl MsmClient for ReqwestMsmClient {
             .await?
             .error_for_status()?;
         Ok(())
+    }
+
+    async fn create_provider_import_plan(
+        &self,
+        payload: CreateProviderImportPlanPayload,
+    ) -> CliResult<ProviderImportPlan> {
+        Ok(self
+            .authorize(
+                self.http
+                    .post(self.endpoint("/api/v1/provider-imports/plan")?),
+            )
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
     }
 
     async fn export_pack(&self, pack_id: &str) -> CliResult<StickerPack> {
