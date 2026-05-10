@@ -1875,3 +1875,10 @@
 - Added optional PostgreSQL export target repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping the existing SQLite export target/job/event round-trip coverage active.
 - Updated PRD/status docs to show export-target PostgreSQL progress while keeping export job state, prepared-media, Telegram publication/mapping, provider, and portability parity open.
 - Verification: `cargo test -p msm-storage export_target --locked`.
+
+## 2026-05-11 PostgreSQL Export Job Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for export job create/find/queue/retry/status/recovery/event operations.
+- Added optional PostgreSQL export job repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite retry/status/event coverage active.
+- Updated PRD/status docs to show export-job PostgreSQL progress while keeping prepared-media, Telegram publication/mapping, provider, and portability parity open.
+- Verification: `cargo test -p msm-storage export_job --locked`.

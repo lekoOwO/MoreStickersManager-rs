@@ -312,29 +312,51 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn create_export_job(&self, job: NewExportJob<'_>) -> StorageResult<ExportJobRecord> {
         let now = now();
         let status = ExportJobStatus::Queued;
-        sqlx::query(
-            "INSERT INTO export_jobs (
-                id, tenant_id, owner_user_id, source_pack_id, target_id, status,
-                request_json, result_json, error_summary, attempt_count, max_attempts,
-                next_attempt_at, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, ?, NULL, ?, ?)",
-        )
-        .bind(job.id)
-        .bind(job.tenant_id)
-        .bind(job.owner_user_id)
-        .bind(job.source_pack_id)
-        .bind(job.target_id)
-        .bind(status.as_str())
-        .bind(job.request_json)
-        .bind(job.max_attempts)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO export_jobs (
+                    id, tenant_id, owner_user_id, source_pack_id, target_id, status,
+                    request_json, result_json, error_summary, attempt_count, max_attempts,
+                    next_attempt_at, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, 0, $8, NULL, $9, $10)",
+            )
+            .bind(job.id)
+            .bind(job.tenant_id)
+            .bind(job.owner_user_id)
+            .bind(job.source_pack_id)
+            .bind(job.target_id)
+            .bind(status.as_str())
+            .bind(job.request_json)
+            .bind(job.max_attempts)
+            .bind(&now)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO export_jobs (
+                    id, tenant_id, owner_user_id, source_pack_id, target_id, status,
+                    request_json, result_json, error_summary, attempt_count, max_attempts,
+                    next_attempt_at, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, ?, NULL, ?, ?)",
+            )
+            .bind(job.id)
+            .bind(job.tenant_id)
+            .bind(job.owner_user_id)
+            .bind(job.source_pack_id)
+            .bind(job.target_id)
+            .bind(status.as_str())
+            .bind(job.request_json)
+            .bind(job.max_attempts)
+            .bind(&now)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         Ok(ExportJobRecord {
             id: job.id.to_owned(),
@@ -358,81 +380,96 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
-    /// is invalid.
+    /// Returns an error when SQL fails or stored status is invalid.
     pub async fn find_export_job(&self, id: &str) -> StorageResult<Option<ExportJobRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, source_pack_id, target_id, status,
-                request_json, result_json, error_summary, attempt_count, max_attempts,
-                next_attempt_at, created_at, updated_at
-            FROM export_jobs
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(&export_job_select_sql("WHERE id = $1"))
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.map(|row| export_job_from_row(&row)).transpose()
+            row.as_ref().map(export_job_from_pg_row).transpose()
+        } else {
+            let row = sqlx::query(&export_job_select_sql("WHERE id = ?"))
+                .bind(id)
+                .fetch_optional(self.sqlite()?)
+                .await?;
+
+            row.as_ref().map(export_job_from_sqlite_row).transpose()
+        }
     }
 
     /// Finds the oldest export job with the requested status.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
-    /// is invalid.
+    /// Returns an error when SQL fails or stored status is invalid.
     pub async fn find_next_export_job_by_status(
         &self,
         status: ExportJobStatus,
     ) -> StorageResult<Option<ExportJobRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, source_pack_id, target_id, status,
-                request_json, result_json, error_summary, attempt_count, max_attempts,
-                next_attempt_at, created_at, updated_at
-            FROM export_jobs
-            WHERE status = ?
-            ORDER BY created_at, id
-            LIMIT 1",
-        )
-        .bind(status.as_str())
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(&export_job_select_sql(
+                "WHERE status = $1 ORDER BY created_at, id LIMIT 1",
+            ))
+            .bind(status.as_str())
+            .fetch_optional(pool)
+            .await?;
 
-        row.map(|row| export_job_from_row(&row)).transpose()
+            row.as_ref().map(export_job_from_pg_row).transpose()
+        } else {
+            let row = sqlx::query(&export_job_select_sql(
+                "WHERE status = ? ORDER BY created_at, id LIMIT 1",
+            ))
+            .bind(status.as_str())
+            .fetch_optional(self.sqlite()?)
+            .await?;
+
+            row.as_ref().map(export_job_from_sqlite_row).transpose()
+        }
     }
 
     /// Finds the oldest queued export job whose retry backoff has elapsed.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
-    /// is invalid.
+    /// Returns an error when SQL fails or stored status is invalid.
     pub async fn find_next_due_export_job(
         &self,
         now: &str,
     ) -> StorageResult<Option<ExportJobRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, source_pack_id, target_id, status,
-                request_json, result_json, error_summary, attempt_count, max_attempts,
-                next_attempt_at, created_at, updated_at
-            FROM export_jobs
-            WHERE status = ? AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
-            ORDER BY created_at, id
-            LIMIT 1",
-        )
-        .bind(ExportJobStatus::Queued.as_str())
-        .bind(now)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(&export_job_select_sql(
+                "WHERE status = $1 AND (next_attempt_at IS NULL OR next_attempt_at <= $2)
+                ORDER BY created_at, id
+                LIMIT 1",
+            ))
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(now)
+            .fetch_optional(pool)
+            .await?;
 
-        row.map(|row| export_job_from_row(&row)).transpose()
+            row.as_ref().map(export_job_from_pg_row).transpose()
+        } else {
+            let row = sqlx::query(&export_job_select_sql(
+                "WHERE status = ? AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+                ORDER BY created_at, id
+                LIMIT 1",
+            ))
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(now)
+            .fetch_optional(self.sqlite()?)
+            .await?;
+
+            row.as_ref().map(export_job_from_sqlite_row).transpose()
+        }
     }
 
     /// Updates an export job status and optional payload fields.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn update_export_job_status(
         &self,
         id: &str,
@@ -440,48 +477,83 @@ impl StorageRepository {
         error_summary: Option<&str>,
         result_json: Option<&str>,
     ) -> StorageResult<bool> {
-        let result = sqlx::query(
-            "UPDATE export_jobs
-            SET status = ?, error_summary = ?, result_json = ?, next_attempt_at = NULL, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(status.as_str())
-        .bind(error_summary)
-        .bind(result_json)
-        .bind(now())
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "UPDATE export_jobs
+                SET status = $1, error_summary = $2, result_json = $3, next_attempt_at = NULL, updated_at = $4
+                WHERE id = $5",
+            )
+            .bind(status.as_str())
+            .bind(error_summary)
+            .bind(result_json)
+            .bind(now())
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query(
+                "UPDATE export_jobs
+                SET status = ?, error_summary = ?, result_json = ?, next_attempt_at = NULL, updated_at = ?
+                WHERE id = ?",
+            )
+            .bind(status.as_str())
+            .bind(error_summary)
+            .bind(result_json)
+            .bind(now())
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?
+            .rows_affected()
+        };
 
-        Ok(result.rows_affected() == 1)
+        Ok(rows_affected == 1)
     }
 
     /// Records a failed attempt and requeues the export job for a later retry.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn record_export_job_retry(
         &self,
         id: &str,
         error_summary: &str,
         next_attempt_at: &str,
     ) -> StorageResult<Option<ExportJobRecord>> {
-        let result = sqlx::query(
-            "UPDATE export_jobs
-            SET status = ?, error_summary = ?, result_json = NULL,
-                attempt_count = attempt_count + 1, next_attempt_at = ?, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(ExportJobStatus::Queued.as_str())
-        .bind(error_summary)
-        .bind(next_attempt_at)
-        .bind(now())
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "UPDATE export_jobs
+                SET status = $1, error_summary = $2, result_json = NULL,
+                    attempt_count = attempt_count + 1, next_attempt_at = $3, updated_at = $4
+                WHERE id = $5",
+            )
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(error_summary)
+            .bind(next_attempt_at)
+            .bind(now())
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query(
+                "UPDATE export_jobs
+                SET status = ?, error_summary = ?, result_json = NULL,
+                    attempt_count = attempt_count + 1, next_attempt_at = ?, updated_at = ?
+                WHERE id = ?",
+            )
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(error_summary)
+            .bind(next_attempt_at)
+            .bind(now())
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?
+            .rows_affected()
+        };
 
-        if result.rows_affected() == 0 {
+        if rows_affected == 0 {
             Ok(None)
         } else {
             self.find_export_job(id).await
@@ -492,26 +564,43 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn record_export_job_failure(
         &self,
         id: &str,
         error_summary: &str,
     ) -> StorageResult<Option<ExportJobRecord>> {
-        let result = sqlx::query(
-            "UPDATE export_jobs
-            SET status = ?, error_summary = ?, result_json = NULL,
-                attempt_count = attempt_count + 1, next_attempt_at = NULL, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(ExportJobStatus::Failed.as_str())
-        .bind(error_summary)
-        .bind(now())
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "UPDATE export_jobs
+                SET status = $1, error_summary = $2, result_json = NULL,
+                    attempt_count = attempt_count + 1, next_attempt_at = NULL, updated_at = $3
+                WHERE id = $4",
+            )
+            .bind(ExportJobStatus::Failed.as_str())
+            .bind(error_summary)
+            .bind(now())
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query(
+                "UPDATE export_jobs
+                SET status = ?, error_summary = ?, result_json = NULL,
+                    attempt_count = attempt_count + 1, next_attempt_at = NULL, updated_at = ?
+                WHERE id = ?",
+            )
+            .bind(ExportJobStatus::Failed.as_str())
+            .bind(error_summary)
+            .bind(now())
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?
+            .rows_affected()
+        };
 
-        if result.rows_affected() == 0 {
+        if rows_affected == 0 {
             Ok(None)
         } else {
             self.find_export_job(id).await
@@ -522,26 +611,44 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn requeue_export_job_for_recovery(
         &self,
         id: &str,
     ) -> StorageResult<Option<ExportJobRecord>> {
-        let result = sqlx::query(
-            "UPDATE export_jobs
-            SET status = ?, error_summary = NULL, result_json = NULL,
-                attempt_count = 0, next_attempt_at = NULL, updated_at = ?
-            WHERE id = ? AND status IN (?, ?)",
-        )
-        .bind(ExportJobStatus::Queued.as_str())
-        .bind(now())
-        .bind(id)
-        .bind(ExportJobStatus::Failed.as_str())
-        .bind(ExportJobStatus::Cancelled.as_str())
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "UPDATE export_jobs
+                SET status = $1, error_summary = NULL, result_json = NULL,
+                    attempt_count = 0, next_attempt_at = NULL, updated_at = $2
+                WHERE id = $3 AND status IN ($4, $5)",
+            )
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(now())
+            .bind(id)
+            .bind(ExportJobStatus::Failed.as_str())
+            .bind(ExportJobStatus::Cancelled.as_str())
+            .execute(pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query(
+                "UPDATE export_jobs
+                SET status = ?, error_summary = NULL, result_json = NULL,
+                    attempt_count = 0, next_attempt_at = NULL, updated_at = ?
+                WHERE id = ? AND status IN (?, ?)",
+            )
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(now())
+            .bind(id)
+            .bind(ExportJobStatus::Failed.as_str())
+            .bind(ExportJobStatus::Cancelled.as_str())
+            .execute(self.sqlite()?)
+            .await?
+            .rows_affected()
+        };
 
-        if result.rows_affected() == 0 {
+        if rows_affected == 0 {
             Ok(None)
         } else {
             self.find_export_job(id).await
@@ -552,26 +659,43 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn append_export_job_event(
         &self,
         event: NewExportJobEvent<'_>,
     ) -> StorageResult<ExportJobEventRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO export_job_events (
-                job_id, sequence, level, stage, message, metadata_json, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(event.job_id)
-        .bind(event.sequence)
-        .bind(event.level)
-        .bind(event.stage)
-        .bind(event.message)
-        .bind(event.metadata_json)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO export_job_events (
+                    job_id, sequence, level, stage, message, metadata_json, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            )
+            .bind(event.job_id)
+            .bind(event.sequence)
+            .bind(event.level)
+            .bind(event.stage)
+            .bind(event.message)
+            .bind(event.metadata_json)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO export_job_events (
+                    job_id, sequence, level, stage, message, metadata_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(event.job_id)
+            .bind(event.sequence)
+            .bind(event.level)
+            .bind(event.stage)
+            .bind(event.message)
+            .bind(event.metadata_json)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         Ok(ExportJobEventRecord {
             job_id: event.job_id.to_owned(),
@@ -588,33 +712,36 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_export_job_events(
         &self,
         job_id: &str,
     ) -> StorageResult<Vec<ExportJobEventRecord>> {
-        let rows = sqlx::query(
-            "SELECT job_id, sequence, level, stage, message, metadata_json, created_at
-            FROM export_job_events
-            WHERE job_id = ?
-            ORDER BY sequence",
-        )
-        .bind(job_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let rows = sqlx::query(
+                "SELECT job_id, sequence, level, stage, message, metadata_json, created_at
+                FROM export_job_events
+                WHERE job_id = $1
+                ORDER BY sequence",
+            )
+            .bind(job_id)
+            .fetch_all(pool)
+            .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| ExportJobEventRecord {
-                job_id: row.get("job_id"),
-                sequence: row.get("sequence"),
-                level: row.get("level"),
-                stage: row.get("stage"),
-                message: row.get("message"),
-                metadata_json: row.get("metadata_json"),
-                created_at: row.get("created_at"),
-            })
-            .collect())
+            Ok(rows.iter().map(export_job_event_from_pg_row).collect())
+        } else {
+            let rows = sqlx::query(
+                "SELECT job_id, sequence, level, stage, message, metadata_json, created_at
+                FROM export_job_events
+                WHERE job_id = ?
+                ORDER BY sequence",
+            )
+            .bind(job_id)
+            .fetch_all(self.sqlite()?)
+            .await?;
+
+            Ok(rows.iter().map(export_job_event_from_sqlite_row).collect())
+        }
     }
 
     /// Creates a queued provider import job.
@@ -1175,7 +1302,17 @@ impl StorageRepository {
     }
 }
 
-fn export_job_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<ExportJobRecord> {
+fn export_job_select_sql(where_clause: &str) -> String {
+    format!(
+        "SELECT id, tenant_id, owner_user_id, source_pack_id, target_id, status,
+            request_json, result_json, error_summary, attempt_count, max_attempts,
+            next_attempt_at, created_at, updated_at
+        FROM export_jobs
+        {where_clause}"
+    )
+}
+
+fn export_job_from_sqlite_row(row: &SqliteRow) -> StorageResult<ExportJobRecord> {
     let status_value: String = row.get("status");
     let status = ExportJobStatus::from_storage(&status_value).ok_or(
         StorageError::InvalidExportJobStatus {
@@ -1199,6 +1336,56 @@ fn export_job_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<ExportJob
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
+}
+
+fn export_job_from_pg_row(row: &PgRow) -> StorageResult<ExportJobRecord> {
+    let status_value: String = row.get("status");
+    let status = ExportJobStatus::from_storage(&status_value).ok_or(
+        StorageError::InvalidExportJobStatus {
+            status: status_value,
+        },
+    )?;
+
+    Ok(ExportJobRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        source_pack_id: row.get("source_pack_id"),
+        target_id: row.get("target_id"),
+        status,
+        request_json: row.get("request_json"),
+        result_json: row.get("result_json"),
+        error_summary: row.get("error_summary"),
+        attempt_count: row.get("attempt_count"),
+        max_attempts: row.get("max_attempts"),
+        next_attempt_at: row.get("next_attempt_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+fn export_job_event_from_sqlite_row(row: &SqliteRow) -> ExportJobEventRecord {
+    ExportJobEventRecord {
+        job_id: row.get("job_id"),
+        sequence: row.get("sequence"),
+        level: row.get("level"),
+        stage: row.get("stage"),
+        message: row.get("message"),
+        metadata_json: row.get("metadata_json"),
+        created_at: row.get("created_at"),
+    }
+}
+
+fn export_job_event_from_pg_row(row: &PgRow) -> ExportJobEventRecord {
+    ExportJobEventRecord {
+        job_id: row.get("job_id"),
+        sequence: row.get("sequence"),
+        level: row.get("level"),
+        stage: row.get("stage"),
+        message: row.get("message"),
+        metadata_json: row.get("metadata_json"),
+        created_at: row.get("created_at"),
+    }
 }
 
 fn provider_import_job_from_row(

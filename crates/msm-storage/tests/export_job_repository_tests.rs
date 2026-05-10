@@ -132,6 +132,105 @@ async fn postgres_export_targets_roundtrip_when_configured() {
 }
 
 #[tokio::test]
+async fn postgres_export_jobs_events_and_retries_roundtrip_when_configured() {
+    let Some(context) = postgres_export_context().await else {
+        return;
+    };
+    let job_id = format!("job_{}", context.suffix);
+
+    let queued = context
+        .repo
+        .create_export_job(NewExportJob {
+            id: &job_id,
+            tenant_id: &context.tenant_id,
+            owner_user_id: &context.user_id,
+            source_pack_id: &context.pack_id,
+            target_id: &context.target_id,
+            request_json: r#"{"mode":"create"}"#,
+            max_attempts: 3,
+        })
+        .await
+        .unwrap();
+    assert_eq!(queued.status, ExportJobStatus::Queued);
+    assert_eq!(queued.attempt_count, 0);
+    assert_eq!(
+        context
+            .repo
+            .find_next_export_job_by_status(ExportJobStatus::Queued)
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        job_id
+    );
+
+    assert!(context
+        .repo
+        .update_export_job_status(&job_id, ExportJobStatus::Running, None, None)
+        .await
+        .unwrap());
+    assert_eq!(
+        context
+            .repo
+            .find_export_job(&job_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        ExportJobStatus::Running
+    );
+
+    context
+        .repo
+        .append_export_job_event(NewExportJobEvent {
+            job_id: &job_id,
+            sequence: 2,
+            level: "info",
+            stage: "upload",
+            message: "uploaded sticker",
+            metadata_json: r#"{"count":1}"#,
+        })
+        .await
+        .unwrap();
+    context
+        .repo
+        .append_export_job_event(NewExportJobEvent {
+            job_id: &job_id,
+            sequence: 1,
+            level: "info",
+            stage: "convert",
+            message: "converted sticker",
+            metadata_json: "{}",
+        })
+        .await
+        .unwrap();
+    let events = context.repo.list_export_job_events(&job_id).await.unwrap();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].sequence, 1);
+
+    let retry_at = "2026-05-08T10:00:00Z";
+    let retry = context
+        .repo
+        .record_export_job_retry(&job_id, "telegram api down", retry_at)
+        .await
+        .unwrap()
+        .expect("job should exist");
+    assert_eq!(retry.status, ExportJobStatus::Queued);
+    assert_eq!(retry.attempt_count, 1);
+    assert_eq!(retry.next_attempt_at.as_deref(), Some(retry_at));
+    assert_eq!(
+        context
+            .repo
+            .find_next_due_export_job(retry_at)
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        job_id
+    );
+}
+
+#[tokio::test]
 async fn export_job_retry_state_tracks_attempts_and_due_time() {
     let repo = seeded_export_job_repo().await;
     let next_attempt_at = "2026-05-08T10:00:00Z";
@@ -481,6 +580,58 @@ async fn postgres_repo() -> Option<StorageRepository> {
     let pool = DbPool::connect(&config).await.unwrap();
     pool.run_migrations().await.unwrap();
     Some(StorageRepository::new(pool))
+}
+
+struct PgExportContext {
+    repo: StorageRepository,
+    suffix: String,
+    tenant_id: String,
+    user_id: String,
+    pack_id: String,
+    target_id: String,
+}
+
+async fn postgres_export_context() -> Option<PgExportContext> {
+    let repo = postgres_repo().await?;
+    let suffix = unique_suffix();
+    let tenant_id = format!("tenant_export_job_{suffix}");
+    let user_id = format!("user_export_job_{suffix}");
+    let pack_id = format!("pack_export_job_{suffix}");
+    let target_id = format!("target_export_job_{suffix}");
+
+    repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+    repo.create_user(&user_id, &format!("{user_id}@example.com"), "Leko")
+        .await
+        .unwrap();
+    repo.upsert_sticker_pack(
+        &pack_id,
+        &tenant_id,
+        &user_id,
+        PackVisibility::Private,
+        Some("telegram"),
+        &sample_pack(),
+    )
+    .await
+    .unwrap();
+    repo.create_export_target(NewExportTarget {
+        id: &target_id,
+        tenant_id: &tenant_id,
+        kind: "telegram.sticker_set",
+        name: "Telegram Bot",
+        config_json: "{}",
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+
+    Some(PgExportContext {
+        repo,
+        suffix,
+        tenant_id,
+        user_id,
+        pack_id,
+        target_id,
+    })
 }
 
 fn unique_suffix() -> String {

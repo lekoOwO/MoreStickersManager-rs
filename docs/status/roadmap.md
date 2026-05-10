@@ -15,6 +15,7 @@ compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Export job create/find/queue/retry/status/recovery/event repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
 - Export target create/list/find/update/delete repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
 - Subscription access-token create/list/find/verify/rotate/revoke repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - OIDC provider configuration, login-state, and provider-user-link repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
@@ -192,7 +193,7 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Move export job execution state, prepared-media cache, Telegram publication/mapping, provider, and portability repository operations off SQLite-only pool access toward backend-aware SQL execution.
+1. Move prepared-media cache, Telegram publication/mapping, provider, and portability repository operations off SQLite-only pool access toward backend-aware SQL execution.
 2. Continue expanding portability shared contract tests before adding PostgreSQL CI service wiring.
 
 ## Later Planned Work
