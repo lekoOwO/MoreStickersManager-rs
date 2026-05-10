@@ -91,6 +91,28 @@ pub struct OidcIdTokenClaims {
     pub issued_at: Option<i64>,
 }
 
+/// Parsed userinfo profile claims used as an ID-token profile fallback.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+pub struct OidcUserinfoClaims {
+    #[serde(rename = "sub")]
+    pub subject: String,
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub preferred_username: Option<String>,
+}
+
+impl OidcUserinfoClaims {
+    /// Returns the best available display name for the profile.
+    #[must_use]
+    pub fn display_name(&self) -> &str {
+        self.name
+            .as_deref()
+            .or(self.preferred_username.as_deref())
+            .or(self.email.as_deref())
+            .unwrap_or(&self.subject)
+    }
+}
+
 impl OidcJwksDocument {
     /// Selects a signature key matching an optional JWT `kid` and `alg`.
     #[must_use]
@@ -566,6 +588,22 @@ pub fn parse_token_response(body: &str) -> Result<OidcTokenResponse, OidcError> 
     })
 }
 
+/// Parses and validates a userinfo response.
+///
+/// # Errors
+///
+/// Returns an error when the body is not JSON or does not contain a non-empty
+/// subject.
+pub fn parse_userinfo_response(body: &str) -> Result<OidcUserinfoClaims, OidcError> {
+    let claims: OidcUserinfoClaims = serde_json::from_str(body)?;
+    if claims.subject.trim().is_empty() {
+        return Err(OidcError::InvalidTokenResponse(
+            "userinfo subject is missing".to_owned(),
+        ));
+    }
+    Ok(claims)
+}
+
 #[cfg(test)]
 mod tests {
     use msm_storage::models::OidcProviderConfigRecord;
@@ -796,6 +834,25 @@ mod tests {
 
         super::verify_id_token_signature(&parts, &jwks)
             .expect("matching JWKS key should verify signature");
+    }
+
+    #[test]
+    fn userinfo_parser_requires_subject_and_normalizes_profile_claims() {
+        let userinfo = super::parse_userinfo_response(
+            r#"{"sub":"subject-1","email":"leko@example.com","name":"Leko","preferred_username":"leko"}"#,
+        )
+        .expect("valid userinfo response should parse");
+
+        assert_eq!(userinfo.subject, "subject-1");
+        assert_eq!(userinfo.email.as_deref(), Some("leko@example.com"));
+        assert_eq!(userinfo.display_name(), "Leko");
+        assert!(super::parse_userinfo_response(r#"{"email":"missing-sub@example.com"}"#).is_err());
+
+        let fallback_name = super::parse_userinfo_response(
+            r#"{"sub":"subject-2","preferred_username":"leko2","email":"leko2@example.com"}"#,
+        )
+        .unwrap();
+        assert_eq!(fallback_name.display_name(), "leko2");
     }
 
     fn base64_url_no_pad(value: &str) -> String {

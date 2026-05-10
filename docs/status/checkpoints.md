@@ -1427,3 +1427,10 @@
   fields.
 - Kept userinfo fallback/claim derivation and non-API SSO surfaces as the next
   Phase D work.
+
+## 2026-05-10 OIDC Userinfo Parser Foundation
+
+- Added tested userinfo response parsing that requires a subject and normalizes
+  display-name fallback from name, preferred username, email, then subject.
+- Kept callback userinfo fetch fallback and non-API SSO admin/client surfaces
+  as the next Phase D work.
