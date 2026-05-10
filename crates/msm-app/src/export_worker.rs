@@ -274,6 +274,44 @@ pub struct TelegramPublicationRequest {
     pub publish_request: TelegramPublishRequest,
 }
 
+/// Request passed from the worker to a future remote export target executor.
+#[derive(Clone, Debug)]
+pub struct RemoteExportTargetRequest {
+    /// Export job ID.
+    pub job_id: String,
+    /// Tenant that owns the target and source pack.
+    pub tenant_id: String,
+    /// Source MSM pack ID.
+    pub source_pack_id: String,
+    /// Configured export target ID.
+    pub target_id: String,
+    /// Stable target kind, for example `signal` or `whatsapp`.
+    pub target_kind: String,
+    /// Target-specific configuration JSON.
+    pub target_config_json: String,
+    /// Original job request JSON.
+    pub job_request_json: String,
+    /// Source sticker pack snapshot to export.
+    pub sticker_pack: msm_domain::StickerPack,
+}
+
+/// Target-neutral execution result for future remote export targets.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RemoteExportTargetExecution {
+    /// Target kind handled by the executor.
+    pub target_kind: String,
+    /// Configured export target ID.
+    pub target_id: String,
+    /// Remote publication ID, if the target created or planned one.
+    pub remote_id: Option<String>,
+    /// Remote management or subscription URL, if available.
+    pub remote_url: Option<String>,
+    /// Human-readable execution summary.
+    pub message: String,
+    /// Whether the executor only planned the operation.
+    pub dry_run: bool,
+}
+
 /// Request passed from the worker to a Telegram mutation executor.
 #[derive(Debug)]
 pub struct TelegramMutationRequest {
@@ -303,6 +341,15 @@ pub trait TelegramPublicationExecutor: std::fmt::Debug + Send + Sync {
     ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<TelegramPublishedSet>> + Send + '_>>;
 }
 
+/// Boundary for remote export targets other than first-class Telegram publication.
+pub trait RemoteExportTargetExecutor: std::fmt::Debug + Send + Sync {
+    /// Executes or plans one future remote target export.
+    fn execute(
+        &self,
+        request: RemoteExportTargetRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<RemoteExportTargetExecution>> + Send + '_>>;
+}
+
 /// Boundary for applying Telegram sticker set mutations.
 pub trait TelegramMutationExecutor: std::fmt::Debug + Send + Sync {
     /// Applies ordered Telegram sticker set mutations.
@@ -319,6 +366,24 @@ pub trait TelegramRemoteStateExecutor: std::fmt::Debug + Send + Sync {
         &self,
         request: TelegramRemoteStateRequest,
     ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<TelegramFetchedStickerSet>> + Send + '_>>;
+}
+
+/// Default remote target executor used until a concrete target is implemented.
+#[derive(Debug, Default)]
+pub struct UnsupportedRemoteExportTargetExecutor;
+
+impl RemoteExportTargetExecutor for UnsupportedRemoteExportTargetExecutor {
+    fn execute(
+        &self,
+        request: RemoteExportTargetRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<RemoteExportTargetExecution>> + Send + '_>>
+    {
+        Box::pin(async move {
+            Err(ExportWorkerError::UnsupportedTargetKind {
+                kind: request.target_kind,
+            })
+        })
+    }
 }
 
 /// Telegram publication executor backed by `teloxide`.
@@ -522,6 +587,7 @@ pub struct ExportWorker {
     telegram_publication_executor: Arc<dyn TelegramPublicationExecutor>,
     telegram_mutation_executor: Arc<dyn TelegramMutationExecutor>,
     telegram_remote_state_executor: Arc<dyn TelegramRemoteStateExecutor>,
+    remote_export_target_executor: Arc<dyn RemoteExportTargetExecutor>,
 }
 
 impl ExportWorker {
@@ -596,6 +662,51 @@ impl ExportWorker {
         telegram_mutation_executor: Arc<dyn TelegramMutationExecutor>,
         telegram_remote_state_executor: Arc<dyn TelegramRemoteStateExecutor>,
     ) -> Self {
+        Self::with_all_executors(
+            repository,
+            config,
+            media_executor,
+            telegram_publication_executor,
+            telegram_mutation_executor,
+            telegram_remote_state_executor,
+            Arc::new(UnsupportedRemoteExportTargetExecutor),
+        )
+    }
+
+    /// Creates a worker with an explicit future remote target executor.
+    #[must_use]
+    pub fn with_remote_export_target_executor(
+        repository: StorageRepository,
+        config: ExportWorkerConfig,
+        remote_export_target_executor: Arc<dyn RemoteExportTargetExecutor>,
+    ) -> Self {
+        let media_executor = Arc::new(ProcessPreparedMediaExecutor::new(
+            config.ffmpeg_path.clone(),
+            config.prepared_media_dir.clone(),
+        ));
+        Self::with_all_executors(
+            repository,
+            config,
+            media_executor,
+            Arc::new(TeloxideTelegramPublicationExecutor),
+            Arc::new(TeloxideTelegramMutationExecutor),
+            Arc::new(TeloxideTelegramRemoteStateExecutor),
+            remote_export_target_executor,
+        )
+    }
+
+    /// Creates a worker with all executor boundaries injected.
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_all_executors(
+        repository: StorageRepository,
+        config: ExportWorkerConfig,
+        media_executor: Arc<dyn PreparedMediaExecutor>,
+        telegram_publication_executor: Arc<dyn TelegramPublicationExecutor>,
+        telegram_mutation_executor: Arc<dyn TelegramMutationExecutor>,
+        telegram_remote_state_executor: Arc<dyn TelegramRemoteStateExecutor>,
+        remote_export_target_executor: Arc<dyn RemoteExportTargetExecutor>,
+    ) -> Self {
         Self {
             repository,
             config,
@@ -603,6 +714,7 @@ impl ExportWorker {
             telegram_publication_executor,
             telegram_mutation_executor,
             telegram_remote_state_executor,
+            remote_export_target_executor,
         }
     }
 
@@ -720,9 +832,29 @@ impl ExportWorker {
                 self.plan_telegram_job(job, &target, &pack.sticker_pack)
                     .await
             }
-            kind => Err(ExportWorkerError::UnsupportedTargetKind {
-                kind: kind.to_owned(),
-            }),
+            _ => {
+                let execution = self
+                    .remote_export_target_executor
+                    .execute(RemoteExportTargetRequest {
+                        job_id: job.id.clone(),
+                        tenant_id: job.tenant_id.clone(),
+                        source_pack_id: job.source_pack_id.clone(),
+                        target_id: target.id,
+                        target_kind: target.kind,
+                        target_config_json: target.config_json,
+                        job_request_json: job.request_json.clone(),
+                        sticker_pack: pack.sticker_pack,
+                    })
+                    .await?;
+                Ok(WorkerJobResult::RemoteTarget {
+                    target_kind: execution.target_kind,
+                    target_id: execution.target_id,
+                    remote_id: execution.remote_id,
+                    remote_url: execution.remote_url,
+                    message: execution.message,
+                    dry_run: execution.dry_run,
+                })
+            }
         }
     }
 
@@ -1534,6 +1666,16 @@ enum WorkerJobResult {
         applied_mutation_count: usize,
         reconciliation: TelegramReconciliationDryRunSummary,
         prepared_media: Vec<CachedPreparedMediaSummary>,
+        dry_run: bool,
+    },
+    RemoteTarget {
+        target_kind: String,
+        target_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        remote_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        remote_url: Option<String>,
+        message: String,
         dry_run: bool,
     },
 }

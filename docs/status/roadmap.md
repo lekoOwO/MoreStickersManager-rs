@@ -8,17 +8,15 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 ## Current Focus
 
-Phase E provider ingestion is the active focus. Provider import planning exists
-across API, CLI, MCP, and Web; API job persistence exists; and `msm-app` now has
-a tested worker foundation that can execute queued LINE direct-asset imports
-from the service loop when enabled.
-
-Provider import execution now handles LINE fixture-schema/direct-asset payloads,
-LINE product pages with embedded metadata, and Telegram `getFile` asset
-downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web management now exist; worker credential consumption now applies enabled configs during provider import execution.
+Phase G export/publication targets are the active focus. MoreStickers export,
+Telegram planning/publication/reconciliation, prepared-media conversion, and
+non-Telegram remote target execution boundaries now exist. The next work is
+surface parity for every implemented target and recovery tooling for failed or
+partially-applied remote publication jobs.
 
 ## Recently Completed
 
+- Non-Telegram remote export targets now dispatch through `RemoteExportTargetExecutor`, an injectable worker boundary that receives job/target/config/pack snapshots and returns target-neutral remote execution summaries while the default executor safely rejects unsupported future targets.
 - Provider config CLI commands now exist for list/upsert/delete with human/JSON
   output and PAT forwarding to the protected API.
 - Web desktop/mobile UX was reworked into a native-feeling desktop rail plus a
@@ -174,9 +172,8 @@ downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-sco
 
 ## Immediate Plan
 
-1. Start Phase G export/publication target work with export-target execution abstraction for non-Telegram remote targets.
-2. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band,
-   OGQ, and Viber if any are still missing.
+1. Continue Phase G export/publication target work with Web/API/CLI/MCP target parity checks for implemented targets.
+2. Add recovery tooling for failed or partially-applied Telegram and future remote publication jobs.
 
 ## Later Planned Work
 

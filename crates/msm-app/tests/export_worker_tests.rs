@@ -3,7 +3,8 @@ use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 use msm_app::{
     ConversionCommandOutput, ConversionCommandRunner, ExportWorker, ExportWorkerConfig,
     ExportWorkerResult, PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest,
-    ProcessPreparedMediaExecutor, TelegramMutationExecutor, TelegramMutationRequest,
+    ProcessPreparedMediaExecutor, RemoteExportTargetExecution, RemoteExportTargetExecutor,
+    RemoteExportTargetRequest, TelegramMutationExecutor, TelegramMutationRequest,
     TelegramPublicationExecutor, TelegramPublicationRequest, TelegramRemoteStateExecutor,
     TelegramRemoteStateRequest,
 };
@@ -58,6 +59,61 @@ async fn worker_runs_moresticker_export_job_without_remote_calls() {
     let events = repo.list_export_job_events("job_1").await.unwrap();
     assert_eq!(events[0].stage, "running");
     assert_eq!(events[1].stage, "succeeded");
+}
+
+#[tokio::test]
+async fn worker_dispatches_future_remote_export_targets_through_executor_boundary() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_signal",
+        tenant_id: "tenant_1",
+        kind: "signal",
+        name: "Signal",
+        config_json: r#"{"endpoint":"https://signal.example/api"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_signal",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_signal",
+        request_json: r#"{"options":{"dryRun":true}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let executor = Arc::new(FakeRemoteExportTargetExecutor::default());
+    let worker = ExportWorker::with_remote_export_target_executor(
+        repo.clone(),
+        worker_config(),
+        executor.clone(),
+    );
+
+    let completed = worker.run_job("job_signal").await.unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
+    assert_eq!(result["kind"], "remoteTarget");
+    assert_eq!(result["targetKind"], "signal");
+    assert_eq!(result["targetId"], "target_signal");
+    assert_eq!(result["remoteId"], "signal-draft-1");
+    assert_eq!(
+        result["remoteUrl"],
+        "https://signal.example/packs/signal-draft-1"
+    );
+    assert_eq!(result["dryRun"], true);
+
+    let calls = executor.calls.lock().unwrap();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].target_kind, "signal");
+    assert_eq!(
+        calls[0].target_config_json,
+        r#"{"endpoint":"https://signal.example/api"}"#
+    );
+    assert_eq!(calls[0].pack_title, "Sample");
 }
 
 #[tokio::test]
@@ -1121,6 +1177,45 @@ impl PreparedMediaExecutor for FakePreparedMediaExecutor {
             }))
         })
     }
+}
+
+#[derive(Debug, Default)]
+struct FakeRemoteExportTargetExecutor {
+    calls: std::sync::Mutex<Vec<RecordedRemoteExportTargetCall>>,
+}
+
+impl RemoteExportTargetExecutor for FakeRemoteExportTargetExecutor {
+    fn execute(
+        &self,
+        request: RemoteExportTargetRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<RemoteExportTargetExecution>> + Send + '_>>
+    {
+        Box::pin(async move {
+            self.calls
+                .lock()
+                .unwrap()
+                .push(RecordedRemoteExportTargetCall {
+                    target_kind: request.target_kind.clone(),
+                    target_config_json: request.target_config_json.clone(),
+                    pack_title: request.sticker_pack.title.clone(),
+                });
+            Ok(RemoteExportTargetExecution {
+                target_kind: request.target_kind,
+                target_id: request.target_id,
+                remote_id: Some("signal-draft-1".to_owned()),
+                remote_url: Some("https://signal.example/packs/signal-draft-1".to_owned()),
+                message: "future remote target dispatched".to_owned(),
+                dry_run: true,
+            })
+        })
+    }
+}
+
+#[derive(Debug)]
+struct RecordedRemoteExportTargetCall {
+    target_kind: String,
+    target_config_json: String,
+    pack_title: String,
 }
 
 #[derive(Debug)]

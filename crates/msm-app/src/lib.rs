@@ -29,10 +29,11 @@ pub use export_worker::{
     spawn_export_worker_if_enabled, ConversionCommandOutput, ConversionCommandRunner, ExportWorker,
     ExportWorkerConfig, ExportWorkerError, ExportWorkerResult, PreparedMediaExecutor,
     PreparedMediaOutput, PreparedMediaRequest, ProcessPreparedMediaExecutor,
+    RemoteExportTargetExecution, RemoteExportTargetExecutor, RemoteExportTargetRequest,
     TelegramMutationExecutor, TelegramMutationRequest, TelegramPublicationExecutor,
     TelegramPublicationRequest, TelegramRemoteStateExecutor, TelegramRemoteStateRequest,
     TeloxideTelegramMutationExecutor, TeloxideTelegramPublicationExecutor,
-    TeloxideTelegramRemoteStateExecutor,
+    TeloxideTelegramRemoteStateExecutor, UnsupportedRemoteExportTargetExecutor,
 };
 pub use provider_import::{
     internalize_direct_remote_pack_assets, ProviderAssetDownloader, ProviderImportError,

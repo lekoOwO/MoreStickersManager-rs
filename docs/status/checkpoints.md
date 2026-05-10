@@ -1697,3 +1697,12 @@
 - Added `PreparedMediaSpec::validate_probe_report` to validate ffprobe facts against reusable target profile constraints.
 - Validation covers required canvas dimensions, maximum file size, and maximum duration.
 - Added focused media validation tests for Telegram static and video profiles; Phase F media conversion is now complete in the PRD.
+
+
+## 2026-05-10 Non-Telegram Remote Export Target Boundary
+
+- Added `RemoteExportTargetExecutor` with request/result DTOs for future remote export targets such as Signal, WhatsApp, Kakao, Band, OGQ, and Viber.
+- Export worker now dispatches non-MoreStickers/non-Telegram target kinds through the injected remote target executor and serializes successful outcomes as target-neutral `remoteTarget` job results.
+- The default executor preserves safe behavior by returning the existing unsupported-target error until concrete target adapters are implemented.
+- Added focused worker coverage proving a future `signal` target receives job, target config, and pack snapshots through the boundary.
+- Updated PRD/status docs; next Phase G slice should verify/close Web/API/CLI/MCP parity for implemented targets and then add publication recovery tooling.

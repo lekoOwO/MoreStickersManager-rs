@@ -76,7 +76,7 @@ Status meanings:
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, provider import job tools, and provider credential/config tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, planned-provider registry placeholders, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Provider import worker credential consumption now exists for enabled tenant-scoped configs; concrete future-provider implementations remain incomplete. |
-| Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
+| Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. Non-Telegram remote targets now dispatch through an injectable execution boundary with target-neutral result reporting; concrete future target implementations remain incomplete. |
 | Media conversion | Implemented | Profiles, ffmpeg command plans, ffprobe command/report parsing, converter stdout/stderr/exit-code diagnostics, prepared-media cache reuse, export-job result visibility for output metadata, and target-specific validation exist. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
 | Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Start Phase G export/publication target work: export-target execution abstraction for non-Telegram remote targets.
+1. Continue Phase G export/publication target work: Web/API/CLI/MCP target parity for all implemented targets and recovery tools for failed or partially-applied remote publication jobs.
 
 Each queue item must update this section when completed or reordered.
 
@@ -278,7 +278,8 @@ tests and docs are updated.
 - [x] MoreStickers target serialization.
 - [x] Telegram create/append publication foundation.
 - [x] Telegram reconciliation planning and guarded mutation execution.
-- [ ] Export-target execution abstraction for non-Telegram remote targets.
+- [x] Export-target execution abstraction for non-Telegram remote targets.
+  Progress: `RemoteExportTargetExecutor` now receives target/job/config/pack snapshots for future remote targets and returns target-neutral execution summaries. The default executor safely reports unsupported target kinds until concrete target adapters are implemented.
 - [ ] Web/API/CLI/MCP target parity for all implemented targets.
 - [ ] Recovery tools for failed or partially-applied remote publication jobs.
 

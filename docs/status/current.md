@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: Provider ingestion / queued import execution.
+Phase: Export/publication targets.
 
 Last completed:
 - P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Start Phase G export/publication target work with export-target execution abstraction for non-Telegram remote targets.
+- Continue Phase G export/publication target work with Web/API/CLI/MCP parity checks for implemented targets, then recovery tools for failed or partially-applied remote publication jobs.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -268,9 +268,10 @@ Last verification:
 - Prepared media cache reuse slice: export worker now reuses matching `prepared_media_assets` records by source asset hash and profile key before invoking the media executor.
 - Prepared media surface visibility slice: export job result `preparedMedia` entries now include converter stdout, stderr, and exit code for newly converted assets, making diagnostics visible through existing API/CLI/MCP/Web job read surfaces.
 - Target-specific media validation slice: `PreparedMediaSpec::validate_probe_report` validates ffprobe dimensions, file size, and duration against reusable target profile constraints.
+- Non-Telegram remote export target abstraction slice: `RemoteExportTargetExecutor` now dispatches future target kinds with job/target/config/pack snapshots and serializes target-neutral `remoteTarget` results while the default executor safely rejects unsupported kinds.
 
 Next step:
-- Phase F media conversion checklist is complete. Next slice should start Phase G export/publication target work with non-Telegram remote target execution abstraction.
+- Phase G should continue with Web/API/CLI/MCP parity checks for implemented targets, then recovery tools for failed or partially-applied remote publication jobs.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
