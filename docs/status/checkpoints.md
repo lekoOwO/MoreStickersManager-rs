@@ -2003,3 +2003,8 @@
 - Audited existing provider import worker coverage for LINE fixture imports, LINE product-page metadata imports, Telegram `getFile` asset resolution/downloads, enabled provider credential usage, and retry requeue behavior.
 - Marked Phase E Telegram network fetch, LINE network fetch, and provider job progress/retry complete in the PRD.
 - Removed stale user/README wording that described provider runtime parsing, downloads, Web controls, and worker credential consumption as pending.
+## 2026-05-11 Current-Contract Status Normalization
+
+- Updated PRD Current Status rows from stale partial labels to implemented labels where roadmap checkboxes and implementation evidence already close the current contract.
+- Refreshed README media/export environment wording that still described ffprobe/conversion as future work.
+- Updated implementation-matrix partial rows for tenant admin, export targets/jobs, Telegram export, subscription groups, pack sharing visibility, and asset privacy to distinguish implemented current scope from future enhancements.

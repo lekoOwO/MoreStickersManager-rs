@@ -121,9 +121,7 @@ Remote provider import execution is implemented for the current Telegram and LIN
 P24 started the export pipeline design for target-specific conversion and remote
 publication. The current P33 focus is Telegram remote reconciliation usability:
 
-- `msm-media`: partially implemented media kinds, Telegram static/video/thumbnail
-  profiles, prepared output specs, conversion plan selection, and shell-free
-  ffmpeg command planning. Media probing remains planned.
+- `msm-media`: implemented media kinds, Telegram static/video/thumbnail profiles, prepared output specs, conversion plan selection, shell-free ffmpeg command planning, ffprobe report parsing, conversion diagnostics, prepared-media cache reuse, and target-specific validation.
 - `msm-exporters`: target registry for MoreStickers, Telegram, and future
   output targets. The base trait, capability metadata, request/plan types,
   duplicate-safe registry, concrete MoreStickers export target, Telegram sticker
@@ -238,10 +236,10 @@ Environment variables:
 - `MSM_REQUEST_BODY_LIMIT_BYTES`: maximum request body size accepted by the API/app router before JSON upload/import parsing, default `10485760` (10 MiB).
 - `MSM_IMPORT_RATE_LIMIT_REQUESTS`: requests allowed per identity for import-like routes in one window, default `60`.
 - `MSM_IMPORT_RATE_LIMIT_WINDOW_SECS`: import-like route rate-limit window length in seconds, default `60`.
-- `MSM_FFMPEG_PATH`: ffmpeg path for future export conversion execution, default `ffmpeg`.
-- `MSM_FFPROBE_PATH`: ffprobe path for future export probing execution, default `ffprobe`.
+- `MSM_FFMPEG_PATH`: ffmpeg path for export conversion execution, default `ffmpeg`.
+- `MSM_FFPROBE_PATH`: ffprobe path for export probing execution, default `ffprobe`.
 - `MSM_PREPARED_MEDIA_DIR`: prepared media output directory, default `data/prepared-media`.
-- `MSM_EXPORT_MAX_CONCURRENT_JOBS`: future export worker concurrency, default `1`.
+- `MSM_EXPORT_MAX_CONCURRENT_JOBS`: reserved export worker concurrency setting, default `1`.
 - `MSM_EXPORT_WORKER_ENABLED`: set to `true` to spawn the export worker polling loop, default `false`.
 - `MSM_EXPORT_WORKER_POLL_INTERVAL_MS`: export worker poll interval, default `5000`.
 - `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`: optional JSON array of export targets to create/update at startup.
@@ -367,8 +365,7 @@ Bearer PAT scopes are enforced on protected API routes and MCP `tools/call`:
 - `tenant.manage_roles`: list and update tenant role templates.
 
 API `healthz`, OpenAPI, PAT lifecycle endpoints, MCP `initialize`, MCP `ping`,
-and MCP `tools/list` remain public in this bootstrap slice. OIDC-backed admin
-enforcement is a later phase.
+and MCP `tools/list` remain public metadata surfaces. OIDC-backed users receive the same PAT/RBAC enforcement as local users after callback completion.
 
 P18 adds local password bootstrap APIs:
 
