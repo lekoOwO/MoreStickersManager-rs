@@ -78,7 +78,7 @@ with the same protected planning payload and records an initial queued event.
 A tested app worker foundation can execute LINE fixture-schema/direct-asset jobs,
 LINE product pages with embedded metadata, and Telegram `getFile` asset
 downloads; service startup can run that worker loop when enabled. Provider
-credential/config Web UI now exists in the provider workspace. CLI can list/upsert/delete
+credential/config Web UI now exists in the provider workspace. Provider import worker execution loads enabled tenant-scoped configs, applies `apiBaseUrl`/`baseUrl` defaults, and replaces Telegram `<token>` placeholders with `botToken`/`token`. CLI can list/upsert/delete
 tenant-scoped provider configs, MCP exposes matching tools, and CLI, MCP, and Web can create provider
 import jobs and read job status/events.
 

@@ -12,7 +12,7 @@ use msm_app::{
 };
 use msm_providers::ProviderRemoteFetchPlan;
 use msm_storage::{
-    models::{ExportJobStatus, NewProviderImportJob},
+    models::{ExportJobStatus, NewProviderConfig, NewProviderImportJob},
     DatabaseConfig, DbPool, LocalAssetStore, StorageRepository,
 };
 
@@ -292,6 +292,77 @@ async fn provider_import_worker_resolves_telegram_get_file_assets() {
             .unwrap(),
         b"telegram-webp"
     );
+}
+
+#[tokio::test]
+async fn provider_import_worker_uses_enabled_provider_config_credentials() {
+    let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
+    let pool = DbPool::connect(&config).await.unwrap();
+    pool.run_migrations().await.unwrap();
+    let repo = StorageRepository::new(pool);
+    repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+    repo.create_user("user_1", "leko@example.com", "Leko")
+        .await
+        .unwrap();
+    repo.upsert_provider_config(NewProviderConfig {
+        id: "provider_telegram",
+        tenant_id: "tenant_1",
+        provider_id: "telegram",
+        name: "Telegram Import Bot",
+        config_json: r#"{"botToken":"123456:secret","apiBaseUrl":"https://telegram.test"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_provider_import_job(NewProviderImportJob {
+        id: "provider_job_tg_config",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        provider_id: "telegram",
+        remote_id: "cat_pack",
+        target_pack_id: Some("pack_cat_config"),
+        request_json: r#"{
+            "providerId": "telegram",
+            "remoteId": "cat_pack",
+            "targetPackId": "pack_cat_config",
+            "baseUrl": null
+        }"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let metadata_url = "https://telegram.test/bot123456:secret/getStickerSet?name=cat_pack";
+    let get_file_url = "https://telegram.test/bot123456:secret/getFile?file_id=file_1";
+    let fetcher = Arc::new(FakeFetcher::new_map(BTreeMap::from([
+        (metadata_url.to_owned(), telegram_metadata()),
+        (
+            get_file_url.to_owned(),
+            br#"{"ok":true,"result":{"file_path":"stickers/file_1.webp"}}"#.to_vec(),
+        ),
+    ])));
+    let worker = ProviderImportWorker::new(
+        repo.clone(),
+        LocalAssetStore::new(temp.path()),
+        ProviderImportWorkerConfig {
+            enabled: false,
+            public_asset_base_url: "https://msm.example.test".to_owned(),
+            poll_interval: Duration::from_millis(5),
+            retry_backoff: Duration::from_millis(5),
+        },
+        fetcher.clone(),
+        Arc::new(FakeDownloader::new(BTreeMap::from([(
+            "https://telegram.test/file/bot123456:secret/stickers/file_1.webp".to_owned(),
+            b"telegram-webp".to_vec(),
+        )]))),
+    );
+
+    let job = worker.run_job("provider_job_tg_config").await.unwrap();
+    let seen_urls = fetcher.seen_urls.lock().unwrap().clone();
+
+    assert_eq!(job.status, ExportJobStatus::Succeeded);
+    assert!(seen_urls.contains(&metadata_url.to_owned()));
+    assert!(seen_urls.contains(&get_file_url.to_owned()));
 }
 
 struct FakeFetcher {

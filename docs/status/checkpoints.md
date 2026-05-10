@@ -1655,3 +1655,10 @@
 - Added provider workspace controls for provider config ID/source/name/enabled state, JSON credential payload editing, redacted response display, refresh, and delete actions.
 - Added focused API-client and component coverage for bearer auth, redacted config preservation, Web upsert, and Web deletion flows.
 - Updated PRD/status/provider/user docs; next Phase E slice should wire provider import jobs to consume enabled provider configs before planned-provider placeholders.
+
+## 2026-05-10 Provider Config Worker Consumption
+
+- Provider import worker now loads enabled tenant-scoped provider configs for the job provider.
+- Runtime planning uses config `apiBaseUrl`/`baseUrl` when the queued job does not provide an explicit base URL.
+- Telegram worker execution replaces Bot API `<token>` placeholders from config `botToken`/`token`, covering metadata, `getFile`, and file download URLs.
+- Added focused worker coverage for credential-backed Telegram imports; next Phase E slice should add planned-provider placeholders.

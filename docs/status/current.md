@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Wire provider import jobs to consume enabled provider configs, then add planned-provider placeholders.
+- Add planned-provider placeholders for Signal, WhatsApp, Kakao, Band, OGQ, and Viber.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -261,9 +261,10 @@ Last verification:
 - Provider config CLI slice: added `msm providers configs list/upsert/delete`, CLI DTO/client support for provider config API routes, human/JSON output formatting, parser coverage, and fake-client execution tests. Focused RED/GREEN verification used `cargo test -p msm-cli provider_config --locked` with Rust temp paths pointed at `D:\Temp`.
 - Provider config MCP slice: added provider config list/upsert/delete tools, registry schemas, tenant-member list authorization, tenant-admin write authorization, recursive token/secret redaction, and focused tool-call coverage. Focused RED/GREEN verification used `cargo test -p msm-mcp provider_config --locked` with Rust temp paths pointed at `D:\Temp`.
 - Provider config Web slice: added provider config API client methods, provider workspace controls for list/upsert/delete, redacted JSON display, and focused client/component tests. Focused RED/GREEN verification used `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client`.
+- Provider config worker consumption slice: provider import worker now loads the first enabled tenant-scoped provider config for the job provider, uses config `apiBaseUrl`/`baseUrl` when the job has no override, and replaces Telegram `<token>` placeholders from `botToken`/`token` before metadata, getFile, and file download execution.
 
 Next step:
-- Continue Phase E by wiring provider import jobs to consume enabled provider configs before planned-provider placeholders.
+- Continue Phase E with planned-provider placeholders for Signal, WhatsApp, Kakao, Band, OGQ, and Viber.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

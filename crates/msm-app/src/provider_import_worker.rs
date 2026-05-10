@@ -7,7 +7,10 @@ use msm_providers::{
     ProviderRemoteFetchPlan, StickerProvider,
 };
 use msm_storage::{
-    models::{ExportJobStatus, NewProviderImportJobEvent, PackVisibility, ProviderImportJobRecord},
+    models::{
+        ExportJobStatus, NewProviderImportJobEvent, PackVisibility, ProviderConfigRecord,
+        ProviderImportJobRecord,
+    },
     LocalAssetStore, StorageRepository,
 };
 use serde::{Deserialize, Serialize};
@@ -307,11 +310,21 @@ impl ProviderImportWorker {
         job: &ProviderImportJobRecord,
     ) -> ProviderImportWorkerResult<ProviderImportWorkerJobResult> {
         let request: WorkerProviderImportJobRequest = serde_json::from_str(&job.request_json)?;
-        let plan = provider_import_plan(
+        let provider_settings = self
+            .enabled_provider_settings(&job.tenant_id, &request.provider_id)
+            .await?;
+        let base_url = request
+            .base_url
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_owned)
+            .or_else(|| provider_settings.api_base_url.clone());
+        let mut plan = provider_import_plan(
             &request.provider_id,
             &request.remote_id,
-            request.base_url.as_deref(),
+            base_url.as_deref(),
         )?;
+        apply_provider_settings(&mut plan, &provider_settings);
         let metadata_bytes = self.metadata_fetcher.fetch_metadata(&plan).await?;
         let metadata = String::from_utf8_lossy(&metadata_bytes);
         let telegram_files = if request.provider_id == "telegram" {
@@ -360,6 +373,21 @@ impl ProviderImportWorker {
         })
     }
 
+    async fn enabled_provider_settings(
+        &self,
+        tenant_id: &str,
+        provider_id: &str,
+    ) -> ProviderImportWorkerResult<ProviderCredentialSettings> {
+        let configs = self.repository.list_provider_configs(tenant_id).await?;
+        let Some(config) = configs
+            .iter()
+            .find(|config| config.provider_id == provider_id && config.is_enabled)
+        else {
+            return Ok(ProviderCredentialSettings::default());
+        };
+        provider_credential_settings(config)
+    }
+
     async fn append_event(
         &self,
         job_id: &str,
@@ -394,6 +422,45 @@ struct WorkerProviderImportJobRequest {
     remote_id: String,
     target_pack_id: Option<String>,
     base_url: Option<String>,
+}
+
+#[derive(Debug, Default)]
+struct ProviderCredentialSettings {
+    api_base_url: Option<String>,
+    bot_token: Option<String>,
+}
+
+fn provider_credential_settings(
+    config: &ProviderConfigRecord,
+) -> ProviderImportWorkerResult<ProviderCredentialSettings> {
+    let value: serde_json::Value = serde_json::from_str(&config.config_json)?;
+    Ok(ProviderCredentialSettings {
+        api_base_url: config_string(
+            &value,
+            &["apiBaseUrl", "api_base_url", "baseUrl", "base_url"],
+        ),
+        bot_token: config_string(&value, &["botToken", "bot_token", "token"]),
+    })
+}
+
+fn config_string(value: &serde_json::Value, keys: &[&str]) -> Option<String> {
+    keys.iter()
+        .filter_map(|key| value.get(*key))
+        .filter_map(serde_json::Value::as_str)
+        .map(str::trim)
+        .find(|value| !value.is_empty())
+        .map(str::to_owned)
+}
+
+fn apply_provider_settings(
+    plan: &mut ProviderRemoteFetchPlan,
+    settings: &ProviderCredentialSettings,
+) {
+    if plan.provider_id == "telegram" {
+        if let Some(bot_token) = settings.bot_token.as_deref() {
+            plan.metadata_request.url = plan.metadata_request.url.replace("<token>", bot_token);
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]

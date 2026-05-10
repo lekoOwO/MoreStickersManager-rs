@@ -431,7 +431,7 @@ Provider import credential management is available through the Web provider work
 - `PUT /api/v1/provider-configs/{config_id}`
 - `DELETE /api/v1/provider-configs/{config_id}`
 
-The Web provider credential panel can list, upsert, and delete tenant-scoped provider configs, and shows the API-redacted JSON returned by the server. Provider config responses redact keys containing `token` or `secret` at any JSON
+The Web provider credential panel can list, upsert, and delete tenant-scoped provider configs, and shows the API-redacted JSON returned by the server. Enabled provider configs are used by provider import jobs when the job request does not provide an explicit base URL; Telegram configs can provide `botToken`/`token` for Bot API execution. Provider config responses redact keys containing `token` or `secret` at any JSON
 depth. Update requests replace the stored config with the submitted JSON.
 Listing requires `provider.import` and tenant membership; create/update/delete
 require `provider.import` plus tenant admin or a custom role that grants provider
