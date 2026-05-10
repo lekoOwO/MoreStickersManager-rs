@@ -3,6 +3,7 @@
 Phase: Completion audit after production hardening.
 
 Last completed:
+- OIDC documentation closure slice: added `docs/user/oidc-sso.md`, removed stale partial-SSO wording from README/user docs, and marked the PRD OIDC login/callback flow complete based on existing API/Web/JWKS/userinfo/PAT-session coverage.
 - MCP transport contract slice: closed the Phase K MCP session/auth/SSE hardening item by documenting `/mcp` as stateless JSON-RPC over POST, no-store, Bearer-PAT protected for `tools/call`, and intentionally non-SSE/non-sessioned in `docs/dev/mcp-transport-contract.md`.
 - Security review slice: added `docs/status/security-review.md` covering token/session/subscription/OIDC storage, local password hashing, API/MCP/Web redaction behavior, private asset authorization, CDN/logging caveats, and residual hardening follow-ups.
 - Backup/restore runbook slice: added `docs/user/backup-restore-runbook.md` covering SQLite/PostgreSQL backups, asset/prepared-media directories, secrets/config, restore steps, portable migration boundaries, `/readyz` verification, and restore drills.

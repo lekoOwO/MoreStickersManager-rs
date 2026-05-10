@@ -437,8 +437,7 @@ OIDC provider administration currently has API/OpenAPI, CLI, MCP, and Web tenant
 
 Provider responses redact `clientSecret`; update calls replace it with the
 submitted secret. These routes require `tenant.manage_settings` and an admin
-tenant membership. End-user Web SSO login-start and callback completion controls
-exist; full SSO-backed account documentation remains planned.
+tenant membership. End-user Web SSO login-start and callback completion controls exist, including authorization-code exchange, verified ID-token/JWKS handling, userinfo fallback, PAT/session issuance, and `docs/user/oidc-sso.md` usage guidance.
 
 Tenant role template administration currently has API/OpenAPI, CLI, MCP, and
 Web support:

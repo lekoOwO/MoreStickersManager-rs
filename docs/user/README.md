@@ -122,8 +122,7 @@ The browser stores the pending state/nonce and pre-fills the callback form when
 the provider redirects back to `/auth/oidc/callback?code=...&state=...`. Confirm
 or enter the authorization code, state, nonce, and fallback claim fields in the
 callback completion area. A successful callback stores the returned PAT through
-the same browser-local path as local login. Full SSO-backed account
-documentation is still in progress.
+the same browser-local path as local login. Full SSO-backed account documentation is available in `docs/user/oidc-sso.md`.
 
 The dashboard can rename packs, change public/private visibility, and delete
 packs when the stored PAT has `pack.update` and `pack.delete`.
@@ -684,13 +683,7 @@ The Web UI can call these endpoints when `VITE_MSM_API_BASE_URL` is configured.
 Successful Web login stores the returned PAT in browser localStorage and keeps
 the API-issued cookie for Web-session protected asset reads.
 
-OIDC provider login is partially implemented. The login start endpoint returns
-an authorization URL plus one-time state and nonce values. The callback endpoint
-currently expects already-validated provider claims, verifies state, nonce,
-issuer, and audience, then consumes the state, links or creates a tenant user
-when the provider allows registration, returns a PAT, and sets an `msm_session`
-cookie. Full authorization-code exchange, ID-token/JWKS validation, userinfo
-fetching, and Web SSO controls remain planned Phase D work.
+OIDC provider login is implemented for the current Web/API contract. The login start endpoint returns an authorization URL plus one-time state and nonce values. The callback endpoint can exchange an authorization code, verify ID-token issuer/audience/nonce/expiration and RS256 JWKS signature, fetch userinfo when profile claims are missing, link or create a tenant user when provider registration allows it, return a PAT, and set an `msm_session` cookie. See `docs/user/oidc-sso.md` for the full SSO-backed account guide.
 
 Local register can also bootstrap a tenant admin:
 
@@ -837,7 +830,7 @@ When `authorizationCode` yields a verifiable ID token or userinfo response, the
 API derives subject/email/display name from the provider response instead of the
 fallback fields.
 
-The provider configuration API request body is:
+The provider configuration API request body is documented below and in `docs/user/oidc-sso.md`:
 
 ```json
 {

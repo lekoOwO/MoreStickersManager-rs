@@ -1993,3 +1993,8 @@
 - Documented `/mcp` as a stateless JSON-RPC-over-POST endpoint with no server-side MCP session IDs and no SSE/resumability support in the current contract.
 - Recorded Bearer PAT header requirements, no-store response behavior, proxy/deployment expectations, and regression-test evidence in `docs/dev/mcp-transport-contract.md`.
 - Updated PRD/status docs so Phase K MCP session/auth/SSE hardening is closed and the next step is the end-to-end PRD completion audit.
+## 2026-05-11 OIDC Documentation Closure
+
+- Added `docs/user/oidc-sso.md` with provider administration, Web login, callback request, and PAT/CLI/MCP usage guidance.
+- Removed stale README/user-doc wording that described OIDC authorization-code, JWKS, userinfo, and Web SSO controls as future work.
+- Updated PRD/status docs to mark the OIDC login/callback flow complete based on existing API tests and documented user-facing flows.

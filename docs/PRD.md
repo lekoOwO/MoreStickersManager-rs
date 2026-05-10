@@ -79,7 +79,7 @@ Status meanings:
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. Non-Telegram remote targets now dispatch through an injectable execution boundary with target-neutral result reporting; concrete future target implementations remain incomplete. |
 | Media conversion | Implemented | Profiles, ffmpeg command plans, ffprobe command/report parsing, converter stdout/stderr/exit-code diagnostics, prepared-media cache reuse, export-job result visibility for output metadata, and target-specific validation exist. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
-| Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
+| Auth/RBAC | Implemented | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, OIDC provider administration, OIDC login/callback with authorization-code exchange, verified ID-token/JWKS and userinfo handling, SSO-backed PAT/session issuance, SSO usage docs, and cross-tenant audit coverage exist. |
 | Asset privacy/CDN | Partially complete | Tenant public asset/CDN URL settings exist across API/OpenAPI, CLI, MCP, and Web. `MSM_PUBLIC_ASSET_URL` provides a system-wide fallback CDN base, and tenant settings take precedence. Protected pack exports and public pack/subscription payloads rewrite local sticker asset URLs to the selected CDN base when configured. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. |
 | Data portability | Implemented | Storage helpers plus API/OpenAPI, CLI, Web, and MCP portable user export/import surfaces exist, with cross-instance API compatibility coverage for moving user data between MSM instances. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -188,7 +188,7 @@ tests and docs are updated.
   routes now store per-tenant OIDC provider configs with issuer, redacted client
   credentials, scopes, enabled state, and registration policy. API, CLI, MCP, and Web
   list/upsert/delete/provider-management parity now exist.
-- [ ] OIDC login/callback flow.
+- [x] OIDC login/callback flow.
   Progress: API now starts OIDC login by creating one-time hashed state and
   nonce tokens and building provider authorization URLs. The callback endpoint
   verifies state/nonce, validates trusted issuer and audience claims, then
@@ -207,8 +207,7 @@ tests and docs are updated.
   fallback. Callback completion now fetches userinfo when a verified ID token
   omits email/name, validates userinfo subject against the ID-token subject, and
   uses validated userinfo profile claims for user/link creation. Web auth can
-  now start login and complete callback requests from the dialog. Remaining work:
-  user-facing SSO documentation.
+  now start login and complete callback requests from the dialog. User-facing SSO documentation now exists in `docs/user/oidc-sso.md` and the user README.
 - [x] Web SSO login controls.
   Progress: Web tenant administration now lists, creates/updates, and deletes
   OIDC providers. The Web auth dialog can start OIDC login, call the live
