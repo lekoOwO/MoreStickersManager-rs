@@ -435,8 +435,19 @@ Provider config responses redact keys containing `token` or `secret` at any JSON
 depth. Update requests replace the stored config with the submitted JSON.
 Listing requires `provider.import` and tenant membership; create/update/delete
 require `provider.import` plus tenant admin or a custom role that grants provider
-import management. CLI, MCP, Web controls and worker consumption of these stored
-configs are still in progress.
+import management. CLI controls are available; MCP/Web controls and worker
+consumption of these stored configs are still in progress.
+
+CLI equivalents:
+
+```bash
+msm providers configs list --tenant-id tenant_1
+msm providers configs upsert --id provider_telegram --tenant-id tenant_1 --provider-id telegram --name "Telegram Import Bot" --config-json '{"botToken":"123456:secret","apiBaseUrl":"https://api.telegram.org"}'
+msm providers configs delete --id provider_telegram
+```
+
+Use `--disabled` on `upsert` to store a config without allowing later worker
+consumption.
 
 Example API body for a Telegram import config:
 

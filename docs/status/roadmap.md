@@ -15,10 +15,12 @@ from the service loop when enabled.
 
 Provider import execution now handles LINE fixture-schema/direct-asset payloads,
 LINE product pages with embedded metadata, and Telegram `getFile` asset
-downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-scoped provider credential/config storage and API/OpenAPI management now exist; CLI/MCP/Web controls and worker credential consumption remain next.
+downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-scoped provider credential/config storage plus API/OpenAPI and CLI management now exist; MCP/Web controls and worker credential consumption remain next.
 
 ## Recently Completed
 
+- Provider config CLI commands now exist for list/upsert/delete with human/JSON
+  output and PAT forwarding to the protected API.
 - Web desktop/mobile UX was reworked into a native-feeling desktop rail plus a
   separate compact mobile layout.
 - Development startup can bootstrap a local account, PAT, and sample pack so
@@ -137,7 +139,7 @@ downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-sco
 - Tenant settings now include a local-registration enable/disable switch across
   storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
   new local registrations.
-- Tenant-scoped provider import config storage and API/OpenAPI routes now exist for Telegram and LINE provider secrets, with recursive token/secret redaction and tenant admin/custom-role write authorization.
+- Tenant-scoped provider import config storage, API/OpenAPI routes, and CLI commands now exist for Telegram and LINE provider secrets, with recursive token/secret redaction and tenant admin/custom-role write authorization.
 - OIDC provider configuration storage now exists for per-tenant issuer, client,
   scope, enabled-state, and registration-policy settings. API OIDC start/state and callback completion now exist with authorization-code exchange, discovery, signed ID-token validation, and userinfo fallback. CLI, MCP, and Web provider list/upsert/delete management now exist; Web can start OIDC login, show authorization state, prefill provider callback redirects, complete callback requests, and store returned PATs. User docs now cover SSO-backed PAT usage for Web/API/CLI/MCP.
 
@@ -172,7 +174,7 @@ downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-sco
 
 ## Immediate Plan
 
-1. Add CLI/MCP/Web provider credential/config controls and wire provider import jobs
+1. Add MCP/Web provider credential/config controls and wire provider import jobs
    to consume enabled provider configs.
 2. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band,
    OGQ, and Viber if any are still missing.

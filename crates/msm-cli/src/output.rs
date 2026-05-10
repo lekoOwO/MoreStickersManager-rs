@@ -4,8 +4,8 @@ use crate::{
     client::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
         ExportTarget, ExportTargetKind, Folder, FolderPack, OidcProvider, PackTag, PatScopePolicy,
-        PersonalAccessToken, ProviderImportJob, ProviderImportJobEvent, ProviderImportPlan,
-        SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
+        PersonalAccessToken, ProviderConfig, ProviderImportJob, ProviderImportJobEvent,
+        ProviderImportPlan, SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
         TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
     },
     command::OutputFormat,
@@ -59,6 +59,13 @@ pub struct OidcProviderMutationResponse {
     pub status: &'static str,
     pub tenant_id: String,
     pub provider_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderConfigMutationResponse {
+    pub status: &'static str,
+    pub config_id: String,
 }
 
 /// Formats a health response.
@@ -414,6 +421,54 @@ pub fn format_oidc_provider_delete(
                 status: "deleted",
                 tenant_id: tenant_id.to_owned(),
                 provider_id: provider_id.to_owned(),
+            },
+        )?),
+    }
+}
+
+/// Formats provider import config list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_provider_configs(
+    format: OutputFormat,
+    configs: &[ProviderConfig],
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(configs
+            .iter()
+            .map(provider_config_line)
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(configs)?),
+    }
+}
+
+/// Formats a provider import config response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_provider_config(format: OutputFormat, config: &ProviderConfig) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(provider_config_line(config)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(config)?),
+    }
+}
+
+/// Formats a provider import config delete response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_provider_config_delete(format: OutputFormat, config_id: &str) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("deleted {config_id}")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(
+            &ProviderConfigMutationResponse {
+                status: "deleted",
+                config_id: config_id.to_owned(),
             },
         )?),
     }
@@ -791,6 +846,18 @@ fn oidc_provider_line(provider: &OidcProvider) -> String {
     format!(
         "{}\t{}\t{}\t{}\t{}",
         provider.id, provider.display_name, provider.issuer_url, state, registration
+    )
+}
+
+fn provider_config_line(config: &ProviderConfig) -> String {
+    let state = if config.is_enabled {
+        "enabled"
+    } else {
+        "disabled"
+    };
+    format!(
+        "{}\t{}\t{}\t{}",
+        config.id, config.provider_id, config.name, state
     )
 }
 

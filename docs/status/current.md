@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Add CLI/MCP/Web provider credential/config controls, then wire provider import jobs to consume enabled configs before planned-provider placeholders.
+- Add MCP/Web provider credential/config controls, then wire provider import jobs to consume enabled configs before planned-provider placeholders.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -258,9 +258,10 @@ Last verification:
 - Provider import Telegram getFile slice: focused worker tests cover Telegram getFile resolution and file download internalization. Verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-app provider_import_worker --locked`, `cargo test -p msm-app --locked` (29 tests), `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-import-telegram`.
 - LINE product page parsing slice: focused provider and worker tests cover embedded product metadata parsing and worker internalization. Verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-providers line --locked`, `cargo test -p msm-app provider_import_worker --locked`, `cargo test -p msm-providers -p msm-app --locked` (40 tests), `cargo clippy -p msm-providers -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-line-product-parser`.
 - Provider config API foundation slice: added tenant-scoped SQLite storage plus protected API/OpenAPI routes for provider import credentials, with recursive token/secret response redaction, tenant admin/custom-role modification checks, regular member read checks, and focused storage/API coverage.
+- Provider config CLI slice: added `msm providers configs list/upsert/delete`, CLI DTO/client support for provider config API routes, human/JSON output formatting, parser coverage, and fake-client execution tests. Focused RED/GREEN verification used `cargo test -p msm-cli provider_config --locked` with Rust temp paths pointed at `D:\Temp`.
 
 Next step:
-- Continue Phase E with CLI/MCP/Web provider credential/config controls, then wire provider import jobs to consume enabled configs before planned-provider placeholders.
+- Continue Phase E with MCP/Web provider credential/config controls, then wire provider import jobs to consume enabled configs before planned-provider placeholders.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

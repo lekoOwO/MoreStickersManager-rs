@@ -11,7 +11,7 @@ use crate::{
         CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, MsmClient,
         ReqwestMsmClient, SubscriptionAccessResourceType, UpdatePackPayload,
         UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertOidcProviderPayload,
-        UpsertTenantRolePayload,
+        UpsertProviderConfigPayload, UpsertTenantRolePayload,
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
@@ -20,6 +20,7 @@ use crate::{
         format_oidc_provider, format_oidc_provider_delete, format_oidc_providers,
         format_pack_delete, format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag,
         format_pat_create, format_pat_list, format_pat_revoke, format_pat_scope_policy,
+        format_provider_config, format_provider_config_delete, format_provider_configs,
         format_provider_import_job, format_provider_import_job_events, format_provider_import_plan,
         format_subscription_group, format_subscription_group_pack, format_subscription_groups,
         format_subscription_link_revoke, format_subscription_link_secret,
@@ -136,6 +137,10 @@ pub enum ProviderCommand {
         #[command(subcommand)]
         command: ProviderImportJobCommand,
     },
+    Configs {
+        #[command(subcommand)]
+        command: ProviderConfigCommand,
+    },
 }
 
 #[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
@@ -163,6 +168,32 @@ pub enum ProviderImportJobCommand {
     Events {
         #[arg(long)]
         job_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum ProviderConfigCommand {
+    List {
+        #[arg(long)]
+        tenant_id: String,
+    },
+    Upsert {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        provider_id: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        config_json: String,
+        #[arg(long = "disabled", default_value_t = true, action = clap::ArgAction::SetFalse)]
+        is_enabled: bool,
+    },
+    Delete {
+        #[arg(long)]
+        id: String,
     },
 }
 
@@ -763,6 +794,39 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                     format_provider_import_job_events(cli.output_format, &events)
                 }
             },
+            ProviderCommand::Configs { command } => match command {
+                ProviderConfigCommand::List { tenant_id } => {
+                    let configs = client.list_provider_configs(&tenant_id).await?;
+                    format_provider_configs(cli.output_format, &configs)
+                }
+                ProviderConfigCommand::Upsert {
+                    id,
+                    tenant_id,
+                    provider_id,
+                    name,
+                    config_json,
+                    is_enabled,
+                } => {
+                    let config = serde_json::from_str(&config_json)?;
+                    let provider_config = client
+                        .upsert_provider_config(
+                            &id,
+                            UpsertProviderConfigPayload {
+                                tenant_id,
+                                provider_id,
+                                name,
+                                config,
+                                is_enabled,
+                            },
+                        )
+                        .await?;
+                    format_provider_config(cli.output_format, &provider_config)
+                }
+                ProviderConfigCommand::Delete { id } => {
+                    client.delete_provider_config(&id).await?;
+                    format_provider_config_delete(cli.output_format, &id)
+                }
+            },
         },
         Command::Pats { command } => match command {
             PatCommand::Create {
@@ -1319,21 +1383,22 @@ mod tests {
             CreateSubscriptionGroupPayload, CreateTagPayload, CreatedPersonalAccessToken,
             CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent, ExportTarget,
             ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, OidcProvider,
-            PackTag, PatScopePolicy, PersonalAccessToken, ProviderHttpRequestPlan,
+            PackTag, PatScopePolicy, PersonalAccessToken, ProviderConfig, ProviderHttpRequestPlan,
             ProviderImportJob, ProviderImportJobEvent, ProviderImportPlan,
             SubscriptionAccessResourceType, SubscriptionAccessToken, SubscriptionGroup,
             SubscriptionGroupPack, Tag, TelegramPublication, TenantMember, TenantRole,
             TenantSettings, TenantUser, UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload,
-            UpsertOidcProviderPayload, UpsertTenantRolePayload,
+            UpsertOidcProviderPayload, UpsertProviderConfigPayload, UpsertTenantRolePayload,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
             ExportPublicationCommand, ExportTargetCommand, FolderCommand, FolderPackCommand,
             MetadataCommand, OutputFormat, PackCommand, PackTagCommand, PackVisibility, PatCommand,
-            ProviderCommand, ProviderImportJobCommand, SubscriptionGroupCommand,
-            SubscriptionGroupPackCommand, SubscriptionLinkCommand, SubscriptionLinkResourceType,
-            TagCommand, TenantCommand, TenantMemberCommand, TenantMemberRoleArg,
-            TenantOidcProviderCommand, TenantRoleCommand, TenantSettingsCommand, TenantUserCommand,
+            ProviderCommand, ProviderConfigCommand, ProviderImportJobCommand,
+            SubscriptionGroupCommand, SubscriptionGroupPackCommand, SubscriptionLinkCommand,
+            SubscriptionLinkResourceType, TagCommand, TenantCommand, TenantMemberCommand,
+            TenantMemberRoleArg, TenantOidcProviderCommand, TenantRoleCommand,
+            TenantSettingsCommand, TenantUserCommand,
         },
         output::HealthResponse,
         CliResult,
@@ -1341,6 +1406,7 @@ mod tests {
 
     type TenantRoleUpsertCall = (String, String, String, Vec<String>);
     type OidcProviderUpsertCall = (String, String, UpsertOidcProviderPayload);
+    type ProviderConfigUpsertCall = (String, UpsertProviderConfigPayload);
 
     #[test]
     fn parses_health_command() {
@@ -1467,6 +1533,80 @@ mod tests {
                     command: ProviderImportJobCommand::Events { ref job_id }
                 }
             } if job_id == "provider_job_1"
+        ));
+    }
+
+    #[test]
+    fn parses_provider_config_commands() {
+        let list = Cli::parse_from([
+            "msm",
+            "providers",
+            "configs",
+            "list",
+            "--tenant-id",
+            "tenant_1",
+        ]);
+        assert!(matches!(
+            list.command,
+            Command::Providers {
+                command: ProviderCommand::Configs {
+                    command: ProviderConfigCommand::List { ref tenant_id }
+                }
+            } if tenant_id == "tenant_1"
+        ));
+
+        let upsert = Cli::parse_from([
+            "msm",
+            "providers",
+            "configs",
+            "upsert",
+            "--id",
+            "provider_telegram",
+            "--tenant-id",
+            "tenant_1",
+            "--provider-id",
+            "telegram",
+            "--name",
+            "Telegram Import Bot",
+            "--config-json",
+            r#"{"botToken":"123456:secret"}"#,
+            "--disabled",
+        ]);
+        assert!(matches!(
+            upsert.command,
+            Command::Providers {
+                command: ProviderCommand::Configs {
+                    command: ProviderConfigCommand::Upsert {
+                        ref id,
+                        ref tenant_id,
+                        ref provider_id,
+                        ref name,
+                        ref config_json,
+                        is_enabled: false,
+                    }
+                }
+            } if id == "provider_telegram"
+                && tenant_id == "tenant_1"
+                && provider_id == "telegram"
+                && name == "Telegram Import Bot"
+                && config_json == r#"{"botToken":"123456:secret"}"#
+        ));
+
+        let delete = Cli::parse_from([
+            "msm",
+            "providers",
+            "configs",
+            "delete",
+            "--id",
+            "provider_telegram",
+        ]);
+        assert!(matches!(
+            delete.command,
+            Command::Providers {
+                command: ProviderCommand::Configs {
+                    command: ProviderConfigCommand::Delete { ref id }
+                }
+            } if id == "provider_telegram"
         ));
     }
 
@@ -2395,6 +2535,93 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn executes_provider_config_commands() {
+        let client = FakeClient::default();
+
+        let listed = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "providers",
+                "configs",
+                "list",
+                "--tenant-id",
+                "tenant_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            listed,
+            "provider_telegram\ttelegram\tTelegram Import Bot\tenabled"
+        );
+        assert_eq!(
+            client
+                .listed_provider_config_tenant
+                .lock()
+                .unwrap()
+                .as_deref(),
+            Some("tenant_1")
+        );
+
+        let upserted = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "providers",
+                "configs",
+                "upsert",
+                "--id",
+                "provider_telegram",
+                "--tenant-id",
+                "tenant_1",
+                "--provider-id",
+                "telegram",
+                "--name",
+                "Telegram Import Bot",
+                "--config-json",
+                r#"{"botToken":"123456:secret"}"#,
+                "--disabled",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            upserted,
+            "provider_telegram\ttelegram\tTelegram Import Bot\tdisabled"
+        );
+        let upserted_call = client
+            .upserted_provider_config
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(upserted_call.0, "provider_telegram");
+        assert_eq!(upserted_call.1.provider_id, "telegram");
+        assert_eq!(upserted_call.1.config["botToken"], "123456:secret");
+        assert!(!upserted_call.1.is_enabled);
+
+        let deleted = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "providers",
+                "configs",
+                "delete",
+                "--id",
+                "provider_telegram",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(deleted, "deleted provider_telegram");
+        assert_eq!(
+            client.deleted_provider_config.lock().unwrap().as_deref(),
+            Some("provider_telegram")
+        );
+    }
+
+    #[tokio::test]
     async fn executes_pack_export_to_stdout() {
         let output = execute_with_client(
             Cli::parse_from([
@@ -3317,6 +3544,9 @@ mod tests {
         upserted_tenant_role: Mutex<Option<TenantRoleUpsertCall>>,
         upserted_oidc_provider: Mutex<Option<OidcProviderUpsertCall>>,
         deleted_oidc_provider: Mutex<Option<(String, String)>>,
+        listed_provider_config_tenant: Mutex<Option<String>>,
+        upserted_provider_config: Mutex<Option<ProviderConfigUpsertCall>>,
+        deleted_provider_config: Mutex<Option<String>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
         created_export_job: Mutex<Option<CreateExportJobPayload>>,
     }
@@ -3380,6 +3610,38 @@ mod tests {
                 metadata: serde_json::json!({}),
                 created_at: "2026-05-10T00:00:00Z".to_owned(),
             }])
+        }
+
+        async fn list_provider_configs(&self, tenant_id: &str) -> CliResult<Vec<ProviderConfig>> {
+            *self.listed_provider_config_tenant.lock().unwrap() = Some(tenant_id.to_owned());
+            Ok(vec![sample_provider_config(
+                "provider_telegram",
+                tenant_id,
+                "telegram",
+                "Telegram Import Bot",
+                true,
+            )])
+        }
+
+        async fn upsert_provider_config(
+            &self,
+            config_id: &str,
+            payload: UpsertProviderConfigPayload,
+        ) -> CliResult<ProviderConfig> {
+            *self.upserted_provider_config.lock().unwrap() =
+                Some((config_id.to_owned(), payload.clone()));
+            Ok(sample_provider_config(
+                config_id,
+                &payload.tenant_id,
+                &payload.provider_id,
+                &payload.name,
+                payload.is_enabled,
+            ))
+        }
+
+        async fn delete_provider_config(&self, config_id: &str) -> CliResult<()> {
+            *self.deleted_provider_config.lock().unwrap() = Some(config_id.to_owned());
+            Ok(())
         }
 
         async fn export_pack(&self, _pack_id: &str) -> CliResult<msm_domain::StickerPack> {
@@ -3784,6 +4046,25 @@ mod tests {
             is_enabled: true,
             created_at: "2026-05-07T00:00:00Z".to_owned(),
             updated_at: "2026-05-07T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_provider_config(
+        id: &str,
+        tenant_id: &str,
+        provider_id: &str,
+        name: &str,
+        is_enabled: bool,
+    ) -> ProviderConfig {
+        ProviderConfig {
+            id: id.to_owned(),
+            tenant_id: tenant_id.to_owned(),
+            provider_id: provider_id.to_owned(),
+            name: name.to_owned(),
+            config: serde_json::json!({ "botToken": "<redacted>" }),
+            is_enabled,
+            created_at: "2026-05-10T00:00:00Z".to_owned(),
+            updated_at: "2026-05-10T00:00:00Z".to_owned(),
         }
     }
 

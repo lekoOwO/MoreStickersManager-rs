@@ -72,10 +72,10 @@ Status meanings:
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
 | Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, provider import plan/job routes, Telegram publication history, product metadata, and product membership endpoints exist. |
-| CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration commands exist. |
+| CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import job, and provider credential/config commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, and provider import job tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
-| Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, and tenant-scoped provider credential/config storage plus API/OpenAPI redacted management exist. CLI/MCP/Web credential controls, worker credential consumption, and future-provider flows remain incomplete. |
+| Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, and tenant-scoped provider credential/config storage plus API/OpenAPI and CLI redacted management exist. MCP/Web credential controls, worker credential consumption, and future-provider flows remain incomplete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add CLI/MCP/Web provider credential/config controls and wire provider import jobs to consume enabled configs.
+1. Add MCP/Web provider credential/config controls and wire provider import jobs to consume enabled configs.
 2. Add placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ, and
    Viber without pretending they are implemented.
 
@@ -249,7 +249,7 @@ tests and docs are updated.
   CLI/MCP/Web can request/display those plans, and CLI/MCP/Web can create/read
   provider import jobs and list job events.
 - [ ] Provider credential/config UI and API.
-  Progress: SQLite storage and API/OpenAPI routes now manage tenant-scoped provider configs through `GET /api/v1/provider-configs?tenantId=...`, `PUT /api/v1/provider-configs/{config_id}`, and `DELETE /api/v1/provider-configs/{config_id}`. Responses recursively redact token/secret fields while retaining raw secrets in storage. Management requires `provider.import` plus tenant admin/custom-role authorization; same-tenant users with `provider.import` may list configs but cannot modify them. Remaining work: CLI/MCP/Web controls and worker consumption of enabled provider configs.
+  Progress: SQLite storage plus API/OpenAPI and CLI surfaces now manage tenant-scoped provider configs through `GET /api/v1/provider-configs?tenantId=...`, `PUT /api/v1/provider-configs/{config_id}`, and `DELETE /api/v1/provider-configs/{config_id}`. CLI exposes `msm providers configs list/upsert/delete` with human/JSON output. Responses recursively redact token/secret fields while retaining raw secrets in storage. Management requires `provider.import` plus tenant admin/custom-role authorization; same-tenant users with `provider.import` may list configs but cannot modify them. Remaining work: MCP/Web controls and worker consumption of enabled provider configs.
 - [ ] Provider job progress and retry model.
   Progress: SQLite/API job persistence exists; `msm-app` now has a tested
   queued-job worker foundation with running/succeeded/failed/retry transitions

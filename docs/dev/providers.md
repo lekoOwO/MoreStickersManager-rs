@@ -78,7 +78,8 @@ with the same protected planning payload and records an initial queued event.
 A tested app worker foundation can execute LINE fixture-schema/direct-asset jobs,
 LINE product pages with embedded metadata, and Telegram `getFile` asset
 downloads; service startup can run that worker loop when enabled. Provider
-credential/config UI remains pending. CLI, MCP, and Web can create provider
+credential/config MCP/Web UI remains pending. CLI can list/upsert/delete
+tenant-scoped provider configs, and CLI, MCP, and Web can create provider
 import jobs and read job status/events.
 
 ## Provider Versus Export Target

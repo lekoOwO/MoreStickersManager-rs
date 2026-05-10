@@ -92,6 +92,29 @@ pub struct ProviderImportJobEvent {
     pub created_at: String,
 }
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertProviderConfigPayload {
+    pub tenant_id: String,
+    pub provider_id: String,
+    pub name: String,
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderConfig {
+    pub id: String,
+    pub tenant_id: String,
+    pub provider_id: String,
+    pub name: String,
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePackPayload {
@@ -472,6 +495,13 @@ pub trait MsmClient {
         &self,
         job_id: &str,
     ) -> CliResult<Vec<ProviderImportJobEvent>>;
+    async fn list_provider_configs(&self, tenant_id: &str) -> CliResult<Vec<ProviderConfig>>;
+    async fn upsert_provider_config(
+        &self,
+        config_id: &str,
+        payload: UpsertProviderConfigPayload,
+    ) -> CliResult<ProviderConfig>;
+    async fn delete_provider_config(&self, config_id: &str) -> CliResult<()>;
     async fn export_pack(&self, pack_id: &str) -> CliResult<StickerPack>;
     async fn update_pack(&self, payload: UpdatePackPayload) -> CliResult<()>;
     async fn delete_pack(&self, pack_id: &str) -> CliResult<()>;
@@ -740,6 +770,46 @@ impl MsmClient for ReqwestMsmClient {
             .error_for_status()?
             .json()
             .await?)
+    }
+
+    async fn list_provider_configs(&self, tenant_id: &str) -> CliResult<Vec<ProviderConfig>> {
+        Ok(self
+            .authorize(self.http.get(self.endpoint("/api/v1/provider-configs")?))
+            .query(&[("tenantId", tenant_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn upsert_provider_config(
+        &self,
+        config_id: &str,
+        payload: UpsertProviderConfigPayload,
+    ) -> CliResult<ProviderConfig> {
+        Ok(self
+            .authorize(
+                self.http
+                    .put(self.endpoint(&format!("/api/v1/provider-configs/{config_id}"))?),
+            )
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn delete_provider_config(&self, config_id: &str) -> CliResult<()> {
+        self.authorize(
+            self.http
+                .delete(self.endpoint(&format!("/api/v1/provider-configs/{config_id}"))?),
+        )
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
     }
 
     async fn export_pack(&self, pack_id: &str) -> CliResult<StickerPack> {

@@ -1632,3 +1632,11 @@
 - Responses recursively redact JSON keys containing `token` or `secret`; raw values remain stored for later worker consumption. Config writes require `provider.import` plus tenant admin/custom-role authorization.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-storage provider_configs --locked`, `cargo test -p msm-api provider_config --locked`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider/user docs; next Phase E slice should add CLI/MCP/Web provider config controls and then worker config consumption.
+
+## 2026-05-10 Provider Config CLI
+
+- Added `msm providers configs list --tenant-id ...`, `msm providers configs upsert --id ... --tenant-id ... --provider-id ... --name ... --config-json ... [--disabled]`, and `msm providers configs delete --id ...`.
+- Added CLI client DTOs/methods for `GET /api/v1/provider-configs?tenantId=...`, `PUT /api/v1/provider-configs/{config_id}`, and `DELETE /api/v1/provider-configs/{config_id}` plus human/JSON output formatting.
+- Added parser and fake-client execution tests covering list, disabled upsert, JSON config forwarding, and delete behavior.
+- Verification: focused `cargo test -p msm-cli provider_config --locked` passed with Rust temp paths pointed at `D:\Temp`; final full CLI fmt/test/clippy/diff checks are run before commit.
+- Updated PRD/status/provider/user docs; next Phase E slice should add MCP/Web provider config controls and then worker config consumption.
