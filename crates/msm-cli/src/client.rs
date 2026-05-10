@@ -14,6 +14,13 @@ pub struct ImportPackPayload {
     pub pack: StickerPack,
 }
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportUserDataPayload {
+    pub tenant_id: String,
+    pub export: serde_json::Value,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateProviderImportPlanPayload {
@@ -491,6 +498,8 @@ pub trait MsmClient {
     async fn health(&self) -> CliResult<HealthResponse>;
     async fn list_packs(&self, user_id: &str) -> CliResult<Vec<StickerPack>>;
     async fn import_pack(&self, payload: ImportPackPayload) -> CliResult<()>;
+    async fn export_user_data(&self, user_id: &str) -> CliResult<serde_json::Value>;
+    async fn import_user_data(&self, payload: ImportUserDataPayload) -> CliResult<()>;
     async fn create_provider_import_plan(
         &self,
         payload: CreateProviderImportPlanPayload,
@@ -721,6 +730,32 @@ impl MsmClient for ReqwestMsmClient {
             .send()
             .await?
             .error_for_status()?;
+        Ok(())
+    }
+
+    async fn export_user_data(&self, user_id: &str) -> CliResult<serde_json::Value> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint("/api/v1/portable/user-export")?),
+            )
+            .query(&[("userId", user_id)])
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn import_user_data(&self, payload: ImportUserDataPayload) -> CliResult<()> {
+        self.authorize(
+            self.http
+                .post(self.endpoint("/api/v1/portable/user-import")?),
+        )
+        .json(&payload)
+        .send()
+        .await?
+        .error_for_status()?;
         Ok(())
     }
 

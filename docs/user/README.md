@@ -521,6 +521,11 @@ Portable user migration API endpoints:
 - `POST /api/v1/portable/user-import` with a same-user `import.run` PAT imports
   that export into an existing tenant where the user has import access.
 
+CLI:
+
+- `msm portability export --user-id <user_id> --output <path|->`
+- `msm portability import --tenant-id <tenant_id> --file <path>`
+
 PAT CLI commands:
 
 - `msm pats scope-policy --user-id <user_id>`

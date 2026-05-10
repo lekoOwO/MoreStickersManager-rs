@@ -8,8 +8,8 @@ use crate::{
         CreateExportJobPayload, CreateExportTargetPayload, CreateFolderPayload,
         CreatePersonalAccessTokenPayload, CreateProviderImportJobPayload,
         CreateProviderImportPlanPayload, CreateSubscriptionAccessTokenPayload,
-        CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, MsmClient,
-        ReqwestMsmClient, SubscriptionAccessResourceType, UpdateExportTargetPayload,
+        CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, ImportUserDataPayload,
+        MsmClient, ReqwestMsmClient, SubscriptionAccessResourceType, UpdateExportTargetPayload,
         UpdatePackPayload, UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload,
         UpsertOidcProviderPayload, UpsertProviderConfigPayload, UpsertTenantRolePayload,
     },
@@ -79,6 +79,10 @@ pub enum Command {
         #[command(subcommand)]
         command: ProviderCommand,
     },
+    Portability {
+        #[command(subcommand)]
+        command: PortabilityCommand,
+    },
 }
 
 #[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
@@ -116,6 +120,22 @@ pub enum PackCommand {
     Delete {
         #[arg(long)]
         pack_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum PortabilityCommand {
+    Export {
+        #[arg(long)]
+        user_id: String,
+        #[arg(long)]
+        output: String,
+    },
+    Import {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        file: PathBuf,
     },
 }
 
@@ -759,6 +779,31 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
             PackCommand::Delete { pack_id } => {
                 client.delete_pack(&pack_id).await?;
                 format_pack_delete(cli.output_format, &pack_id)
+            }
+        },
+        Command::Portability { command } => match command {
+            PortabilityCommand::Export { user_id, output } => {
+                let export = client.export_user_data(&user_id).await?;
+                let json = serde_json::to_string_pretty(&export)?;
+                if output == "-" {
+                    Ok(json)
+                } else {
+                    write_file(&PathBuf::from(&output), &json)?;
+                    Ok(format!(
+                        "exported portable user data for {user_id} to {output}"
+                    ))
+                }
+            }
+            PortabilityCommand::Import { tenant_id, file } => {
+                let content = read_file(&file)?;
+                let export = serde_json::from_str(&content)?;
+                client
+                    .import_user_data(ImportUserDataPayload {
+                        tenant_id: tenant_id.clone(),
+                        export,
+                    })
+                    .await?;
+                Ok(format!("imported portable user data into {tenant_id}"))
             }
         },
         Command::Providers { command } => match command {
@@ -1425,9 +1470,9 @@ mod tests {
             CreateProviderImportPlanPayload, CreateSubscriptionAccessTokenPayload,
             CreateSubscriptionGroupPayload, CreateTagPayload, CreatedPersonalAccessToken,
             CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent, ExportTarget,
-            ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, OidcProvider,
-            PackTag, PatScopePolicy, PersonalAccessToken, ProviderConfig, ProviderHttpRequestPlan,
-            ProviderImportJob, ProviderImportJobEvent, ProviderImportPlan,
+            ExportTargetKind, Folder, FolderPack, ImportPackPayload, ImportUserDataPayload,
+            MsmClient, OidcProvider, PackTag, PatScopePolicy, PersonalAccessToken, ProviderConfig,
+            ProviderHttpRequestPlan, ProviderImportJob, ProviderImportJobEvent, ProviderImportPlan,
             SubscriptionAccessResourceType, SubscriptionAccessToken, SubscriptionGroup,
             SubscriptionGroupPack, Tag, TelegramPublication, TenantMember, TenantRole,
             TenantSettings, TenantUser, UpdateExportTargetPayload, UpdateTenantSettingsPayload,
@@ -3608,6 +3653,55 @@ mod tests {
         assert_eq!(subscription_pack_remove, "removed sub_1 pack_1");
     }
 
+    #[tokio::test]
+    async fn executes_portability_export_import_commands() {
+        let client = FakeClient::default();
+        let export_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "portability",
+                "export",
+                "--user-id",
+                "user_1",
+                "--output",
+                "-",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        let export: serde_json::Value = serde_json::from_str(&export_output).unwrap();
+        assert_eq!(export["user"]["id"], "user_1");
+
+        let file = std::env::temp_dir().join("msm-portable-user-export.json");
+        std::fs::write(&file, export_output).unwrap();
+        let import_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "portability",
+                "import",
+                "--tenant-id",
+                "tenant_2",
+                "--file",
+                file.to_str().unwrap(),
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(import_output, "imported portable user data into tenant_2");
+        assert_eq!(
+            client
+                .imported_user_data
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .tenant_id,
+            "tenant_2"
+        );
+    }
+
     type TenantSettingsUpdateCall = (String, String, Option<String>, bool);
 
     #[derive(Default)]
@@ -3642,6 +3736,7 @@ mod tests {
         deleted_provider_config: Mutex<Option<String>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
         created_export_job: Mutex<Option<CreateExportJobPayload>>,
+        imported_user_data: Mutex<Option<ImportUserDataPayload>>,
     }
 
     #[async_trait]
@@ -3658,6 +3753,25 @@ mod tests {
 
         async fn import_pack(&self, payload: ImportPackPayload) -> CliResult<()> {
             *self.imported.lock().unwrap() = Some(payload);
+            Ok(())
+        }
+
+        async fn export_user_data(&self, _user_id: &str) -> CliResult<serde_json::Value> {
+            Ok(serde_json::json!({
+                "version": 1,
+                "exportedAt": "2026-05-10T00:00:00Z",
+                "user": {
+                    "id": "user_1",
+                    "email": "leko@example.com",
+                    "displayName": "Leko"
+                },
+                "packs": [],
+                "subscriptionGroups": []
+            }))
+        }
+
+        async fn import_user_data(&self, payload: ImportUserDataPayload) -> CliResult<()> {
+            *self.imported_user_data.lock().unwrap() = Some(payload);
             Ok(())
         }
 

@@ -1754,3 +1754,10 @@
 - Export requires a same-user `pack.read` PAT; import requires a same-user `import.run` PAT plus target-tenant access.
 - Added OpenAPI registration and focused API coverage proving a user export can be imported into another tenant.
 - Updated PRD/status docs; next Phase I slice is CLI export/import commands.
+
+## 2026-05-10 Data Portability CLI
+
+- Added `msm portability export --user-id ... --output <path|->` backed by `GET /api/v1/portable/user-export`.
+- Added `msm portability import --tenant-id ... --file <path>` backed by `POST /api/v1/portable/user-import`.
+- Added focused CLI command coverage for stdout export and file-backed import.
+- Updated PRD/status docs; next Phase I slice is Web migration workflow controls and remaining parity.
