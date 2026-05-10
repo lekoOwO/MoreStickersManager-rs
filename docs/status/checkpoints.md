@@ -1998,3 +1998,8 @@
 - Added `docs/user/oidc-sso.md` with provider administration, Web login, callback request, and PAT/CLI/MCP usage guidance.
 - Removed stale README/user-doc wording that described OIDC authorization-code, JWKS, userinfo, and Web SSO controls as future work.
 - Updated PRD/status docs to mark the OIDC login/callback flow complete based on existing API tests and documented user-facing flows.
+## 2026-05-11 Provider Ingestion Closure
+
+- Audited existing provider import worker coverage for LINE fixture imports, LINE product-page metadata imports, Telegram `getFile` asset resolution/downloads, enabled provider credential usage, and retry requeue behavior.
+- Marked Phase E Telegram network fetch, LINE network fetch, and provider job progress/retry complete in the PRD.
+- Removed stale user/README wording that described provider runtime parsing, downloads, Web controls, and worker credential consumption as pending.

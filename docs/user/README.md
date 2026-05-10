@@ -460,9 +460,7 @@ Provider import planning surfaces:
 - MCP: `msm.create_provider_import_plan`
 - Web: open the Providers workspace and use the Provider import planner/job controls.
 
-These currently return a safe fetch plan for Telegram or LINE provider imports.
-Executable provider import jobs can be queued/read through API, CLI, MCP, and Web;
-broader runtime parsing/download completion is still pending.
+These return a safe fetch plan for Telegram or LINE provider imports. Executable provider import jobs can be queued/read through API, CLI, MCP, and Web; the app worker can execute Telegram Bot API getStickerSet/getFile downloads and LINE fixture/product-page imports into MSM-hosted private packs.
 
 Provider import credential management is available through the Web provider workspace and these API endpoints:
 
@@ -474,8 +472,7 @@ The Web provider credential panel can list, upsert, and delete tenant-scoped pro
 depth. Update requests replace the stored config with the submitted JSON.
 Listing requires `provider.import` and tenant membership; create/update/delete
 require `provider.import` plus tenant admin or a custom role that grants provider
-import management. CLI and MCP controls are available; Web controls and worker
-consumption of these stored configs are still in progress.
+import management. CLI, MCP, Web controls, and worker consumption of enabled provider configs are available.
 
 CLI equivalents:
 

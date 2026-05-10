@@ -114,7 +114,7 @@ MoreStickers-compatible packs:
 - LINE sticker packs preserve `MoreStickers:Line:Pack:*` and `MoreStickers:Line:Sticker:*` IDs.
 - LINE emoji packs preserve `MoreStickers:Line:Emoji-Pack:*` and `MoreStickers:Line-Emoji:*` IDs.
 
-Remote provider fetch and asset download are intentionally separate future tasks.
+Remote provider import execution is implemented for the current Telegram and LINE scope: Telegram jobs resolve Bot API `getFile` assets, LINE jobs parse fixture JSON or product pages, and both paths internalize assets into MSM-hosted pack URLs through queued provider import jobs.
 
 ## Export Pipeline
 

@@ -3,6 +3,7 @@
 Phase: Completion audit after production hardening.
 
 Last completed:
+- Provider ingestion audit slice: closed the Phase E Telegram fetch/internalization, LINE fetch/internalization, and provider job progress/retry items based on existing worker/API/CLI/MCP/Web coverage and provider worker regression tests.
 - OIDC documentation closure slice: added `docs/user/oidc-sso.md`, removed stale partial-SSO wording from README/user docs, and marked the PRD OIDC login/callback flow complete based on existing API/Web/JWKS/userinfo/PAT-session coverage.
 - MCP transport contract slice: closed the Phase K MCP session/auth/SSE hardening item by documenting `/mcp` as stateless JSON-RPC over POST, no-store, Bearer-PAT protected for `tools/call`, and intentionally non-SSE/non-sessioned in `docs/dev/mcp-transport-contract.md`.
 - Security review slice: added `docs/status/security-review.md` covering token/session/subscription/OIDC storage, local password hashing, API/MCP/Web redaction behavior, private asset authorization, CDN/logging caveats, and residual hardening follow-ups.

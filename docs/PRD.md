@@ -75,7 +75,7 @@ Status meanings:
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import job, provider credential/config, and portable user export/import commands exist. |
 | MCP | Implemented | Pack, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, provider import job tools, provider credential/config tools, and portable user export/import tools exist. `/mcp` is intentionally stateless JSON-RPC over POST, returns no-store responses, rejects SSE GET negotiation, and is documented in `docs/dev/mcp-transport-contract.md`. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job/recovery UI, publication history, Telegram reconciliation controls, and portable user migration controls exist. |
-| Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, planned-provider registry placeholders, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Provider import worker credential consumption now exists for enabled tenant-scoped configs; concrete future-provider implementations remain incomplete. |
+| Provider ingestion | Implemented | Telegram fixtures, Telegram Bot API fetch/download execution, LINE fixtures, LINE product-page embedded metadata normalization, direct LINE asset internalization, provider job persistence/retry/events, planned-provider registry placeholders, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Signal, WhatsApp, Kakao, Band, OGQ, and Viber remain explicitly planned-only providers. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. Non-Telegram remote targets now dispatch through an injectable execution boundary with target-neutral result reporting; concrete future target implementations remain incomplete. |
 | Media conversion | Implemented | Profiles, ffmpeg command plans, ffprobe command/report parsing, converter stdout/stderr/exit-code diagnostics, prepared-media cache reuse, export-job result visibility for output metadata, and target-specific validation exist. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Run an end-to-end completion audit across PRD requirements before release readiness, starting with stale unchecked items in Phase D/E and any remaining partial-status rows.
+1. Continue the end-to-end completion audit across PRD requirements before release readiness, focusing on remaining partial-status rows and stale documentation.
 
 Each queue item must update this section when completed or reordered.
 
@@ -226,29 +226,29 @@ tests and docs are updated.
 ### Phase E: Provider Ingestion
 
 - [x] Provider trait and Telegram/LINE fixture normalization.
-- [ ] Telegram network fetch with asset download/internalization.
+- [x] Telegram network fetch with asset download/internalization.
   Progress: `msm-providers` now exposes a testable Telegram remote fetch plan
   boundary for `getStickerSet` metadata and Telegram `getFile`/file download
   asset strategy. `msm-app` now has injected runtime metadata fetch helpers and
-  a provider import worker foundation. The worker now resolves Telegram sticker
+  a provider import worker foundation. The tested worker resolves Telegram sticker
   `fileId` values through `getFile`, downloads Bot API file URLs into the local
   asset store, rewrites pack image URLs to MSM-hosted assets, and upserts the
   imported pack. API can create protected provider import fetch plans and queue
   provider import jobs for Telegram sources. CLI/MCP/Web can request/display
   those plans and create/read provider import jobs/events.
-- [ ] LINE network fetch with asset download/internalization.
+- [x] LINE network fetch with asset download/internalization.
   Progress: `msm-providers` now exposes a testable LINE sticker-shop product
   fetch plan boundary and direct remote URL asset strategy. `msm-app` can execute
   planned metadata fetches through an injected runtime and download direct remote
-  sticker assets into `LocalAssetStore` while rewriting pack image URLs. Worker execution now accepts fixture-schema JSON and LINE product pages with
+  sticker assets into `LocalAssetStore` while rewriting pack image URLs. Tested worker execution accepts fixture-schema JSON and LINE product pages with
   embedded metadata, then internalizes direct remote assets. API can create protected
   provider import fetch plans and queue provider import jobs for LINE sticker sources.
   CLI/MCP/Web can request/display those plans, and CLI/MCP/Web can create/read
   provider import jobs and list job events.
 - [x] Provider credential/config UI and API.
   Progress: SQLite storage plus API/OpenAPI, CLI, MCP, and Web surfaces now manage tenant-scoped provider configs through `GET /api/v1/provider-configs?tenantId=...`, `PUT /api/v1/provider-configs/{config_id}`, and `DELETE /api/v1/provider-configs/{config_id}`. CLI exposes `msm providers configs list/upsert/delete` with human/JSON output; MCP exposes `msm.list_provider_configs`, `msm.upsert_provider_config`, and `msm.delete_provider_config`; Web exposes a provider credential panel with list/upsert/delete controls and redacted JSON display. Responses recursively redact token/secret fields while retaining raw secrets in storage. Management requires `provider.import` plus tenant admin/custom-role authorization; same-tenant users with `provider.import` may list configs but cannot modify them. Provider import worker now consumes enabled configs for base URLs and Telegram bot tokens.
-- [ ] Provider job progress and retry model.
-  Progress: SQLite/API job persistence exists; `msm-app` now has a tested
+- [x] Provider job progress and retry model.
+  Progress: SQLite/API job persistence exists; `msm-app` has a tested
   queued-job worker foundation with running/succeeded/failed/retry transitions
   for LINE direct-asset imports. `MSM_PROVIDER_IMPORT_WORKER_ENABLED`,
   `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS`,
