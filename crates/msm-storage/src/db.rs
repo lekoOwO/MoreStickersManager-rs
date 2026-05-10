@@ -1,10 +1,14 @@
 use sqlx::{
+    migrate::Migrator,
     postgres::PgPoolOptions,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
     PgPool, SqlitePool,
 };
 
 use crate::{DatabaseConfig, DatabaseKind, StorageResult};
+
+static SQLITE_MIGRATOR: Migrator = sqlx::migrate!("./migrations/sqlite");
+static POSTGRES_MIGRATOR: Migrator = sqlx::migrate!("./migrations/postgres");
 
 #[derive(Clone)]
 pub enum DbPool {
@@ -38,13 +42,21 @@ impl DbPool {
     pub async fn run_migrations(&self) -> StorageResult<()> {
         match self {
             Self::Sqlite(pool) => {
-                sqlx::migrate!("./migrations").run(pool).await?;
+                SQLITE_MIGRATOR.run(pool).await?;
             }
             Self::Postgres(pool) => {
-                sqlx::migrate!("./migrations").run(pool).await?;
+                POSTGRES_MIGRATOR.run(pool).await?;
             }
         }
         Ok(())
+    }
+
+    #[must_use]
+    pub const fn kind(&self) -> DatabaseKind {
+        match self {
+            Self::Sqlite(_) => DatabaseKind::Sqlite,
+            Self::Postgres(_) => DatabaseKind::Postgres,
+        }
     }
 
     #[must_use]
@@ -78,7 +90,10 @@ pub async fn connect_sqlite(url: &str) -> StorageResult<SqlitePool> {
 mod tests {
     use sqlx::Row;
 
-    use crate::{db::DbPool, DatabaseConfig};
+    use crate::{
+        db::{DbPool, POSTGRES_MIGRATOR, SQLITE_MIGRATOR},
+        DatabaseConfig,
+    };
 
     #[tokio::test]
     async fn runs_sqlite_migrations() {
@@ -95,5 +110,19 @@ mod tests {
         let count: i64 = row.get("count");
 
         assert!(count >= 20);
+    }
+
+    #[test]
+    fn uses_backend_specific_migration_sets() {
+        assert_eq!(
+            SQLITE_MIGRATOR.iter().count(),
+            POSTGRES_MIGRATOR.iter().count()
+        );
+        assert!(POSTGRES_MIGRATOR
+            .iter()
+            .any(|migration| migration.sql.contains("BOOLEAN NOT NULL DEFAULT TRUE")));
+        assert!(SQLITE_MIGRATOR
+            .iter()
+            .any(|migration| migration.sql.contains("INTEGER NOT NULL DEFAULT 1")));
     }
 }

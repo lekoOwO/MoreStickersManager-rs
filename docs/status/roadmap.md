@@ -15,6 +15,7 @@ compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Storage migrations now have backend-specific SQLite and PostgreSQL migrator sets, with `DbPool::run_migrations` selecting by pool kind.
 - Cross-instance portable user migration is now covered at the API layer by exporting from one MSM instance and importing into a separate target instance.
 - MCP portable user export/import tools now expose instance migration workflows through `msm.export_user_data` and `msm.import_user_data` with same-user PAT checks and target-tenant import authorization.
 - Export jobs can now be requeued for operator recovery across API/OpenAPI, CLI, MCP, and Web. The recovery flow resets failed/cancelled jobs to queued and records/refreshes recovery events for operator handoff.
@@ -179,8 +180,8 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Plan PostgreSQL migration/repository compatibility boundaries.
-2. Add shared SQLite/PostgreSQL repository/API test coverage and then wire PostgreSQL runtime support.
+1. Add shared repository test harnesses that can run against SQLite immediately and PostgreSQL when `MSM_TEST_POSTGRES_URL` is available.
+2. Start moving repository operations off SQLite-only pool access toward backend-aware SQL execution.
 
 ## Later Planned Work
 

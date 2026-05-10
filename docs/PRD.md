@@ -70,7 +70,7 @@ Status meanings:
 | Area | Status | Notes |
 | --- | --- | --- |
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
-| Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
+| Storage foundation | Partially complete | SQLite migrations/repositories and backend-specific PostgreSQL migrations exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL repository execution remains incomplete. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, export job recovery requeue, provider import plan/job routes, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import job, provider credential/config, and portable user export/import commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, provider import job tools, provider credential/config tools, and portable user export/import tools exist. Session/SSE hardening remains incomplete. |
@@ -306,7 +306,8 @@ tests and docs are updated.
 
 ### Phase J: PostgreSQL Support
 
-- [ ] PostgreSQL migrations.
+- [x] PostgreSQL migrations.
+  Progress: backend-specific `migrations/sqlite` and `migrations/postgres` sets exist; PostgreSQL migrations use boolean columns where repository models expect booleans, and `DbPool::run_migrations` selects the correct migrator per backend. Live PostgreSQL repository coverage remains in the next checkbox.
 - [ ] Repository abstraction verified against SQLite and PostgreSQL.
 - [ ] CI matrix for both database backends.
 - [ ] Deployment docs for both backends.

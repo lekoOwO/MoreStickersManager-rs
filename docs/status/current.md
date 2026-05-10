@@ -3,6 +3,7 @@
 Phase: PostgreSQL support.
 
 Last completed:
+- PostgreSQL migration foundation slice: split storage migrations into backend-specific SQLite/PostgreSQL migrators and kept SQLite migration regression coverage passing.
 - Data portability compatibility slice: added an API-level cross-instance migration test that exports from one MSM instance and imports into another target instance, closing Phase I.
 - Data portability MCP slice: added `msm.export_user_data` and `msm.import_user_data` tools with same-user PAT enforcement, tenant import authorization, registry/schema coverage, and portable JSON round-trip tests.
 - Data portability Web slice: added a Migration workspace with portable user export/import controls backed by the Web API client.

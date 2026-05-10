@@ -1782,3 +1782,11 @@
 - Verified the target instance can import exported packs and subscription-group membership through the protected portability API.
 - Updated PRD/status docs to close Phase I and move the active queue to PostgreSQL support.
 - Verification: `cargo test -p msm-api portability_routes_move_user_data_between_api_instances --locked`.
+
+## 2026-05-10 PostgreSQL Migration Foundation
+
+- Added backend-specific SQLite and PostgreSQL migration directories.
+- Updated `DbPool::run_migrations` to select the SQLite or PostgreSQL migrator by pool kind.
+- Added migration-set regression coverage proving both backends have matching migration counts and backend-specific boolean syntax.
+- Updated PRD/status docs to mark PostgreSQL migrations complete while keeping repository parity open.
+- Verification: `cargo test -p msm-storage uses_backend_specific_migration_sets --locked`; `cargo test -p msm-storage runs_sqlite_migrations --locked`.
