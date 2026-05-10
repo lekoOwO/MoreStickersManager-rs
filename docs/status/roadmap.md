@@ -15,6 +15,7 @@ compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Folder-pack, pack-tag, and subscription-group-pack removal operations now have backend-aware SQL paths and PostgreSQL contract tests.
 - Provider import-job create/find/due/status/retry/failure/event repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
 - Provider config upsert/list/find/delete repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
 - Telegram publication and sticker mapping upsert/find/list repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
@@ -197,7 +198,7 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Move portability repository operations and membership removal off SQLite-only pool access toward backend-aware SQL execution.
+1. Move portability repository operations off SQLite-only pool access toward backend-aware SQL execution.
 2. Continue expanding portability shared contract tests before adding PostgreSQL CI service wiring.
 
 ## Later Planned Work

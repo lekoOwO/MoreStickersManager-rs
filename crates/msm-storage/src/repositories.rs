@@ -1435,7 +1435,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn delete_folder(&self, id: &str) -> StorageResult<bool> {
         let result = sqlx::query("DELETE FROM folders WHERE id = ?")
             .bind(id)
@@ -1569,12 +1569,25 @@ impl StorageRepository {
         folder_id: &str,
         pack_id: &str,
     ) -> StorageResult<bool> {
-        let result = sqlx::query("DELETE FROM folder_packs WHERE folder_id = ? AND pack_id = ?")
-            .bind(folder_id)
-            .bind(pack_id)
-            .execute(self.sqlite()?)
-            .await?;
-        Ok(result.rows_affected() == 1)
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query("DELETE FROM folder_packs WHERE folder_id = ? AND pack_id = ?")
+                    .bind(folder_id)
+                    .bind(pack_id)
+                    .execute(pool)
+                    .await?
+                    .rows_affected()
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query("DELETE FROM folder_packs WHERE folder_id = $1 AND pack_id = $2")
+                    .bind(folder_id)
+                    .bind(pack_id)
+                    .execute(pool)
+                    .await?
+                    .rows_affected()
+            }
+        };
+        Ok(rows_affected == 1)
     }
 
     /// Creates a tag.
@@ -1691,7 +1704,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn delete_tag(&self, id: &str) -> StorageResult<bool> {
         let result = sqlx::query("DELETE FROM tags WHERE id = ?")
             .bind(id)
@@ -1778,12 +1791,25 @@ impl StorageRepository {
     ///
     /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
     pub async fn remove_tag_from_pack(&self, pack_id: &str, tag_id: &str) -> StorageResult<bool> {
-        let result = sqlx::query("DELETE FROM pack_tags WHERE pack_id = ? AND tag_id = ?")
-            .bind(pack_id)
-            .bind(tag_id)
-            .execute(self.sqlite()?)
-            .await?;
-        Ok(result.rows_affected() == 1)
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query("DELETE FROM pack_tags WHERE pack_id = ? AND tag_id = ?")
+                    .bind(pack_id)
+                    .bind(tag_id)
+                    .execute(pool)
+                    .await?
+                    .rows_affected()
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query("DELETE FROM pack_tags WHERE pack_id = $1 AND tag_id = $2")
+                    .bind(pack_id)
+                    .bind(tag_id)
+                    .execute(pool)
+                    .await?
+                    .rows_affected()
+            }
+        };
+        Ok(rows_affected == 1)
     }
 
     /// Creates a subscription group.
@@ -1911,7 +1937,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn delete_subscription_group(&self, id: &str) -> StorageResult<bool> {
         let result = sqlx::query("DELETE FROM subscription_groups WHERE id = ?")
             .bind(id)
@@ -2903,15 +2929,27 @@ impl StorageRepository {
         subscription_group_id: &str,
         pack_id: &str,
     ) -> StorageResult<bool> {
-        let result = sqlx::query(
-            "DELETE FROM subscription_group_packs
-            WHERE subscription_group_id = ? AND pack_id = ?",
-        )
-        .bind(subscription_group_id)
-        .bind(pack_id)
-        .execute(self.sqlite()?)
-        .await?;
-        Ok(result.rows_affected() == 1)
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => sqlx::query(
+                "DELETE FROM subscription_group_packs
+                WHERE subscription_group_id = ? AND pack_id = ?",
+            )
+            .bind(subscription_group_id)
+            .bind(pack_id)
+            .execute(pool)
+            .await?
+            .rows_affected(),
+            DbPool::Postgres(pool) => sqlx::query(
+                "DELETE FROM subscription_group_packs
+                WHERE subscription_group_id = $1 AND pack_id = $2",
+            )
+            .bind(subscription_group_id)
+            .bind(pack_id)
+            .execute(pool)
+            .await?
+            .rows_affected(),
+        };
+        Ok(rows_affected == 1)
     }
 
     async fn role_from_row_with_permissions(&self, row: &SqliteRow) -> StorageResult<RoleRecord> {
@@ -4163,6 +4201,20 @@ mod tests {
                 .unwrap(),
             vec![fixture.pack.clone(), fixture.second_pack.clone()]
         );
+        assert!(repo
+            .remove_pack_from_folder(&folder_pack.folder_id, &fixture.second_pack)
+            .await
+            .unwrap());
+        assert!(!repo
+            .remove_pack_from_folder(&folder_pack.folder_id, &fixture.second_pack)
+            .await
+            .unwrap());
+        assert_eq!(
+            repo.list_folder_pack_ids(&folder_pack.folder_id)
+                .await
+                .unwrap(),
+            vec![fixture.pack.clone()]
+        );
     }
 
     async fn assert_pack_tag_membership_contract(
@@ -4182,6 +4234,19 @@ mod tests {
             repo.list_pack_tag_ids(&pack_tag.pack_id).await.unwrap(),
             vec![fixture.tag.clone()]
         );
+        assert!(repo
+            .remove_tag_from_pack(&pack_tag.pack_id, &pack_tag.tag_id)
+            .await
+            .unwrap());
+        assert!(!repo
+            .remove_tag_from_pack(&pack_tag.pack_id, &pack_tag.tag_id)
+            .await
+            .unwrap());
+        assert!(repo
+            .list_pack_tag_ids(&pack_tag.pack_id)
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     async fn assert_subscription_membership_contract(
@@ -4214,6 +4279,26 @@ mod tests {
                 .await
                 .unwrap(),
             vec![fixture.pack.clone(), fixture.second_pack.clone()]
+        );
+        assert!(repo
+            .remove_pack_from_subscription_group(
+                &subscription_pack.subscription_group_id,
+                &fixture.second_pack,
+            )
+            .await
+            .unwrap());
+        assert!(!repo
+            .remove_pack_from_subscription_group(
+                &subscription_pack.subscription_group_id,
+                &fixture.second_pack,
+            )
+            .await
+            .unwrap());
+        assert_eq!(
+            repo.list_subscription_pack_ids(&subscription_pack.subscription_group_id)
+                .await
+                .unwrap(),
+            vec![fixture.pack.clone()]
         );
     }
 

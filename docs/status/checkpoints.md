@@ -1912,3 +1912,10 @@
 - Added optional PostgreSQL provider import-job repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite provider import-job coverage active.
 - Updated PRD/status docs to show provider import-job PostgreSQL progress while keeping portability and membership-removal parity open.
 - Verification: `cargo test -p msm-storage provider_import --locked`.
+
+## 2026-05-11 PostgreSQL Metadata Membership Removal Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for folder-pack, pack-tag, and subscription-group-pack removal operations.
+- Extended shared metadata membership contract tests to cover successful removal and idempotent second removal on both SQLite and optional PostgreSQL.
+- Updated PRD/status docs to show membership removal PostgreSQL progress while keeping portability parity open.
+- Verification: `cargo test -p msm-storage metadata_memberships --locked`.
