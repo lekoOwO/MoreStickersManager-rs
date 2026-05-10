@@ -9,6 +9,7 @@ use msm_storage::portability::{export_user_data, import_user_data, PortableUserE
 use crate::{
     auth::require_pat,
     dto::{ExportUserDataQuery, ImportUserDataRequest},
+    rate_limit::enforce_import_rate_limit,
     rbac::require_tenant_resource_access,
     ApiError, ApiResult, ApiState,
 };
@@ -62,6 +63,7 @@ pub async fn import_user(
     headers: HeaderMap,
     Json(request): Json<ImportUserDataRequest>,
 ) -> ApiResult<StatusCode> {
+    enforce_import_rate_limit(&headers, &state)?;
     let export: PortableUserExport = serde_json::from_value(request.export)
         .map_err(|error| ApiError::BadRequest(error.to_string()))?;
     let pat = require_pat(&headers, &state, Permission::ImportRun).await?;

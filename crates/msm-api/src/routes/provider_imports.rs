@@ -21,6 +21,7 @@ use crate::{
         ProviderHttpHeaderResponse, ProviderHttpRequestPlanResponse,
         ProviderImportJobEventResponse, ProviderImportJobResponse, ProviderImportPlanResponse,
     },
+    rate_limit::enforce_import_rate_limit,
     rbac::require_tenant_resource_access,
     ApiError, ApiResult, ApiState,
 };
@@ -48,6 +49,7 @@ pub async fn create_provider_import_plan(
     headers: HeaderMap,
     Json(request): Json<CreateProviderImportPlanRequest>,
 ) -> ApiResult<Json<ProviderImportPlanResponse>> {
+    enforce_import_rate_limit(&headers, &state)?;
     let pat = require_pat(&headers, &state, Permission::ProviderImport).await?;
     pat.require_user(&request.owner_user_id)?;
     require_tenant_resource_access(
@@ -108,6 +110,7 @@ pub async fn create_provider_import_job(
     headers: HeaderMap,
     Json(request): Json<CreateProviderImportJobRequest>,
 ) -> ApiResult<(StatusCode, Json<ProviderImportJobResponse>)> {
+    enforce_import_rate_limit(&headers, &state)?;
     let pat =
         authorize_provider_import(&state, &headers, &request.tenant_id, &request.owner_user_id)
             .await?;

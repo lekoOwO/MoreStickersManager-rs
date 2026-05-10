@@ -10,6 +10,7 @@ use crate::{
     asset_urls::pack_with_resolved_asset_urls,
     auth::require_pat,
     dto::{ImportPackRequest, ListPacksQuery, UpdatePackRequest},
+    rate_limit::enforce_import_rate_limit,
     rbac::{require_pack_access, require_tenant_resource_access},
     ApiError, ApiResult, ApiState,
 };
@@ -35,6 +36,7 @@ pub async fn import_pack(
     headers: HeaderMap,
     Json(request): Json<ImportPackRequest>,
 ) -> ApiResult<StatusCode> {
+    enforce_import_rate_limit(&headers, &state)?;
     let pat = require_pat(&headers, &state, Permission::ImportRun).await?;
     pat.require_user(&request.owner_user_id)?;
     require_tenant_resource_access(

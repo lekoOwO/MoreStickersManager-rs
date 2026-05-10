@@ -1961,3 +1961,10 @@
 - Added API coverage proving oversized import JSON is rejected with `413 Payload Too Large` before import handling.
 - Updated PRD/status/user docs to record request-size hardening progress while leaving route/user/IP rate limiting open.
 - Verification: `cargo test -p msm-api -p msm-app --locked`; `cargo clippy -p msm-api -p msm-app --all-targets --locked -- -D warnings`; `cargo fmt --all -- --check`; `git diff --check`.
+## 2026-05-11 Import Rate Limit Hardening
+
+- Added a configurable in-memory per-identity rate limiter for pack import, portable user import, provider import planning, and provider import job creation.
+- Added `429 Too Many Requests` API errors and MCP auth-error mapping coverage compatibility for the new API error variant.
+- Added app configuration for `MSM_IMPORT_RATE_LIMIT_REQUESTS` and `MSM_IMPORT_RATE_LIMIT_WINDOW_SECS`, including invalid-value tests.
+- Updated PRD/status/user docs to mark the import/upload request-size and rate-limit Phase K item complete.
+- Verification: `cargo test -p msm-api -p msm-app -p msm-mcp --locked`; `cargo clippy -p msm-api -p msm-app -p msm-mcp --all-targets --locked -- -D warnings`; `cargo fmt --all -- --check`; `git diff --check`.

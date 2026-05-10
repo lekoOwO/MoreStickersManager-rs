@@ -1,4 +1,8 @@
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
 use msm_storage::{LocalAssetStore, StorageRepository};
 
@@ -6,6 +10,29 @@ use crate::oidc::{
     HttpOidcDiscoveryFetcher, HttpOidcJwksFetcher, HttpOidcTokenExchanger, HttpOidcUserinfoFetcher,
     OidcDiscoveryFetcher, OidcJwksFetcher, OidcTokenExchanger, OidcUserinfoFetcher,
 };
+
+pub const DEFAULT_IMPORT_RATE_LIMIT_REQUESTS: usize = 60;
+pub const DEFAULT_IMPORT_RATE_LIMIT_WINDOW_SECS: u64 = 60;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RateLimitConfig {
+    pub import_requests: usize,
+    pub import_window: Duration,
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            import_requests: DEFAULT_IMPORT_RATE_LIMIT_REQUESTS,
+            import_window: Duration::from_secs(DEFAULT_IMPORT_RATE_LIMIT_WINDOW_SECS),
+        }
+    }
+}
+
+#[derive(Default)]
+struct ImportRateLimiter {
+    buckets: HashMap<String, VecDeque<Instant>>,
+}
 
 #[derive(Clone)]
 pub struct ApiState {
@@ -16,6 +43,8 @@ pub struct ApiState {
     oidc_jwks_fetcher: Arc<dyn OidcJwksFetcher>,
     oidc_userinfo_fetcher: Arc<dyn OidcUserinfoFetcher>,
     public_asset_url: Option<String>,
+    rate_limit_config: RateLimitConfig,
+    import_rate_limiter: Arc<Mutex<ImportRateLimiter>>,
 }
 
 impl ApiState {
@@ -29,6 +58,8 @@ impl ApiState {
             oidc_jwks_fetcher: Arc::new(HttpOidcJwksFetcher::new()),
             oidc_userinfo_fetcher: Arc::new(HttpOidcUserinfoFetcher::new()),
             public_asset_url: None,
+            rate_limit_config: RateLimitConfig::default(),
+            import_rate_limiter: Arc::new(Mutex::new(ImportRateLimiter::default())),
         }
     }
 
@@ -72,6 +103,13 @@ impl ApiState {
     }
 
     #[must_use]
+    pub fn with_rate_limit_config(mut self, rate_limit_config: RateLimitConfig) -> Self {
+        self.rate_limit_config = rate_limit_config;
+        self.import_rate_limiter = Arc::new(Mutex::new(ImportRateLimiter::default()));
+        self
+    }
+
+    #[must_use]
     pub fn repository(&self) -> &StorageRepository {
         &self.repository
     }
@@ -104,5 +142,30 @@ impl ApiState {
     #[must_use]
     pub fn public_asset_url(&self) -> Option<&str> {
         self.public_asset_url.as_deref()
+    }
+
+    #[must_use]
+    pub fn rate_limit_config(&self) -> &RateLimitConfig {
+        &self.rate_limit_config
+    }
+
+    #[must_use]
+    pub fn check_import_rate_limit(&self, key: &str) -> bool {
+        let now = Instant::now();
+        let Ok(mut limiter) = self.import_rate_limiter.lock() else {
+            return false;
+        };
+        let bucket = limiter.buckets.entry(key.to_owned()).or_default();
+        while bucket.front().is_some_and(|instant| {
+            now.duration_since(*instant) >= self.rate_limit_config.import_window
+        }) {
+            bucket.pop_front();
+        }
+        if bucket.len() >= self.rate_limit_config.import_requests {
+            false
+        } else {
+            bucket.push_back(now);
+            true
+        }
     }
 }

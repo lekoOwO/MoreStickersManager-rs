@@ -1804,6 +1804,7 @@ fn auth_error_message(error: ApiError) -> String {
         ApiError::Unauthorized(message) => format!("Personal Access Token unauthorized: {message}"),
         ApiError::Forbidden(message)
         | ApiError::BadRequest(message)
+        | ApiError::TooManyRequests(message)
         | ApiError::NotFound(message)
         | ApiError::Internal(message) => message,
     }

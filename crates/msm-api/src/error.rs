@@ -9,6 +9,7 @@ pub enum ApiError {
     BadRequest(String),
     Unauthorized(String),
     Forbidden(String),
+    TooManyRequests(String),
     NotFound(String),
     Internal(String),
 }
@@ -32,6 +33,9 @@ impl IntoResponse for ApiError {
             Self::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", message),
             Self::Unauthorized(message) => (StatusCode::UNAUTHORIZED, "unauthorized", message),
             Self::Forbidden(message) => (StatusCode::FORBIDDEN, "forbidden", message),
+            Self::TooManyRequests(message) => {
+                (StatusCode::TOO_MANY_REQUESTS, "too_many_requests", message)
+            }
             Self::NotFound(message) => (StatusCode::NOT_FOUND, "not_found", message),
             Self::Internal(message) => (StatusCode::INTERNAL_SERVER_ERROR, "internal", message),
         };

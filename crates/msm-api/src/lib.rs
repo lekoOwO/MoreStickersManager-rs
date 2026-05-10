@@ -6,6 +6,7 @@ pub mod dto;
 pub mod error;
 pub mod oidc;
 pub mod openapi;
+mod rate_limit;
 mod rbac;
 pub mod routes;
 pub mod state;
@@ -18,7 +19,7 @@ use axum::{
 
 pub use error::{ApiError, ApiResult};
 pub use rbac::{allowed_pat_scopes_for_user, require_tenant_resource_access};
-pub use state::ApiState;
+pub use state::{ApiState, RateLimitConfig};
 
 pub const DEFAULT_REQUEST_BODY_LIMIT_BYTES: usize = 10 * 1024 * 1024;
 
@@ -320,7 +321,7 @@ mod tests {
             OidcTokenExchangeRequest, OidcTokenExchanger, OidcTokenResponse, OidcUserinfoClaims,
             OidcUserinfoFetcher, OidcUserinfoFuture,
         },
-        ApiState,
+        ApiState, RateLimitConfig,
     };
 
     #[tokio::test]
@@ -447,6 +448,39 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[tokio::test]
+    async fn import_routes_apply_per_identity_rate_limit() {
+        let state = test_state().await.with_rate_limit_config(RateLimitConfig {
+            import_requests: 2,
+            import_window: std::time::Duration::from_mins(1),
+        });
+        let router = build_router(state);
+
+        for expected_status in [
+            StatusCode::UNAUTHORIZED,
+            StatusCode::UNAUTHORIZED,
+            StatusCode::TOO_MANY_REQUESTS,
+        ] {
+            let response = router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/api/v1/packs/import")
+                        .header(header::CONTENT_TYPE, "application/json")
+                        .header(header::AUTHORIZATION, "Bearer msm_pat_rate_limited_secret")
+                        .body(Body::from(
+                            r#"{"tenantId":"tenant_1","ownerUserId":"user_1","packId":"pack_1","visibility":"private","pack":{"id":"pack_1","name":"Rate Limited","stickers":[]}}"#,
+                        ))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), expected_status);
+        }
     }
 
     #[tokio::test]

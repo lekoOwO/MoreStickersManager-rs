@@ -17,7 +17,7 @@ use axum::{
 };
 use bytes::Bytes;
 use include_dir::{include_dir, Dir};
-use msm_api::{build_router_with_body_limit, ApiState};
+use msm_api::{build_router_with_body_limit, ApiState, RateLimitConfig};
 use msm_storage::models::NewExportTarget;
 use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 
@@ -54,6 +54,8 @@ pub struct AppConfig {
     pub web_dist_dir: PathBuf,
     pub public_asset_url: Option<String>,
     pub request_body_limit_bytes: usize,
+    pub import_rate_limit_requests: usize,
+    pub import_rate_limit_window: Duration,
     pub export_worker: ExportWorkerConfig,
     pub provider_import_worker: ProviderImportWorkerConfig,
     pub bootstrap_export_targets: Vec<BootstrapExportTargetConfig>,
@@ -108,6 +110,10 @@ impl AppConfig {
     pub const DEFAULT_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS: u64 = 5_000;
     pub const DEFAULT_PROVIDER_IMPORT_RETRY_BACKOFF_MS: u64 = 60_000;
     pub const DEFAULT_REQUEST_BODY_LIMIT_BYTES: usize = msm_api::DEFAULT_REQUEST_BODY_LIMIT_BYTES;
+    pub const DEFAULT_IMPORT_RATE_LIMIT_REQUESTS: usize =
+        msm_api::state::DEFAULT_IMPORT_RATE_LIMIT_REQUESTS;
+    pub const DEFAULT_IMPORT_RATE_LIMIT_WINDOW_SECS: u64 =
+        msm_api::state::DEFAULT_IMPORT_RATE_LIMIT_WINDOW_SECS;
 
     /// Reads service configuration from process environment variables.
     ///
@@ -152,6 +158,16 @@ impl AppConfig {
                 "MSM_REQUEST_BODY_LIMIT_BYTES",
                 Self::DEFAULT_REQUEST_BODY_LIMIT_BYTES,
             )?,
+            import_rate_limit_requests: read_usize(
+                vars,
+                "MSM_IMPORT_RATE_LIMIT_REQUESTS",
+                Self::DEFAULT_IMPORT_RATE_LIMIT_REQUESTS,
+            )?,
+            import_rate_limit_window: Duration::from_secs(read_u64(
+                vars,
+                "MSM_IMPORT_RATE_LIMIT_WINDOW_SECS",
+                Self::DEFAULT_IMPORT_RATE_LIMIT_WINDOW_SECS,
+            )?),
             export_worker: ExportWorkerConfig {
                 enabled: read_bool(
                     vars,
@@ -223,7 +239,11 @@ pub async fn initialize_state(config: &AppConfig) -> AppResult<ApiState> {
     bootstrap_export_targets(&repository, &config.bootstrap_export_targets).await?;
     let asset_store = LocalAssetStore::new(config.asset_dir.clone());
     Ok(ApiState::new(repository, asset_store)
-        .with_public_asset_url(config.public_asset_url.clone()))
+        .with_public_asset_url(config.public_asset_url.clone())
+        .with_rate_limit_config(RateLimitConfig {
+            import_requests: config.import_rate_limit_requests,
+            import_window: config.import_rate_limit_window,
+        }))
 }
 
 async fn bootstrap_export_targets(
@@ -480,6 +500,14 @@ mod tests {
             config.request_body_limit_bytes,
             AppConfig::DEFAULT_REQUEST_BODY_LIMIT_BYTES
         );
+        assert_eq!(
+            config.import_rate_limit_requests,
+            AppConfig::DEFAULT_IMPORT_RATE_LIMIT_REQUESTS
+        );
+        assert_eq!(
+            config.import_rate_limit_window,
+            std::time::Duration::from_secs(AppConfig::DEFAULT_IMPORT_RATE_LIMIT_WINDOW_SECS)
+        );
         assert_eq!(config.export_worker.ffmpeg_path, PathBuf::from("ffmpeg"));
         assert_eq!(config.export_worker.ffprobe_path, PathBuf::from("ffprobe"));
         assert_eq!(
@@ -513,6 +541,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn config_reads_overrides() {
         let mut vars = BTreeMap::new();
         vars.insert("MSM_BIND_ADDR".to_owned(), "0.0.0.0:8080".to_owned());
@@ -523,6 +552,11 @@ mod tests {
         vars.insert("MSM_ASSET_DIR".to_owned(), "tmp/assets".to_owned());
         vars.insert("MSM_WEB_DIST_DIR".to_owned(), "tmp/web".to_owned());
         vars.insert("MSM_REQUEST_BODY_LIMIT_BYTES".to_owned(), "4096".to_owned());
+        vars.insert("MSM_IMPORT_RATE_LIMIT_REQUESTS".to_owned(), "2".to_owned());
+        vars.insert(
+            "MSM_IMPORT_RATE_LIMIT_WINDOW_SECS".to_owned(),
+            "3".to_owned(),
+        );
         vars.insert(
             "MSM_PUBLIC_ASSET_URL".to_owned(),
             "https://global-cdn.example.test/msm".to_owned(),
@@ -568,6 +602,11 @@ mod tests {
         assert_eq!(config.asset_dir, PathBuf::from("tmp/assets"));
         assert_eq!(config.web_dist_dir, PathBuf::from("tmp/web"));
         assert_eq!(config.request_body_limit_bytes, 4096);
+        assert_eq!(config.import_rate_limit_requests, 2);
+        assert_eq!(
+            config.import_rate_limit_window,
+            std::time::Duration::from_secs(3)
+        );
         assert_eq!(
             config.public_asset_url.as_deref(),
             Some("https://global-cdn.example.test/msm")
@@ -663,6 +702,16 @@ mod tests {
         let error = AppConfig::from_env_map(&vars).expect_err("zero body limit must fail");
 
         assert!(error.to_string().contains("MSM_REQUEST_BODY_LIMIT_BYTES"));
+    }
+
+    #[test]
+    fn config_rejects_invalid_import_rate_limit() {
+        let mut vars = BTreeMap::new();
+        vars.insert("MSM_IMPORT_RATE_LIMIT_REQUESTS".to_owned(), "0".to_owned());
+
+        let error = AppConfig::from_env_map(&vars).expect_err("zero rate limit must fail");
+
+        assert!(error.to_string().contains("MSM_IMPORT_RATE_LIMIT_REQUESTS"));
     }
 
     #[test]

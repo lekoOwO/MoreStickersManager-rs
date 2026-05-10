@@ -235,6 +235,8 @@ Environment variables:
 - `MSM_ASSET_DIR`: local asset directory, default `data/assets`.
 - `MSM_WEB_DIST_DIR`: Web UI dist directory, default `apps/web/dist`.
 - `MSM_REQUEST_BODY_LIMIT_BYTES`: maximum request body size accepted by the API/app router before JSON upload/import parsing, default `10485760` (10 MiB).
+- `MSM_IMPORT_RATE_LIMIT_REQUESTS`: requests allowed per identity for import-like routes in one window, default `60`.
+- `MSM_IMPORT_RATE_LIMIT_WINDOW_SECS`: import-like route rate-limit window length in seconds, default `60`.
 - `MSM_FFMPEG_PATH`: ffmpeg path for future export conversion execution, default `ffmpeg`.
 - `MSM_FFPROBE_PATH`: ffprobe path for future export probing execution, default `ffprobe`.
 - `MSM_PREPARED_MEDIA_DIR`: prepared media output directory, default `data/prepared-media`.
