@@ -1578,3 +1578,11 @@
 - Added storage helpers for due provider import job selection and status/retry/failure transitions.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-app --locked`, `cargo clippy -p msm-storage -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider/user docs; next Phase E slice should wire the provider import worker into service loop/config, then add CLI/MCP/Web job controls.
+
+## 2026-05-10 Provider Import Service Loop
+
+- Added service configuration for provider import job polling: `MSM_PROVIDER_IMPORT_WORKER_ENABLED`, `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS`, `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS`, and `MSM_PUBLIC_ASSET_BASE_URL`.
+- Added a reqwest-backed provider import runtime for metadata fetches and direct asset downloads, and wired `msm-app` startup to spawn the provider import worker loop when enabled.
+- Added config coverage for defaults, overrides, and invalid provider import worker booleans.
+- Verification: `cargo test -p msm-app config_ --locked`, `cargo test -p msm-app provider_import_worker --locked`, plus final msm-app fmt/test/clippy/diff checks passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider/user docs; next Phase E slice should add CLI/MCP/Web provider import job controls.

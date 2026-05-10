@@ -88,8 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Wire provider import worker execution into the service loop/config, then add
-   CLI/MCP/Web provider import job controls.
+1. Add CLI/MCP/Web provider import job controls.
 2. Implement Telegram provider import `getFile`/file download execution and LINE
    product metadata parsing beyond fixture-schema direct URL payloads.
 
@@ -234,8 +233,7 @@ tests and docs are updated.
   Progress: `msm-providers` now exposes a testable Telegram remote fetch plan
   boundary for `getStickerSet` metadata and Telegram `getFile`/file download
   asset strategy. `msm-app` now has injected runtime metadata fetch helpers and
-  a provider import worker foundation; Telegram-specific `getFile` execution and
-  service-loop wiring remain. API can now create protected provider import fetch
+  a provider import worker foundation; Telegram-specific `getFile` execution remains. API can now create protected provider import fetch
   plans and queue provider import jobs for Telegram sources, and CLI/MCP/Web can
   request/display those plans.
 - [ ] LINE network fetch with asset download/internalization.
@@ -250,8 +248,10 @@ tests and docs are updated.
 - [ ] Provider job progress and retry model.
   Progress: SQLite/API job persistence exists; `msm-app` now has a tested
   queued-job worker foundation with running/succeeded/failed/retry transitions
-  for LINE direct-asset imports. CLI/MCP/Web job controls and service-loop
-  configuration remain.
+  for LINE direct-asset imports. `MSM_PROVIDER_IMPORT_WORKER_ENABLED`,
+  `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS`,
+  `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS`, and `MSM_PUBLIC_ASSET_BASE_URL` wire
+  the worker into service startup. CLI/MCP/Web job controls remain.
 - [ ] Placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ,
   Viber without pretending they are implemented.
 

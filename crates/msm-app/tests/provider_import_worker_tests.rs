@@ -49,7 +49,9 @@ async fn provider_import_worker_internalizes_line_pack_assets() {
         repo.clone(),
         asset_store,
         ProviderImportWorkerConfig {
+            enabled: false,
             public_asset_base_url: "https://msm.example.test".to_owned(),
+            poll_interval: Duration::from_millis(5),
             retry_backoff: Duration::from_millis(5),
         },
         Arc::new(FakeFetcher::new(line_metadata())),
@@ -124,7 +126,9 @@ async fn provider_import_worker_requeues_retryable_failures() {
         repo.clone(),
         LocalAssetStore::new(temp.path()),
         ProviderImportWorkerConfig {
+            enabled: false,
             public_asset_base_url: "https://msm.example.test".to_owned(),
+            poll_interval: Duration::from_millis(5),
             retry_backoff: Duration::from_millis(5),
         },
         Arc::new(FakeFetcher::new(br#"{"ok":true}"#.to_vec())),

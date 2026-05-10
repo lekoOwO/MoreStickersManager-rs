@@ -38,8 +38,8 @@ pub use provider_import::{
     ProviderImportResult, ProviderMetadataFetcher,
 };
 pub use provider_import_worker::{
-    ProviderImportWorker, ProviderImportWorkerConfig, ProviderImportWorkerError,
-    ProviderImportWorkerResult,
+    spawn_provider_import_worker_if_enabled, ProviderImportWorker, ProviderImportWorkerConfig,
+    ProviderImportWorkerError, ProviderImportWorkerResult, ReqwestProviderImportRuntime,
 };
 
 static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");
@@ -51,6 +51,7 @@ pub struct AppConfig {
     pub asset_dir: PathBuf,
     pub web_dist_dir: PathBuf,
     pub export_worker: ExportWorkerConfig,
+    pub provider_import_worker: ProviderImportWorkerConfig,
     pub bootstrap_export_targets: Vec<BootstrapExportTargetConfig>,
 }
 
@@ -99,6 +100,9 @@ impl AppConfig {
     pub const DEFAULT_EXPORT_WORKER_ENABLED: bool = false;
     pub const DEFAULT_EXPORT_WORKER_POLL_INTERVAL_MS: u64 = 5_000;
     pub const DEFAULT_EXPORT_RETRY_BACKOFF_MS: u64 = 60_000;
+    pub const DEFAULT_PROVIDER_IMPORT_WORKER_ENABLED: bool = false;
+    pub const DEFAULT_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS: u64 = 5_000;
+    pub const DEFAULT_PROVIDER_IMPORT_RETRY_BACKOFF_MS: u64 = 60_000;
 
     /// Reads service configuration from process environment variables.
     ///
@@ -117,6 +121,11 @@ impl AppConfig {
     /// Returns an error when `MSM_BIND_ADDR` is not a valid socket address.
     pub fn from_env_map(vars: &BTreeMap<String, String>) -> AppResult<Self> {
         let bind_addr = read(vars, "MSM_BIND_ADDR", Self::DEFAULT_BIND_ADDR);
+        let public_asset_base_url = read(
+            vars,
+            "MSM_PUBLIC_ASSET_BASE_URL",
+            &format!("http://{bind_addr}"),
+        );
         let max_concurrent_jobs = read_usize(
             vars,
             "MSM_EXPORT_MAX_CONCURRENT_JOBS",
@@ -163,6 +172,24 @@ impl AppConfig {
                     vars,
                     "MSM_EXPORT_RETRY_BACKOFF_MS",
                     Self::DEFAULT_EXPORT_RETRY_BACKOFF_MS,
+                )?),
+            },
+            provider_import_worker: ProviderImportWorkerConfig {
+                enabled: read_bool(
+                    vars,
+                    "MSM_PROVIDER_IMPORT_WORKER_ENABLED",
+                    Self::DEFAULT_PROVIDER_IMPORT_WORKER_ENABLED,
+                )?,
+                public_asset_base_url,
+                poll_interval: Duration::from_millis(read_u64(
+                    vars,
+                    "MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS",
+                    Self::DEFAULT_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS,
+                )?),
+                retry_backoff: Duration::from_millis(read_u64(
+                    vars,
+                    "MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS",
+                    Self::DEFAULT_PROVIDER_IMPORT_RETRY_BACKOFF_MS,
                 )?),
             },
             bootstrap_export_targets: read_bootstrap_export_targets(vars)?,
@@ -441,6 +468,19 @@ mod tests {
             config.export_worker.retry_backoff,
             std::time::Duration::from_mins(1)
         );
+        assert!(!config.provider_import_worker.enabled);
+        assert_eq!(
+            config.provider_import_worker.public_asset_base_url,
+            "http://127.0.0.1:3000"
+        );
+        assert_eq!(
+            config.provider_import_worker.poll_interval,
+            std::time::Duration::from_secs(5)
+        );
+        assert_eq!(
+            config.provider_import_worker.retry_backoff,
+            std::time::Duration::from_mins(1)
+        );
         assert!(config.bootstrap_export_targets.is_empty());
     }
 
@@ -468,22 +508,22 @@ mod tests {
         );
         vars.insert("MSM_EXPORT_RETRY_BACKOFF_MS".to_owned(), "750".to_owned());
         vars.insert(
-            "MSM_BOOTSTRAP_EXPORT_TARGETS_JSON".to_owned(),
-            serde_json::json!([
-                {
-                    "id": "target_telegram",
-                    "tenantId": "tenant_1",
-                    "kind": "telegram",
-                    "name": "Telegram",
-                    "config": {
-                        "botUsername": "msm_bot",
-                        "botToken": "secret"
-                    },
-                    "isEnabled": true
-                }
-            ])
-            .to_string(),
+            "MSM_PUBLIC_ASSET_BASE_URL".to_owned(),
+            "https://cdn.example.test/msm".to_owned(),
         );
+        vars.insert(
+            "MSM_PROVIDER_IMPORT_WORKER_ENABLED".to_owned(),
+            "true".to_owned(),
+        );
+        vars.insert(
+            "MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS".to_owned(),
+            "125".to_owned(),
+        );
+        vars.insert(
+            "MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS".to_owned(),
+            "1500".to_owned(),
+        );
+        insert_bootstrap_export_target_override(&mut vars);
 
         let config = AppConfig::from_env_map(&vars).unwrap();
 
@@ -516,11 +556,44 @@ mod tests {
             config.export_worker.retry_backoff,
             std::time::Duration::from_millis(750)
         );
+        assert!(config.provider_import_worker.enabled);
+        assert_eq!(
+            config.provider_import_worker.public_asset_base_url,
+            "https://cdn.example.test/msm"
+        );
+        assert_eq!(
+            config.provider_import_worker.poll_interval,
+            std::time::Duration::from_millis(125)
+        );
+        assert_eq!(
+            config.provider_import_worker.retry_backoff,
+            std::time::Duration::from_millis(1500)
+        );
         assert_eq!(config.bootstrap_export_targets.len(), 1);
         assert_eq!(config.bootstrap_export_targets[0].id, "target_telegram");
         assert_eq!(
             config.bootstrap_export_targets[0].config_json,
             r#"{"botToken":"secret","botUsername":"msm_bot"}"#
+        );
+    }
+
+    fn insert_bootstrap_export_target_override(vars: &mut BTreeMap<String, String>) {
+        vars.insert(
+            "MSM_BOOTSTRAP_EXPORT_TARGETS_JSON".to_owned(),
+            serde_json::json!([
+                {
+                    "id": "target_telegram",
+                    "tenantId": "tenant_1",
+                    "kind": "telegram",
+                    "name": "Telegram",
+                    "config": {
+                        "botUsername": "msm_bot",
+                        "botToken": "secret"
+                    },
+                    "isEnabled": true
+                }
+            ])
+            .to_string(),
         );
     }
 
@@ -552,6 +625,21 @@ mod tests {
         let error = AppConfig::from_env_map(&vars).expect_err("invalid bool must fail");
 
         assert!(error.to_string().contains("MSM_EXPORT_WORKER_ENABLED"));
+    }
+
+    #[test]
+    fn config_rejects_invalid_provider_import_worker_enabled_flag() {
+        let mut vars = BTreeMap::new();
+        vars.insert(
+            "MSM_PROVIDER_IMPORT_WORKER_ENABLED".to_owned(),
+            "maybe".to_owned(),
+        );
+
+        let error = AppConfig::from_env_map(&vars).expect_err("invalid bool must fail");
+
+        assert!(error
+            .to_string()
+            .contains("MSM_PROVIDER_IMPORT_WORKER_ENABLED"));
     }
 
     #[test]

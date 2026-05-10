@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use msm_domain::StickerPack;
 use msm_providers::{
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     internalize_direct_remote_pack_assets, ProviderAssetDownloader, ProviderImportError,
-    ProviderMetadataFetcher,
+    ProviderImportResult, ProviderMetadataFetcher,
 };
 
 /// Result type for provider import worker operations.
@@ -67,10 +67,114 @@ pub enum ProviderImportWorkerError {
 /// Provider import worker configuration.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProviderImportWorkerConfig {
+    /// Whether the service should spawn a background import worker loop.
+    pub enabled: bool,
     /// Public base URL embedded into self-hosted asset URLs.
     pub public_asset_base_url: String,
+    /// Poll interval for the background worker loop.
+    pub poll_interval: Duration,
     /// Retry backoff for retryable failures.
     pub retry_backoff: Duration,
+}
+
+/// HTTP-backed provider runtime used by the service loop.
+#[derive(Clone, Debug)]
+pub struct ReqwestProviderImportRuntime {
+    client: reqwest::Client,
+}
+
+impl ReqwestProviderImportRuntime {
+    /// Creates a runtime using a default reqwest client.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+impl Default for ReqwestProviderImportRuntime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ProviderMetadataFetcher for ReqwestProviderImportRuntime {
+    fn fetch_metadata<'a>(
+        &'a self,
+        plan: &'a ProviderRemoteFetchPlan,
+    ) -> Pin<Box<dyn Future<Output = ProviderImportResult<Vec<u8>>> + Send + 'a>> {
+        Box::pin(async move {
+            if !plan.metadata_request.method.eq_ignore_ascii_case("GET") {
+                return Err(ProviderImportError::Fetch(format!(
+                    "unsupported metadata request method: {}",
+                    plan.metadata_request.method
+                )));
+            }
+            let response = self
+                .client
+                .get(&plan.metadata_request.url)
+                .send()
+                .await
+                .map_err(|error| ProviderImportError::Fetch(error.to_string()))?
+                .error_for_status()
+                .map_err(|error| ProviderImportError::Fetch(error.to_string()))?;
+            let bytes = response
+                .bytes()
+                .await
+                .map_err(|error| ProviderImportError::Fetch(error.to_string()))?;
+            Ok(bytes.to_vec())
+        })
+    }
+}
+
+impl ProviderAssetDownloader for ReqwestProviderImportRuntime {
+    fn download_asset<'a>(
+        &'a self,
+        url: &'a str,
+    ) -> Pin<Box<dyn Future<Output = ProviderImportResult<Vec<u8>>> + Send + 'a>> {
+        Box::pin(async move {
+            let response = self
+                .client
+                .get(url)
+                .send()
+                .await
+                .map_err(|error| ProviderImportError::AssetDownload(error.to_string()))?
+                .error_for_status()
+                .map_err(|error| ProviderImportError::AssetDownload(error.to_string()))?;
+            let bytes = response
+                .bytes()
+                .await
+                .map_err(|error| ProviderImportError::AssetDownload(error.to_string()))?;
+            Ok(bytes.to_vec())
+        })
+    }
+}
+
+/// Spawns the provider import worker loop when enabled by configuration.
+#[must_use]
+pub fn spawn_provider_import_worker_if_enabled(
+    repository: StorageRepository,
+    asset_store: LocalAssetStore,
+    config: ProviderImportWorkerConfig,
+) -> Option<tokio::task::JoinHandle<()>> {
+    if !config.enabled {
+        return None;
+    }
+
+    Some(tokio::spawn(async move {
+        let poll_interval = config.poll_interval;
+        let runtime = Arc::new(ReqwestProviderImportRuntime::new());
+        let worker =
+            ProviderImportWorker::new(repository, asset_store, config, runtime.clone(), runtime);
+        let mut interval = tokio::time::interval(poll_interval);
+        loop {
+            interval.tick().await;
+            if worker.run_next_queued().await.is_err() {
+                interval.tick().await;
+            }
+        }
+    }))
 }
 
 /// Single-job provider import worker.

@@ -19,6 +19,7 @@ msm-mcp = { path = "../msm-mcp" }
 msm-providers = { path = "../msm-providers" }
 msm-storage = { path = "../msm-storage" }
 msm-telegram = { path = "../msm-telegram" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

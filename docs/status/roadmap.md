@@ -11,11 +11,11 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 Phase E provider ingestion is the active focus. Provider import planning exists
 across API, CLI, MCP, and Web; API job persistence exists; and `msm-app` now has
 a tested worker foundation that can execute queued LINE direct-asset imports
-when invoked by runtime code.
+from the service loop when enabled.
 
-The remaining immediate gaps are service-loop/config wiring for provider import
-jobs, CLI/MCP/Web job status controls, Telegram `getFile` download execution,
-and LINE product-page parsing beyond fixture-schema metadata.
+The remaining immediate gaps are CLI/MCP/Web job status controls, Telegram
+`getFile` download execution, and LINE product-page parsing beyond
+fixture-schema metadata.
 
 ## Recently Completed
 
@@ -171,10 +171,9 @@ and LINE product-page parsing beyond fixture-schema metadata.
 
 ## Immediate Plan
 
-1. Wire provider import worker execution into the service loop/config.
-2. Add CLI/MCP/Web provider import job controls.
-3. Implement Telegram provider import `getFile`/file download execution.
-4. Implement LINE product-page parsing into the existing LINE normalization
+1. Add CLI/MCP/Web provider import job controls.
+2. Implement Telegram provider import `getFile`/file download execution.
+3. Implement LINE product-page parsing into the existing LINE normalization
    schema.
 
 ## Later Planned Work

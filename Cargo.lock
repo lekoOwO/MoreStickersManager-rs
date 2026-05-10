@@ -1372,6 +1372,7 @@ dependencies = [
  "msm-providers",
  "msm-storage",
  "msm-telegram",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2",

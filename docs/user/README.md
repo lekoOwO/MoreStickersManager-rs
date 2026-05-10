@@ -436,9 +436,13 @@ authorization. The app crate now has a tested worker foundation that can execute
 LINE jobs when the fetched metadata already matches MSM's LINE fixture schema:
 it downloads direct remote sticker assets into local storage, rewrites pack
 image URLs to MSM-hosted assets, upserts a private sticker pack, and records job
-events. Service startup does not yet poll provider import jobs, and CLI/MCP/Web
-job controls, Telegram provider `getFile` downloads, and LINE product-page
-parsing are still pending.
+events. Service startup can poll provider import jobs when
+`MSM_PROVIDER_IMPORT_WORKER_ENABLED=true`. Set
+`MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS` for polling cadence,
+`MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS` for retry delay, and
+`MSM_PUBLIC_ASSET_BASE_URL` for the public URL embedded into imported sticker
+assets. CLI/MCP/Web job controls, Telegram provider `getFile` downloads, and
+LINE product-page parsing are still pending.
 
 PAT foundation status:
 
