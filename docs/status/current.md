@@ -3,6 +3,7 @@
 Phase: PostgreSQL support.
 
 Last completed:
+- PostgreSQL subscription access-token repository slice: subscription access-token create/list/find/verify/rotate/revoke operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL OIDC repository slice: OIDC provider configuration, login-state, and provider-user-link operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL local-credential repository slice: local-credential create/read/verify operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL Web-session repository slice: Web-session create/verify/revoke operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
@@ -141,7 +142,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase J PostgreSQL support by moving subscription access token, export, provider, and portability storage surfaces toward backend-aware SQL execution with shared backend test coverage.
+- Continue Phase J PostgreSQL support by moving export, provider, and portability storage surfaces toward backend-aware SQL execution with shared backend test coverage.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,

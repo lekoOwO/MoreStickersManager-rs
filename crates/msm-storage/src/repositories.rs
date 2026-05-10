@@ -2585,8 +2585,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the token ID is invalid, random generation fails, the repository is
-    /// not backed by `SQLite`, or SQL fails.
+    /// Returns an error when the token ID is invalid, random generation fails, or SQL fails.
     pub async fn create_subscription_access_token(
         &self,
         id: &str,
@@ -2601,22 +2600,44 @@ impl StorageRepository {
         let token_hash = hash_pat_secret(&secret);
         let now = now();
 
-        sqlx::query(
-            "INSERT INTO subscription_access_tokens (
-                id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(id)
-        .bind(tenant_id)
-        .bind(owner_user_id)
-        .bind(resource_type.as_str())
-        .bind(resource_id)
-        .bind(&token_hash)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO subscription_access_tokens (
+                        id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                )
+                .bind(id)
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .bind(resource_type.as_str())
+                .bind(resource_id)
+                .bind(&token_hash)
+                .bind(&now)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO subscription_access_tokens (
+                        id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                        created_at, updated_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                )
+                .bind(id)
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .bind(resource_type.as_str())
+                .bind(resource_id)
+                .bind(&token_hash)
+                .bind(&now)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(CreatedSubscriptionAccessToken {
             record: SubscriptionAccessTokenRecord {
@@ -2638,34 +2659,50 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored
-    /// resource type is invalid.
+    /// Returns an error when SQL fails or a stored resource type is invalid.
     pub async fn list_subscription_access_tokens(
         &self,
         owner_user_id: &str,
     ) -> StorageResult<Vec<SubscriptionAccessTokenRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
-                revoked_at, created_at, updated_at
-            FROM subscription_access_tokens
-            WHERE owner_user_id = ?
-            ORDER BY created_at DESC, id",
-        )
-        .bind(owner_user_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
-
-        rows.iter()
-            .map(subscription_access_token_from_row)
-            .collect()
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                        revoked_at, created_at, updated_at
+                    FROM subscription_access_tokens
+                    WHERE owner_user_id = ?
+                    ORDER BY created_at DESC, id",
+                )
+                .bind(owner_user_id)
+                .fetch_all(pool)
+                .await?;
+                rows.iter()
+                    .map(subscription_access_token_from_sqlite_row)
+                    .collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                        revoked_at, created_at, updated_at
+                    FROM subscription_access_tokens
+                    WHERE owner_user_id = $1
+                    ORDER BY created_at DESC, id",
+                )
+                .bind(owner_user_id)
+                .fetch_all(pool)
+                .await?;
+                rows.iter()
+                    .map(subscription_access_token_from_pg_row)
+                    .collect()
+            }
+        }
     }
 
     /// Verifies a subscription access token and returns the active record when valid.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored
-    /// resource type is invalid.
+    /// Returns an error when SQL fails or a stored resource type is invalid.
     pub async fn verify_subscription_access_token(
         &self,
         token: &str,
@@ -2673,20 +2710,9 @@ impl StorageRepository {
         let Some((id, secret)) = parse_subscription_access_token(token) else {
             return Ok(None);
         };
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
-                revoked_at, created_at, updated_at
-            FROM subscription_access_tokens
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        let Some(row) = row else {
+        let Some(record) = self.find_subscription_access_token(id).await? else {
             return Ok(None);
         };
-        let record = subscription_access_token_from_row(&row)?;
         if record.revoked_at.is_some() {
             return Ok(None);
         }
@@ -2707,8 +2733,8 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when random generation fails, the repository is not backed by `SQLite`,
-    /// SQL fails, the token does not exist, or a stored resource type is invalid.
+    /// Returns an error when random generation fails, SQL fails, the token does not exist, or a
+    /// stored resource type is invalid.
     pub async fn rotate_subscription_access_token(
         &self,
         id: &str,
@@ -2717,17 +2743,35 @@ impl StorageRepository {
         let token = format!("msm_sub_{id}_{secret}");
         let token_hash = hash_pat_secret(&secret);
         let now = now();
-        let result = sqlx::query(
-            "UPDATE subscription_access_tokens
-            SET token_hash = ?, revoked_at = NULL, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(&token_hash)
-        .bind(&now)
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
-        if result.rows_affected() != 1 {
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let result = sqlx::query(
+                    "UPDATE subscription_access_tokens
+                    SET token_hash = ?, revoked_at = NULL, updated_at = ?
+                    WHERE id = ?",
+                )
+                .bind(&token_hash)
+                .bind(&now)
+                .bind(id)
+                .execute(pool)
+                .await?;
+                result.rows_affected()
+            }
+            DbPool::Postgres(pool) => {
+                let result = sqlx::query(
+                    "UPDATE subscription_access_tokens
+                    SET token_hash = $1, revoked_at = NULL, updated_at = $2
+                    WHERE id = $3",
+                )
+                .bind(&token_hash)
+                .bind(&now)
+                .bind(id)
+                .execute(pool)
+                .await?;
+                result.rows_affected()
+            }
+        };
+        if rows_affected != 1 {
             return Err(StorageError::Sqlx(sqlx::Error::RowNotFound));
         }
         let record = self
@@ -2741,19 +2785,35 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn revoke_subscription_access_token(&self, id: &str) -> StorageResult<()> {
         let now = now();
-        sqlx::query(
-            "UPDATE subscription_access_tokens
-            SET revoked_at = ?, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(&now)
-        .bind(&now)
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "UPDATE subscription_access_tokens
+                    SET revoked_at = ?, updated_at = ?
+                    WHERE id = ?",
+                )
+                .bind(&now)
+                .bind(&now)
+                .bind(id)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "UPDATE subscription_access_tokens
+                    SET revoked_at = $1, updated_at = $2
+                    WHERE id = $3",
+                )
+                .bind(&now)
+                .bind(&now)
+                .bind(id)
+                .execute(pool)
+                .await?;
+            }
+        }
         Ok(())
     }
 
@@ -2761,25 +2821,41 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored
-    /// resource type is invalid.
+    /// Returns an error when SQL fails or a stored resource type is invalid.
     pub async fn find_subscription_access_token(
         &self,
         id: &str,
     ) -> StorageResult<Option<SubscriptionAccessTokenRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
-                revoked_at, created_at, updated_at
-            FROM subscription_access_tokens
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        row.as_ref()
-            .map(subscription_access_token_from_row)
-            .transpose()
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                        revoked_at, created_at, updated_at
+                    FROM subscription_access_tokens
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref()
+                    .map(subscription_access_token_from_sqlite_row)
+                    .transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, resource_type, resource_id, token_hash,
+                        revoked_at, created_at, updated_at
+                    FROM subscription_access_tokens
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref()
+                    .map(subscription_access_token_from_pg_row)
+                    .transpose()
+            }
+        }
     }
 
     /// Lists pack IDs in a subscription group.
@@ -3490,26 +3566,69 @@ fn web_session_from_values(values: WebSessionValues) -> WebSessionRecord {
     }
 }
 
-fn subscription_access_token_from_row(
+fn subscription_access_token_from_sqlite_row(
     row: &SqliteRow,
 ) -> StorageResult<SubscriptionAccessTokenRecord> {
-    let resource_type: String = row.get("resource_type");
-    let resource_type = SubscriptionAccessResourceType::from_storage(&resource_type).ok_or(
+    subscription_access_token_from_values(SubscriptionAccessTokenValues {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        resource_type: row.get("resource_type"),
+        resource_id: row.get("resource_id"),
+        token_hash: row.get("token_hash"),
+        revoked_at: row.get("revoked_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+fn subscription_access_token_from_pg_row(
+    row: &PgRow,
+) -> StorageResult<SubscriptionAccessTokenRecord> {
+    subscription_access_token_from_values(SubscriptionAccessTokenValues {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        resource_type: row.get("resource_type"),
+        resource_id: row.get("resource_id"),
+        token_hash: row.get("token_hash"),
+        revoked_at: row.get("revoked_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+struct SubscriptionAccessTokenValues {
+    id: String,
+    tenant_id: String,
+    owner_user_id: String,
+    resource_type: String,
+    resource_id: String,
+    token_hash: String,
+    revoked_at: Option<String>,
+    created_at: String,
+    updated_at: String,
+}
+
+fn subscription_access_token_from_values(
+    values: SubscriptionAccessTokenValues,
+) -> StorageResult<SubscriptionAccessTokenRecord> {
+    let resource_type = SubscriptionAccessResourceType::from_storage(&values.resource_type).ok_or(
         StorageError::InvalidPersonalAccessToken {
             reason: "unknown subscription access token resource type",
         },
     )?;
 
     Ok(SubscriptionAccessTokenRecord {
-        id: row.get("id"),
-        tenant_id: row.get("tenant_id"),
-        owner_user_id: row.get("owner_user_id"),
+        id: values.id,
+        tenant_id: values.tenant_id,
+        owner_user_id: values.owner_user_id,
         resource_type,
-        resource_id: row.get("resource_id"),
-        token_hash: row.get("token_hash"),
-        revoked_at: row.get("revoked_at"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        resource_id: values.resource_id,
+        token_hash: values.token_hash,
+        revoked_at: values.revoked_at,
+        created_at: values.created_at,
+        updated_at: values.updated_at,
     })
 }
 
@@ -3566,7 +3685,7 @@ mod tests {
 
     use crate::{
         db::DbPool,
-        models::{NewOidcProviderConfig, NewTag, PackVisibility},
+        models::{NewOidcProviderConfig, NewTag, PackVisibility, SubscriptionAccessResourceType},
         repositories::StorageRepository,
         DatabaseConfig,
     };
@@ -3719,6 +3838,21 @@ mod tests {
         };
 
         assert_oidc_contract(&repo, "postgres_oidc").await;
+    }
+
+    #[tokio::test]
+    async fn subscription_access_tokens_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_subscription_access_token_contract(&repo, "sqlite_subtoken").await;
+    }
+
+    #[tokio::test]
+    async fn subscription_access_tokens_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_subscription_access_token_contract(&repo, "postgres_subtoken").await;
     }
 
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
@@ -4351,6 +4485,97 @@ mod tests {
                 .unwrap(),
             Some(updated_link)
         );
+    }
+
+    async fn assert_subscription_access_token_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let tenant_id = format!("{prefix}_tenant_{suffix}");
+        let user_id = format!("{prefix}_user_{suffix}");
+        let token_id = format!("{}token{}", prefix.replace('_', ""), suffix);
+        let group_token_id = format!("{}group{}", prefix.replace('_', ""), suffix);
+
+        repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+        repo.create_user(&user_id, &format!("{prefix}_{suffix}@example.com"), "User")
+            .await
+            .unwrap();
+
+        let created = repo
+            .create_subscription_access_token(
+                &token_id,
+                &tenant_id,
+                &user_id,
+                SubscriptionAccessResourceType::Pack,
+                "pack_1",
+            )
+            .await
+            .unwrap();
+        assert!(created.token.starts_with(&format!("msm_sub_{token_id}_")));
+        assert_eq!(
+            created.record.resource_type,
+            SubscriptionAccessResourceType::Pack
+        );
+        assert_eq!(
+            repo.verify_subscription_access_token(&created.token)
+                .await
+                .unwrap(),
+            Some(created.record.clone())
+        );
+
+        let group_token = repo
+            .create_subscription_access_token(
+                &group_token_id,
+                &tenant_id,
+                &user_id,
+                SubscriptionAccessResourceType::SubscriptionGroup,
+                "sub_1",
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            group_token.record.resource_type,
+            SubscriptionAccessResourceType::SubscriptionGroup
+        );
+        assert_eq!(
+            repo.list_subscription_access_tokens(&user_id)
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
+
+        let rotated = repo
+            .rotate_subscription_access_token(&token_id)
+            .await
+            .unwrap();
+        assert_ne!(rotated.token, created.token);
+        assert!(repo
+            .verify_subscription_access_token(&created.token)
+            .await
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            repo.verify_subscription_access_token(&rotated.token)
+                .await
+                .unwrap()
+                .map(|record| record.id),
+            Some(token_id.clone())
+        );
+
+        repo.revoke_subscription_access_token(&token_id)
+            .await
+            .unwrap();
+        assert!(repo
+            .verify_subscription_access_token(&rotated.token)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(repo
+            .find_subscription_access_token(&token_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .revoked_at
+            .is_some());
     }
 
     #[tokio::test]
