@@ -1,6 +1,7 @@
 #![doc = "Provider normalization primitives for MoreStickersManager-rs."]
 
 pub mod error;
+pub mod fetch;
 pub mod line;
 pub mod registry;
 pub mod telegram;
@@ -8,6 +9,10 @@ pub mod telegram;
 use msm_domain::StickerPack;
 
 pub use error::{ProviderError, ProviderResult};
+pub use fetch::{
+    line_sticker_pack_fetch_plan, telegram_sticker_set_fetch_plan, ProviderAssetDownloadStrategy,
+    ProviderHttpRequestPlan, ProviderRemoteFetchPlan,
+};
 pub use registry::{all_provider_metadata, ProviderCapability, ProviderMetadata, ProviderStatus};
 
 /// Normalizes provider-specific payloads into `MoreStickers` sticker packs.

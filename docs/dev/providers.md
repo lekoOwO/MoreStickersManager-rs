@@ -23,10 +23,15 @@ normalize payloads and preserve MoreStickers-compatible export output.
 
 ## Current Scope
 
-The provider crate accepts already-fetched JSON. It does not yet fetch remote
-provider APIs, download assets, store assets, or import normalized packs into
-the database. Those tasks should compose the provider trait with storage and API
-services in later phases.
+The provider crate accepts already-fetched JSON and now exposes testable remote
+fetch plan boundaries. `telegram_sticker_set_fetch_plan` describes the Telegram
+Bot API `getStickerSet` metadata request without embedding a bot token and marks
+assets as requiring Telegram `getFile`/file download resolution.
+`line_sticker_pack_fetch_plan` describes a LINE sticker-shop product metadata
+request and marks assets as direct remote URLs once parsed. The crate still does
+not execute network requests, download assets, store assets, or import
+normalized packs into the database. Runtime crates should execute these plans,
+feed resulting JSON to `StickerProvider`, then internalize assets.
 
 ## Provider Versus Export Target
 

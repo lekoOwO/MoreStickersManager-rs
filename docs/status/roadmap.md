@@ -171,8 +171,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Implement provider network fetch/download/internalization for Telegram and
-   LINE, starting with a provider job plan and testable boundaries.
+1. Implement runtime execution for provider remote fetch plans and asset
+   download/internalization.
 
 ## Later Planned Work
 

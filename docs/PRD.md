@@ -88,8 +88,8 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Implement provider network fetch/download/internalization for Telegram and
-   LINE, starting with a provider job plan and testable boundaries.
+1. Implement runtime execution for provider remote fetch plans and asset
+   download/internalization.
 
 Each queue item must update this section when completed or reordered.
 
@@ -229,7 +229,13 @@ tests and docs are updated.
 
 - [x] Provider trait and Telegram/LINE fixture normalization.
 - [ ] Telegram network fetch with asset download/internalization.
+  Progress: `msm-providers` now exposes a testable Telegram remote fetch plan
+  boundary for `getStickerSet` metadata and Telegram `getFile`/file download
+  asset strategy. Runtime execution and storage internalization remain.
 - [ ] LINE network fetch with asset download/internalization.
+  Progress: `msm-providers` now exposes a testable LINE sticker-shop product
+  fetch plan boundary and direct remote URL asset strategy. Runtime execution,
+  parsing, and storage internalization remain.
 - [ ] Provider credential/config UI and API.
 - [ ] Provider job progress and retry model.
 - [ ] Placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ,

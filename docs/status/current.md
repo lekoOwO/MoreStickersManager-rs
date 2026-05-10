@@ -110,9 +110,10 @@ Last completed:
 - OIDC Web callback completion slice: Web auth dialog can submit authorization code/state/nonce and fallback claims to the OIDC callback API, store the returned PAT, and reuse the existing token result display. Verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (56 tests), and `pnpm --filter @morestickersmanager/web build`.
 - OIDC Web redirect prefill slice: the Web app stores pending OIDC state/nonce after login-start and pre-fills callback fields from `/auth/oidc/callback?code=...&state=...`. Verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build`.
 - SSO-backed account documentation slice: user docs now cover OIDC provider administration, login-start/callback endpoints, Web callback behavior, SSO-returned PAT reuse, CLI `MSM_PAT`, MCP Bearer usage, and role-capped scope selection.
+- Provider remote fetch plan boundary slice: `msm-providers` now exposes Telegram and LINE remote fetch plan types/functions with explicit asset download strategies, without performing network I/O in the normalization crate.
 
 Current task:
-- Implement provider network fetch/download/internalization for Telegram and LINE, starting with a provider job plan and testable boundaries.
+- Implement runtime execution for provider remote fetch plans and asset download/internalization.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -232,9 +233,10 @@ Last verification:
 - OIDC Web callback completion slice: RED failure observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding callback controls; final verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (56 tests), and `pnpm --filter @morestickersmanager/web build`.
 - OIDC Web redirect prefill slice: RED failure observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before storing pending state and reading redirect URL params; final verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build`.
 - SSO-backed account documentation slice: docs-only verification with `git diff --check`.
+- Provider remote fetch plan boundary slice: verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-providers --locked` (9 tests), `cargo clippy -p msm-providers --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-fetch-plan`.
 
 Next step:
-- Continue Phase E with provider network fetch/download/internalization planning and boundaries.
+- Continue Phase E with runtime execution for provider remote fetch plans and asset download/internalization.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -1511,3 +1511,11 @@
 - Documented OIDC login-start/callback endpoints, callback request shape, Web callback behavior, SSO-returned PAT reuse, CLI `MSM_PAT`, MCP Bearer usage, and role-capped scope selection.
 - Marked Phase D SSO-backed PAT usage documentation complete in the PRD and moved the current queue to Phase E provider network fetch/download/internalization planning.
 - Verification: `git diff --check` passed.
+
+## 2026-05-10 Provider Remote Fetch Plan Boundary
+
+- Added provider-side remote fetch plan types for metadata HTTP request planning and asset download strategy classification without doing network I/O inside `msm-providers`.
+- Added Telegram `getStickerSet` fetch planning that redacts bot-token handling and records the Telegram `getFile`/file-download asset strategy.
+- Added LINE sticker-shop product fetch planning with direct remote URL asset strategy.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-providers --locked` (9 tests), `cargo clippy -p msm-providers --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider docs; next Phase E slice should execute provider fetch plans and internalize downloaded assets in runtime/storage layers.
