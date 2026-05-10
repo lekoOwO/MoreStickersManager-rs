@@ -1409,3 +1409,10 @@
   membership, nonce matching, and expiration.
 - Kept JWKS-backed signature validation and provider-derived callback user
   claims as the next Phase D work.
+
+## 2026-05-10 OIDC RS256 Signature Validation
+
+- Added tested RS256 ID-token signature verification against selected RSA JWKS
+  signing keys using the parsed JWT signing input and signature bytes.
+- Kept callback wiring from validated ID-token claims and userinfo fallback as
+  the next Phase D work.

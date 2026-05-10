@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add OIDC JWKS-backed ID-token signature validation and userinfo/provider-derived callback claim flow.
+1. Wire validated ID-token claims into the OIDC callback path and add userinfo fallback/claim derivation.
 
 Each queue item must update this section when completed or reordered.
 
@@ -199,10 +199,10 @@ tests and docs are updated.
   before creating the session. Discovery document parsing now validates issuer and required endpoint URLs,
   and callback authorization-code exchange uses the discovered token endpoint
   through an injectable discovery fetcher. JWKS parsing/signature-key selection, unverified ID-token header/claim
-  parsing, and issuer/audience/nonce/expiration claim validation now exist.
-  Remaining work: JWKS-backed signature validation, userinfo fetching, and
-  deriving callback user/link claims from validated provider responses instead
-  of trusting callback-supplied claim fields.
+  parsing, issuer/audience/nonce/expiration claim validation, and RS256
+  JWKS-backed signature verification now exist. Remaining work: wiring
+  validated ID-token claims into callback user/link creation, userinfo fallback,
+  and removing trust in callback-supplied claim fields.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
 

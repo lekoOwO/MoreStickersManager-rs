@@ -171,7 +171,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Add OIDC JWKS-backed ID-token signature validation and userinfo/provider-derived callback claim flow.
+1. Wire validated ID-token claims into the OIDC callback path and add userinfo fallback/claim derivation.
 
 ## Later Planned Work
 

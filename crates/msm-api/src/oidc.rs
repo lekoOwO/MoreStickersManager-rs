@@ -400,6 +400,44 @@ pub fn validate_id_token_claims(
     Ok(())
 }
 
+/// Verifies an ID-token signature against a parsed JWKS document.
+///
+/// # Errors
+///
+/// Returns an error when the algorithm is unsupported, no matching JWK exists,
+/// the matching JWK is malformed, or the signature verification fails.
+pub fn verify_id_token_signature(
+    token: &OidcIdTokenParts,
+    jwks: &OidcJwksDocument,
+) -> Result<(), OidcError> {
+    if token.header.alg != "RS256" {
+        return Err(OidcError::InvalidIdToken(format!(
+            "unsupported alg `{}`",
+            token.header.alg
+        )));
+    }
+    let key = jwks
+        .select_signature_key(token.header.kid.as_deref(), Some(&token.header.alg))
+        .ok_or_else(|| OidcError::InvalidIdToken("matching JWK not found".to_owned()))?;
+    let n = key
+        .n
+        .as_deref()
+        .ok_or_else(|| OidcError::InvalidIdToken("JWK is missing n".to_owned()))
+        .and_then(|value| decode_jwt_segment(value, "JWK modulus"))?;
+    let e = key
+        .e
+        .as_deref()
+        .ok_or_else(|| OidcError::InvalidIdToken("JWK is missing e".to_owned()))
+        .and_then(|value| decode_jwt_segment(value, "JWK exponent"))?;
+    ring::signature::RsaPublicKeyComponents { n: &n, e: &e }
+        .verify(
+            &ring::signature::RSA_PKCS1_2048_8192_SHA256,
+            token.signing_input.as_bytes(),
+            &token.signature,
+        )
+        .map_err(|_| OidcError::InvalidIdToken("signature verification failed".to_owned()))
+}
+
 fn decode_jwt_segment(segment: &str, label: &str) -> Result<Vec<u8>, OidcError> {
     URL_SAFE_NO_PAD
         .decode(segment.as_bytes())
@@ -665,6 +703,54 @@ mod tests {
             1_893_456_001,
         )
         .is_err());
+    }
+
+    #[test]
+    fn id_token_signature_verifier_accepts_matching_rs256_jwk() {
+        use base64::Engine;
+        use rsa::{
+            pkcs1v15::SigningKey,
+            rand_core::OsRng,
+            signature::{RandomizedSigner, SignatureEncoding},
+            traits::PublicKeyParts,
+            RsaPrivateKey, RsaPublicKey,
+        };
+        use sha2::Sha256;
+
+        let private_key = RsaPrivateKey::new(&mut OsRng, 2048).unwrap();
+        let public_key = RsaPublicKey::from(&private_key);
+        let header = base64_url_no_pad(r#"{"alg":"RS256","kid":"active-key","typ":"JWT"}"#);
+        let claims = base64_url_no_pad(
+            r#"{"iss":"https://issuer.example","sub":"subject-1","aud":"client-id","nonce":"nonce-1","exp":1893456000}"#,
+        );
+        let signing_input = format!("{header}.{claims}");
+        let signature = SigningKey::<Sha256>::new(private_key)
+            .sign_with_rng(&mut OsRng, signing_input.as_bytes())
+            .to_vec();
+        let token = format!(
+            "{signing_input}.{}",
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature)
+        );
+        let parts = super::parse_id_token_unverified(&token).unwrap();
+        let jwks = super::OidcJwksDocument {
+            keys: vec![super::OidcJwk {
+                kty: "RSA".to_owned(),
+                kid: Some("active-key".to_owned()),
+                key_use: Some("sig".to_owned()),
+                alg: Some("RS256".to_owned()),
+                n: Some(
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD
+                        .encode(public_key.n().to_bytes_be()),
+                ),
+                e: Some(
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD
+                        .encode(public_key.e().to_bytes_be()),
+                ),
+            }],
+        };
+
+        super::verify_id_token_signature(&parts, &jwks)
+            .expect("matching JWKS key should verify signature");
     }
 
     fn base64_url_no_pad(value: &str) -> String {
