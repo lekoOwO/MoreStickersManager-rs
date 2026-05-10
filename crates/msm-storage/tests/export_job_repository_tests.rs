@@ -6,6 +6,7 @@ use msm_storage::{
     },
     DatabaseConfig, DbPool, StorageRepository,
 };
+use std::env;
 
 #[tokio::test]
 async fn export_targets_jobs_and_events_roundtrip() {
@@ -79,6 +80,55 @@ async fn export_targets_jobs_and_events_roundtrip() {
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].sequence, 1);
     assert_eq!(events[1].sequence, 2);
+}
+
+#[tokio::test]
+async fn postgres_export_targets_roundtrip_when_configured() {
+    let Some(repo) = postgres_repo().await else {
+        return;
+    };
+    let suffix = unique_suffix();
+    let tenant_id = format!("tenant_export_target_{suffix}");
+    let target_id = format!("target_telegram_{suffix}");
+
+    repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+    let created = repo
+        .create_export_target(NewExportTarget {
+            id: &target_id,
+            tenant_id: &tenant_id,
+            kind: "telegram.sticker_set",
+            name: "Telegram Bot",
+            config_json: r#"{"botToken":"<redacted>"}"#,
+            is_enabled: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(created.id, target_id);
+    assert!(created.is_enabled);
+
+    let updated = repo
+        .update_export_target(
+            &target_id,
+            "Telegram Bot Updated",
+            r#"{"botToken":"<rotated>"}"#,
+            false,
+        )
+        .await
+        .unwrap()
+        .expect("target should be updated");
+    assert_eq!(updated.name, "Telegram Bot Updated");
+    assert!(!updated.is_enabled);
+
+    assert_eq!(
+        repo.find_export_target(&target_id).await.unwrap(),
+        Some(updated.clone())
+    );
+    assert_eq!(
+        repo.list_export_targets(&tenant_id).await.unwrap(),
+        vec![updated]
+    );
+    assert!(repo.delete_export_target(&target_id).await.unwrap());
+    assert!(repo.find_export_target(&target_id).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -423,6 +473,25 @@ async fn seeded_repo() -> StorageRepository {
     .await
     .unwrap();
     repo
+}
+
+async fn postgres_repo() -> Option<StorageRepository> {
+    let url = env::var("MSM_TEST_POSTGRES_URL").ok()?;
+    let config = DatabaseConfig::parse(&url).unwrap();
+    let pool = DbPool::connect(&config).await.unwrap();
+    pool.run_migrations().await.unwrap();
+    Some(StorageRepository::new(pool))
+}
+
+fn unique_suffix() -> String {
+    format!(
+        "{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    )
 }
 
 fn sample_pack() -> StickerPack {

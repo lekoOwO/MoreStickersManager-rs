@@ -1,5 +1,5 @@
 use chrono::Utc;
-use sqlx::Row;
+use sqlx::{postgres::PgRow, sqlite::SqliteRow, Row};
 
 use crate::{
     models::{
@@ -117,27 +117,45 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn create_export_target(
         &self,
         target: NewExportTarget<'_>,
     ) -> StorageResult<ExportTargetRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO export_targets (
-                id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(target.id)
-        .bind(target.tenant_id)
-        .bind(target.kind)
-        .bind(target.name)
-        .bind(target.config_json)
-        .bind(i64::from(target.is_enabled))
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO export_targets (
+                    id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            )
+            .bind(target.id)
+            .bind(target.tenant_id)
+            .bind(target.kind)
+            .bind(target.name)
+            .bind(target.config_json)
+            .bind(target.is_enabled)
+            .bind(&now)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO export_targets (
+                    id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(target.id)
+            .bind(target.tenant_id)
+            .bind(target.kind)
+            .bind(target.name)
+            .bind(target.config_json)
+            .bind(i64::from(target.is_enabled))
+            .bind(&now)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         Ok(ExportTargetRecord {
             id: target.id.to_owned(),
@@ -155,50 +173,74 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_export_targets(
         &self,
         tenant_id: &str,
     ) -> StorageResult<Vec<ExportTargetRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
-            FROM export_targets
-            WHERE tenant_id = ?
-            ORDER BY name, id",
-        )
-        .bind(tenant_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let rows = sqlx::query(
+                "SELECT id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
+                FROM export_targets
+                WHERE tenant_id = $1
+                ORDER BY name, id",
+            )
+            .bind(tenant_id)
+            .fetch_all(pool)
+            .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| export_target_from_row(&row))
-            .collect())
+            Ok(rows.iter().map(export_target_from_pg_row).collect())
+        } else {
+            let rows = sqlx::query(
+                "SELECT id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
+                FROM export_targets
+                WHERE tenant_id = ?
+                ORDER BY name, id",
+            )
+            .bind(tenant_id)
+            .fetch_all(self.sqlite()?)
+            .await?;
+
+            Ok(rows.iter().map(export_target_from_sqlite_row).collect())
+        }
     }
 
     /// Finds an export target by ID.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn find_export_target(&self, id: &str) -> StorageResult<Option<ExportTargetRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
-            FROM export_targets
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(
+                "SELECT id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
+                FROM export_targets
+                WHERE id = $1",
+            )
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
 
-        Ok(row.map(|row| export_target_from_row(&row)))
+            Ok(row.as_ref().map(export_target_from_pg_row))
+        } else {
+            let row = sqlx::query(
+                "SELECT id, tenant_id, kind, name, config_json, is_enabled, created_at, updated_at
+                FROM export_targets
+                WHERE id = ?",
+            )
+            .bind(id)
+            .fetch_optional(self.sqlite()?)
+            .await?;
+
+            Ok(row.as_ref().map(export_target_from_sqlite_row))
+        }
     }
 
     /// Updates an export target.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn update_export_target(
         &self,
         id: &str,
@@ -206,20 +248,37 @@ impl StorageRepository {
         config_json: &str,
         is_enabled: bool,
     ) -> StorageResult<Option<ExportTargetRecord>> {
-        let result = sqlx::query(
-            "UPDATE export_targets
-            SET name = ?, config_json = ?, is_enabled = ?, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(name)
-        .bind(config_json)
-        .bind(i64::from(is_enabled))
-        .bind(now())
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "UPDATE export_targets
+                SET name = $1, config_json = $2, is_enabled = $3, updated_at = $4
+                WHERE id = $5",
+            )
+            .bind(name)
+            .bind(config_json)
+            .bind(is_enabled)
+            .bind(now())
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query(
+                "UPDATE export_targets
+                SET name = ?, config_json = ?, is_enabled = ?, updated_at = ?
+                WHERE id = ?",
+            )
+            .bind(name)
+            .bind(config_json)
+            .bind(i64::from(is_enabled))
+            .bind(now())
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?
+            .rows_affected()
+        };
 
-        if result.rows_affected() == 0 {
+        if rows_affected == 0 {
             Ok(None)
         } else {
             self.find_export_target(id).await
@@ -230,14 +289,23 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn delete_export_target(&self, id: &str) -> StorageResult<bool> {
-        let result = sqlx::query("DELETE FROM export_targets WHERE id = ?")
-            .bind(id)
-            .execute(self.sqlite()?)
-            .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query("DELETE FROM export_targets WHERE id = $1")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected()
+        } else {
+            sqlx::query("DELETE FROM export_targets WHERE id = ?")
+                .bind(id)
+                .execute(self.sqlite()?)
+                .await?
+                .rows_affected()
+        };
 
-        Ok(result.rows_affected() == 1)
+        Ok(rows_affected == 1)
     }
 
     /// Creates a queued export job.
@@ -1162,7 +1230,7 @@ fn provider_import_job_from_row(
     })
 }
 
-fn export_target_from_row(row: &sqlx::sqlite::SqliteRow) -> ExportTargetRecord {
+fn export_target_from_sqlite_row(row: &SqliteRow) -> ExportTargetRecord {
     let is_enabled: i64 = row.get("is_enabled");
     ExportTargetRecord {
         id: row.get("id"),
@@ -1171,6 +1239,19 @@ fn export_target_from_row(row: &sqlx::sqlite::SqliteRow) -> ExportTargetRecord {
         name: row.get("name"),
         config_json: row.get("config_json"),
         is_enabled: is_enabled != 0,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn export_target_from_pg_row(row: &PgRow) -> ExportTargetRecord {
+    ExportTargetRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        kind: row.get("kind"),
+        name: row.get("name"),
+        config_json: row.get("config_json"),
+        is_enabled: row.get("is_enabled"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }

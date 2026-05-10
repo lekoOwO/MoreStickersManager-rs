@@ -1868,3 +1868,10 @@
 - Added shared subscription access-token repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
 - Updated PRD/status docs to show subscription-token PostgreSQL progress while keeping export/provider/portability parity open.
 - Verification: `cargo test -p msm-storage subscription_access_tokens_work_on_sqlite --locked`; `cargo test -p msm-storage subscription_access_tokens_work_on_postgres_when_configured --locked`.
+
+## 2026-05-11 PostgreSQL Export Target Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for export target create/list/find/update/delete operations.
+- Added optional PostgreSQL export target repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping the existing SQLite export target/job/event round-trip coverage active.
+- Updated PRD/status docs to show export-target PostgreSQL progress while keeping export job state, prepared-media, Telegram publication/mapping, provider, and portability parity open.
+- Verification: `cargo test -p msm-storage export_target --locked`.
