@@ -1519,3 +1519,11 @@
 - Added LINE sticker-shop product fetch planning with direct remote URL asset strategy.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-providers --locked` (9 tests), `cargo clippy -p msm-providers --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider docs; next Phase E slice should execute provider fetch plans and internalize downloaded assets in runtime/storage layers.
+
+## 2026-05-10 Provider Import Runtime Helpers
+
+- Added `msm-app::provider_import` with injected provider metadata fetching for `ProviderRemoteFetchPlan` execution.
+- Added direct remote asset internalization that downloads sticker asset URLs through an injected downloader, writes bytes into `LocalAssetStore`, sets sticker filenames, rewrites image URLs to MSM-hosted `/assets/packs/{pack_id}/{filename}` URLs, and updates the pack logo.
+- Added focused async tests for metadata fetch execution and LINE-style direct asset internalization.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-app provider_import --locked`, `cargo clippy -p msm-app --all-targets --offline -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider docs; next Phase E slice should wire provider fetch/runtime helpers into API/CLI/MCP/Web import workflows for Telegram and LINE.

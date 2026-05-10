@@ -16,6 +16,7 @@ msm-domain = { path = "../msm-domain" }
 msm-exporters = { path = "../msm-exporters" }
 msm-media = { path = "../msm-media" }
 msm-mcp = { path = "../msm-mcp" }
+msm-providers = { path = "../msm-providers" }
 msm-storage = { path = "../msm-storage" }
 msm-telegram = { path = "../msm-telegram" }
 serde = { version = "1", features = ["derive"] }

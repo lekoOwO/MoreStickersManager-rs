@@ -22,6 +22,7 @@ use msm_storage::models::NewExportTarget;
 use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 
 pub mod export_worker;
+pub mod provider_import;
 
 pub use export_worker::{
     spawn_export_worker_if_enabled, ConversionCommandRunner, ExportWorker, ExportWorkerConfig,
@@ -30,6 +31,10 @@ pub use export_worker::{
     TelegramMutationRequest, TelegramPublicationExecutor, TelegramPublicationRequest,
     TelegramRemoteStateExecutor, TelegramRemoteStateRequest, TeloxideTelegramMutationExecutor,
     TeloxideTelegramPublicationExecutor, TeloxideTelegramRemoteStateExecutor,
+};
+pub use provider_import::{
+    internalize_direct_remote_pack_assets, ProviderAssetDownloader, ProviderImportError,
+    ProviderImportResult, ProviderMetadataFetcher,
 };
 
 static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");

@@ -111,9 +111,10 @@ Last completed:
 - OIDC Web redirect prefill slice: the Web app stores pending OIDC state/nonce after login-start and pre-fills callback fields from `/auth/oidc/callback?code=...&state=...`. Verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build`.
 - SSO-backed account documentation slice: user docs now cover OIDC provider administration, login-start/callback endpoints, Web callback behavior, SSO-returned PAT reuse, CLI `MSM_PAT`, MCP Bearer usage, and role-capped scope selection.
 - Provider remote fetch plan boundary slice: `msm-providers` now exposes Telegram and LINE remote fetch plan types/functions with explicit asset download strategies, without performing network I/O in the normalization crate.
+- Provider import runtime helper slice: `msm-app` now exposes injected provider metadata fetching and direct remote asset internalization helpers that write downloaded assets to `LocalAssetStore` and rewrite pack image URLs to MSM-hosted asset URLs.
 
 Current task:
-- Implement runtime execution for provider remote fetch plans and asset download/internalization.
+- Wire provider fetch/runtime helpers into API/CLI/MCP/Web import workflows for Telegram and LINE.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -234,9 +235,10 @@ Last verification:
 - OIDC Web redirect prefill slice: RED failure observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before storing pending state and reading redirect URL params; final verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build`.
 - SSO-backed account documentation slice: docs-only verification with `git diff --check`.
 - Provider remote fetch plan boundary slice: verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-providers --locked` (9 tests), `cargo clippy -p msm-providers --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-fetch-plan`.
+- Provider import runtime helper slice: focused RED/GREEN coverage was added in `crates/msm-app/src/provider_import.rs`; verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-app provider_import --locked`, `cargo clippy -p msm-app --all-targets --offline -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-runtime`.
 
 Next step:
-- Continue Phase E with runtime execution for provider remote fetch plans and asset download/internalization.
+- Continue Phase E by wiring provider fetch/runtime helpers into API/CLI/MCP/Web import workflows for Telegram and LINE.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

@@ -171,8 +171,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Implement runtime execution for provider remote fetch plans and asset
-   download/internalization.
+1. Wire provider fetch/runtime helpers into API/CLI/MCP/Web import workflows for
+   Telegram and LINE.
 
 ## Later Planned Work
 

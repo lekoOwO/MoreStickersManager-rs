@@ -1368,6 +1368,7 @@ dependencies = [
  "msm-exporters",
  "msm-mcp",
  "msm-media",
+ "msm-providers",
  "msm-storage",
  "msm-telegram",
  "serde",

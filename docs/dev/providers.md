@@ -33,6 +33,20 @@ not execute network requests, download assets, store assets, or import
 normalized packs into the database. Runtime crates should execute these plans,
 feed resulting JSON to `StickerProvider`, then internalize assets.
 
+`msm-app` provides the first runtime-side boundary for this flow:
+
+- `fetch_provider_metadata` executes a `ProviderRemoteFetchPlan` through an
+  injected `ProviderMetadataFetcher` so tests and callers can supply the actual
+  HTTP implementation.
+- `internalize_direct_remote_pack_assets` downloads direct remote sticker URLs
+  through an injected `ProviderAssetDownloader`, writes them to
+  `LocalAssetStore`, sets sticker filenames, rewrites image URLs to MSM-hosted
+  `/assets/packs/{pack_id}/{filename}` URLs, and updates the pack logo.
+
+Telegram still needs runtime `getFile` resolution before it can reuse the asset
+internalization path. LINE still needs a runtime parser that converts fetched
+product data into the existing LINE fixture schema.
+
 ## Provider Versus Export Target
 
 Providers are input-side normalizers. Export targets are output-side publishers
