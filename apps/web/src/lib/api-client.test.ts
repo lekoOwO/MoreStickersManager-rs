@@ -5,6 +5,7 @@ import {
   createLocalAuthClient,
   createOidcAuthClient,
   createPatClient,
+  createPortabilityClient,
   createProductMetadataClient,
   createProviderImportClient,
   createTenantAdminClient,
@@ -18,6 +19,8 @@ import {
   providerImportJobUrl,
   providerImportJobsUrl,
   providerImportPlanUrl,
+  portableUserExportUrl,
+  portableUserImportUrl,
   oidcLoginStartUrl,
   subscriptionGroupPackListUrl,
   subscriptionGroupListUrl,
@@ -1301,6 +1304,54 @@ describe("product metadata API client", () => {
       headers: {
         Authorization: "Bearer msm_pat_web_secret",
       },
+    });
+  });
+});
+
+describe("portability API client", () => {
+  it("exports and imports portable user data with bearer auth", async () => {
+    expect(portableUserExportUrl("https://msm.example.test/", "user 1")).toBe(
+      "https://msm.example.test/api/v1/portable/user-export?userId=user+1",
+    );
+    expect(portableUserImportUrl("https://msm.example.test/")).toBe(
+      "https://msm.example.test/api/v1/portable/user-import",
+    );
+
+    const portableExport = {
+      version: 1,
+      user: { id: "user_1", email: "leko@example.com", displayName: "Leko" },
+      packs: [],
+      subscriptionGroups: [],
+    };
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/api/v1/portable/user-export?userId=user_1")) {
+        return jsonResponse(portableExport);
+      }
+      if (url.endsWith("/api/v1/portable/user-import") && init?.method === "POST") {
+        return new Response(null, { status: 201 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    const client = createPortabilityClient({
+      baseUrl: "https://msm.example.test/",
+      authToken: "msm_pat_web_secret",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const exported = await client.exportUserData("user_1");
+    await client.importUserData({ tenantId: "tenant_2", export: exported });
+
+    expect(exported).toEqual(portableExport);
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/portable/user-export?userId=user_1", {
+      headers: { Authorization: "Bearer msm_pat_web_secret" },
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/portable/user-import", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_web_secret",
+      },
+      body: JSON.stringify({ tenantId: "tenant_2", export: portableExport }),
     });
   });
 });

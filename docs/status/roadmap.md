@@ -9,8 +9,9 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 ## Current Focus
 
 Phase I data portability is the active focus. Storage portability helpers,
-protected API/OpenAPI user export/import endpoints, and CLI export/import
-commands now exist. The next work is Web migration workflow controls.
+protected API/OpenAPI user export/import endpoints, CLI export/import commands,
+and Web migration controls now exist. The next work is MCP portability tools and
+a migration completeness audit.
 
 ## Recently Completed
 
@@ -19,6 +20,7 @@ commands now exist. The next work is Web migration workflow controls.
 - `MSM_PUBLIC_ASSET_URL` now provides system-wide CDN fallback behavior for pack/subscription payloads, with tenant CDN URLs taking precedence.
 - Protected API/OpenAPI portable user export/import endpoints now expose the storage portability helpers for instance migration workflows.
 - CLI portable user export/import commands now write/read portable JSON from stdout/files through the protected API.
+- Web migration controls now export portable user JSON and import pasted portable JSON into a target tenant.
 - Non-Telegram remote export targets now dispatch through `RemoteExportTargetExecutor`, an injectable worker boundary that receives job/target/config/pack snapshots and returns target-neutral remote execution summaries while the default executor safely rejects unsupported future targets.
 - Provider config CLI commands now exist for list/upsert/delete with human/JSON
   output and PAT forwarding to the protected API.
@@ -175,8 +177,8 @@ commands now exist. The next work is Web migration workflow controls.
 
 ## Immediate Plan
 
-1. Add Web migration workflow controls.
-2. Add MCP portability tools if Web/API/CLI parity remains incomplete.
+1. Add MCP portable user export/import tools.
+2. Audit remaining Phase I migration gaps before moving to PostgreSQL support.
 
 ## Later Planned Work
 

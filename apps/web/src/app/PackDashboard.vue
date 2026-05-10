@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import ExportTargetPanel from "@/components/ExportTargetPanel.vue";
 import PackExportWizard from "@/components/PackExportWizard.vue";
+import PortabilityPanel from "@/components/PortabilityPanel.vue";
 import ProductMetadataPanel from "@/components/ProductMetadataPanel.vue";
 import ProviderImportPlanner from "@/components/ProviderImportPlanner.vue";
 import TenantAdminPanel from "@/components/TenantAdminPanel.vue";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import {
   createPackClient,
   type PackClient,
+  type PortabilityClient,
   type ProductMetadataClient,
   type ProviderImportClient,
   type TenantAdminClient,
@@ -28,6 +30,7 @@ const props = defineProps<{
   metadataClient?: ProductMetadataClient;
   providerImportClient?: ProviderImportClient;
   tenantAdminClient?: TenantAdminClient;
+  portabilityClient?: PortabilityClient;
   exportClient?: ExportClient;
   tenantId?: string;
   ownerUserId?: string;
@@ -62,7 +65,9 @@ const currentSectionLabel = computed(() =>
             ? labels.value.tenantAdmin
             : currentSection.value === "exports"
               ? labels.value.exportPack
-              : labels.value.exportTargets,
+              : currentSection.value === "migration"
+                ? labels.value.migration
+                : labels.value.exportTargets,
 );
 const totalStickers = computed(() => packs.value.reduce((sum, pack) => sum + pack.stickerCount, 0));
 const publicPackCount = computed(() => packs.value.filter((pack) => pack.visibility === "public").length);
@@ -79,6 +84,7 @@ const sectionTabs = computed<Array<{ key: WorkspaceSection; label: string }>>(()
   { key: "providers", label: labels.value.providers },
   { key: "metadata", label: labels.value.productMetadata },
   { key: "admin", label: labels.value.tenantAdmin },
+  { key: "migration", label: labels.value.migration },
   { key: "exports", label: labels.value.exportPack },
   { key: "targets", label: labels.value.exportTargets },
 ]);
@@ -462,6 +468,16 @@ function visibilityVariant(visibility: PackVisibility) {
         :pat-token="patToken"
         :tenant-admin-client="tenantAdminClient"
         :tenant-id="tenantId"
+      />
+    </section>
+
+    <section v-show="currentSection === 'migration'">
+      <PortabilityPanel
+        :locale="locale"
+        :pat-token="patToken"
+        :portability-client="portabilityClient"
+        :tenant-id="tenantId"
+        :owner-user-id="ownerUserId"
       />
     </section>
 

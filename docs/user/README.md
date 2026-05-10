@@ -526,6 +526,11 @@ CLI:
 - `msm portability export --user-id <user_id> --output <path|->`
 - `msm portability import --tenant-id <tenant_id> --file <path>`
 
+Web:
+
+- Open the Migration workspace, click export to generate portable JSON for the
+  configured Web user, then paste an export and target tenant ID to import it.
+
 PAT CLI commands:
 
 - `msm pats scope-policy --user-id <user_id>`

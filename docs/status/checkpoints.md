@@ -1761,3 +1761,10 @@
 - Added `msm portability import --tenant-id ... --file <path>` backed by `POST /api/v1/portable/user-import`.
 - Added focused CLI command coverage for stdout export and file-backed import.
 - Updated PRD/status docs; next Phase I slice is Web migration workflow controls and remaining parity.
+
+## 2026-05-10 Data Portability Web
+
+- Added a Web Migration workspace entry for portable user data migration.
+- Added `createPortabilityClient` plus URL helpers for API-backed portable user export/import.
+- Added `PortabilityPanel` with export-to-textarea and import-from-pasted-JSON controls.
+- Added focused Web API-client and component tests; next Phase I slice is MCP parity plus migration gap audit.

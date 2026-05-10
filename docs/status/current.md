@@ -3,6 +3,7 @@
 Phase: Asset privacy and CDN.
 
 Last completed:
+- Data portability Web slice: added a Migration workspace with portable user export/import controls backed by the Web API client.
 - Data portability CLI slice: added `msm portability export` and `msm portability import` commands backed by the portable user API.
 - Data portability API slice: added protected API/OpenAPI portable user export/import endpoints backed by existing storage portability helpers.
 - System CDN fallback slice: `MSM_PUBLIC_ASSET_URL` now supplies an app-wide public asset/CDN base for API pack/subscription payload rewriting, and tenant `public_asset_url` takes precedence when set.
@@ -127,7 +128,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase I data portability with Web migration workflow controls backed by the portable user API.
+- Continue Phase I data portability with MCP portability tools and migration completeness audit.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -278,7 +279,7 @@ Last verification:
 - Export target parity slice: CLI and MCP now support export target update/delete, closing the implemented export target/job operation parity gap across API, CLI, MCP, and Web.
 
 Next step:
-- Add Web migration workflow controls for portable user export/import.
+- Add MCP tools for portable user export/import, then audit remaining Phase I migration gaps.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

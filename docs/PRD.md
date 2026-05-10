@@ -74,7 +74,7 @@ Status meanings:
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, export job recovery requeue, provider import plan/job routes, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import job, provider credential/config, and portable user export/import commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, provider import job tools, and provider credential/config tools exist. Session/SSE hardening remains incomplete. |
-| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job/recovery UI, publication history, and Telegram reconciliation controls exist. |
+| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job/recovery UI, publication history, Telegram reconciliation controls, and portable user migration controls exist. |
 | Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, planned-provider registry placeholders, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Provider import worker credential consumption now exists for enabled tenant-scoped configs; concrete future-provider implementations remain incomplete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. Non-Telegram remote targets now dispatch through an injectable execution boundary with target-neutral result reporting; concrete future target implementations remain incomplete. |
 | Media conversion | Implemented | Profiles, ffmpeg command plans, ffprobe command/report parsing, converter stdout/stderr/exit-code diagnostics, prepared-media cache reuse, export-job result visibility for output metadata, and target-specific validation exist. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue Phase I data portability: add Web migration workflow controls backed by the portable user API.
+1. Continue Phase I data portability: add MCP portability tools backed by storage/API parity, then audit remaining migration gaps.
 
 Each queue item must update this section when completed or reordered.
 
@@ -300,7 +300,7 @@ tests and docs are updated.
 
 - [x] API export/import endpoints for user data.
 - [x] CLI export/import commands.
-- [ ] Web migration flow.
+- [x] Web migration flow.
 - [ ] Compatibility tests for moving between MSM instances.
 
 ### Phase J: PostgreSQL Support

@@ -119,6 +119,11 @@ export interface ProviderImportClient {
   deleteProviderConfig(configId: string): Promise<void>;
 }
 
+export interface PortabilityClient {
+  exportUserData(userId: string): Promise<unknown>;
+  importUserData(request: { tenantId: string; export: unknown }): Promise<void>;
+}
+
 export interface ImportStickerPackRequest {
   tenantId: string;
   ownerUserId: string;
@@ -607,6 +612,41 @@ export function createProviderImportClient(options: PackClientOptions = {}): Pro
       });
       if (!response.ok) {
         throw new Error(`Failed to delete provider config: HTTP ${response.status}`);
+      }
+    },
+  };
+}
+
+export function createPortabilityClient(options: PackClientOptions = {}): PortabilityClient {
+  const baseUrl = options.baseUrl?.trim();
+  if (!baseUrl) {
+    return {
+      async exportUserData() {
+        throw new Error("Portable user export requires VITE_MSM_API_BASE_URL");
+      },
+      async importUserData() {
+        throw new Error("Portable user import requires VITE_MSM_API_BASE_URL");
+      },
+    };
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+  return {
+    async exportUserData(userId) {
+      const response = await fetchOptional(fetchImpl, portableUserExportUrl(baseUrl, userId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to export portable user data: HTTP ${response.status}`);
+      }
+      return response.json();
+    },
+    async importUserData(request) {
+      const response = await fetchImpl(portableUserImportUrl(baseUrl), {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to import portable user data: HTTP ${response.status}`);
       }
     },
   };
@@ -1123,6 +1163,16 @@ export function providerImportJobUrl(baseUrl: string, jobId: string) {
 
 export function providerImportJobEventsUrl(baseUrl: string, jobId: string) {
   return `${providerImportJobUrl(baseUrl, jobId)}/events`;
+}
+
+export function portableUserExportUrl(baseUrl: string, userId: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/portable/user-export`;
+  const query = new URLSearchParams({ userId });
+  return `${path}?${query.toString()}`;
+}
+
+export function portableUserImportUrl(baseUrl: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/portable/user-import`;
 }
 
 export function oidcLoginStartUrl(baseUrl: string, tenantId: string, providerId: string, redirectUri: string) {

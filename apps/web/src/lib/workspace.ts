@@ -1,1 +1,9 @@
-export type WorkspaceSection = "overview" | "packs" | "providers" | "metadata" | "admin" | "exports" | "targets";
+export type WorkspaceSection =
+  | "overview"
+  | "packs"
+  | "providers"
+  | "metadata"
+  | "admin"
+  | "exports"
+  | "targets"
+  | "migration";

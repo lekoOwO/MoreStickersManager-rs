@@ -217,6 +217,7 @@ const navigationItems = computed<Array<{ key: WorkspaceSection; label: string; i
   { key: "providers", label: labels.value.providers, icon: DatabaseIcon },
   { key: "metadata", label: labels.value.productMetadata, icon: TagsIcon },
   { key: "admin", label: labels.value.tenantAdmin, icon: UsersRoundIcon },
+  { key: "migration", label: labels.value.migration, icon: DatabaseIcon },
   { key: "exports", label: labels.value.exportPack, icon: SettingsIcon },
   { key: "targets", label: labels.value.exportTargets, icon: KeyRoundIcon },
 ]);
