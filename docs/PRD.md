@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Wire OIDC discovery metadata into callback/token validation, then add JWKS signature validation plus userinfo/ID-token claim derivation.
+1. Add OIDC JWKS signature validation plus userinfo/ID-token claim derivation.
 
 Each queue item must update this section when completed or reordered.
 
@@ -196,11 +196,11 @@ tests and docs are updated.
   enabled, issues PATs, and creates Web sessions for already-validated provider
   claims. Callback requests may now include an authorization code; the API
   exchanges it against the provider token endpoint using the stored redirect URI
-  before creating the session. Discovery document parsing now validates issuer and required endpoint URLs.
-  Remaining work: fetching/caching discovery metadata in the callback path, JWKS
-  signature validation, userinfo/ID-token expiry/nonce checks, and deriving
-  claims from validated provider responses instead of trusting callback-supplied
-  claim fields.
+  before creating the session. Discovery document parsing now validates issuer and required endpoint URLs,
+  and callback authorization-code exchange uses the discovered token endpoint
+  through an injectable discovery fetcher. Remaining work: JWKS signature
+  validation, userinfo/ID-token expiry/nonce checks, and deriving claims from
+  validated provider responses instead of trusting callback-supplied claim fields.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
 

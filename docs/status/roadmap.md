@@ -171,7 +171,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Wire OIDC discovery metadata into callback/token validation, then add JWKS signature validation plus userinfo/ID-token claim derivation.
+1. Add OIDC JWKS signature validation plus userinfo/ID-token claim derivation.
 
 ## Later Planned Work
 

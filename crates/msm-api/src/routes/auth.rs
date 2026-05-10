@@ -16,7 +16,7 @@ use crate::{
         LoginLocalUserRequest, OidcLoginStartResponse, RegisterLocalUserRequest,
         StartOidcLoginQuery,
     },
-    oidc::{build_token_exchange_form, token_endpoint_url, OidcTokenExchangeRequest},
+    oidc::{build_token_exchange_form, OidcTokenExchangeRequest},
     rbac::require_user_pat_scopes_allowed,
     ApiError, ApiResult, ApiState,
 };
@@ -221,15 +221,17 @@ pub async fn complete_oidc_login(
         .map(str::trim)
         .filter(|value| !value.is_empty())
     {
-        let token_endpoint_url = token_endpoint_url(&provider.issuer_url).map_err(|error| {
-            ApiError::Unauthorized(format!("OIDC token exchange failed: {error}"))
-        })?;
+        let discovery = state
+            .oidc_discovery_fetcher()
+            .discover(provider.issuer_url.clone())
+            .await
+            .map_err(|error| ApiError::Unauthorized(format!("OIDC discovery failed: {error}")))?;
         let form =
             build_token_exchange_form(&provider, authorization_code, &login_state.redirect_uri);
         state
             .oidc_token_exchanger()
             .exchange(OidcTokenExchangeRequest {
-                token_endpoint_url,
+                token_endpoint_url: discovery.token_endpoint,
                 form,
             })
             .await

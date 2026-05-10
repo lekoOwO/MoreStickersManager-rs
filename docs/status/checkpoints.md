@@ -1378,3 +1378,12 @@
   token endpoint URL, JWKS URI, and optional authorization/userinfo endpoints.
 - Kept discovery fetching/caching, JWKS signature validation, and provider-
   derived claims as the next Phase D work.
+
+## 2026-05-10 OIDC Discovery Callback Wiring
+
+- Added injectable OIDC discovery fetcher support to API state with an HTTP
+  implementation that fetches standard OIDC discovery metadata.
+- Callback authorization-code exchange now uses the discovered token endpoint
+  instead of deriving one from issuer path conventions.
+- Kept JWKS signature validation and userinfo/ID-token claim derivation as the
+  next Phase D work.

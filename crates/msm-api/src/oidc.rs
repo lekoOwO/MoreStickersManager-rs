@@ -64,14 +64,29 @@ struct RawDiscoveryDocument {
 pub type OidcTokenExchangeFuture =
     Pin<Box<dyn Future<Output = Result<OidcTokenResponse, OidcError>> + Send>>;
 
+/// Boxed future returned by an OIDC discovery fetcher implementation.
+pub type OidcDiscoveryFuture =
+    Pin<Box<dyn Future<Output = Result<OidcDiscoveryDocument, OidcError>> + Send>>;
+
 /// Exchanges an authorization code with a provider token endpoint.
 pub trait OidcTokenExchanger: Send + Sync {
     fn exchange(&self, request: OidcTokenExchangeRequest) -> OidcTokenExchangeFuture;
 }
 
+/// Fetches and validates OIDC discovery metadata for an issuer.
+pub trait OidcDiscoveryFetcher: Send + Sync {
+    fn discover(&self, issuer_url: String) -> OidcDiscoveryFuture;
+}
+
 /// HTTP implementation of [`OidcTokenExchanger`].
 #[derive(Clone, Debug)]
 pub struct HttpOidcTokenExchanger {
+    client: reqwest::Client,
+}
+
+/// HTTP implementation of [`OidcDiscoveryFetcher`].
+#[derive(Clone, Debug)]
+pub struct HttpOidcDiscoveryFetcher {
     client: reqwest::Client,
 }
 
@@ -81,8 +96,24 @@ impl Default for HttpOidcTokenExchanger {
     }
 }
 
+impl Default for HttpOidcDiscoveryFetcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HttpOidcTokenExchanger {
     /// Creates an HTTP OIDC token exchanger with the default reqwest client.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+impl HttpOidcDiscoveryFetcher {
+    /// Creates an HTTP OIDC discovery fetcher with the default reqwest client.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -108,6 +139,39 @@ impl OidcTokenExchanger for HttpOidcTokenExchanger {
             parse_token_response(&body)
         })
     }
+}
+
+impl OidcDiscoveryFetcher for HttpOidcDiscoveryFetcher {
+    fn discover(&self, issuer_url: String) -> OidcDiscoveryFuture {
+        let client = self.client.clone();
+        Box::pin(async move {
+            let discovery_url = discovery_document_url(&issuer_url)?;
+            let response = client.get(discovery_url).send().await?;
+            let status = response.status();
+            if !status.is_success() {
+                return Err(OidcError::TokenEndpointStatus(status));
+            }
+            let body = response.text().await?;
+            parse_discovery_document(&body, &issuer_url)
+        })
+    }
+}
+
+/// Builds the standard OIDC discovery document URL for an issuer.
+///
+/// # Errors
+///
+/// Returns an error when the issuer URL is not a valid absolute URL.
+pub fn discovery_document_url(issuer_url: &str) -> Result<String, OidcError> {
+    let mut url = Url::parse(issuer_url)
+        .map_err(|error| OidcError::InvalidTokenEndpoint(error.to_string()))?;
+    let discovery_path = format!(
+        "{}/.well-known/openid-configuration",
+        url.path().trim_end_matches('/')
+    );
+    url.set_path(&discovery_path);
+    url.set_query(None);
+    Ok(url.to_string())
 }
 
 /// Builds the token endpoint URL from the configured issuer URL.

@@ -254,6 +254,7 @@ mod tests {
     use crate::{
         build_router,
         oidc::{
+            OidcDiscoveryDocument, OidcDiscoveryFetcher, OidcDiscoveryFuture,
             OidcTokenExchangeFuture, OidcTokenExchangeRequest, OidcTokenExchanger,
             OidcTokenResponse,
         },
@@ -4123,9 +4124,17 @@ mod tests {
     #[tokio::test]
     async fn oidc_callback_exchanges_authorization_code_before_creating_session() {
         let exchanger = Arc::new(RecordingOidcTokenExchanger::new());
+        let discovery = Arc::new(StaticOidcDiscoveryFetcher::new(OidcDiscoveryDocument {
+            issuer: "https://accounts.google.com".to_owned(),
+            authorization_endpoint: Some("https://accounts.google.com/authorize".to_owned()),
+            token_endpoint: "https://accounts.google.com/token".to_owned(),
+            jwks_uri: "https://accounts.google.com/jwks".to_owned(),
+            userinfo_endpoint: None,
+        }));
         let state = test_state()
             .await
-            .with_oidc_token_exchanger(exchanger.clone());
+            .with_oidc_token_exchanger(exchanger.clone())
+            .with_oidc_discovery_fetcher(discovery);
         state
             .repository()
             .create_tenant("tenant_1", "Tenant")
@@ -4207,6 +4216,94 @@ mod tests {
                 ("client_id".to_owned(), "client-id".to_owned()),
                 ("client_secret".to_owned(), "client-secret".to_owned()),
             ]
+        );
+    }
+
+    #[tokio::test]
+    async fn oidc_callback_uses_discovered_token_endpoint_for_code_exchange() {
+        let exchanger = Arc::new(RecordingOidcTokenExchanger::new());
+        let discovery = Arc::new(StaticOidcDiscoveryFetcher::new(OidcDiscoveryDocument {
+            issuer: "https://issuer.example/oidc".to_owned(),
+            authorization_endpoint: Some("https://issuer.example/oidc/auth".to_owned()),
+            token_endpoint: "https://tokens.example/token".to_owned(),
+            jwks_uri: "https://issuer.example/oidc/jwks".to_owned(),
+            userinfo_endpoint: Some("https://issuer.example/oidc/userinfo".to_owned()),
+        }));
+        let state = test_state()
+            .await
+            .with_oidc_token_exchanger(exchanger.clone())
+            .with_oidc_discovery_fetcher(discovery.clone());
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from(["email".to_owned(), "openid".to_owned()]);
+        state
+            .repository()
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_custom",
+                tenant_id: "tenant_1",
+                display_name: "Custom",
+                issuer_url: "https://issuer.example/oidc",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+        let start_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/auth/oidc/tenant_1/oidc_custom/login?redirectUri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let start_body = to_bytes(start_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&start_body).unwrap();
+        let callback_body = serde_json::json!({
+            "state": started["state"].as_str().unwrap(),
+            "nonce": started["nonce"].as_str().unwrap(),
+            "authorizationCode": "provider-code-456",
+            "issuer": "https://issuer.example/oidc",
+            "audience": "client-id",
+            "providerSubject": "custom-subject-1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "tokenId": "oidccustom",
+            "tokenName": "OIDC Custom",
+            "scopes": ["pack.read"],
+            "expiresAt": null
+        });
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/oidc/callback")
+                    .header("content-type", "application/json")
+                    .body(Body::from(callback_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            discovery.issuers.lock().unwrap().as_slice(),
+            ["https://issuer.example/oidc"]
+        );
+        let requests = exchanger.requests.lock().unwrap();
+        assert_eq!(
+            requests[0].token_endpoint_url,
+            "https://tokens.example/token"
         );
     }
 
@@ -4921,6 +5018,28 @@ mod tests {
                     expires_in: Some(3600),
                 })
             })
+        }
+    }
+
+    struct StaticOidcDiscoveryFetcher {
+        document: OidcDiscoveryDocument,
+        issuers: Mutex<Vec<String>>,
+    }
+
+    impl StaticOidcDiscoveryFetcher {
+        fn new(document: OidcDiscoveryDocument) -> Self {
+            Self {
+                document,
+                issuers: Mutex::default(),
+            }
+        }
+    }
+
+    impl OidcDiscoveryFetcher for StaticOidcDiscoveryFetcher {
+        fn discover(&self, issuer_url: String) -> OidcDiscoveryFuture {
+            self.issuers.lock().unwrap().push(issuer_url);
+            let document = self.document.clone();
+            Box::pin(async move { Ok(document) })
         }
     }
 
