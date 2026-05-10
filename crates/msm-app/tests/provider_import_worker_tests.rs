@@ -144,11 +144,82 @@ async fn provider_import_worker_requeues_retryable_failures() {
         .error_summary
         .as_deref()
         .unwrap()
-        .contains("unsupported provider"));
+        .contains("missing field"));
+}
+
+#[tokio::test]
+async fn provider_import_worker_resolves_telegram_get_file_assets() {
+    let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
+    let pool = DbPool::connect(&config).await.unwrap();
+    pool.run_migrations().await.unwrap();
+    let repo = StorageRepository::new(pool);
+    repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+    repo.create_user("user_1", "leko@example.com", "Leko")
+        .await
+        .unwrap();
+    repo.create_provider_import_job(NewProviderImportJob {
+        id: "provider_job_tg",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        provider_id: "telegram",
+        remote_id: "cat_pack",
+        target_pack_id: Some("pack_cat"),
+        request_json: r#"{
+            "providerId": "telegram",
+            "remoteId": "cat_pack",
+            "targetPackId": "pack_cat",
+            "baseUrl": "https://api.telegram.org"
+        }"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let asset_store = LocalAssetStore::new(temp.path());
+    let metadata_url = "https://api.telegram.org/bot<token>/getStickerSet?name=cat_pack";
+    let get_file_url = "https://api.telegram.org/bot<token>/getFile?file_id=file_1";
+    let worker = ProviderImportWorker::new(
+        repo.clone(),
+        asset_store,
+        ProviderImportWorkerConfig {
+            enabled: false,
+            public_asset_base_url: "https://msm.example.test".to_owned(),
+            poll_interval: Duration::from_millis(5),
+            retry_backoff: Duration::from_millis(5),
+        },
+        Arc::new(FakeFetcher::new_map(BTreeMap::from([
+            (metadata_url.to_owned(), telegram_metadata()),
+            (
+                get_file_url.to_owned(),
+                br#"{"ok":true,"result":{"file_path":"stickers/file_1.webp"}}"#.to_vec(),
+            ),
+        ]))),
+        Arc::new(FakeDownloader::new(BTreeMap::from([(
+            "https://api.telegram.org/file/bot<token>/stickers/file_1.webp".to_owned(),
+            b"telegram-webp".to_vec(),
+        )]))),
+    );
+
+    let job = worker.run_job("provider_job_tg").await.unwrap();
+    let pack = repo.find_sticker_pack("pack_cat").await.unwrap().unwrap();
+
+    assert_eq!(job.status, ExportJobStatus::Succeeded);
+    assert_eq!(pack.title, "Cat Pack");
+    assert_eq!(
+        pack.stickers[0].image,
+        "https://msm.example.test/assets/packs/pack_cat/cat_unique_1.webp"
+    );
+    assert_eq!(
+        tokio::fs::read(temp.path().join("assets/packs/pack_cat/cat_unique_1.webp"))
+            .await
+            .unwrap(),
+        b"telegram-webp"
+    );
 }
 
 struct FakeFetcher {
     metadata: Vec<u8>,
+    metadata_by_url: BTreeMap<String, Vec<u8>>,
     seen_urls: Arc<Mutex<Vec<String>>>,
 }
 
@@ -156,6 +227,15 @@ impl FakeFetcher {
     fn new(metadata: Vec<u8>) -> Self {
         Self {
             metadata,
+            metadata_by_url: BTreeMap::new(),
+            seen_urls: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn new_map(metadata_by_url: BTreeMap<String, Vec<u8>>) -> Self {
+        Self {
+            metadata: Vec::new(),
+            metadata_by_url,
             seen_urls: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -171,7 +251,11 @@ impl ProviderMetadataFetcher for FakeFetcher {
                 .lock()
                 .unwrap()
                 .push(plan.metadata_request.url.clone());
-            Ok(self.metadata.clone())
+            Ok(self
+                .metadata_by_url
+                .get(&plan.metadata_request.url)
+                .cloned()
+                .unwrap_or_else(|| self.metadata.clone()))
         })
     }
 }
@@ -213,6 +297,25 @@ fn line_metadata() -> Vec<u8> {
                 "animationUrl": "https://cdn.example.test/002.apng"
             }
         ]
+    }"#
+    .to_vec()
+}
+
+fn telegram_metadata() -> Vec<u8> {
+    br#"{
+        "ok": true,
+        "result": {
+            "name": "cat_pack",
+            "title": "Cat Pack",
+            "stickers": [
+                {
+                    "fileId": "file_1",
+                    "fileUniqueId": "cat_unique_1",
+                    "emoji": "cat",
+                    "isAnimated": false
+                }
+            ]
+        }
     }"#
     .to_vec()
 }

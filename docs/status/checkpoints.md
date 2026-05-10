@@ -1610,3 +1610,10 @@
 - Added English and Traditional Chinese labels plus focused component/API tests for Web provider import job controls.
 - Verification: `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client` (26 tests), `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (61 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
 - Updated PRD/status/provider/user docs; next Phase E slice should implement Telegram `getFile` execution and LINE product parsing.
+
+## 2026-05-10 Provider Import Telegram getFile Execution
+
+- Extended the provider import worker to handle Telegram jobs by parsing Bot API sticker-set responses, resolving every sticker `fileId` through `getFile`, downloading Bot API file URLs, writing assets into `LocalAssetStore`, rewriting image URLs to MSM-hosted assets, and upserting the imported pack.
+- Added worker coverage for Telegram getFile/file download execution and adjusted retry coverage now that Telegram is no longer treated as an unsupported provider path.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-app provider_import_worker --locked` (3 worker tests plus filtered config coverage), `cargo test -p msm-app --locked` (29 tests), `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider/user docs; next Phase E slice should implement LINE product-page parsing and provider credential/config UI.

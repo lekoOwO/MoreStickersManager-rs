@@ -88,8 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Implement Telegram provider import `getFile`/file download execution and LINE
-   product metadata parsing beyond fixture-schema direct URL payloads.
+1. Implement LINE product metadata parsing beyond fixture-schema direct URL payloads.
 2. Add provider credential/config UI and API.
 
 Each queue item must update this section when completed or reordered.
@@ -233,10 +232,12 @@ tests and docs are updated.
   Progress: `msm-providers` now exposes a testable Telegram remote fetch plan
   boundary for `getStickerSet` metadata and Telegram `getFile`/file download
   asset strategy. `msm-app` now has injected runtime metadata fetch helpers and
-  a provider import worker foundation; Telegram-specific `getFile` execution remains. API can now create protected provider import fetch
-  plans and queue provider import jobs for Telegram sources. CLI/MCP/Web can
-  request/display those plans, and CLI/MCP/Web can create/read provider import
-  jobs and list job events.
+  a provider import worker foundation. The worker now resolves Telegram sticker
+  `fileId` values through `getFile`, downloads Bot API file URLs into the local
+  asset store, rewrites pack image URLs to MSM-hosted assets, and upserts the
+  imported pack. API can create protected provider import fetch plans and queue
+  provider import jobs for Telegram sources. CLI/MCP/Web can request/display
+  those plans and create/read provider import jobs/events.
 - [ ] LINE network fetch with asset download/internalization.
   Progress: `msm-providers` now exposes a testable LINE sticker-shop product
   fetch plan boundary and direct remote URL asset strategy. `msm-app` can execute

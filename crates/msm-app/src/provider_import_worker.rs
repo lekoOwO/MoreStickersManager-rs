@@ -2,8 +2,9 @@ use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use msm_domain::StickerPack;
 use msm_providers::{
-    line::LineStickerProvider, line_sticker_pack_fetch_plan, telegram_sticker_set_fetch_plan,
-    ProviderAssetDownloadStrategy, ProviderRemoteFetchPlan, StickerProvider,
+    line::LineStickerProvider, line_sticker_pack_fetch_plan, telegram::TelegramProvider,
+    telegram_sticker_set_fetch_plan, ProviderAssetDownloadStrategy, ProviderHttpRequestPlan,
+    ProviderRemoteFetchPlan, StickerProvider,
 };
 use msm_storage::{
     models::{ExportJobStatus, NewProviderImportJobEvent, PackVisibility, ProviderImportJobRecord},
@@ -313,10 +314,16 @@ impl ProviderImportWorker {
         )?;
         let metadata_bytes = self.metadata_fetcher.fetch_metadata(&plan).await?;
         let metadata = String::from_utf8_lossy(&metadata_bytes);
+        let telegram_files = if request.provider_id == "telegram" {
+            resolve_telegram_files(&plan, &metadata, self.metadata_fetcher.as_ref()).await?
+        } else {
+            Vec::new()
+        };
         let pack = normalize_pack(
             &request.provider_id,
             &metadata,
             &self.config.public_asset_base_url,
+            &telegram_files,
         )?;
         let target_pack_id = request
             .target_pack_id
@@ -328,6 +335,7 @@ impl ProviderImportWorker {
             target_pack_id,
             &self.config.public_asset_base_url,
             plan,
+            &telegram_files,
             self.asset_downloader.as_ref(),
             &self.asset_store,
         )
@@ -421,10 +429,15 @@ fn normalize_pack(
     provider_id: &str,
     metadata: &str,
     public_asset_base_url: &str,
+    telegram_files: &[TelegramResolvedFile],
 ) -> ProviderImportWorkerResult<StickerPack> {
     match provider_id {
         "line-stickers" => {
             Ok(LineStickerProvider.normalize_pack_json(metadata, public_asset_base_url)?)
+        }
+        "telegram" => {
+            let fixture = telegram_fixture_json(metadata, telegram_files)?;
+            Ok(TelegramProvider.normalize_pack_json(&fixture, public_asset_base_url)?)
         }
         other => Err(ProviderImportWorkerError::UnsupportedProvider {
             provider_id: other.to_owned(),
@@ -437,6 +450,7 @@ async fn internalize_assets(
     pack_public_id: &str,
     public_asset_base_url: &str,
     plan: ProviderRemoteFetchPlan,
+    telegram_files: &[TelegramResolvedFile],
     downloader: &(dyn ProviderAssetDownloader + Send + Sync),
     asset_store: &LocalAssetStore,
 ) -> ProviderImportWorkerResult<StickerPack> {
@@ -452,10 +466,209 @@ async fn internalize_assets(
             )
             .await?)
         }
-        strategy @ ProviderAssetDownloadStrategy::TelegramBotFileApi => {
-            Err(ProviderImportWorkerError::UnsupportedAssetStrategy { strategy })
+        ProviderAssetDownloadStrategy::TelegramBotFileApi => {
+            internalize_telegram_pack_assets(
+                pack,
+                pack_public_id,
+                public_asset_base_url,
+                &plan,
+                telegram_files,
+                downloader,
+                asset_store,
+            )
+            .await
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TelegramGetStickerSetResponse {
+    result: TelegramStickerSetResult,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TelegramStickerSetResult {
+    name: String,
+    title: String,
+    stickers: Vec<TelegramStickerResult>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TelegramStickerResult {
+    file_id: String,
+    file_unique_id: String,
+    #[serde(default)]
+    emoji: Option<String>,
+    #[serde(default)]
+    is_animated: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct TelegramGetFileResponse {
+    result: TelegramGetFileResult,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct TelegramGetFileResult {
+    file_path: String,
+}
+
+#[derive(Debug, Clone)]
+struct TelegramResolvedFile {
+    id: String,
+    unique_id: String,
+    path: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TelegramFixtureSticker<'a> {
+    file_unique_id: &'a str,
+    emoji: Option<&'a str>,
+    extension: String,
+    is_animated: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TelegramFixture<'a> {
+    name: &'a str,
+    title: &'a str,
+    stickers: Vec<TelegramFixtureSticker<'a>>,
+}
+
+async fn resolve_telegram_files(
+    plan: &ProviderRemoteFetchPlan,
+    metadata: &str,
+    fetcher: &(dyn ProviderMetadataFetcher + Send + Sync),
+) -> ProviderImportWorkerResult<Vec<TelegramResolvedFile>> {
+    let sticker_set: TelegramGetStickerSetResponse = serde_json::from_str(metadata)?;
+    let method_base = telegram_method_base(&plan.metadata_request.url);
+    let mut files = Vec::with_capacity(sticker_set.result.stickers.len());
+    for sticker in sticker_set.result.stickers {
+        let file_plan = ProviderRemoteFetchPlan {
+            provider_id: "telegram".to_owned(),
+            remote_id: sticker.file_id.clone(),
+            metadata_request: ProviderHttpRequestPlan {
+                method: "GET".to_owned(),
+                url: format!(
+                    "{method_base}/getFile?file_id={}",
+                    percent_encode(&sticker.file_id)
+                ),
+                redacted_headers: plan.metadata_request.redacted_headers.clone(),
+            },
+            asset_strategy: ProviderAssetDownloadStrategy::TelegramBotFileApi,
+        };
+        let bytes = fetcher.fetch_metadata(&file_plan).await?;
+        let file: TelegramGetFileResponse = serde_json::from_slice(&bytes)?;
+        files.push(TelegramResolvedFile {
+            id: sticker.file_id,
+            unique_id: sticker.file_unique_id,
+            path: file.result.file_path,
+        });
+    }
+    Ok(files)
+}
+
+fn telegram_fixture_json(
+    metadata: &str,
+    files: &[TelegramResolvedFile],
+) -> ProviderImportWorkerResult<String> {
+    let sticker_set: TelegramGetStickerSetResponse = serde_json::from_str(metadata)?;
+
+    let stickers = sticker_set
+        .result
+        .stickers
+        .iter()
+        .map(|sticker| {
+            let extension = files
+                .iter()
+                .find(|file| file.id == sticker.file_id || file.unique_id == sticker.file_unique_id)
+                .and_then(|file| file.path.rsplit('.').next())
+                .filter(|extension| !extension.contains('/'))
+                .unwrap_or("webp")
+                .to_owned();
+            TelegramFixtureSticker {
+                file_unique_id: &sticker.file_unique_id,
+                emoji: sticker.emoji.as_deref(),
+                extension,
+                is_animated: sticker.is_animated,
+            }
+        })
+        .collect();
+    Ok(serde_json::to_string(&TelegramFixture {
+        name: &sticker_set.result.name,
+        title: &sticker_set.result.title,
+        stickers,
+    })?)
+}
+
+async fn internalize_telegram_pack_assets(
+    pack: &StickerPack,
+    pack_public_id: &str,
+    public_asset_base_url: &str,
+    plan: &ProviderRemoteFetchPlan,
+    files: &[TelegramResolvedFile],
+    downloader: &(dyn ProviderAssetDownloader + Send + Sync),
+    asset_store: &LocalAssetStore,
+) -> ProviderImportWorkerResult<StickerPack> {
+    let base_url = public_asset_base_url.trim().trim_end_matches('/');
+    let file_base = telegram_file_base(&plan.metadata_request.url);
+    let mut rewritten = pack.clone();
+    for sticker in &mut rewritten.stickers {
+        let Some(filename) = sticker.filename.clone() else {
+            continue;
+        };
+        let Some(file) = files
+            .iter()
+            .find(|file| sticker.id.ends_with(&file.unique_id))
+        else {
+            return Err(ProviderImportWorkerError::UnsupportedProvider {
+                provider_id: format!("missing telegram file for {}", sticker.id),
+            });
+        };
+        let key = msm_storage::AssetKey::new(pack_public_id, filename.clone())?;
+        let download_url = format!("{file_base}/{}", file.path.trim_start_matches('/'));
+        let bytes = downloader.download_asset(&download_url).await?;
+        asset_store.write(&key, &bytes).await?;
+        sticker.image = format!("{base_url}/assets/packs/{pack_public_id}/{filename}");
+    }
+    if let Some(first) = rewritten.stickers.first() {
+        rewritten.logo = first.clone();
+    }
+    Ok(rewritten)
+}
+
+fn telegram_method_base(url: &str) -> String {
+    url.split("/getStickerSet")
+        .next()
+        .unwrap_or(url)
+        .trim_end_matches('/')
+        .to_owned()
+}
+
+fn telegram_file_base(url: &str) -> String {
+    let method_base = telegram_method_base(url);
+    if let Some((prefix, token)) = method_base.rsplit_once("/bot") {
+        format!("{prefix}/file/bot{token}")
+    } else {
+        format!("{method_base}/file")
+    }
+}
+
+fn percent_encode(value: &str) -> String {
+    value
+        .bytes()
+        .flat_map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                vec![byte as char]
+            }
+            _ => format!("%{byte:02X}").chars().collect(),
+        })
+        .collect()
 }
 
 fn next_attempt_at(backoff: Duration) -> ProviderImportWorkerResult<String> {
