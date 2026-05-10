@@ -1685,3 +1685,9 @@
 - Export worker now checks `prepared_media_assets` by source asset hash and profile key before invoking the media executor.
 - Cache hits are reused in Telegram result summaries, avoiding unnecessary reconversion.
 - Added focused worker coverage proving cached prepared media bypasses the media executor; next Phase F slice should expose conversion errors and output metadata across API/CLI/MCP/Web surfaces.
+
+## 2026-05-10 Prepared Media Diagnostics Visibility
+
+- Export job result `preparedMedia` summaries now include converter stdout, stderr, and exit code for newly converted media.
+- Existing export-job API/CLI/MCP/Web read surfaces share the same result payload, so conversion diagnostics are visible without a separate route.
+- Added focused worker coverage for diagnostics in job result JSON; next Phase F slice should add target-specific validation.

@@ -77,7 +77,7 @@ Status meanings:
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, planned-provider registry placeholders, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Provider import worker credential consumption now exists for enabled tenant-scoped configs; concrete future-provider implementations remain incomplete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
-| Media conversion | Partially complete | Profiles, ffmpeg command plans, ffprobe command/report parsing, converter stdout/stderr/exit-code diagnostics, and prepared-media cache reuse exist. Surface visibility remains incomplete. |
+| Media conversion | Partially complete | Profiles, ffmpeg command plans, ffprobe command/report parsing, converter stdout/stderr/exit-code diagnostics, prepared-media cache reuse, and export-job result visibility for output metadata exist. Target-specific validation remains incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
 | Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
 | Asset privacy/CDN | Partially complete | URL resolver supports CDN preference conceptually. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. Admin CDN config remains incomplete. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue Phase F media conversion with Web/API/CLI/MCP visibility into conversion errors and output metadata.
+1. Continue Phase F media conversion with target-specific validation for Telegram and future export targets.
 
 Each queue item must update this section when completed or reordered.
 
@@ -268,7 +268,8 @@ tests and docs are updated.
   Progress: process-backed conversion already used shell-free commands, timeout handling, and exit-status validation; it now captures converter stdout, stderr, and exit code into `ConversionCommandOutput` and returns those diagnostics through `PreparedMediaOutput` for downstream persistence/surface work.
 - [x] Prepared media cache completion.
   Progress: export worker now checks `prepared_media_assets` by source asset hash and target profile before invoking the media executor. Cache hits are reused in Telegram dry-run/publication/reconciliation result summaries without re-running conversion.
-- [ ] Web/API/CLI/MCP visibility into conversion errors and output metadata.
+- [x] Web/API/CLI/MCP visibility into conversion errors and output metadata.
+  Progress: export job result JSON now includes prepared media output metadata plus converter stdout, stderr, and exit code for newly converted assets. Existing API/CLI/MCP/Web export-job read surfaces consume the shared job result payload, so this metadata is visible without adding a new route.
 - [ ] Target-specific validation for Telegram and future export targets.
 
 ### Phase G: Export And Publication Targets

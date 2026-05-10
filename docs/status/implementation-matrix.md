@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue with Phase F media conversion: surface visibility into conversion errors and output metadata.
+Continue with Phase F media conversion: target-specific validation for Telegram and future export targets.

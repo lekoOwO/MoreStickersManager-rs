@@ -174,7 +174,7 @@ downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-sco
 
 ## Immediate Plan
 
-1. Continue Phase F media conversion with API/CLI/MCP/Web visibility into conversion errors and output metadata.
+1. Continue Phase F media conversion with target-specific validation for Telegram and future export targets.
 2. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band,
    OGQ, and Viber if any are still missing.
 

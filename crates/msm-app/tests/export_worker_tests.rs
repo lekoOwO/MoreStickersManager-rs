@@ -173,6 +173,54 @@ async fn worker_reuses_prepared_media_cache_without_executor_call() {
 }
 
 #[tokio::test]
+async fn worker_includes_prepared_media_diagnostics_in_job_result() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_media_diagnostics",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"😀"}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let worker = ExportWorker::with_media_executor(
+        repo.clone(),
+        worker_config(),
+        Arc::new(DiagnosticPreparedMediaExecutor),
+    );
+
+    let completed = worker
+        .run_job("job_telegram_media_diagnostics")
+        .await
+        .unwrap();
+    let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    assert_eq!(result["preparedMedia"][0]["converterExitCode"], 0);
+    assert_eq!(
+        result["preparedMedia"][0]["converterStdout"],
+        "ffmpeg stdout summary"
+    );
+    assert_eq!(
+        result["preparedMedia"][0]["converterStderr"],
+        "frame=1 size=14kB"
+    );
+}
+
+#[tokio::test]
 async fn telegram_dry_run_does_not_call_publication_executor() {
     let repo = seeded_repository().await;
     repo.create_export_target(NewExportTarget {
@@ -1069,6 +1117,33 @@ impl PreparedMediaExecutor for FakePreparedMediaExecutor {
                 file_size_bytes: 512,
                 converter_stdout: String::new(),
                 converter_stderr: String::new(),
+                converter_exit_code: Some(0),
+            }))
+        })
+    }
+}
+
+#[derive(Debug)]
+struct DiagnosticPreparedMediaExecutor;
+
+impl PreparedMediaExecutor for DiagnosticPreparedMediaExecutor {
+    fn prepare(
+        &self,
+        request: PreparedMediaRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<Option<PreparedMediaOutput>>> + Send + '_>>
+    {
+        Box::pin(async move {
+            Ok(Some(PreparedMediaOutput {
+                source_asset_hash: request.source_asset_hash,
+                profile_key: request.profile_key,
+                output_asset_key: "prepared/diagnostic.png".to_owned(),
+                mime_type: request.mime_type,
+                width_px: request.width_px,
+                height_px: request.height_px,
+                duration_ms: request.duration_ms,
+                file_size_bytes: 2048,
+                converter_stdout: "ffmpeg stdout summary".to_owned(),
+                converter_stderr: "frame=1 size=14kB".to_owned(),
                 converter_exit_code: Some(0),
             }))
         })

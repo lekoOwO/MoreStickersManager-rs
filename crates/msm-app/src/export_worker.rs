@@ -1393,6 +1393,9 @@ impl ExportWorker {
                     output_asset_key: output.output_asset_key,
                     mime_type: output.mime_type,
                     file_size_bytes: output.file_size_bytes,
+                    converter_stdout: Some(output.converter_stdout),
+                    converter_stderr: Some(output.converter_stderr),
+                    converter_exit_code: output.converter_exit_code,
                 });
             }
         }
@@ -1465,6 +1468,9 @@ fn cached_prepared_media_summary(
         output_asset_key: record.output_asset_key,
         mime_type: record.mime_type,
         file_size_bytes: record.file_size_bytes,
+        converter_stdout: None,
+        converter_stderr: None,
+        converter_exit_code: None,
     }
 }
 
@@ -1477,6 +1483,12 @@ struct CachedPreparedMediaSummary {
     output_asset_key: String,
     mime_type: String,
     file_size_bytes: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    converter_stdout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    converter_stderr: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    converter_exit_code: Option<i32>,
 }
 
 #[derive(Debug, serde::Serialize)]
