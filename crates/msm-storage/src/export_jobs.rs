@@ -57,7 +57,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_provider_configs(
         &self,
         tenant_id: &str,
@@ -82,7 +82,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn find_provider_config(
         &self,
         id: &str,
@@ -1127,31 +1127,59 @@ impl StorageRepository {
         publication: NewTelegramPublication<'_>,
     ) -> StorageResult<TelegramPublicationRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO telegram_publications (
-                id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
-                sticker_count, sticker_type, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(target_id, sticker_set_name) DO UPDATE SET
-                pack_id = excluded.pack_id,
-                job_id = excluded.job_id,
-                sticker_set_url = excluded.sticker_set_url,
-                sticker_count = excluded.sticker_count,
-                sticker_type = excluded.sticker_type,
-                updated_at = excluded.updated_at",
-        )
-        .bind(publication.id)
-        .bind(publication.pack_id)
-        .bind(publication.target_id)
-        .bind(publication.job_id)
-        .bind(publication.sticker_set_name)
-        .bind(publication.sticker_set_url)
-        .bind(publication.sticker_count)
-        .bind(publication.sticker_type)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO telegram_publications (
+                    id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
+                    sticker_count, sticker_type, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT(target_id, sticker_set_name) DO UPDATE SET
+                    pack_id = excluded.pack_id,
+                    job_id = excluded.job_id,
+                    sticker_set_url = excluded.sticker_set_url,
+                    sticker_count = excluded.sticker_count,
+                    sticker_type = excluded.sticker_type,
+                    updated_at = excluded.updated_at",
+            )
+            .bind(publication.id)
+            .bind(publication.pack_id)
+            .bind(publication.target_id)
+            .bind(publication.job_id)
+            .bind(publication.sticker_set_name)
+            .bind(publication.sticker_set_url)
+            .bind(publication.sticker_count)
+            .bind(publication.sticker_type)
+            .bind(&now)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO telegram_publications (
+                    id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
+                    sticker_count, sticker_type, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(target_id, sticker_set_name) DO UPDATE SET
+                    pack_id = excluded.pack_id,
+                    job_id = excluded.job_id,
+                    sticker_set_url = excluded.sticker_set_url,
+                    sticker_count = excluded.sticker_count,
+                    sticker_type = excluded.sticker_type,
+                    updated_at = excluded.updated_at",
+            )
+            .bind(publication.id)
+            .bind(publication.pack_id)
+            .bind(publication.target_id)
+            .bind(publication.job_id)
+            .bind(publication.sticker_set_name)
+            .bind(publication.sticker_set_url)
+            .bind(publication.sticker_count)
+            .bind(publication.sticker_type)
+            .bind(&now)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         self.find_telegram_publication_by_target_set(
             publication.target_id,
@@ -1165,72 +1193,92 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn find_telegram_publication(
         &self,
         id: &str,
     ) -> StorageResult<Option<TelegramPublicationRecord>> {
-        let row = sqlx::query(
-            "SELECT id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
-                sticker_count, sticker_type, created_at, updated_at
-            FROM telegram_publications
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(&telegram_publication_select_sql("WHERE id = $1"))
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        Ok(row.map(|row| telegram_publication_from_row(&row)))
+            Ok(row.as_ref().map(telegram_publication_from_pg_row))
+        } else {
+            let row = sqlx::query(&telegram_publication_select_sql("WHERE id = ?"))
+                .bind(id)
+                .fetch_optional(self.sqlite()?)
+                .await?;
+
+            Ok(row.as_ref().map(telegram_publication_from_sqlite_row))
+        }
     }
 
     /// Finds a Telegram publication by target and sticker set name.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn find_telegram_publication_by_target_set(
         &self,
         target_id: &str,
         sticker_set_name: &str,
     ) -> StorageResult<Option<TelegramPublicationRecord>> {
-        let row = sqlx::query(
-            "SELECT id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
-                sticker_count, sticker_type, created_at, updated_at
-            FROM telegram_publications
-            WHERE target_id = ? AND sticker_set_name = ?",
-        )
-        .bind(target_id)
-        .bind(sticker_set_name)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(&telegram_publication_select_sql(
+                "WHERE target_id = $1 AND sticker_set_name = $2",
+            ))
+            .bind(target_id)
+            .bind(sticker_set_name)
+            .fetch_optional(pool)
+            .await?;
 
-        Ok(row.map(|row| telegram_publication_from_row(&row)))
+            Ok(row.as_ref().map(telegram_publication_from_pg_row))
+        } else {
+            let row = sqlx::query(&telegram_publication_select_sql(
+                "WHERE target_id = ? AND sticker_set_name = ?",
+            ))
+            .bind(target_id)
+            .bind(sticker_set_name)
+            .fetch_optional(self.sqlite()?)
+            .await?;
+
+            Ok(row.as_ref().map(telegram_publication_from_sqlite_row))
+        }
     }
 
     /// Lists Telegram publications for one source pack.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_telegram_publications_for_pack(
         &self,
         pack_id: &str,
     ) -> StorageResult<Vec<TelegramPublicationRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
-                sticker_count, sticker_type, created_at, updated_at
-            FROM telegram_publications
-            WHERE pack_id = ?
-            ORDER BY updated_at DESC, sticker_set_name, id",
-        )
-        .bind(pack_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let rows = sqlx::query(&telegram_publication_select_sql(
+                "WHERE pack_id = $1 ORDER BY updated_at DESC, sticker_set_name, id",
+            ))
+            .bind(pack_id)
+            .fetch_all(pool)
+            .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| telegram_publication_from_row(&row))
-            .collect())
+            Ok(rows.iter().map(telegram_publication_from_pg_row).collect())
+        } else {
+            let rows = sqlx::query(&telegram_publication_select_sql(
+                "WHERE pack_id = ? ORDER BY updated_at DESC, sticker_set_name, id",
+            ))
+            .bind(pack_id)
+            .fetch_all(self.sqlite()?)
+            .await?;
+
+            Ok(rows
+                .iter()
+                .map(telegram_publication_from_sqlite_row)
+                .collect())
+        }
     }
 
     /// Inserts or updates a Telegram sticker mapping by target, set, and source sticker.
@@ -1248,30 +1296,57 @@ impl StorageRepository {
             mapping.sticker_set_name,
             mapping.source_sticker_id,
         );
-        sqlx::query(
-            "INSERT INTO telegram_sticker_mappings (
-                id, publication_id, target_id, sticker_set_name, source_sticker_id,
-                telegram_file_id, telegram_file_unique_id, position, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(target_id, sticker_set_name, source_sticker_id) DO UPDATE SET
-                publication_id = excluded.publication_id,
-                telegram_file_id = excluded.telegram_file_id,
-                telegram_file_unique_id = excluded.telegram_file_unique_id,
-                position = excluded.position,
-                updated_at = excluded.updated_at",
-        )
-        .bind(&id)
-        .bind(mapping.publication_id)
-        .bind(mapping.target_id)
-        .bind(mapping.sticker_set_name)
-        .bind(mapping.source_sticker_id)
-        .bind(mapping.telegram_file_id)
-        .bind(mapping.telegram_file_unique_id)
-        .bind(mapping.position)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO telegram_sticker_mappings (
+                    id, publication_id, target_id, sticker_set_name, source_sticker_id,
+                    telegram_file_id, telegram_file_unique_id, position, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT(target_id, sticker_set_name, source_sticker_id) DO UPDATE SET
+                    publication_id = excluded.publication_id,
+                    telegram_file_id = excluded.telegram_file_id,
+                    telegram_file_unique_id = excluded.telegram_file_unique_id,
+                    position = excluded.position,
+                    updated_at = excluded.updated_at",
+            )
+            .bind(&id)
+            .bind(mapping.publication_id)
+            .bind(mapping.target_id)
+            .bind(mapping.sticker_set_name)
+            .bind(mapping.source_sticker_id)
+            .bind(mapping.telegram_file_id)
+            .bind(mapping.telegram_file_unique_id)
+            .bind(mapping.position)
+            .bind(&now)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO telegram_sticker_mappings (
+                    id, publication_id, target_id, sticker_set_name, source_sticker_id,
+                    telegram_file_id, telegram_file_unique_id, position, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(target_id, sticker_set_name, source_sticker_id) DO UPDATE SET
+                    publication_id = excluded.publication_id,
+                    telegram_file_id = excluded.telegram_file_id,
+                    telegram_file_unique_id = excluded.telegram_file_unique_id,
+                    position = excluded.position,
+                    updated_at = excluded.updated_at",
+            )
+            .bind(&id)
+            .bind(mapping.publication_id)
+            .bind(mapping.target_id)
+            .bind(mapping.sticker_set_name)
+            .bind(mapping.source_sticker_id)
+            .bind(mapping.telegram_file_id)
+            .bind(mapping.telegram_file_unique_id)
+            .bind(mapping.position)
+            .bind(&now)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         self.find_telegram_sticker_mapping_by_source(
             mapping.target_id,
@@ -1286,52 +1361,72 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn find_telegram_sticker_mapping_by_source(
         &self,
         target_id: &str,
         sticker_set_name: &str,
         source_sticker_id: &str,
     ) -> StorageResult<Option<TelegramStickerMappingRecord>> {
-        let row = sqlx::query(
-            "SELECT id, publication_id, target_id, sticker_set_name, source_sticker_id,
-                telegram_file_id, telegram_file_unique_id, position, created_at, updated_at
-            FROM telegram_sticker_mappings
-            WHERE target_id = ? AND sticker_set_name = ? AND source_sticker_id = ?",
-        )
-        .bind(target_id)
-        .bind(sticker_set_name)
-        .bind(source_sticker_id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(&telegram_sticker_mapping_select_sql(
+                "WHERE target_id = $1 AND sticker_set_name = $2 AND source_sticker_id = $3",
+            ))
+            .bind(target_id)
+            .bind(sticker_set_name)
+            .bind(source_sticker_id)
+            .fetch_optional(pool)
+            .await?;
 
-        Ok(row.map(|row| telegram_sticker_mapping_from_row(&row)))
+            Ok(row.as_ref().map(telegram_sticker_mapping_from_pg_row))
+        } else {
+            let row = sqlx::query(&telegram_sticker_mapping_select_sql(
+                "WHERE target_id = ? AND sticker_set_name = ? AND source_sticker_id = ?",
+            ))
+            .bind(target_id)
+            .bind(sticker_set_name)
+            .bind(source_sticker_id)
+            .fetch_optional(self.sqlite()?)
+            .await?;
+
+            Ok(row.as_ref().map(telegram_sticker_mapping_from_sqlite_row))
+        }
     }
 
     /// Lists Telegram sticker mappings for one publication.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_telegram_sticker_mappings_for_publication(
         &self,
         publication_id: &str,
     ) -> StorageResult<Vec<TelegramStickerMappingRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, publication_id, target_id, sticker_set_name, source_sticker_id,
-                telegram_file_id, telegram_file_unique_id, position, created_at, updated_at
-            FROM telegram_sticker_mappings
-            WHERE publication_id = ?
-            ORDER BY position, source_sticker_id",
-        )
-        .bind(publication_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let rows = sqlx::query(&telegram_sticker_mapping_select_sql(
+                "WHERE publication_id = $1 ORDER BY position, source_sticker_id",
+            ))
+            .bind(publication_id)
+            .fetch_all(pool)
+            .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| telegram_sticker_mapping_from_row(&row))
-            .collect())
+            Ok(rows
+                .iter()
+                .map(telegram_sticker_mapping_from_pg_row)
+                .collect())
+        } else {
+            let rows = sqlx::query(&telegram_sticker_mapping_select_sql(
+                "WHERE publication_id = ? ORDER BY position, source_sticker_id",
+            ))
+            .bind(publication_id)
+            .fetch_all(self.sqlite()?)
+            .await?;
+
+            Ok(rows
+                .iter()
+                .map(telegram_sticker_mapping_from_sqlite_row)
+                .collect())
+        }
     }
 }
 
@@ -1521,7 +1616,16 @@ fn prepared_media_asset_from_pg_row(row: &PgRow) -> PreparedMediaAssetRecord {
     }
 }
 
-fn telegram_publication_from_row(row: &sqlx::sqlite::SqliteRow) -> TelegramPublicationRecord {
+fn telegram_publication_select_sql(where_clause: &str) -> String {
+    format!(
+        "SELECT id, pack_id, target_id, job_id, sticker_set_name, sticker_set_url,
+            sticker_count, sticker_type, created_at, updated_at
+        FROM telegram_publications
+        {where_clause}"
+    )
+}
+
+fn telegram_publication_from_sqlite_row(row: &SqliteRow) -> TelegramPublicationRecord {
     TelegramPublicationRecord {
         id: row.get("id"),
         pack_id: row.get("pack_id"),
@@ -1536,9 +1640,46 @@ fn telegram_publication_from_row(row: &sqlx::sqlite::SqliteRow) -> TelegramPubli
     }
 }
 
-fn telegram_sticker_mapping_from_row(
-    row: &sqlx::sqlite::SqliteRow,
-) -> TelegramStickerMappingRecord {
+fn telegram_publication_from_pg_row(row: &PgRow) -> TelegramPublicationRecord {
+    TelegramPublicationRecord {
+        id: row.get("id"),
+        pack_id: row.get("pack_id"),
+        target_id: row.get("target_id"),
+        job_id: row.get("job_id"),
+        sticker_set_name: row.get("sticker_set_name"),
+        sticker_set_url: row.get("sticker_set_url"),
+        sticker_count: row.get("sticker_count"),
+        sticker_type: row.get("sticker_type"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn telegram_sticker_mapping_select_sql(where_clause: &str) -> String {
+    format!(
+        "SELECT id, publication_id, target_id, sticker_set_name, source_sticker_id,
+            telegram_file_id, telegram_file_unique_id, position, created_at, updated_at
+        FROM telegram_sticker_mappings
+        {where_clause}"
+    )
+}
+
+fn telegram_sticker_mapping_from_sqlite_row(row: &SqliteRow) -> TelegramStickerMappingRecord {
+    TelegramStickerMappingRecord {
+        id: row.get("id"),
+        publication_id: row.get("publication_id"),
+        target_id: row.get("target_id"),
+        sticker_set_name: row.get("sticker_set_name"),
+        source_sticker_id: row.get("source_sticker_id"),
+        telegram_file_id: row.get("telegram_file_id"),
+        telegram_file_unique_id: row.get("telegram_file_unique_id"),
+        position: row.get("position"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn telegram_sticker_mapping_from_pg_row(row: &PgRow) -> TelegramStickerMappingRecord {
     TelegramStickerMappingRecord {
         id: row.get("id"),
         publication_id: row.get("publication_id"),

@@ -1889,3 +1889,11 @@
 - Added optional PostgreSQL prepared-media repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite upsert/find coverage active.
 - Updated PRD/status docs to show prepared-media PostgreSQL progress while keeping Telegram publication/mapping, provider, and portability parity open.
 - Verification: `cargo test -p msm-storage prepared_media --locked`.
+
+## 2026-05-11 PostgreSQL Telegram Publication Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for Telegram publication upsert/find/list operations.
+- Added backend-aware SQLite/PostgreSQL SQL paths for Telegram sticker mapping upsert/find/list operations.
+- Added optional PostgreSQL Telegram publication/mapping repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite publication and mapping coverage active.
+- Updated PRD/status docs to show Telegram publication/mapping PostgreSQL progress while keeping provider and portability parity open.
+- Verification: `cargo test -p msm-storage telegram --locked`.

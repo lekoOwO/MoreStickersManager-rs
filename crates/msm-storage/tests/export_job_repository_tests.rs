@@ -573,6 +573,136 @@ async fn telegram_sticker_mappings_upsert_and_list_for_publication() {
     assert_eq!(list, vec![updated]);
 }
 
+#[tokio::test]
+async fn postgres_telegram_publications_and_mappings_roundtrip_when_configured() {
+    let Some(context) = postgres_export_context().await else {
+        return;
+    };
+    let job_id = format!("job_{}", context.suffix);
+    let publication_id = format!("telegram_pub_{}", context.suffix);
+    let set_name = format!("sample_{}_by_msm_bot", context.suffix);
+
+    context
+        .repo
+        .create_export_job(NewExportJob {
+            id: &job_id,
+            tenant_id: &context.tenant_id,
+            owner_user_id: &context.user_id,
+            source_pack_id: &context.pack_id,
+            target_id: &context.target_id,
+            request_json: "{}",
+            max_attempts: 3,
+        })
+        .await
+        .unwrap();
+
+    assert_postgres_telegram_publication_roundtrip(&context, &job_id, &publication_id, &set_name)
+        .await;
+    assert_postgres_telegram_mapping_roundtrip(&context, &publication_id, &set_name).await;
+}
+
+async fn assert_postgres_telegram_publication_roundtrip(
+    context: &PgExportContext,
+    job_id: &str,
+    publication_id: &str,
+    set_name: &str,
+) {
+    let publication = context
+        .repo
+        .upsert_telegram_publication(NewTelegramPublication {
+            id: publication_id,
+            pack_id: &context.pack_id,
+            target_id: &context.target_id,
+            job_id,
+            sticker_set_name: set_name,
+            sticker_set_url: "https://t.me/addstickers/sample_by_msm_bot",
+            sticker_count: 1,
+            sticker_type: "regular",
+        })
+        .await
+        .unwrap();
+    assert_eq!(publication.id, publication_id);
+    assert_eq!(
+        context
+            .repo
+            .find_telegram_publication(publication_id)
+            .await
+            .unwrap(),
+        Some(publication.clone())
+    );
+    assert_eq!(
+        context
+            .repo
+            .find_telegram_publication_by_target_set(&context.target_id, set_name)
+            .await
+            .unwrap(),
+        Some(publication.clone())
+    );
+    assert_eq!(
+        context
+            .repo
+            .list_telegram_publications_for_pack(&context.pack_id)
+            .await
+            .unwrap(),
+        vec![publication]
+    );
+}
+
+async fn assert_postgres_telegram_mapping_roundtrip(
+    context: &PgExportContext,
+    publication_id: &str,
+    set_name: &str,
+) {
+    let created = context
+        .repo
+        .upsert_telegram_sticker_mapping(NewTelegramStickerMapping {
+            publication_id,
+            target_id: &context.target_id,
+            sticker_set_name: set_name,
+            source_sticker_id: "MoreStickers:Telegram:Sticker:sample:file",
+            telegram_file_id: "tg_file_1",
+            telegram_file_unique_id: "tg_unique_1",
+            position: 0,
+        })
+        .await
+        .unwrap();
+    let updated = context
+        .repo
+        .upsert_telegram_sticker_mapping(NewTelegramStickerMapping {
+            publication_id,
+            target_id: &context.target_id,
+            sticker_set_name: set_name,
+            source_sticker_id: "MoreStickers:Telegram:Sticker:sample:file",
+            telegram_file_id: "tg_file_2",
+            telegram_file_unique_id: "tg_unique_2",
+            position: 2,
+        })
+        .await
+        .unwrap();
+    assert_eq!(updated.id, created.id);
+    assert_eq!(updated.telegram_file_id, "tg_file_2");
+    assert_eq!(
+        context
+            .repo
+            .find_telegram_sticker_mapping_by_source(
+                &context.target_id,
+                set_name,
+                "MoreStickers:Telegram:Sticker:sample:file"
+            )
+            .await
+            .unwrap(),
+        Some(updated.clone())
+    );
+    assert_eq!(
+        context
+            .repo
+            .list_telegram_sticker_mappings_for_publication(publication_id)
+            .await
+            .unwrap(),
+        vec![updated]
+    );
+}
+
 async fn seeded_export_job_repo() -> StorageRepository {
     let repo = seeded_repo().await;
     repo.create_export_target(NewExportTarget {
