@@ -11,9 +11,9 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 Phase G export/publication targets are the active focus. MoreStickers export,
 Telegram planning/publication/reconciliation, prepared-media conversion, and
 non-Telegram remote target execution boundaries now exist. The next work is
-Recovery requeue for failed/cancelled export jobs now exists across API, CLI,
-MCP, and Web. The next work is target parity checks for every implemented
-export target and job operation.
+Phase G export/publication parity is closed for implemented targets and job
+operations. The next work is Phase H asset privacy/CDN configuration parity and
+CDN URL behavior verification.
 
 ## Recently Completed
 
@@ -174,8 +174,8 @@ export target and job operation.
 
 ## Immediate Plan
 
-1. Verify/close Web/API/CLI/MCP parity for implemented export targets and job operations.
-2. Continue toward the next PRD phase once Phase G parity is closed.
+1. Start Phase H with tenant/system public asset URL configuration parity.
+2. Verify CDN URL behavior for sticker pack, subscription, and asset responses.
 
 ## Later Planned Work
 

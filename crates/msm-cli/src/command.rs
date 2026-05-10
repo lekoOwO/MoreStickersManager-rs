@@ -9,25 +9,25 @@ use crate::{
         CreatePersonalAccessTokenPayload, CreateProviderImportJobPayload,
         CreateProviderImportPlanPayload, CreateSubscriptionAccessTokenPayload,
         CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, MsmClient,
-        ReqwestMsmClient, SubscriptionAccessResourceType, UpdatePackPayload,
-        UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertOidcProviderPayload,
-        UpsertProviderConfigPayload, UpsertTenantRolePayload,
+        ReqwestMsmClient, SubscriptionAccessResourceType, UpdateExportTargetPayload,
+        UpdatePackPayload, UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload,
+        UpsertOidcProviderPayload, UpsertProviderConfigPayload, UpsertTenantRolePayload,
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
-        format_export_target_kinds, format_export_targets, format_folder, format_folder_pack,
-        format_folders, format_health, format_import, format_membership_remove,
-        format_oidc_provider, format_oidc_provider_delete, format_oidc_providers,
-        format_pack_delete, format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag,
-        format_pat_create, format_pat_list, format_pat_revoke, format_pat_scope_policy,
-        format_provider_config, format_provider_config_delete, format_provider_configs,
-        format_provider_import_job, format_provider_import_job_events, format_provider_import_plan,
-        format_subscription_group, format_subscription_group_pack, format_subscription_groups,
-        format_subscription_link_revoke, format_subscription_link_secret,
-        format_subscription_links, format_tag, format_tag_ids, format_tags,
-        format_telegram_publication, format_telegram_publications, format_tenant_member,
-        format_tenant_members, format_tenant_role, format_tenant_roles, format_tenant_settings,
-        format_tenant_user,
+        format_export_target_kinds, format_export_target_update, format_export_targets,
+        format_folder, format_folder_pack, format_folders, format_health, format_import,
+        format_membership_remove, format_oidc_provider, format_oidc_provider_delete,
+        format_oidc_providers, format_pack_delete, format_pack_ids, format_pack_list,
+        format_pack_rename, format_pack_tag, format_pat_create, format_pat_list, format_pat_revoke,
+        format_pat_scope_policy, format_provider_config, format_provider_config_delete,
+        format_provider_configs, format_provider_import_job, format_provider_import_job_events,
+        format_provider_import_plan, format_subscription_group, format_subscription_group_pack,
+        format_subscription_groups, format_subscription_link_revoke,
+        format_subscription_link_secret, format_subscription_links, format_tag, format_tag_ids,
+        format_tags, format_telegram_publication, format_telegram_publications,
+        format_tenant_member, format_tenant_members, format_tenant_role, format_tenant_roles,
+        format_tenant_settings, format_tenant_user,
     },
     CliError, CliResult,
 };
@@ -557,6 +557,20 @@ pub enum ExportTargetCommand {
         config_json: String,
         #[arg(long)]
         disabled: bool,
+    },
+    Update {
+        #[arg(long)]
+        target_id: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        config_json: String,
+        #[arg(long)]
+        disabled: bool,
+    },
+    Delete {
+        #[arg(long)]
+        target_id: String,
     },
 }
 
@@ -1194,6 +1208,27 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                         .await?;
                     format_export_target(cli.output_format, &target)
                 }
+                ExportTargetCommand::Update {
+                    target_id,
+                    name,
+                    config_json,
+                    disabled,
+                } => {
+                    let config: serde_json::Value = serde_json::from_str(&config_json)?;
+                    let target = client
+                        .update_export_target(UpdateExportTargetPayload {
+                            target_id,
+                            name,
+                            config,
+                            is_enabled: !disabled,
+                        })
+                        .await?;
+                    format_export_target_update(cli.output_format, &target)
+                }
+                ExportTargetCommand::Delete { target_id } => {
+                    client.delete_export_target(&target_id).await?;
+                    Ok(format!("deleted {target_id}"))
+                }
             },
             ExportCommand::Jobs { command } => match command {
                 ExportJobCommand::Create {
@@ -1395,8 +1430,9 @@ mod tests {
             ProviderImportJob, ProviderImportJobEvent, ProviderImportPlan,
             SubscriptionAccessResourceType, SubscriptionAccessToken, SubscriptionGroup,
             SubscriptionGroupPack, Tag, TelegramPublication, TenantMember, TenantRole,
-            TenantSettings, TenantUser, UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload,
-            UpsertOidcProviderPayload, UpsertProviderConfigPayload, UpsertTenantRolePayload,
+            TenantSettings, TenantUser, UpdateExportTargetPayload, UpdateTenantSettingsPayload,
+            UpdateTenantUserStatusPayload, UpsertOidcProviderPayload, UpsertProviderConfigPayload,
+            UpsertTenantRolePayload,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
@@ -3204,6 +3240,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn executes_export_target_update_delete_commands() {
+        let update_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "exports",
+                "targets",
+                "update",
+                "--target-id",
+                "target_telegram",
+                "--name",
+                "Telegram Updated",
+                "--config-json",
+                r#"{"botUsername":"msm_bot"}"#,
+            ]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+        let delete_output = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "exports",
+                "targets",
+                "delete",
+                "--target-id",
+                "target_telegram",
+            ]),
+            &FakeClient::default(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(update_output, "updated target_telegram");
+        assert_eq!(delete_output, "deleted target_telegram");
+    }
+
+    #[tokio::test]
     async fn executes_export_job_create_command_with_json_output() {
         let output = execute_with_client(
             Cli::parse_from([
@@ -3998,6 +4071,17 @@ mod tests {
         ) -> CliResult<ExportTarget> {
             *self.created_export_target.lock().unwrap() = Some(payload);
             Ok(sample_export_target())
+        }
+
+        async fn update_export_target(
+            &self,
+            _payload: UpdateExportTargetPayload,
+        ) -> CliResult<ExportTarget> {
+            Ok(sample_export_target())
+        }
+
+        async fn delete_export_target(&self, _target_id: &str) -> CliResult<()> {
+            Ok(())
         }
 
         async fn create_export_job(&self, payload: CreateExportJobPayload) -> CliResult<ExportJob> {

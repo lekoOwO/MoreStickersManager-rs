@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 51);
+        assert_eq!(tools.len(), 53);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools
             .iter()
@@ -607,6 +607,64 @@ mod tests {
                 .kind,
             "telegram"
         );
+    }
+
+    #[tokio::test]
+    async fn tools_call_updates_and_deletes_export_target() {
+        let state = seeded_state_with_export_target().await;
+        let token = create_pat(
+            &state,
+            "targetmanage",
+            "user_1",
+            [Permission::ExportTargetManage],
+        )
+        .await;
+        let update = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.update_export_target",
+                    "arguments": {
+                        "targetId": "target_morestickers",
+                        "name": "MoreStickers Updated",
+                        "config": {},
+                        "isEnabled": false
+                    }
+                }
+            }),
+        )
+        .await;
+        let delete = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.delete_export_target",
+                    "arguments": { "targetId": "target_morestickers" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(update["result"]["isError"], false);
+        assert_eq!(
+            update["result"]["structuredContent"]["target"]["name"],
+            "MoreStickers Updated"
+        );
+        assert_eq!(delete["result"]["isError"], false);
+        assert!(state
+            .repository()
+            .find_export_target("target_morestickers")
+            .await
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]

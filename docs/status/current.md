@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: Export/publication targets.
+Phase: Asset privacy and CDN.
 
 Last completed:
 - P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase G export/publication target work with parity checks for implemented export targets and job operations.
+- Start Phase H asset privacy/CDN work with tenant/system public asset URL configuration parity and CDN URL behavior verification.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -271,9 +271,10 @@ Last verification:
 - Non-Telegram remote export target abstraction slice: `RemoteExportTargetExecutor` now dispatches future target kinds with job/target/config/pack snapshots and serializes target-neutral `remoteTarget` results while the default executor safely rejects unsupported kinds.
 - Export job API recovery slice: failed or cancelled export jobs can be requeued through the protected API/OpenAPI route, resetting attempt/error state and appending a recovery event.
 - Export job recovery surface slice: CLI, MCP, and Web now expose the failed/cancelled export job requeue workflow and refresh visible job state/events.
+- Export target parity slice: CLI and MCP now support export target update/delete, closing the implemented export target/job operation parity gap across API, CLI, MCP, and Web.
 
 Next step:
-- Phase G should continue with parity checks for implemented export targets and job operations.
+- Start Phase H asset privacy/CDN work with public asset URL configuration parity and CDN URL behavior verification.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

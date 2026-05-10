@@ -744,6 +744,21 @@ pub fn format_export_target(format: OutputFormat, target: &ExportTarget) -> CliR
     }
 }
 
+/// Formats an export target update response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_export_target_update(
+    format: OutputFormat,
+    target: &ExportTarget,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("updated {}", target.id)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(target)?),
+    }
+}
+
 /// Formats an export job response.
 ///
 /// # Errors

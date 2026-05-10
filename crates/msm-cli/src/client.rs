@@ -408,6 +408,15 @@ pub struct CreateExportTargetPayload {
     pub is_enabled: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateExportTargetPayload {
+    pub target_id: String,
+    pub name: String,
+    pub config: serde_json::Value,
+    pub is_enabled: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportTarget {
@@ -604,6 +613,11 @@ pub trait MsmClient {
         &self,
         payload: CreateExportTargetPayload,
     ) -> CliResult<ExportTarget>;
+    async fn update_export_target(
+        &self,
+        payload: UpdateExportTargetPayload,
+    ) -> CliResult<ExportTarget>;
+    async fn delete_export_target(&self, target_id: &str) -> CliResult<()>;
     async fn create_export_job(&self, payload: CreateExportJobPayload) -> CliResult<ExportJob>;
     async fn get_export_job(&self, job_id: &str) -> CliResult<ExportJob>;
     async fn requeue_export_job(&self, job_id: &str) -> CliResult<ExportJob>;
@@ -1348,6 +1362,39 @@ impl MsmClient for ReqwestMsmClient {
             .error_for_status()?
             .json()
             .await?)
+    }
+
+    async fn update_export_target(
+        &self,
+        payload: UpdateExportTargetPayload,
+    ) -> CliResult<ExportTarget> {
+        Ok(self
+            .authorize(
+                self.http.patch(
+                    self.endpoint(&format!("/api/v1/export-targets/{}", payload.target_id))?,
+                ),
+            )
+            .json(&serde_json::json!({
+                "name": payload.name,
+                "config": payload.config,
+                "isEnabled": payload.is_enabled
+            }))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn delete_export_target(&self, target_id: &str) -> CliResult<()> {
+        self.authorize(
+            self.http
+                .delete(self.endpoint(&format!("/api/v1/export-targets/{target_id}"))?),
+        )
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
     }
 
     async fn create_export_job(&self, payload: CreateExportJobPayload) -> CliResult<ExportJob> {

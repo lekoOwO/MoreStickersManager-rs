@@ -1724,3 +1724,11 @@
 - Added Web export client and wizard controls to requeue failed/cancelled jobs and refresh job timelines.
 - Added focused CLI, MCP, Web client, and Web component coverage for the recovery workflow.
 - Updated PRD/status docs; next Phase G slice should verify target/job operation parity across API, CLI, MCP, and Web.
+
+
+## 2026-05-10 Export Target CLI/MCP Parity
+
+- Added CLI export target update/delete commands backed by the protected API.
+- Added MCP tools `msm.update_export_target` and `msm.delete_export_target` backed by storage repository update/delete methods.
+- Updated MCP tool registry expectations and focused CLI/MCP tests for target update/delete.
+- Phase G implemented target/job operation parity is now closed in the PRD; next phase is asset privacy/CDN.

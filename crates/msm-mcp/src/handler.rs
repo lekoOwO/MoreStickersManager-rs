@@ -35,9 +35,9 @@ use crate::{
         execution_error_result, list_tools_result, success_result, ADD_PACK_TO_FOLDER,
         ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
         CREATE_FOLDER, CREATE_PROVIDER_IMPORT_JOB, CREATE_PROVIDER_IMPORT_PLAN,
-        CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER,
-        DELETE_PROVIDER_CONFIG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
-        GET_PAT_SCOPE_POLICY, GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION,
+        CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_EXPORT_TARGET,
+        DELETE_OIDC_PROVIDER, DELETE_PROVIDER_CONFIG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK,
+        GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION,
         GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
         LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS,
         LIST_PACK_TAGS, LIST_PROVIDER_CONFIGS, LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS,
@@ -45,7 +45,7 @@ use crate::{
         LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REQUEUE_EXPORT_JOB, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
-        SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK,
+        SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_EXPORT_TARGET, UPDATE_STICKER_PACK,
         UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER, UPSERT_PROVIDER_CONFIG, UPSERT_TENANT_ROLE,
     },
 };
@@ -152,6 +152,8 @@ async fn call_tool(
         LIST_EXPORT_TARGET_KINDS => list_export_target_kinds(&state, headers, arguments).await,
         LIST_EXPORT_TARGETS => list_export_targets(&state, headers, arguments).await,
         CREATE_EXPORT_TARGET => create_export_target(&state, headers, arguments).await,
+        UPDATE_EXPORT_TARGET => update_export_target(&state, headers, arguments).await,
+        DELETE_EXPORT_TARGET => delete_export_target(&state, headers, arguments).await,
         CREATE_EXPORT_JOB => create_export_job(&state, headers, arguments).await,
         GET_EXPORT_JOB => get_export_job(&state, headers, arguments).await,
         REQUEUE_EXPORT_JOB => requeue_export_job(&state, headers, arguments).await,
@@ -1437,6 +1439,49 @@ async fn create_export_target(
     ))
 }
 
+async fn update_export_target(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<UpdateExportTargetArgs>(arguments)?;
+    let _pat = require_tool_pat(state, headers, Permission::ExportTargetManage).await?;
+    let config_json = serde_json::to_string(&args.config).map_err(|error| error.to_string())?;
+    let target = state
+        .repository()
+        .update_export_target(&args.target_id, &args.name, &config_json, args.is_enabled)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Export target `{}` was not found.", args.target_id))?;
+
+    Ok(success_result(
+        format!("Updated export target `{}`.", args.target_id),
+        json!({ "target": export_target_value(&target)? }),
+    ))
+}
+
+async fn delete_export_target(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ExportTargetIdArgs>(arguments)?;
+    let _pat = require_tool_pat(state, headers, Permission::ExportTargetManage).await?;
+    let deleted = state
+        .repository()
+        .delete_export_target(&args.target_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    if !deleted {
+        return Err(format!("Export target `{}` was not found.", args.target_id));
+    }
+
+    Ok(success_result(
+        format!("Deleted export target `{}`.", args.target_id),
+        json!({ "targetId": args.target_id }),
+    ))
+}
+
 async fn create_export_job(
     state: &ApiState,
     headers: &HeaderMap,
@@ -2499,6 +2544,21 @@ struct CreateExportTargetArgs {
     name: String,
     config: Value,
     is_enabled: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateExportTargetArgs {
+    target_id: String,
+    name: String,
+    config: Value,
+    is_enabled: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportTargetIdArgs {
+    target_id: String,
 }
 
 #[derive(Deserialize)]

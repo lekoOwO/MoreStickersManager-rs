@@ -49,6 +49,8 @@ pub const DELETE_OIDC_PROVIDER: &str = "msm.delete_oidc_provider";
 pub const LIST_EXPORT_TARGET_KINDS: &str = "msm.list_export_target_kinds";
 pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
 pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
+pub const UPDATE_EXPORT_TARGET: &str = "msm.update_export_target";
+pub const DELETE_EXPORT_TARGET: &str = "msm.delete_export_target";
 pub const CREATE_EXPORT_JOB: &str = "msm.create_export_job";
 pub const GET_EXPORT_JOB: &str = "msm.get_export_job";
 pub const REQUEUE_EXPORT_JOB: &str = "msm.requeue_export_job";
@@ -105,6 +107,8 @@ pub fn list_tools_result() -> ListToolsResult {
             list_export_target_kinds_tool(),
             list_export_targets_tool(),
             create_export_target_tool(),
+            update_export_target_tool(),
+            delete_export_target_tool(),
             create_export_job_tool(),
             get_export_job_tool(),
             requeue_export_job_tool(),
@@ -1022,6 +1026,49 @@ fn create_export_target_tool() -> ToolDefinition {
     }
 }
 
+fn update_export_target_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: UPDATE_EXPORT_TARGET,
+        title: "Update export target",
+        description: "Update an MSM export target configuration.",
+        input_schema: object_schema(
+            &json!({
+                "targetId": { "type": "string" },
+                "name": { "type": "string" },
+                "config": { "type": "object" },
+                "isEnabled": { "type": "boolean" }
+            }),
+            &["targetId", "name", "config", "isEnabled"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn delete_export_target_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: DELETE_EXPORT_TARGET,
+        title: "Delete export target",
+        description: "Delete one MSM export target by ID.",
+        input_schema: object_schema(
+            &json!({
+                "targetId": { "type": "string" }
+            }),
+            &["targetId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: true,
+            idempotent_hint: false,
+            open_world_hint: false,
+        },
+    }
+}
+
 fn create_export_job_tool() -> ToolDefinition {
     ToolDefinition {
         name: CREATE_EXPORT_JOB,
@@ -1159,17 +1206,17 @@ mod tests {
         list_tools_result, ADD_PACK_TO_FOLDER, ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK,
         CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_PROVIDER_IMPORT_JOB,
         CREATE_PROVIDER_IMPORT_PLAN, CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK,
-        CREATE_TAG, DELETE_OIDC_PROVIDER, DELETE_PROVIDER_CONFIG, DELETE_STICKER_PACK,
-        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_PROVIDER_IMPORT_JOB,
-        GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
-        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
-        LIST_OIDC_PROVIDERS, LIST_PACK_TAGS, LIST_PROVIDER_CONFIGS,
-        LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
-        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
-        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        CREATE_TAG, DELETE_EXPORT_TARGET, DELETE_OIDC_PROVIDER, DELETE_PROVIDER_CONFIG,
+        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY,
+        GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS,
+        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
+        LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS, LIST_PACK_TAGS,
+        LIST_PROVIDER_CONFIGS, LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS,
+        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
+        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REQUEUE_EXPORT_JOB, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
-        SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK,
+        SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_EXPORT_TARGET, UPDATE_STICKER_PACK,
         UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER, UPSERT_PROVIDER_CONFIG, UPSERT_TENANT_ROLE,
     };
 
@@ -1226,6 +1273,8 @@ mod tests {
                 LIST_EXPORT_TARGET_KINDS,
                 LIST_EXPORT_TARGETS,
                 CREATE_EXPORT_TARGET,
+                UPDATE_EXPORT_TARGET,
+                DELETE_EXPORT_TARGET,
                 CREATE_EXPORT_JOB,
                 GET_EXPORT_JOB,
                 REQUEUE_EXPORT_JOB,
