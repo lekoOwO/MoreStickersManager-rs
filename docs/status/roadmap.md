@@ -15,6 +15,7 @@ compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Core tenant/user/tenant-member repository operations now have backend-aware SQLite/PostgreSQL execution paths and shared contract tests, with PostgreSQL execution enabled by `MSM_TEST_POSTGRES_URL`.
 - Storage migrations now have backend-specific SQLite and PostgreSQL migrator sets, with `DbPool::run_migrations` selecting by pool kind.
 - Cross-instance portable user migration is now covered at the API layer by exporting from one MSM instance and importing into a separate target instance.
 - MCP portable user export/import tools now expose instance migration workflows through `msm.export_user_data` and `msm.import_user_data` with same-user PAT checks and target-tenant import authorization.
@@ -180,8 +181,8 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Add shared repository test harnesses that can run against SQLite immediately and PostgreSQL when `MSM_TEST_POSTGRES_URL` is available.
-2. Start moving repository operations off SQLite-only pool access toward backend-aware SQL execution.
+1. Move pack and metadata repository operations off SQLite-only pool access toward backend-aware SQL execution.
+2. Add PostgreSQL CI service wiring once enough repository/API coverage can exercise the backend meaningfully.
 
 ## Later Planned Work
 

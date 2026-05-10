@@ -66,6 +66,14 @@ impl DbPool {
             Self::Postgres(_) => None,
         }
     }
+
+    #[must_use]
+    pub fn postgres(&self) -> Option<&PgPool> {
+        match self {
+            Self::Sqlite(_) => None,
+            Self::Postgres(pool) => Some(pool),
+        }
+    }
 }
 
 /// Connects to a `SQLite` database URL.

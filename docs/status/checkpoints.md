@@ -1790,3 +1790,10 @@
 - Added migration-set regression coverage proving both backends have matching migration counts and backend-specific boolean syntax.
 - Updated PRD/status docs to mark PostgreSQL migrations complete while keeping repository parity open.
 - Verification: `cargo test -p msm-storage uses_backend_specific_migration_sets --locked`; `cargo test -p msm-storage runs_sqlite_migrations --locked`.
+
+## 2026-05-10 PostgreSQL Core Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for tenant creation/read, user creation/read, and tenant-member create/list/find operations.
+- Added a shared core identity repository contract that always runs on SQLite and also runs against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
+- Kept broader repository abstraction open because pack, auth, export, metadata, provider, and portability methods still use SQLite-only execution.
+- Verification: `cargo test -p msm-storage core_identity_records_work_on_sqlite --locked`; `cargo test -p msm-storage core_identity_records_work_on_postgres_when_configured --locked`.

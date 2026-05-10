@@ -7,7 +7,7 @@ use argon2::{
 use chrono::{DateTime, Utc};
 use msm_domain::{Permission, StickerPack};
 use sha2::{Digest, Sha256};
-use sqlx::{sqlite::SqliteRow, Row, SqlitePool};
+use sqlx::{postgres::PgRow, sqlite::SqliteRow, PgPool, Row, SqlitePool};
 use subtle::ConstantTimeEq;
 
 use crate::{
@@ -38,15 +38,27 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn create_tenant(&self, id: &str, name: &str) -> StorageResult<()> {
         let now = now();
-        sqlx::query("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, ?)")
-            .bind(id)
-            .bind(name)
-            .bind(now)
-            .execute(self.sqlite()?)
-            .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, ?)")
+                    .bind(id)
+                    .bind(name)
+                    .bind(now)
+                    .execute(pool)
+                    .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query("INSERT INTO tenants (id, name, created_at) VALUES ($1, $2, $3)")
+                    .bind(id)
+                    .bind(name)
+                    .bind(now)
+                    .execute(pool)
+                    .await?;
+            }
+        }
         Ok(())
     }
 
@@ -54,19 +66,34 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
-    /// are invalid.
+    /// Returns an error when SQL fails or timestamps are invalid.
     pub async fn find_tenant(&self, id: &str) -> StorageResult<Option<TenantRecord>> {
-        let row = sqlx::query(
-            "SELECT id, name, public_asset_url, local_registration_enabled, created_at
-            FROM tenants
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, name, public_asset_url, local_registration_enabled, created_at
+                    FROM tenants
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.as_ref().map(tenant_from_row).transpose()
+                row.as_ref().map(tenant_from_sqlite_row).transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, name, public_asset_url, local_registration_enabled, created_at
+                    FROM tenants
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+
+                row.as_ref().map(tenant_from_pg_row).transpose()
+            }
+        }
     }
 
     /// Replaces editable tenant settings.
@@ -435,7 +462,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn create_user(
         &self,
         id: &str,
@@ -443,15 +470,30 @@ impl StorageRepository {
         display_name: &str,
     ) -> StorageResult<()> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO users (id, email, display_name, is_disabled, created_at) VALUES (?, ?, ?, 0, ?)",
-        )
-        .bind(id)
-        .bind(email)
-        .bind(display_name)
-        .bind(now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO users (id, email, display_name, is_disabled, created_at) VALUES (?, ?, ?, 0, ?)",
+                )
+                .bind(id)
+                .bind(email)
+                .bind(display_name)
+                .bind(now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO users (id, email, display_name, is_disabled, created_at) VALUES ($1, $2, $3, FALSE, $4)",
+                )
+                .bind(id)
+                .bind(email)
+                .bind(display_name)
+                .bind(now)
+                .execute(pool)
+                .await?;
+            }
+        }
         Ok(())
     }
 
@@ -459,19 +501,34 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
-    /// are invalid.
+    /// Returns an error when SQL fails or timestamps are invalid.
     pub async fn find_user(&self, id: &str) -> StorageResult<Option<UserRecord>> {
-        let row = sqlx::query(
-            "SELECT id, email, display_name, is_disabled, created_at
-            FROM users
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, email, display_name, is_disabled, created_at
+                    FROM users
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.as_ref().map(user_from_row).transpose()
+                row.as_ref().map(user_from_sqlite_row).transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, email, display_name, is_disabled, created_at
+                    FROM users
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+
+                row.as_ref().map(user_from_pg_row).transpose()
+            }
+        }
     }
 
     /// Enables or disables a user account.
@@ -628,7 +685,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn add_tenant_member(
         &self,
         tenant_id: &str,
@@ -636,15 +693,30 @@ impl StorageRepository {
         role: &str,
     ) -> StorageResult<()> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO tenant_members (tenant_id, user_id, role, created_at) VALUES (?, ?, ?, ?)",
-        )
-        .bind(tenant_id)
-        .bind(user_id)
-        .bind(role)
-        .bind(now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO tenant_members (tenant_id, user_id, role, created_at) VALUES (?, ?, ?, ?)",
+                )
+                .bind(tenant_id)
+                .bind(user_id)
+                .bind(role)
+                .bind(now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO tenant_members (tenant_id, user_id, role, created_at) VALUES ($1, $2, $3, $4)",
+                )
+                .bind(tenant_id)
+                .bind(user_id)
+                .bind(role)
+                .bind(now)
+                .execute(pool)
+                .await?;
+            }
+        }
         Ok(())
     }
 
@@ -682,70 +754,118 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
-    /// are invalid.
+    /// Returns an error when SQL fails or timestamps are invalid.
     pub async fn list_tenant_members(
         &self,
         tenant_id: &str,
     ) -> StorageResult<Vec<TenantMemberRecord>> {
-        let rows = sqlx::query(
-            "SELECT tenant_id, user_id, role, created_at
-            FROM tenant_members
-            WHERE tenant_id = ?
-            ORDER BY created_at, user_id",
-        )
-        .bind(tenant_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT tenant_id, user_id, role, created_at
+                    FROM tenant_members
+                    WHERE tenant_id = ?
+                    ORDER BY created_at, user_id",
+                )
+                .bind(tenant_id)
+                .fetch_all(pool)
+                .await?;
 
-        rows.iter().map(tenant_member_from_row).collect()
+                rows.iter().map(tenant_member_from_sqlite_row).collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT tenant_id, user_id, role, created_at
+                    FROM tenant_members
+                    WHERE tenant_id = $1
+                    ORDER BY created_at, user_id",
+                )
+                .bind(tenant_id)
+                .fetch_all(pool)
+                .await?;
+
+                rows.iter().map(tenant_member_from_pg_row).collect()
+            }
+        }
     }
 
     /// Lists all tenant memberships for one user.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
-    /// are invalid.
+    /// Returns an error when SQL fails or timestamps are invalid.
     pub async fn list_user_tenant_members(
         &self,
         user_id: &str,
     ) -> StorageResult<Vec<TenantMemberRecord>> {
-        let rows = sqlx::query(
-            "SELECT tenant_id, user_id, role, created_at
-            FROM tenant_members
-            WHERE user_id = ?
-            ORDER BY tenant_id",
-        )
-        .bind(user_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT tenant_id, user_id, role, created_at
+                    FROM tenant_members
+                    WHERE user_id = ?
+                    ORDER BY tenant_id",
+                )
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
 
-        rows.iter().map(tenant_member_from_row).collect()
+                rows.iter().map(tenant_member_from_sqlite_row).collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT tenant_id, user_id, role, created_at
+                    FROM tenant_members
+                    WHERE user_id = $1
+                    ORDER BY tenant_id",
+                )
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
+
+                rows.iter().map(tenant_member_from_pg_row).collect()
+            }
+        }
     }
 
     /// Finds one tenant member.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamps
-    /// are invalid.
+    /// Returns an error when SQL fails or timestamps are invalid.
     pub async fn find_tenant_member(
         &self,
         tenant_id: &str,
         user_id: &str,
     ) -> StorageResult<Option<TenantMemberRecord>> {
-        let row = sqlx::query(
-            "SELECT tenant_id, user_id, role, created_at
-            FROM tenant_members
-            WHERE tenant_id = ? AND user_id = ?",
-        )
-        .bind(tenant_id)
-        .bind(user_id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT tenant_id, user_id, role, created_at
+                    FROM tenant_members
+                    WHERE tenant_id = ? AND user_id = ?",
+                )
+                .bind(tenant_id)
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.as_ref().map(tenant_member_from_row).transpose()
+                row.as_ref().map(tenant_member_from_sqlite_row).transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT tenant_id, user_id, role, created_at
+                    FROM tenant_members
+                    WHERE tenant_id = $1 AND user_id = $2",
+                )
+                .bind(tenant_id)
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await?;
+
+                row.as_ref().map(tenant_member_from_pg_row).transpose()
+            }
+        }
     }
 
     /// Adds or updates a tenant-scoped role template and replaces its permissions.
@@ -2105,6 +2225,15 @@ impl StorageRepository {
                 kind: "postgres".to_owned(),
             })
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn postgres(&self) -> StorageResult<&PgPool> {
+        self.pool
+            .postgres()
+            .ok_or_else(|| StorageError::UnsupportedDatabaseKind {
+                kind: "sqlite".to_owned(),
+            })
+    }
 }
 
 fn now() -> String {
@@ -2141,7 +2270,7 @@ fn tag_from_row(row: &SqliteRow) -> StorageResult<TagRecord> {
     })
 }
 
-fn tenant_member_from_row(row: &SqliteRow) -> StorageResult<TenantMemberRecord> {
+fn tenant_member_from_sqlite_row(row: &SqliteRow) -> StorageResult<TenantMemberRecord> {
     let created_at: String = row.get("created_at");
     Ok(TenantMemberRecord {
         tenant_id: row.get("tenant_id"),
@@ -2151,7 +2280,17 @@ fn tenant_member_from_row(row: &SqliteRow) -> StorageResult<TenantMemberRecord> 
     })
 }
 
-fn tenant_from_row(row: &SqliteRow) -> StorageResult<TenantRecord> {
+fn tenant_member_from_pg_row(row: &PgRow) -> StorageResult<TenantMemberRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(TenantMemberRecord {
+        tenant_id: row.get("tenant_id"),
+        user_id: row.get("user_id"),
+        role: row.get("role"),
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn tenant_from_sqlite_row(row: &SqliteRow) -> StorageResult<TenantRecord> {
     let created_at: String = row.get("created_at");
     let local_registration_enabled: i64 = row.get("local_registration_enabled");
     Ok(TenantRecord {
@@ -2163,7 +2302,18 @@ fn tenant_from_row(row: &SqliteRow) -> StorageResult<TenantRecord> {
     })
 }
 
-fn user_from_row(row: &SqliteRow) -> StorageResult<UserRecord> {
+fn tenant_from_pg_row(row: &PgRow) -> StorageResult<TenantRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(TenantRecord {
+        id: row.get("id"),
+        name: row.get("name"),
+        public_asset_url: row.get("public_asset_url"),
+        local_registration_enabled: row.get("local_registration_enabled"),
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn user_from_sqlite_row(row: &SqliteRow) -> StorageResult<UserRecord> {
     let created_at: String = row.get("created_at");
     let is_disabled: i64 = row.get("is_disabled");
     Ok(UserRecord {
@@ -2171,6 +2321,17 @@ fn user_from_row(row: &SqliteRow) -> StorageResult<UserRecord> {
         email: row.get("email"),
         display_name: row.get("display_name"),
         is_disabled: is_disabled != 0,
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn user_from_pg_row(row: &PgRow) -> StorageResult<UserRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(UserRecord {
+        id: row.get("id"),
+        email: row.get("email"),
+        display_name: row.get("display_name"),
+        is_disabled: row.get("is_disabled"),
         created_at: parse_rfc3339(&created_at)?,
     })
 }
@@ -2428,7 +2589,7 @@ impl StorageRepository {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::{collections::BTreeSet, env};
 
     use chrono::{Duration, Utc};
     use msm_domain::Sticker;
@@ -2439,6 +2600,58 @@ mod tests {
         repositories::StorageRepository,
         DatabaseConfig,
     };
+
+    #[tokio::test]
+    async fn core_identity_records_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_core_identity_contract(&repo, "sqlite_core").await;
+    }
+
+    #[tokio::test]
+    async fn core_identity_records_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_core_identity_contract(&repo, "postgres_core").await;
+    }
+
+    async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let tenant_id = format!("{prefix}_tenant_{suffix}");
+        let user_id = format!("{prefix}_user_{suffix}");
+        let email = format!("{prefix}_{suffix}@example.com");
+
+        repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+        repo.create_user(&user_id, &email, "User").await.unwrap();
+        repo.add_tenant_member(&tenant_id, &user_id, "admin")
+            .await
+            .unwrap();
+
+        let tenant = repo.find_tenant(&tenant_id).await.unwrap().unwrap();
+        assert_eq!(tenant.id, tenant_id);
+        assert_eq!(tenant.name, "Tenant");
+        assert!(tenant.local_registration_enabled);
+
+        let user = repo.find_user(&user_id).await.unwrap().unwrap();
+        assert_eq!(user.email, email);
+        assert!(!user.is_disabled);
+
+        let member = repo
+            .find_tenant_member(&tenant.id, &user.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(member.role, "admin");
+        assert_eq!(
+            repo.list_tenant_members(&tenant.id).await.unwrap(),
+            vec![member.clone()]
+        );
+        assert_eq!(
+            repo.list_user_tenant_members(&user.id).await.unwrap(),
+            vec![member]
+        );
+    }
 
     #[tokio::test]
     async fn repository_inserts_core_records() {
@@ -3019,6 +3232,14 @@ mod tests {
         let pool = DbPool::connect(&config).await.unwrap();
         pool.run_migrations().await.unwrap();
         StorageRepository::new(pool)
+    }
+
+    async fn optional_postgres_repo() -> Option<StorageRepository> {
+        let url = env::var("MSM_TEST_POSTGRES_URL").ok()?;
+        let config = DatabaseConfig::parse(url).unwrap();
+        let pool = DbPool::connect(&config).await.unwrap();
+        pool.run_migrations().await.unwrap();
+        Some(StorageRepository::new(pool))
     }
 
     async fn seeded_pack_repo() -> StorageRepository {
