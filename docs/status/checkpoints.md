@@ -1832,3 +1832,10 @@
 - Added shared metadata membership repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
 - Updated PRD/status docs to show metadata membership PostgreSQL progress while keeping membership removal plus auth/export/provider/portability parity open.
 - Verification: `cargo test -p msm-storage metadata_memberships_work_on_sqlite --locked`; `cargo test -p msm-storage metadata_memberships_work_on_postgres_when_configured --locked`.
+
+## 2026-05-10 PostgreSQL Personal Access Token Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for personal-access-token create/list/find/verify/revoke operations.
+- Added shared PAT repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
+- Updated PRD/status docs to show PAT PostgreSQL progress while keeping local/Web/OIDC auth, subscription-token, export/provider/portability parity open.
+- Verification: `cargo test -p msm-storage personal_access_token_records_work_on_sqlite --locked`; `cargo test -p msm-storage personal_access_token_records_work_on_postgres_when_configured --locked`.

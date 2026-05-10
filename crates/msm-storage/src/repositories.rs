@@ -2017,7 +2017,7 @@ impl StorageRepository {
     /// # Errors
     ///
     /// Returns an error when the token ID is invalid, random generation fails, scope serialization
-    /// fails, the repository is not backed by `SQLite`, or SQL fails.
+    /// fails, or SQL fails.
     pub async fn create_personal_access_token(
         &self,
         id: &str,
@@ -2038,20 +2038,40 @@ impl StorageRepository {
         )?;
         let now = now();
 
-        sqlx::query(
-            "INSERT INTO personal_access_tokens (
-                id, user_id, name, token_hash, scopes_json, expires_at, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(id)
-        .bind(user_id)
-        .bind(name)
-        .bind(&token_hash)
-        .bind(scopes_json)
-        .bind(expires_at)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO personal_access_tokens (
+                        id, user_id, name, token_hash, scopes_json, expires_at, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                )
+                .bind(id)
+                .bind(user_id)
+                .bind(name)
+                .bind(&token_hash)
+                .bind(&scopes_json)
+                .bind(expires_at)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO personal_access_tokens (
+                        id, user_id, name, token_hash, scopes_json, expires_at, created_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                )
+                .bind(id)
+                .bind(user_id)
+                .bind(name)
+                .bind(&token_hash)
+                .bind(&scopes_json)
+                .bind(expires_at)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         let record = PersonalAccessTokenRecord {
             id: id.to_owned(),
@@ -2071,53 +2091,79 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored scope
-    /// key is invalid.
+    /// Returns an error when SQL fails or a stored scope key is invalid.
     pub async fn list_personal_access_tokens(
         &self,
         user_id: &str,
     ) -> StorageResult<Vec<PersonalAccessTokenRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
-            FROM personal_access_tokens
-            WHERE user_id = ?
-            ORDER BY created_at DESC, id",
-        )
-        .bind(user_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
-
-        rows.iter().map(pat_record_from_row).collect()
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
+                    FROM personal_access_tokens
+                    WHERE user_id = ?
+                    ORDER BY created_at DESC, id",
+                )
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
+                rows.iter().map(pat_record_from_sqlite_row).collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
+                    FROM personal_access_tokens
+                    WHERE user_id = $1
+                    ORDER BY created_at DESC, id",
+                )
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
+                rows.iter().map(pat_record_from_pg_row).collect()
+            }
+        }
     }
 
     /// Finds one Personal Access Token by ID without exposing its raw token.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored scope
-    /// key is invalid.
+    /// Returns an error when SQL fails or a stored scope key is invalid.
     pub async fn find_personal_access_token(
         &self,
         id: &str,
     ) -> StorageResult<Option<PersonalAccessTokenRecord>> {
-        let row = sqlx::query(
-            "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
-            FROM personal_access_tokens
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        row.as_ref().map(pat_record_from_row).transpose()
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
+                    FROM personal_access_tokens
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref().map(pat_record_from_sqlite_row).transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
+                    FROM personal_access_tokens
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref().map(pat_record_from_pg_row).transpose()
+            }
+        }
     }
 
     /// Verifies a Personal Access Token and returns the active record when valid.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or a stored scope
-    /// key is invalid.
+    /// Returns an error when SQL fails or a stored scope key is invalid.
     pub async fn verify_personal_access_token(
         &self,
         token: &str,
@@ -2126,19 +2172,9 @@ impl StorageRepository {
             return Ok(None);
         };
 
-        let row = sqlx::query(
-            "SELECT id, user_id, name, token_hash, scopes_json, expires_at, revoked_at, created_at
-            FROM personal_access_tokens
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        let Some(row) = row else {
+        let Some(record) = self.find_personal_access_token(id).await? else {
             return Ok(None);
         };
-        let record = pat_record_from_row(&row)?;
 
         if record.revoked_at.is_some() || is_expired(record.expires_at.as_deref()) {
             return Ok(None);
@@ -2160,13 +2196,24 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn revoke_personal_access_token(&self, id: &str) -> StorageResult<()> {
-        sqlx::query("UPDATE personal_access_tokens SET revoked_at = ? WHERE id = ?")
-            .bind(now())
-            .bind(id)
-            .execute(self.sqlite()?)
-            .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query("UPDATE personal_access_tokens SET revoked_at = ? WHERE id = ?")
+                    .bind(now())
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query("UPDATE personal_access_tokens SET revoked_at = $1 WHERE id = $2")
+                    .bind(now())
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+            }
+        }
         Ok(())
     }
 
@@ -2939,9 +2986,45 @@ fn is_expired(expires_at: Option<&str>) -> bool {
     })
 }
 
-fn pat_record_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<PersonalAccessTokenRecord> {
-    let scopes_json: String = row.get("scopes_json");
-    let scope_keys: Vec<String> = serde_json::from_str(&scopes_json)?;
+fn pat_record_from_sqlite_row(row: &SqliteRow) -> StorageResult<PersonalAccessTokenRecord> {
+    pat_record_from_values(PatRecordValues {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        name: row.get("name"),
+        token_hash: row.get("token_hash"),
+        scopes_json: row.get("scopes_json"),
+        expires_at: row.get("expires_at"),
+        revoked_at: row.get("revoked_at"),
+        created_at: row.get("created_at"),
+    })
+}
+
+fn pat_record_from_pg_row(row: &PgRow) -> StorageResult<PersonalAccessTokenRecord> {
+    pat_record_from_values(PatRecordValues {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        name: row.get("name"),
+        token_hash: row.get("token_hash"),
+        scopes_json: row.get("scopes_json"),
+        expires_at: row.get("expires_at"),
+        revoked_at: row.get("revoked_at"),
+        created_at: row.get("created_at"),
+    })
+}
+
+struct PatRecordValues {
+    id: String,
+    user_id: String,
+    name: String,
+    token_hash: String,
+    scopes_json: String,
+    expires_at: Option<String>,
+    revoked_at: Option<String>,
+    created_at: String,
+}
+
+fn pat_record_from_values(values: PatRecordValues) -> StorageResult<PersonalAccessTokenRecord> {
+    let scope_keys: Vec<String> = serde_json::from_str(&values.scopes_json)?;
     let scopes = scope_keys
         .into_iter()
         .map(|scope| {
@@ -2952,14 +3035,14 @@ fn pat_record_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<PersonalA
         .collect::<StorageResult<BTreeSet<_>>>()?;
 
     Ok(PersonalAccessTokenRecord {
-        id: row.get("id"),
-        user_id: row.get("user_id"),
-        name: row.get("name"),
-        token_hash: row.get("token_hash"),
+        id: values.id,
+        user_id: values.user_id,
+        name: values.name,
+        token_hash: values.token_hash,
         scopes,
-        expires_at: row.get("expires_at"),
-        revoked_at: row.get("revoked_at"),
-        created_at: row.get("created_at"),
+        expires_at: values.expires_at,
+        revoked_at: values.revoked_at,
+        created_at: values.created_at,
     })
 }
 
@@ -3129,6 +3212,21 @@ mod tests {
         };
 
         assert_metadata_membership_contract(&repo, "postgres_membership").await;
+    }
+
+    #[tokio::test]
+    async fn personal_access_token_records_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_personal_access_token_contract(&repo, "sqlite_pat").await;
+    }
+
+    #[tokio::test]
+    async fn personal_access_token_records_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_personal_access_token_contract(&repo, "postgres_pat").await;
     }
 
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
@@ -3491,6 +3589,59 @@ mod tests {
                 .unwrap(),
             vec![fixture.pack.clone(), fixture.second_pack.clone()]
         );
+    }
+
+    async fn assert_personal_access_token_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let user_id = format!("{prefix}_user_{suffix}");
+        let token_id = format!("{}pat{}", prefix.replace('_', ""), suffix);
+        let email = format!("{prefix}_{suffix}@example.com");
+        let scopes = BTreeSet::from([
+            msm_domain::Permission::PackRead,
+            msm_domain::Permission::PatManage,
+        ]);
+
+        repo.create_user(&user_id, &email, "User").await.unwrap();
+        let created = repo
+            .create_personal_access_token(&token_id, &user_id, "CLI", &scopes, None)
+            .await
+            .unwrap();
+
+        assert!(created.token.starts_with(&format!("msm_pat_{token_id}_")));
+        assert_ne!(created.record.token_hash, created.token);
+        assert_eq!(created.record.scopes, scopes);
+        assert_eq!(
+            repo.list_personal_access_tokens(&user_id).await.unwrap(),
+            vec![created.record.clone()]
+        );
+        assert_eq!(
+            repo.find_personal_access_token(&token_id).await.unwrap(),
+            Some(created.record.clone())
+        );
+        assert_eq!(
+            repo.verify_personal_access_token(&created.token)
+                .await
+                .unwrap(),
+            Some(created.record.clone())
+        );
+        assert!(repo
+            .verify_personal_access_token(&created.token.replace('a', "b"))
+            .await
+            .unwrap()
+            .is_none());
+
+        repo.revoke_personal_access_token(&token_id).await.unwrap();
+        let revoked = repo
+            .find_personal_access_token(&token_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(revoked.revoked_at.is_some());
+        assert!(repo
+            .verify_personal_access_token(&created.token)
+            .await
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]
