@@ -1673,3 +1673,9 @@
 - Added `MediaProbeToolchain` and shell-free `MediaProbeCommand` for ffprobe JSON probing.
 - Added `MediaProbeReport::from_ffprobe_json` to parse dimensions, duration, file size, codec, and source `MediaKind` for static image, animated image, and video sources.
 - Added focused media probe tests; next Phase F slice should harden ffmpeg execution diagnostics and prepared-media cache completion.
+
+## 2026-05-10 ffmpeg Conversion Diagnostics
+
+- Added `ConversionCommandOutput` as the process-runner diagnostic envelope for stdout, stderr, and exit code.
+- Process-backed prepared media execution now returns converter diagnostics through `PreparedMediaOutput`.
+- Added focused executor coverage with an injected runner; next Phase F slice should persist prepared-media diagnostics/cache metadata and expose it through API/CLI/MCP/Web surfaces.

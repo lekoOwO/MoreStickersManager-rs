@@ -1,10 +1,11 @@
 use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
 use msm_app::{
-    ConversionCommandRunner, ExportWorker, ExportWorkerConfig, ExportWorkerResult,
-    PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest, ProcessPreparedMediaExecutor,
-    TelegramMutationExecutor, TelegramMutationRequest, TelegramPublicationExecutor,
-    TelegramPublicationRequest, TelegramRemoteStateExecutor, TelegramRemoteStateRequest,
+    ConversionCommandOutput, ConversionCommandRunner, ExportWorker, ExportWorkerConfig,
+    ExportWorkerResult, PreparedMediaExecutor, PreparedMediaOutput, PreparedMediaRequest,
+    ProcessPreparedMediaExecutor, TelegramMutationExecutor, TelegramMutationRequest,
+    TelegramPublicationExecutor, TelegramPublicationRequest, TelegramRemoteStateExecutor,
+    TelegramRemoteStateRequest,
 };
 use msm_domain::{Sticker, StickerPack};
 use msm_media::ConversionCommand;
@@ -783,6 +784,36 @@ async fn process_prepared_media_executor_runs_command_and_returns_output_metadat
     assert_eq!(output.file_size_bytes, 14);
 }
 
+#[tokio::test]
+async fn process_prepared_media_executor_returns_command_diagnostics() {
+    let output_dir = tempfile::tempdir().unwrap();
+    let executor = ProcessPreparedMediaExecutor::with_runner(
+        PathBuf::from("ffmpeg-test"),
+        output_dir.path().to_path_buf(),
+        Arc::new(DiagnosticCommandRunner),
+    );
+
+    let output = executor
+        .prepare(PreparedMediaRequest {
+            sticker_id: "sticker_1".to_owned(),
+            source_uri: "source.webp".to_owned(),
+            source_asset_hash: "sha256:source".to_owned(),
+            profile_key: "telegram.sticker.static.v1".to_owned(),
+            mime_type: "image/png".to_owned(),
+            extension: "png".to_owned(),
+            width_px: 512,
+            height_px: 512,
+            duration_ms: None,
+        })
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(output.converter_stdout, "ffmpeg stdout summary");
+    assert_eq!(output.converter_stderr, "frame=1 size=14kB");
+    assert_eq!(output.converter_exit_code, Some(0));
+}
+
 async fn seeded_repository() -> StorageRepository {
     let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
     let pool = DbPool::connect(&config).await.unwrap();
@@ -976,6 +1007,9 @@ impl PreparedMediaExecutor for FakePreparedMediaExecutor {
                 height_px: request.height_px,
                 duration_ms: request.duration_ms,
                 file_size_bytes: 512,
+                converter_stdout: String::new(),
+                converter_stderr: String::new(),
+                converter_exit_code: Some(0),
             }))
         })
     }
@@ -1010,10 +1044,35 @@ impl ConversionCommandRunner for WritingCommandRunner {
     fn run(
         &self,
         command: ConversionCommand,
-    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<()>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<ConversionCommandOutput>> + Send + '_>>
+    {
         Box::pin(async move {
             tokio::fs::write(command.output_path(), b"prepared-bytes").await?;
-            Ok(())
+            Ok(ConversionCommandOutput::success(
+                String::new(),
+                String::new(),
+                Some(0),
+            ))
+        })
+    }
+}
+
+#[derive(Debug)]
+struct DiagnosticCommandRunner;
+
+impl ConversionCommandRunner for DiagnosticCommandRunner {
+    fn run(
+        &self,
+        command: ConversionCommand,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<ConversionCommandOutput>> + Send + '_>>
+    {
+        Box::pin(async move {
+            tokio::fs::write(command.output_path(), b"prepared-bytes").await?;
+            Ok(ConversionCommandOutput::success(
+                "ffmpeg stdout summary".to_owned(),
+                "frame=1 size=14kB".to_owned(),
+                Some(0),
+            ))
         })
     }
 }

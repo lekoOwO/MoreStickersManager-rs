@@ -26,12 +26,13 @@ pub mod provider_import;
 pub mod provider_import_worker;
 
 pub use export_worker::{
-    spawn_export_worker_if_enabled, ConversionCommandRunner, ExportWorker, ExportWorkerConfig,
-    ExportWorkerError, ExportWorkerResult, PreparedMediaExecutor, PreparedMediaOutput,
-    PreparedMediaRequest, ProcessPreparedMediaExecutor, TelegramMutationExecutor,
-    TelegramMutationRequest, TelegramPublicationExecutor, TelegramPublicationRequest,
-    TelegramRemoteStateExecutor, TelegramRemoteStateRequest, TeloxideTelegramMutationExecutor,
-    TeloxideTelegramPublicationExecutor, TeloxideTelegramRemoteStateExecutor,
+    spawn_export_worker_if_enabled, ConversionCommandOutput, ConversionCommandRunner, ExportWorker,
+    ExportWorkerConfig, ExportWorkerError, ExportWorkerResult, PreparedMediaExecutor,
+    PreparedMediaOutput, PreparedMediaRequest, ProcessPreparedMediaExecutor,
+    TelegramMutationExecutor, TelegramMutationRequest, TelegramPublicationExecutor,
+    TelegramPublicationRequest, TelegramRemoteStateExecutor, TelegramRemoteStateRequest,
+    TeloxideTelegramMutationExecutor, TeloxideTelegramPublicationExecutor,
+    TeloxideTelegramRemoteStateExecutor,
 };
 pub use provider_import::{
     internalize_direct_remote_pack_assets, ProviderAssetDownloader, ProviderImportError,

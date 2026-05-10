@@ -215,6 +215,35 @@ pub struct PreparedMediaOutput {
     pub duration_ms: Option<i64>,
     /// Prepared output size.
     pub file_size_bytes: i64,
+    /// Converter stdout captured for diagnostics.
+    pub converter_stdout: String,
+    /// Converter stderr captured for diagnostics.
+    pub converter_stderr: String,
+    /// Converter process exit code when available.
+    pub converter_exit_code: Option<i32>,
+}
+
+/// Diagnostic output from one converter command execution.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConversionCommandOutput {
+    /// Captured stdout text.
+    pub stdout: String,
+    /// Captured stderr text.
+    pub stderr: String,
+    /// Exit code when the process reported one.
+    pub exit_code: Option<i32>,
+}
+
+impl ConversionCommandOutput {
+    /// Builds successful converter diagnostics.
+    #[must_use]
+    pub const fn success(stdout: String, stderr: String, exit_code: Option<i32>) -> Self {
+        Self {
+            stdout,
+            stderr,
+            exit_code,
+        }
+    }
 }
 
 /// Boundary for converting or preparing target-specific media.
@@ -232,7 +261,7 @@ pub trait ConversionCommandRunner: std::fmt::Debug + Send + Sync {
     fn run(
         &self,
         command: ConversionCommand,
-    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<()>> + Send + '_>>;
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<ConversionCommandOutput>> + Send + '_>>;
 }
 
 /// Request passed from the worker to a Telegram publication executor.
@@ -357,19 +386,28 @@ impl ConversionCommandRunner for TokioConversionCommandRunner {
     fn run(
         &self,
         command: ConversionCommand,
-    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<()>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<ConversionCommandOutput>> + Send + '_>>
+    {
         Box::pin(async move {
-            let mut child = tokio::process::Command::new(command.executable())
+            let child = tokio::process::Command::new(command.executable())
                 .args(command.args())
                 .kill_on_drop(true)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
                 .spawn()?;
-            let status = tokio::time::timeout(command.timeout(), child.wait())
+            let output = tokio::time::timeout(command.timeout(), child.wait_with_output())
                 .await
                 .map_err(|_| ExportWorkerError::ConverterTimeout)??;
-            if status.success() {
-                Ok(())
+            if output.status.success() {
+                Ok(ConversionCommandOutput::success(
+                    String::from_utf8_lossy(&output.stdout).into_owned(),
+                    String::from_utf8_lossy(&output.stderr).into_owned(),
+                    output.status.code(),
+                ))
             } else {
-                Err(ExportWorkerError::ConverterFailed { status })
+                Err(ExportWorkerError::ConverterFailed {
+                    status: output.status,
+                })
             }
         })
     }
@@ -431,7 +469,7 @@ impl PreparedMediaExecutor for ProcessPreparedMediaExecutor {
                 &PathBuf::from(&request.source_uri),
                 &output_path,
             );
-            self.runner.run(command).await?;
+            let diagnostics = self.runner.run(command).await?;
             let metadata = tokio::fs::metadata(&output_path).await?;
 
             Ok(Some(PreparedMediaOutput {
@@ -443,6 +481,9 @@ impl PreparedMediaExecutor for ProcessPreparedMediaExecutor {
                 height_px: request.height_px,
                 duration_ms: request.duration_ms,
                 file_size_bytes: i64::try_from(metadata.len()).unwrap_or(i64::MAX),
+                converter_stdout: diagnostics.stdout,
+                converter_stderr: diagnostics.stderr,
+                converter_exit_code: diagnostics.exit_code,
             }))
         })
     }
