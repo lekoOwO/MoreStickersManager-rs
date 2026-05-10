@@ -2008,3 +2008,10 @@
 - Updated PRD Current Status rows from stale partial labels to implemented labels where roadmap checkboxes and implementation evidence already close the current contract.
 - Refreshed README media/export environment wording that still described ffprobe/conversion as future work.
 - Updated implementation-matrix partial rows for tenant admin, export targets/jobs, Telegram export, subscription groups, pack sharing visibility, and asset privacy to distinguish implemented current scope from future enhancements.
+## 2026-05-11 Release-Readiness Completion Audit
+
+- Fixed the Web E2E tenant-admin fixture so all mocked panel dependencies return JSON, including tenant local-registration settings and OIDC provider lists.
+- Ran final Rust/Web release-readiness verification and app runtime smoke against `/readyz` and `/healthz`.
+- Reviewed CI, prerelease, release, Docker workflow, and Dockerfile contracts; local Docker image execution remains CI-bound because Docker CLI is unavailable in this Windows workspace.
+- Added `docs/status/completion-audit.md`, updated the PRD queue to no open current-contract implementation items, and recorded the completion-definition evidence.
+- Verification: `cargo fmt --all -- --check`; `cargo test --workspace --locked`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo build --workspace --locked`; `cargo run -p msm-cli --locked -- --help`; temporary `msm-app` smoke with `GET /readyz` and `GET /healthz`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e`.

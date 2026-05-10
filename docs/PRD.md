@@ -86,9 +86,10 @@ Status meanings:
 
 ## Current Implementation Queue
 
-Work these in order unless a higher-risk bug appears:
-
-1. Run release-readiness verification: full Rust/Web test suites, packaging/runtime checks, final documentation scan, and a completion audit against the PRD completion definition.
+No open implementation queue remains for the current PRD contract. The project is
+ready for release tagging/staging operations after the verification evidence in
+`docs/status/completion-audit.md`. Any new product scope should be added here as
+a new PRD revision before implementation.
 
 Each queue item must update this section when completed or reordered.
 
@@ -444,6 +445,11 @@ to this PRD or create a short-lived branch-local note and remove it before
 merge after the PRD/checkpoints are updated.
 
 ## Completion Definition
+
+Completion audit: passed on 2026-05-11 for the current PRD contract. Evidence is
+recorded in `docs/status/completion-audit.md`; Docker image execution remains
+CI-bound because Docker CLI is not installed in the local Windows environment,
+while the Docker publish workflow and Dockerfile were statically reviewed.
 
 MSM can be considered complete when:
 

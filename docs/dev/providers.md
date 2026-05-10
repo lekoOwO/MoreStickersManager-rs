@@ -102,9 +102,10 @@ service appears on both sides.
 - MoreStickers is currently an export format and compatibility contract, not a
   remote provider.
 
-P24 plans a target-neutral export pipeline inspired by moe-sticker-bot. The
-pipeline should put format conversion in `msm-media`, target orchestration in
-`msm-exporters`, and Telegram Bot API calls in `msm-telegram`.
+The target-neutral export pipeline inspired by moe-sticker-bot is implemented
+for the current MoreStickers and Telegram targets. Format conversion lives in
+`msm-media`, target orchestration lives in `msm-exporters`, and Telegram Bot API
+calls live in `msm-telegram`.
 
 ## Export Target Status
 
@@ -115,11 +116,15 @@ Implemented export target foundations:
 - `telegram`: has target capability metadata, Telegram set planning, media
   profile selection, `teloxide` bot construction, Web/API/CLI/MCP target/job
   management, worker dry-run planning, opt-in worker publication for
-  `"dryRun": false`, and Web result URL display.
+  `"dryRun": false`, reconciliation planning/execution controls, durable
+  publication/mapping persistence, and Web result URL/history display.
 
-Not implemented yet:
+Implemented provider/import and remote-sync foundations:
 
-- Provider-side remote fetch/download orchestration.
-- Reconciliation policies for updating or deleting remote Telegram sticker sets.
+- Provider-side remote fetch/download orchestration exists for Telegram and
+  LINE through provider import plans/jobs and the worker.
+- Reconciliation policies exist for Telegram create-only, append-missing, and
+  mirror update/delete flows. Destructive mirror actions require explicit
+  operator opt-in.
 
 Planned-provider registry placeholders exist for Signal, WhatsApp, Kakao, Band, OGQ, and Viber as `ProviderStatus::Planned`; they are discovery metadata only and must not be treated as implemented import/export flows.

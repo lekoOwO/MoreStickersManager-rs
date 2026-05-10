@@ -1,8 +1,9 @@
 # Current Status
 
-Phase: Completion audit after production hardening.
+Phase: Current PRD contract complete; release/staging verification passed.
 
 Last completed:
+- Release-readiness verification slice: fixed the Web E2E tenant-admin fixture so all mocked tenant-admin dependencies return JSON, reran full Web verification, confirmed the Rust workspace tests/clippy/build, smoke-tested `msm-app` `/readyz` and `/healthz`, reviewed CI/release/Docker workflows, and recorded the final PRD completion audit in `docs/status/completion-audit.md`.
 - Current-contract status normalization slice: aligned PRD and implementation matrix snapshot rows with completed roadmap items for storage, API, CLI, Web, export targets, Telegram publication, asset privacy/CDN, tenant admin, and media docs.
 - Provider ingestion audit slice: closed the Phase E Telegram fetch/internalization, LINE fetch/internalization, and provider job progress/retry items based on existing worker/API/CLI/MCP/Web coverage and provider worker regression tests.
 - OIDC documentation closure slice: added `docs/user/oidc-sso.md`, removed stale partial-SSO wording from README/user docs, and marked the PRD OIDC login/callback flow complete based on existing API/Web/JWKS/userinfo/PAT-session coverage.
@@ -162,7 +163,9 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase K production hardening by deciding whether stateful MCP sessions are required, then proceed to rate limits/request size limits.
+- No active implementation slice remains for the current PRD contract. Use
+  `docs/PRD.md` and `docs/status/completion-audit.md` as the baseline before
+  adding new scope or preparing a release tag.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,

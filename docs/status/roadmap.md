@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-10.
+Last updated: 2026-05-11.
 
 This file is the short handoff view. Use `current.md` for the detailed
 chronological log, `implementation-matrix.md` for the feature truth table, and
@@ -8,10 +8,15 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 ## Current Focus
 
-Phase K production hardening is the active focus. Phase I data portability and Phase J PostgreSQL support are now closed across storage, CI, and user-facing deployment documentation.
+The current PRD contract is complete. Use `../PRD.md`,
+`completion-audit.md`, and `implementation-matrix.md` as the baseline for
+release tagging/staging or for drafting the next PRD revision.
 
 ## Recently Completed
 
+- Release-readiness verification passed across Rust fmt/tests/clippy/build,
+  Web typecheck/unit/build/E2E, CLI help smoke, `msm-app` `/readyz` and
+  `/healthz` smoke, and CI/release/Docker workflow review.
 - /mcp POST responses now disable caching, and GET/SSE negotiation returns an explicit unsupported-session JSON response for the stateless transport contract.
 - CI now starts PostgreSQL for Rust tests with `MSM_TEST_POSTGRES_URL`, and README/user docs cover SQLite/PostgreSQL deployment configuration.
 - Folder rename/delete, tag delete, subscription-group rename/delete, sticker-pack metadata update/delete, and accessible pack listing now have backend-aware SQL paths and SQLite plus optional PostgreSQL contract coverage.

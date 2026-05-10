@@ -87,8 +87,15 @@ test.beforeEach(async ({ page }) => {
         tenantId: "tenant_1",
         name: "Tenant",
         publicAssetUrl: "https://cdn.example.test/msm",
+        localRegistrationEnabled: true,
         createdAt: "2026-05-09T00:00:00Z",
       }),
+    });
+  });
+  await page.route("**/api/v1/tenants/*/oidc-providers", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([]),
     });
   });
   await page.route("**/api/v1/tenants/*/roles", async (route) => {

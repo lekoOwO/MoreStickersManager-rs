@@ -30,7 +30,7 @@ roadmap, and completion definition.
 | Local auth bootstrap | Implemented | Register/login APIs store Argon2 password credentials; login returns a PAT and creates a hashed Web session cookie. Registration can bootstrap a tenant admin, and existing tenants can disable further local registration through tenant settings. |
 | Multi-tenant model | Implemented | Tenant/user records, bootstrap admin path, protected tenant member/settings/user-status/role-template API routes, local-registration tenant settings, CLI commands, MCP tools, and Web controls exist. Pack import/list/update/delete/export routes use tenant/resource RBAC checks, tenant tag create/list and owner-scoped folder/subscription-group create/list routes require target-tenant membership, owner PAT/Web-session reads of private pack/subscription resources require tenant membership, product metadata membership routes use shared RBAC helpers, export target/job routes enforce tenant/pack RBAC, Telegram publication reads use pack RBAC, subscription-link management and listing routes use pack/subscription-group/tenant RBAC or owner-membership filters, PAT lifecycle routes enforce `pat.manage` plus role-allowed scopes, API/OpenAPI/CLI/MCP/Web expose PAT scope-policy discovery, and API audit tests cover tenant-admin cross-tenant denial across representative resource boundaries; richer tenant policy management beyond role templates is a future enhancement outside the current contract. |
 | PAT support | Implemented | Raw token is returned once, only the secret hash is stored, and protected pack API/MCP operations enforce scopes. |
-| GitHub Actions | Implemented | CI, Docker publish, prerelease, and tag release workflows exist. Local Docker verification is blocked by missing Docker CLI. |
+| GitHub Actions | Implemented | CI, Docker publish, prerelease, and tag release workflows exist. Local Docker image execution is CI-bound because Docker CLI is not installed in this Windows workspace; the Dockerfile/workflow contract was reviewed during the release-readiness audit. |
 
 ## Future Enhancements And Planned-Only Work
 
@@ -62,4 +62,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Run release-readiness verification: full Rust/Web test suites, packaging/runtime checks, final documentation scan, and PRD completion audit.
+Current PRD contract is complete. Next activity is release tagging/staging or a new PRD revision for additional product scope.
