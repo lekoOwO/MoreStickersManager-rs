@@ -1387,3 +1387,10 @@
   instead of deriving one from issuer path conventions.
 - Kept JWKS signature validation and userinfo/ID-token claim derivation as the
   next Phase D work.
+
+## 2026-05-10 OIDC JWKS Parser Foundation
+
+- Added tested JWKS parsing for RSA signature keys and key selection by JWT
+  `kid` plus algorithm.
+- Kept ID-token header/claim parsing, JWKS-backed signature validation, and
+  provider-derived callback claims as the next Phase D work.

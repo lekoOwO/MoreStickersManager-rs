@@ -35,6 +35,38 @@ pub struct OidcDiscoveryDocument {
     pub userinfo_endpoint: Option<String>,
 }
 
+/// Parsed JSON Web Key Set metadata used for ID-token signature validation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OidcJwksDocument {
+    pub keys: Vec<OidcJwk>,
+}
+
+/// Parsed JSON Web Key metadata for a provider signing key.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+pub struct OidcJwk {
+    pub kty: String,
+    pub kid: Option<String>,
+    #[serde(rename = "use")]
+    pub key_use: Option<String>,
+    pub alg: Option<String>,
+    pub n: Option<String>,
+    pub e: Option<String>,
+}
+
+impl OidcJwksDocument {
+    /// Selects a signature key matching an optional JWT `kid` and `alg`.
+    #[must_use]
+    pub fn select_signature_key(&self, kid: Option<&str>, alg: Option<&str>) -> Option<&OidcJwk> {
+        self.keys.iter().find(|key| {
+            key.key_use.as_deref().is_none_or(|usage| usage == "sig")
+                && kid.is_none_or(|expected| key.kid.as_deref() == Some(expected))
+                && alg.is_none_or(|expected| {
+                    key.alg.as_deref().is_none_or(|key_alg| key_alg == expected)
+                })
+        })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OidcTokenResponse {
     pub access_token: String,
@@ -58,6 +90,11 @@ struct RawDiscoveryDocument {
     token_endpoint: Option<String>,
     jwks_uri: Option<String>,
     userinfo_endpoint: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct RawJwksDocument {
+    keys: Vec<OidcJwk>,
 }
 
 /// Boxed future returned by an OIDC token exchanger implementation.
@@ -217,6 +254,37 @@ pub fn parse_discovery_document(
     })
 }
 
+/// Parses and validates a provider JWKS document.
+///
+/// # Errors
+///
+/// Returns an error when the document is not JSON, contains no keys, or does not
+/// include any usable RSA signature keys.
+pub fn parse_jwks_document(body: &str) -> Result<OidcJwksDocument, OidcError> {
+    let raw: RawJwksDocument = serde_json::from_str(body)?;
+    if raw.keys.is_empty() {
+        return Err(OidcError::InvalidTokenResponse(
+            "JWKS contains no keys".to_owned(),
+        ));
+    }
+    let keys = raw
+        .keys
+        .into_iter()
+        .filter(|key| {
+            key.kty == "RSA"
+                && key.key_use.as_deref().is_none_or(|usage| usage == "sig")
+                && key.n.as_deref().is_some_and(|value| !value.is_empty())
+                && key.e.as_deref().is_some_and(|value| !value.is_empty())
+        })
+        .collect::<Vec<_>>();
+    if keys.is_empty() {
+        return Err(OidcError::InvalidTokenResponse(
+            "JWKS contains no RSA signature keys".to_owned(),
+        ));
+    }
+    Ok(OidcJwksDocument { keys })
+}
+
 fn required_url_field(value: Option<String>, field: &str) -> Result<String, OidcError> {
     let value = value
         .filter(|value| !value.trim().is_empty())
@@ -359,6 +427,30 @@ mod tests {
             "https://accounts.google.com"
         )
         .is_err());
+    }
+
+    #[test]
+    fn jwks_parser_selects_signature_key_by_kid_and_algorithm() {
+        let jwks = super::parse_jwks_document(
+            r#"{
+                "keys": [
+                    {"kty":"RSA","kid":"old-key","use":"sig","alg":"RS256","n":"old-modulus","e":"AQAB"},
+                    {"kty":"RSA","kid":"active-key","use":"sig","alg":"RS256","n":"active-modulus","e":"AQAB"},
+                    {"kty":"RSA","kid":"enc-key","use":"enc","alg":"RS256","n":"enc-modulus","e":"AQAB"}
+                ]
+            }"#,
+        )
+        .expect("JWKS should parse");
+
+        let key = jwks
+            .select_signature_key(Some("active-key"), Some("RS256"))
+            .expect("matching signature key should be selected");
+        assert_eq!(key.kid.as_deref(), Some("active-key"));
+        assert_eq!(key.n.as_deref(), Some("active-modulus"));
+        assert!(jwks
+            .select_signature_key(Some("enc-key"), Some("RS256"))
+            .is_none());
+        assert!(super::parse_jwks_document(r#"{"keys":[]}"#).is_err());
     }
 
     fn sample_provider() -> OidcProviderConfigRecord {

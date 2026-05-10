@@ -223,7 +223,7 @@ Last verification:
 - OIDC nonce and trusted-claim validation slice: RED/GREEN test with `cargo test -p msm-api oidc_callback_rejects_nonce_and_provider_claim_mismatches --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Continue Phase D by adding OIDC JWKS signature validation plus userinfo/ID-token claim derivation.
+- Continue Phase D by adding OIDC ID-token header/claim parsing, JWKS-backed signature validation, and userinfo claim derivation.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
