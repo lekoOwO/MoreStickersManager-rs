@@ -392,7 +392,7 @@ This route requires a Bearer PAT with `tenant.manage_users`, the PAT user must
 be an `admin` member of the target tenant, and the target user must also belong
 to that tenant. The Tenant admin Web workspace exposes enable/disable controls.
 
-OIDC provider administration currently has API/OpenAPI, CLI, and MCP support:
+OIDC provider administration currently has API/OpenAPI, CLI, MCP, and Web tenant admin support:
 
 - `GET /api/v1/tenants/{tenant_id}/oidc-providers`
 - `PUT /api/v1/tenants/{tenant_id}/oidc-providers/{provider_id}`
@@ -406,7 +406,7 @@ OIDC provider administration currently has API/OpenAPI, CLI, and MCP support:
 
 Provider responses redact `clientSecret`; update calls replace it with the
 submitted secret. These routes require `tenant.manage_settings` and an admin
-tenant membership. Web parity remains planned.
+tenant membership. End-user Web SSO login controls remain planned.
 
 Tenant role template administration currently has API/OpenAPI, CLI, MCP, and
 Web support:

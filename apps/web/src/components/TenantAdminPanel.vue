@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   createTenantAdminClient,
+  type OidcProviderResponse,
   type TenantAdminClient,
   type TenantMemberResponse,
   type TenantMemberRole,
@@ -23,6 +24,7 @@ const props = defineProps<{
 
 const members = ref<TenantMemberResponse[]>([]);
 const roles = ref<TenantRoleResponse[]>([]);
+const oidcProviders = ref<OidcProviderResponse[]>([]);
 const settings = ref<TenantSettingsResponse | null>(null);
 const loadingError = ref("");
 const actionError = ref("");
@@ -36,6 +38,14 @@ const userStatus = ref<TenantUserResponse | null>(null);
 const roleId = ref("");
 const roleName = ref("");
 const rolePermissions = ref<string[]>([]);
+const oidcProviderId = ref("");
+const oidcDisplayName = ref("");
+const oidcIssuerUrl = ref("");
+const oidcClientId = ref("");
+const oidcClientSecret = ref("");
+const oidcScopes = ref("openid email");
+const oidcEnabled = ref(true);
+const oidcAllowRegistration = ref(false);
 const labels = computed(() => allMessages()[props.locale]);
 const adminCount = computed(() => members.value.filter((member) => member.role === "admin").length);
 const userCount = computed(() => members.value.filter((member) => member.role === "user").length);
@@ -67,13 +77,15 @@ watch(() => props.tenantId, loadTenantAdminData);
 async function loadTenantAdminData() {
   loadingError.value = "";
   try {
-    const [nextMembers, nextSettings, nextRoles] = await Promise.all([
+    const [nextMembers, nextSettings, nextRoles, nextOidcProviders] = await Promise.all([
       tenantAdminClient().listTenantMembers(props.tenantId),
       tenantAdminClient().getTenantSettings(props.tenantId),
       tenantAdminClient().listTenantRoles(props.tenantId),
+      tenantAdminClient().listOidcProviders(props.tenantId),
     ]);
     members.value = nextMembers;
     roles.value = nextRoles;
+    oidcProviders.value = nextOidcProviders;
     settings.value = nextSettings;
     settingsName.value = nextSettings.name;
     publicAssetUrl.value = nextSettings.publicAssetUrl ?? "";
@@ -81,6 +93,7 @@ async function loadTenantAdminData() {
   } catch (error) {
     members.value = [];
     roles.value = [];
+    oidcProviders.value = [];
     loadingError.value = error instanceof Error ? error.message : String(error);
   }
 }
@@ -97,6 +110,10 @@ async function loadMembers() {
 
 async function loadRoles() {
   roles.value = await tenantAdminClient().listTenantRoles(props.tenantId);
+}
+
+async function loadOidcProviders() {
+  oidcProviders.value = await tenantAdminClient().listOidcProviders(props.tenantId);
 }
 
 async function setMemberRole(userId = memberUserId.value, role = memberRole.value) {
@@ -150,6 +167,45 @@ async function saveRoleTemplate() {
     roleName.value = "";
     rolePermissions.value = [];
     await loadRoles();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function saveOidcProvider() {
+  actionError.value = "";
+  try {
+    await tenantAdminClient().upsertOidcProvider(props.tenantId, oidcProviderId.value.trim(), {
+      displayName: oidcDisplayName.value.trim(),
+      issuerUrl: oidcIssuerUrl.value.trim(),
+      clientId: oidcClientId.value.trim(),
+      clientSecret: oidcClientSecret.value,
+      scopes: oidcScopes.value
+        .split(/[,\s]+/)
+        .map((scope) => scope.trim())
+        .filter(Boolean),
+      isEnabled: oidcEnabled.value,
+      allowRegistration: oidcAllowRegistration.value,
+    });
+    oidcProviderId.value = "";
+    oidcDisplayName.value = "";
+    oidcIssuerUrl.value = "";
+    oidcClientId.value = "";
+    oidcClientSecret.value = "";
+    oidcScopes.value = "openid email";
+    oidcEnabled.value = true;
+    oidcAllowRegistration.value = false;
+    await loadOidcProviders();
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function deleteOidcProvider(providerId: string) {
+  actionError.value = "";
+  try {
+    await tenantAdminClient().deleteOidcProvider(props.tenantId, providerId);
+    await loadOidcProviders();
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : String(error);
   }
@@ -237,6 +293,119 @@ function updateMemberRoleFromEvent(userId: string, event: Event) {
                 @click="saveTenantSettings"
               >
                 {{ labels.saveTenantSettings }}
+              </Button>
+            </form>
+
+            <form class="flex flex-col gap-3 border-t pt-5" @submit.prevent>
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="font-semibold">{{ labels.oidcProviders }}</h3>
+                  <p class="mt-1 text-sm leading-6 text-muted-foreground">{{ labels.oidcProvidersHelp }}</p>
+                </div>
+                <Badge variant="secondary">{{ oidcProviders.length }}</Badge>
+              </div>
+              <div class="divide-y rounded-2xl border bg-background/70">
+                <article v-for="provider in oidcProviders" :key="provider.id" class="flex items-start justify-between gap-3 px-4 py-3">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold">{{ provider.displayName }}</p>
+                    <p class="mt-1 truncate font-mono text-xs text-muted-foreground">{{ provider.issuerUrl }}</p>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <Badge :variant="provider.isEnabled ? 'accent' : 'secondary'">
+                        {{ provider.isEnabled ? labels.enabled : labels.disabled }}
+                      </Badge>
+                      <Badge variant="secondary">
+                        {{ provider.allowRegistration ? labels.registrationAllowed : labels.loginOnly }}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    :aria-label="`${labels.deleteOidcProvider} ${provider.id}`"
+                    @click="deleteOidcProvider(provider.id)"
+                  >
+                    {{ labels.delete }}
+                  </Button>
+                </article>
+                <p v-if="oidcProviders.length === 0" class="px-4 py-3 text-sm text-muted-foreground">{{ labels.noOidcProviders }}</p>
+              </div>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcProviderId }}
+                <input
+                  v-model="oidcProviderId"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcProviderId"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcDisplayName }}
+                <input
+                  v-model="oidcDisplayName"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  :aria-label="labels.oidcDisplayName"
+                />
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcIssuerUrl }}
+                <input
+                  v-model="oidcIssuerUrl"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="https://accounts.google.com"
+                  :aria-label="labels.oidcIssuerUrl"
+                />
+              </label>
+              <div class="grid gap-3 xl:grid-cols-2">
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.oidcClientId }}
+                  <input
+                    v-model="oidcClientId"
+                    class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    :aria-label="labels.oidcClientId"
+                  />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-medium">
+                  {{ labels.oidcClientSecret }}
+                  <input
+                    v-model="oidcClientSecret"
+                    class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    type="password"
+                    :aria-label="labels.oidcClientSecret"
+                  />
+                </label>
+              </div>
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                {{ labels.oidcScopes }}
+                <input
+                  v-model="oidcScopes"
+                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="openid email profile"
+                  :aria-label="labels.oidcScopes"
+                />
+              </label>
+              <div class="grid gap-3 xl:grid-cols-2">
+                <label class="flex items-center gap-3 rounded-xl border bg-background/70 p-3 text-sm font-medium">
+                  <input v-model="oidcEnabled" type="checkbox" class="size-4 cursor-pointer accent-primary" :aria-label="labels.oidcEnabled" />
+                  <span>{{ labels.oidcEnabled }}</span>
+                </label>
+                <label class="flex items-center gap-3 rounded-xl border bg-background/70 p-3 text-sm font-medium">
+                  <input
+                    v-model="oidcAllowRegistration"
+                    type="checkbox"
+                    class="size-4 cursor-pointer accent-primary"
+                    :aria-label="labels.oidcAllowRegistration"
+                  />
+                  <span>{{ labels.oidcAllowRegistration }}</span>
+                </label>
+              </div>
+              <Button
+                type="button"
+                class="w-fit"
+                :disabled="!oidcProviderId.trim() || !oidcDisplayName.trim() || !oidcIssuerUrl.trim() || !oidcClientId.trim() || !oidcClientSecret"
+                :aria-label="labels.saveOidcProvider"
+                @click="saveOidcProvider"
+              >
+                {{ labels.saveOidcProvider }}
               </Button>
             </form>
 

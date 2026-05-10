@@ -161,6 +161,21 @@ describe("PackDashboard", () => {
         permissions: request.permissions,
         createdAt: "2026-05-09T00:00:00Z",
       })),
+      listOidcProviders: vi.fn(async () => []),
+      upsertOidcProvider: vi.fn(async (tenantId, providerId, request) => ({
+        id: providerId,
+        tenantId,
+        displayName: request.displayName,
+        issuerUrl: request.issuerUrl,
+        clientId: request.clientId,
+        clientSecret: "[redacted]",
+        scopes: request.scopes,
+        isEnabled: request.isEnabled,
+        allowRegistration: request.allowRegistration,
+        createdAt: "2026-05-10T00:00:00Z",
+        updatedAt: "2026-05-10T00:00:00Z",
+      })),
+      deleteOidcProvider: vi.fn(async () => undefined),
     };
     const wrapper = mount(PackDashboard, {
       props: {

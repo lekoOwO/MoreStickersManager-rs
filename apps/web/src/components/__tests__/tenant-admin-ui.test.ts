@@ -56,6 +56,21 @@ describe("tenant admin UI", () => {
         permissions: request.permissions,
         createdAt: "2026-05-09T00:00:00Z",
       })),
+      listOidcProviders: vi.fn(async () => []),
+      upsertOidcProvider: vi.fn(async (tenantId, providerId, request) => ({
+        id: providerId,
+        tenantId,
+        displayName: request.displayName,
+        issuerUrl: request.issuerUrl,
+        clientId: request.clientId,
+        clientSecret: "[redacted]",
+        scopes: request.scopes,
+        isEnabled: request.isEnabled,
+        allowRegistration: request.allowRegistration,
+        createdAt: "2026-05-10T00:00:00Z",
+        updatedAt: "2026-05-10T00:00:00Z",
+      })),
+      deleteOidcProvider: vi.fn(async () => undefined),
     };
     const wrapper = mount(TenantAdminPanel, {
       props: {
@@ -133,6 +148,21 @@ describe("tenant admin UI", () => {
         permissions: request.permissions,
         createdAt: "2026-05-09T00:00:00Z",
       })),
+      listOidcProviders: vi.fn(async () => []),
+      upsertOidcProvider: vi.fn(async (tenantId, providerId, request) => ({
+        id: providerId,
+        tenantId,
+        displayName: request.displayName,
+        issuerUrl: request.issuerUrl,
+        clientId: request.clientId,
+        clientSecret: "[redacted]",
+        scopes: request.scopes,
+        isEnabled: request.isEnabled,
+        allowRegistration: request.allowRegistration,
+        createdAt: "2026-05-10T00:00:00Z",
+        updatedAt: "2026-05-10T00:00:00Z",
+      })),
+      deleteOidcProvider: vi.fn(async () => undefined),
     };
     const wrapper = mount(TenantAdminPanel, {
       props: {
@@ -167,5 +197,111 @@ describe("tenant admin UI", () => {
       permissions: ["pack.update"],
     });
     expect(wrapper.text()).toContain("Viewers");
+  });
+
+  it("manages OIDC provider settings", async () => {
+    const client: TenantAdminClient = {
+      listTenantMembers: vi.fn(async () => []),
+      setTenantMemberRole: vi.fn(async (tenantId, userId, role) => ({
+        tenantId,
+        userId,
+        role,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+      getTenantSettings: vi.fn(async () => ({
+        tenantId: "tenant_1",
+        name: "Default tenant",
+        publicAssetUrl: null,
+        localRegistrationEnabled: true,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+      updateTenantSettings: vi.fn(async (tenantId, request) => ({
+        tenantId,
+        name: request.name,
+        publicAssetUrl: request.publicAssetUrl,
+        localRegistrationEnabled: request.localRegistrationEnabled,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+      setTenantUserStatus: vi.fn(async (tenantId, userId, isDisabled) => ({
+        id: userId,
+        email: "member@example.com",
+        displayName: "Member",
+        isDisabled,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+      listTenantRoles: vi.fn(async () => []),
+      upsertTenantRole: vi.fn(async (tenantId, roleId, request) => ({
+        id: roleId,
+        tenantId,
+        name: request.name,
+        permissions: request.permissions,
+        createdAt: "2026-05-09T00:00:00Z",
+      })),
+      listOidcProviders: vi.fn(async () => [
+        {
+          id: "google",
+          tenantId: "tenant_1",
+          displayName: "Google Workspace",
+          issuerUrl: "https://accounts.google.com",
+          clientId: "client_1",
+          clientSecret: "[redacted]",
+          scopes: ["openid", "email"],
+          isEnabled: true,
+          allowRegistration: false,
+          createdAt: "2026-05-10T00:00:00Z",
+          updatedAt: "2026-05-10T00:00:00Z",
+        },
+      ]),
+      upsertOidcProvider: vi.fn(async (tenantId, providerId, request) => ({
+        id: providerId,
+        tenantId,
+        displayName: request.displayName,
+        issuerUrl: request.issuerUrl,
+        clientId: request.clientId,
+        clientSecret: "[redacted]",
+        scopes: request.scopes,
+        isEnabled: request.isEnabled,
+        allowRegistration: request.allowRegistration,
+        createdAt: "2026-05-10T00:00:00Z",
+        updatedAt: "2026-05-10T00:00:00Z",
+      })),
+      deleteOidcProvider: vi.fn(async () => undefined),
+    };
+    const wrapper = mount(TenantAdminPanel, {
+      props: {
+        locale: "en",
+        tenantId: "tenant_1",
+        patToken: "msm_pat_admin_secret",
+        tenantAdminClient: client,
+      },
+    });
+
+    await flushPromises();
+    expect(wrapper.text()).toContain("OIDC providers");
+    expect(wrapper.text()).toContain("Google Workspace");
+
+    await wrapper.get('[aria-label="OIDC provider ID"]').setValue("github");
+    await wrapper.get('[aria-label="OIDC display name"]').setValue("GitHub Enterprise");
+    await wrapper.get('[aria-label="OIDC issuer URL"]').setValue("https://github.example.test");
+    await wrapper.get('[aria-label="OIDC client ID"]').setValue("client_github");
+    await wrapper.get('[aria-label="OIDC client secret"]').setValue("secret_github");
+    await wrapper.get('[aria-label="OIDC scopes"]').setValue("openid email profile");
+    await wrapper.get('[aria-label="Allow OIDC registration"]').setValue(true);
+    await wrapper.get('[aria-label="Save OIDC provider"]').trigger("click");
+    await flushPromises();
+
+    expect(client.upsertOidcProvider).toHaveBeenCalledWith("tenant_1", "github", {
+      displayName: "GitHub Enterprise",
+      issuerUrl: "https://github.example.test",
+      clientId: "client_github",
+      clientSecret: "secret_github",
+      scopes: ["openid", "email", "profile"],
+      isEnabled: true,
+      allowRegistration: true,
+    });
+
+    await wrapper.get('[aria-label="Delete OIDC provider google"]').trigger("click");
+    await flushPromises();
+    expect(client.deleteOidcProvider).toHaveBeenCalledWith("tenant_1", "google");
   });
 });

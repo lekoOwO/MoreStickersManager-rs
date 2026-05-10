@@ -1469,3 +1469,15 @@
 - Verification: RED failure was observed before implementation, then `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked` (38 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/user docs; next Phase D slice should add Web OIDC
   provider/login controls and SSO-backed account docs.
+
+## 2026-05-10 OIDC Provider Web Admin Parity
+
+- Added Web tenant-admin API client methods and URL builders for OIDC provider
+  list/upsert/delete routes, including bearer auth and redacted response typing.
+- Added Tenant admin UI controls for listing OIDC providers, creating/updating
+  issuer/client/scope/enabled/registration settings, and deleting providers.
+- Added Traditional Chinese and English UI labels plus unit coverage for API
+  client calls and tenant-admin interactions.
+- Verification: RED failures were observed before implementation, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (52 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
+- Updated PRD/status/user docs; next Phase D slice should add end-user Web SSO
+  login controls/callback UX and SSO-backed account docs.

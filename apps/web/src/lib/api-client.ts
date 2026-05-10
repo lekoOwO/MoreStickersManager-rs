@@ -164,6 +164,30 @@ export interface UpsertTenantRoleRequest {
   permissions: string[];
 }
 
+export interface OidcProviderResponse {
+  id: string;
+  tenantId: string;
+  displayName: string;
+  issuerUrl: string;
+  clientId: string;
+  clientSecret: string;
+  scopes: string[];
+  isEnabled: boolean;
+  allowRegistration: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertOidcProviderRequest {
+  displayName: string;
+  issuerUrl: string;
+  clientId: string;
+  clientSecret: string;
+  scopes: string[];
+  isEnabled: boolean;
+  allowRegistration: boolean;
+}
+
 export interface TenantAdminClient {
   listTenantMembers(tenantId: string): Promise<TenantMemberResponse[]>;
   setTenantMemberRole(
@@ -187,6 +211,13 @@ export interface TenantAdminClient {
     roleId: string,
     request: UpsertTenantRoleRequest,
   ): Promise<TenantRoleResponse>;
+  listOidcProviders(tenantId: string): Promise<OidcProviderResponse[]>;
+  upsertOidcProvider(
+    tenantId: string,
+    providerId: string,
+    request: UpsertOidcProviderRequest,
+  ): Promise<OidcProviderResponse>;
+  deleteOidcProvider(tenantId: string, providerId: string): Promise<void>;
 }
 
 export interface ProductMetadataFolder {
@@ -648,6 +679,35 @@ export function createTenantAdminClient(options: PackClientOptions = {}): Tenant
 
       return (await response.json()) as TenantRoleResponse;
     },
+    async listOidcProviders(tenantId) {
+      const response = await fetchOptional(fetchImpl, tenantOidcProvidersUrl(baseUrl, tenantId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list OIDC providers: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as OidcProviderResponse[];
+    },
+    async upsertOidcProvider(tenantId, providerId, request) {
+      const response = await fetchImpl(tenantOidcProviderUrl(baseUrl, tenantId, providerId), {
+        method: "PUT",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to upsert OIDC provider: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as OidcProviderResponse;
+    },
+    async deleteOidcProvider(tenantId, providerId) {
+      const response = await fetchImpl(tenantOidcProviderUrl(baseUrl, tenantId, providerId), {
+        method: "DELETE",
+        ...authInit(options.authToken),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to delete OIDC provider: HTTP ${response.status}`);
+      }
+    },
   };
 }
 
@@ -828,6 +888,14 @@ export function tenantRolesUrl(baseUrl: string, tenantId: string) {
 
 export function tenantRoleUrl(baseUrl: string, tenantId: string, roleId: string) {
   return `${tenantRolesUrl(baseUrl, tenantId)}/${encodeURIComponent(roleId)}`;
+}
+
+export function tenantOidcProvidersUrl(baseUrl: string, tenantId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/tenants/${encodeURIComponent(tenantId)}/oidc-providers`;
+}
+
+export function tenantOidcProviderUrl(baseUrl: string, tenantId: string, providerId: string) {
+  return `${tenantOidcProvidersUrl(baseUrl, tenantId)}/${encodeURIComponent(providerId)}`;
 }
 
 function trimBaseUrl(baseUrl: string) {
@@ -1033,6 +1101,21 @@ function mockTenantAdminClient(): TenantAdminClient {
       createdAt: "2026-05-09T00:00:00Z",
     },
   ];
+  let oidcProviders: OidcProviderResponse[] = [
+    {
+      id: "google",
+      tenantId: "tenant_1",
+      displayName: "Google Workspace",
+      issuerUrl: "https://accounts.google.com",
+      clientId: "client_1",
+      clientSecret: "[redacted]",
+      scopes: ["openid", "email"],
+      isEnabled: true,
+      allowRegistration: false,
+      createdAt: "2026-05-10T00:00:00Z",
+      updatedAt: "2026-05-10T00:00:00Z",
+    },
+  ];
 
   return {
     async listTenantMembers() {
@@ -1104,6 +1187,34 @@ function mockTenantAdminClient(): TenantAdminClient {
       };
       roles = [...roles, created];
       return { ...created, permissions: [...created.permissions] };
+    },
+    async listOidcProviders() {
+      return oidcProviders.map((provider) => ({ ...provider, scopes: [...provider.scopes] }));
+    },
+    async upsertOidcProvider(tenantId, providerId, request) {
+      const nextProvider = {
+        id: providerId,
+        tenantId,
+        displayName: request.displayName,
+        issuerUrl: request.issuerUrl,
+        clientId: request.clientId,
+        clientSecret: "[redacted]",
+        scopes: [...request.scopes],
+        isEnabled: request.isEnabled,
+        allowRegistration: request.allowRegistration,
+        createdAt: "2026-05-10T00:00:00Z",
+        updatedAt: "2026-05-10T00:00:00Z",
+      };
+      oidcProviders = [
+        ...oidcProviders.filter((provider) => provider.id !== providerId || provider.tenantId !== tenantId),
+        nextProvider,
+      ];
+      return { ...nextProvider, scopes: [...nextProvider.scopes] };
+    },
+    async deleteOidcProvider(tenantId, providerId) {
+      oidcProviders = oidcProviders.filter(
+        (provider) => provider.id !== providerId || provider.tenantId !== tenantId,
+      );
     },
   };
 }

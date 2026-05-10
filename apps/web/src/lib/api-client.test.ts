@@ -18,12 +18,18 @@ import {
   tagListUrl,
   tenantMemberListUrl,
   tenantMemberUrl,
+  tenantOidcProviderUrl,
+  tenantOidcProvidersUrl,
   tenantRoleUrl,
   tenantRolesUrl,
   tenantSettingsUrl,
   tenantUserStatusUrl,
   type ApiStickerPackRecord,
 } from "./api-client";
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(body === null ? null : JSON.stringify(body), { status });
+}
 
 describe("pack API client", () => {
   it("uses mock packs when no API base URL is configured", async () => {
@@ -219,6 +225,12 @@ describe("tenant admin API client", () => {
     expect(tenantRoleUrl("https://msm.example.test/", "tenant 1", "role editor")).toBe(
       "https://msm.example.test/api/v1/tenants/tenant%201/roles/role%20editor",
     );
+    expect(tenantOidcProvidersUrl("https://msm.example.test/", "tenant 1")).toBe(
+      "https://msm.example.test/api/v1/tenants/tenant%201/oidc-providers",
+    );
+    expect(tenantOidcProviderUrl("https://msm.example.test/", "tenant 1", "google workspace")).toBe(
+      "https://msm.example.test/api/v1/tenants/tenant%201/oidc-providers/google%20workspace",
+    );
   });
 
   it("lists and updates tenant member roles with bearer auth", async () => {
@@ -387,6 +399,90 @@ describe("tenant admin API client", () => {
         Authorization: "Bearer msm_pat_admin_secret",
       },
       body: JSON.stringify({ isDisabled: true }),
+    });
+  });
+
+  it("manages OIDC providers with bearer auth", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/oidc-providers/google") && init?.method === "PUT") {
+        return jsonResponse({
+          id: "google",
+          tenantId: "tenant_1",
+          displayName: "Google Workspace",
+          issuerUrl: "https://accounts.google.com",
+          clientId: "client_1",
+          clientSecret: "[redacted]",
+          scopes: ["openid", "email"],
+          isEnabled: true,
+          allowRegistration: false,
+          createdAt: "2026-05-10T00:00:00Z",
+          updatedAt: "2026-05-10T00:00:00Z",
+        });
+      }
+      if (url.endsWith("/oidc-providers/google") && init?.method === "DELETE") {
+        return new Response(null === null ? null : JSON.stringify(null), { status: 204 });
+      }
+      if (url.endsWith("/oidc-providers")) {
+        return jsonResponse([
+          {
+            id: "google",
+            tenantId: "tenant_1",
+            displayName: "Google Workspace",
+            issuerUrl: "https://accounts.google.com",
+            clientId: "client_1",
+            clientSecret: "[redacted]",
+            scopes: ["openid", "email"],
+            isEnabled: true,
+            allowRegistration: false,
+            createdAt: "2026-05-10T00:00:00Z",
+            updatedAt: "2026-05-10T00:00:00Z",
+          },
+        ]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }) as unknown as typeof fetch;
+    const client = createTenantAdminClient({
+      baseUrl: "https://msm.example.test",
+      authToken: "msm_pat_admin_secret",
+      fetchImpl,
+    });
+
+    const providers = await client.listOidcProviders("tenant_1");
+    const upserted = await client.upsertOidcProvider("tenant_1", "google", {
+      displayName: "Google Workspace",
+      issuerUrl: "https://accounts.google.com",
+      clientId: "client_1",
+      clientSecret: "secret_1",
+      scopes: ["openid", "email"],
+      isEnabled: true,
+      allowRegistration: false,
+    });
+    await client.deleteOidcProvider("tenant_1", "google");
+
+    expect(providers[0]?.id).toBe("google");
+    expect(upserted.clientSecret).toBe("[redacted]");
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/tenants/tenant_1/oidc-providers", {
+      headers: { Authorization: "Bearer msm_pat_admin_secret" },
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/tenants/tenant_1/oidc-providers/google", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer msm_pat_admin_secret",
+      },
+      body: JSON.stringify({
+        displayName: "Google Workspace",
+        issuerUrl: "https://accounts.google.com",
+        clientId: "client_1",
+        clientSecret: "secret_1",
+        scopes: ["openid", "email"],
+        isEnabled: true,
+        allowRegistration: false,
+      }),
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/tenants/tenant_1/oidc-providers/google", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer msm_pat_admin_secret" },
     });
   });
 });
