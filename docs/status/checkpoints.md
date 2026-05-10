@@ -1982,3 +1982,9 @@
 - Added restore verification and periodic drill checklists using `/readyz`, Web/API/CLI flows, asset privacy, subscription links, provider config redaction, and Telegram mappings.
 - Updated PRD/status/README/user docs to mark Phase K backup/restore guidance complete.
 - Verification: `git diff --check`.
+## 2026-05-11 Security Review Slice
+
+- Added `docs/status/security-review.md` reviewing PAT, Web session, subscription-token, OIDC state/nonce, and local password storage controls.
+- Documented API/MCP/Web secret redaction behavior, private asset credential rules, CDN caveats, structured log hygiene, and residual hardening backlog.
+- Updated PRD/status/README/user docs to mark the Phase K token/redaction/asset-access security review complete.
+- Verification: `git diff --check`.

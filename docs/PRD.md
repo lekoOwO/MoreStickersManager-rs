@@ -323,7 +323,8 @@ tests and docs are updated.
   Progress: `msm-app` emits JSON lines for service startup/listening and HTTP request summaries without logging query strings or credentials. `/readyz` returns operator diagnostics for database query readiness and local asset-store directory readiness, and OpenAPI documents the endpoint.
 - [x] Backup/restore guidance.
   Progress: `docs/user/backup-restore-runbook.md` documents complete instance backups for SQLite/PostgreSQL, assets, prepared media, secrets/config, restore steps, cross-instance portable-data migration boundaries, readiness verification, and restore drills.
-- [ ] Security review of token storage, secret redaction, and asset access.
+- [x] Security review of token storage, secret redaction, and asset access.
+  Progress: `docs/status/security-review.md` records current controls, evidence, residual risks, and follow-up hardening candidates for PAT/session/subscription/OIDC token storage, local password hashing, secret redaction, private asset authorization, CDN interactions, and log hygiene.
 
 ## Surface Parity Rule
 

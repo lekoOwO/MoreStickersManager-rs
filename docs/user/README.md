@@ -361,6 +361,8 @@ the full UI instead of the placeholder.
 
 Backup/restore runbook: see `docs/user/backup-restore-runbook.md` for complete instance backup coverage, SQLite/PostgreSQL restore commands, asset directory handling, CDN/public URL checks, and restore verification drills.
 
+Security review: see `docs/status/security-review.md` for the current review of token storage, secret redaction, asset access, CDN behavior, log hygiene, and residual hardening items.
+
 Database deployment choices:
 
 - SQLite is the default and is suitable for local/small deployments. Set

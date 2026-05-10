@@ -253,6 +253,8 @@ Structured operator logs and readiness diagnostics:
 - `GET /readyz` returns dependency diagnostics for the database and local asset store. It returns `200` when all components are ready and `503` when any component is degraded.
 Backup and restore: see `docs/user/backup-restore-runbook.md` for SQLite/PostgreSQL database backups, asset/prepared-media backups, deployment secrets, restore verification, and cross-instance portable-data migration boundaries.
 
+Security review: see `docs/status/security-review.md` for token/session/subscription storage, secret redaction, private asset access, CDN, logging, and residual hardening notes.
+
 Database backends:
 
 - SQLite: use `sqlite:data/msm.sqlite3` or another `sqlite:<path>` URL. Ensure

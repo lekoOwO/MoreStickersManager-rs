@@ -62,4 +62,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue Phase K by adding production security review notes and the final MCP stateless/session contract decision.
+Continue Phase K by closing the final MCP stateless/session contract decision, then run the end-to-end PRD completion audit.
