@@ -360,16 +360,38 @@ async fn derive_oidc_callback_claims(
     .map_err(|error| ApiError::Unauthorized(format!("OIDC ID token validation failed: {error}")))?;
 
     let provider_subject = token.claims.subject;
-    let email = token.claims.email.unwrap_or_else(|| {
+    let mut email = token.claims.email;
+    let mut display_name = token.claims.name;
+    if email.is_none() || display_name.is_none() {
+        if let Some(userinfo_endpoint) = discovery.userinfo_endpoint {
+            let userinfo = state
+                .oidc_userinfo_fetcher()
+                .fetch_userinfo(userinfo_endpoint, token_response.access_token.clone())
+                .await
+                .map_err(|error| {
+                    ApiError::Unauthorized(format!("OIDC userinfo failed: {error}"))
+                })?;
+            if userinfo.subject != provider_subject {
+                return Err(ApiError::Unauthorized(
+                    "OIDC userinfo subject mismatch".to_owned(),
+                ));
+            }
+            if email.is_none() {
+                email.clone_from(&userinfo.email);
+            }
+            if display_name.is_none() {
+                display_name = Some(userinfo.display_name().to_owned());
+            }
+        }
+    }
+    let email = email.unwrap_or_else(|| {
         format!(
             "{}@{}.oidc.local",
             provider_subject,
             login_state.provider_id.replace(['@', '/'], "_")
         )
     });
-    let display_name = token
-        .claims
-        .name
+    let display_name = display_name
         .or_else(|| Some(email.clone()))
         .unwrap_or_else(|| provider_subject.clone());
     Ok(OidcCallbackClaims {

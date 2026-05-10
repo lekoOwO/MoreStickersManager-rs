@@ -175,6 +175,10 @@ pub type OidcDiscoveryFuture =
 /// Boxed future returned by an OIDC JWKS fetcher implementation.
 pub type OidcJwksFuture = Pin<Box<dyn Future<Output = Result<OidcJwksDocument, OidcError>> + Send>>;
 
+/// Boxed future returned by an OIDC userinfo fetcher implementation.
+pub type OidcUserinfoFuture =
+    Pin<Box<dyn Future<Output = Result<OidcUserinfoClaims, OidcError>> + Send>>;
+
 /// Exchanges an authorization code with a provider token endpoint.
 pub trait OidcTokenExchanger: Send + Sync {
     fn exchange(&self, request: OidcTokenExchangeRequest) -> OidcTokenExchangeFuture;
@@ -188,6 +192,12 @@ pub trait OidcDiscoveryFetcher: Send + Sync {
 /// Fetches and validates provider JWKS metadata.
 pub trait OidcJwksFetcher: Send + Sync {
     fn fetch_jwks(&self, jwks_uri: String) -> OidcJwksFuture;
+}
+
+/// Fetches userinfo profile claims using an access token.
+pub trait OidcUserinfoFetcher: Send + Sync {
+    fn fetch_userinfo(&self, userinfo_endpoint: String, access_token: String)
+        -> OidcUserinfoFuture;
 }
 
 /// HTTP implementation of [`OidcTokenExchanger`].
@@ -208,6 +218,12 @@ pub struct HttpOidcJwksFetcher {
     client: reqwest::Client,
 }
 
+/// HTTP implementation of [`OidcUserinfoFetcher`].
+#[derive(Clone, Debug)]
+pub struct HttpOidcUserinfoFetcher {
+    client: reqwest::Client,
+}
+
 impl Default for HttpOidcTokenExchanger {
     fn default() -> Self {
         Self::new()
@@ -221,6 +237,12 @@ impl Default for HttpOidcDiscoveryFetcher {
 }
 
 impl Default for HttpOidcJwksFetcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for HttpOidcUserinfoFetcher {
     fn default() -> Self {
         Self::new()
     }
@@ -248,6 +270,16 @@ impl HttpOidcDiscoveryFetcher {
 
 impl HttpOidcJwksFetcher {
     /// Creates an HTTP OIDC JWKS fetcher with the default reqwest client.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+impl HttpOidcUserinfoFetcher {
+    /// Creates an HTTP OIDC userinfo fetcher with the default reqwest client.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -302,6 +334,29 @@ impl OidcJwksFetcher for HttpOidcJwksFetcher {
             }
             let body = response.text().await?;
             parse_jwks_document(&body)
+        })
+    }
+}
+
+impl OidcUserinfoFetcher for HttpOidcUserinfoFetcher {
+    fn fetch_userinfo(
+        &self,
+        userinfo_endpoint: String,
+        access_token: String,
+    ) -> OidcUserinfoFuture {
+        let client = self.client.clone();
+        Box::pin(async move {
+            let response = client
+                .get(userinfo_endpoint)
+                .bearer_auth(access_token)
+                .send()
+                .await?;
+            let status = response.status();
+            if !status.is_success() {
+                return Err(OidcError::TokenEndpointStatus(status));
+            }
+            let body = response.text().await?;
+            parse_userinfo_response(&body)
         })
     }
 }

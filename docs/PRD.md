@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Wire OIDC userinfo fetching into callback fallback/claim derivation, then complete non-API SSO admin/client surfaces.
+1. Complete non-API OIDC/SSO admin and client surfaces, including Web login controls and CLI/MCP documentation.
 
 Each queue item must update this section when completed or reordered.
 
@@ -204,9 +204,10 @@ tests and docs are updated.
   completion now verifies ID-token signatures/claims and uses validated subject,
   email, and display-name claims for user-link creation when an ID token is
   returned. Userinfo response parsing now validates subject and normalizes display-name
-  fallback. Remaining work: fetching userinfo during callback fallback/claim
-  derivation for providers that omit profile claims, and non-API SSO admin/client
-  surfaces.
+  fallback. Callback completion now fetches userinfo when a verified ID token
+  omits email/name, validates userinfo subject against the ID-token subject, and
+  uses validated userinfo profile claims for user/link creation. Remaining work:
+  non-API SSO admin/client surfaces.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
 

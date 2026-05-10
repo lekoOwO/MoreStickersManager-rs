@@ -256,7 +256,8 @@ mod tests {
         oidc::{
             OidcDiscoveryDocument, OidcDiscoveryFetcher, OidcDiscoveryFuture, OidcJwk,
             OidcJwksDocument, OidcJwksFetcher, OidcJwksFuture, OidcTokenExchangeFuture,
-            OidcTokenExchangeRequest, OidcTokenExchanger, OidcTokenResponse,
+            OidcTokenExchangeRequest, OidcTokenExchanger, OidcTokenResponse, OidcUserinfoClaims,
+            OidcUserinfoFetcher, OidcUserinfoFuture,
         },
         ApiState,
     };
@@ -4414,6 +4415,123 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::too_many_lines)]
+    async fn oidc_callback_uses_userinfo_when_id_token_omits_profile_claims() {
+        let exchanger = Arc::new(RecordingOidcTokenExchanger::new());
+        let signed_key = signed_id_token_key();
+        let discovery = Arc::new(StaticOidcDiscoveryFetcher::new(OidcDiscoveryDocument {
+            issuer: "https://issuer.example".to_owned(),
+            authorization_endpoint: Some("https://issuer.example/auth".to_owned()),
+            token_endpoint: "https://issuer.example/token".to_owned(),
+            jwks_uri: "https://issuer.example/jwks".to_owned(),
+            userinfo_endpoint: Some("https://issuer.example/userinfo".to_owned()),
+        }));
+        let jwks = Arc::new(StaticOidcJwksFetcher::new(signed_key.jwks.clone()));
+        let userinfo = Arc::new(StaticOidcUserinfoFetcher::new(OidcUserinfoClaims {
+            subject: "token-subject-2".to_owned(),
+            email: Some("userinfo@example.com".to_owned()),
+            name: Some("Userinfo Name".to_owned()),
+            preferred_username: Some("userinfo".to_owned()),
+        }));
+        let state = test_state()
+            .await
+            .with_oidc_token_exchanger(exchanger.clone())
+            .with_oidc_discovery_fetcher(discovery)
+            .with_oidc_jwks_fetcher(jwks)
+            .with_oidc_userinfo_fetcher(userinfo.clone());
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        let scopes = BTreeSet::from([
+            "email".to_owned(),
+            "openid".to_owned(),
+            "profile".to_owned(),
+        ]);
+        state
+            .repository()
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: "oidc_userinfo",
+                tenant_id: "tenant_1",
+                display_name: "Userinfo",
+                issuer_url: "https://issuer.example",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+        let start_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/auth/oidc/tenant_1/oidc_userinfo/login?redirectUri=https%3A%2F%2Fmsm.example%2Fauth%2Fcallback")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let start_body = to_bytes(start_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&start_body).unwrap();
+        exchanger.set_id_token(signed_key.sign_with_profile(
+            "https://issuer.example",
+            "client-id",
+            "token-subject-2",
+            started["nonce"].as_str().unwrap(),
+            None,
+            None,
+        ));
+        let callback_body = serde_json::json!({
+            "state": started["state"].as_str().unwrap(),
+            "nonce": started["nonce"].as_str().unwrap(),
+            "authorizationCode": "provider-code-userinfo",
+            "issuer": "https://evil.example",
+            "audience": "evil-client",
+            "providerSubject": "attacker-controlled-subject",
+            "email": "attacker@example.com",
+            "displayName": "Attacker",
+            "tokenId": "oidcuserinfo",
+            "tokenName": "OIDC Userinfo",
+            "scopes": ["pack.read"],
+            "expiresAt": null
+        });
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/oidc/callback")
+                    .header("content-type", "application/json")
+                    .body(Body::from(callback_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            userinfo.requests.lock().unwrap().as_slice(),
+            [(
+                "https://issuer.example/userinfo".to_owned(),
+                "access-token".to_owned()
+            )]
+        );
+        let link = state
+            .repository()
+            .find_oidc_user_link("tenant_1", "oidc_userinfo", "token-subject-2")
+            .await
+            .unwrap()
+            .expect("validated userinfo profile should be linked");
+        assert_eq!(link.email, "userinfo@example.com");
+        assert_eq!(link.display_name, "Userinfo Name");
+    }
+
+    #[tokio::test]
     async fn local_auth_session_cookie_reads_owned_private_asset() {
         let state = test_state().await;
         state
@@ -5177,6 +5295,35 @@ mod tests {
         }
     }
 
+    struct StaticOidcUserinfoFetcher {
+        claims: OidcUserinfoClaims,
+        requests: Mutex<Vec<(String, String)>>,
+    }
+
+    impl StaticOidcUserinfoFetcher {
+        fn new(claims: OidcUserinfoClaims) -> Self {
+            Self {
+                claims,
+                requests: Mutex::default(),
+            }
+        }
+    }
+
+    impl OidcUserinfoFetcher for StaticOidcUserinfoFetcher {
+        fn fetch_userinfo(
+            &self,
+            userinfo_endpoint: String,
+            access_token: String,
+        ) -> OidcUserinfoFuture {
+            self.requests
+                .lock()
+                .unwrap()
+                .push((userinfo_endpoint, access_token));
+            let claims = self.claims.clone();
+            Box::pin(async move { Ok(claims) })
+        }
+    }
+
     struct SignedIdTokenKey {
         private_key: rsa::RsaPrivateKey,
         jwks: OidcJwksDocument,
@@ -5184,6 +5331,25 @@ mod tests {
 
     impl SignedIdTokenKey {
         fn sign(&self, issuer: &str, audience: &str, subject: &str, nonce: &str) -> String {
+            self.sign_with_profile(
+                issuer,
+                audience,
+                subject,
+                nonce,
+                Some("token-user@example.com"),
+                Some("Token User"),
+            )
+        }
+
+        fn sign_with_profile(
+            &self,
+            issuer: &str,
+            audience: &str,
+            subject: &str,
+            nonce: &str,
+            email: Option<&str>,
+            name: Option<&str>,
+        ) -> String {
             use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
             use rsa::{
                 pkcs1v15::SigningKey,
@@ -5193,20 +5359,21 @@ mod tests {
 
             let header = URL_SAFE_NO_PAD
                 .encode(r#"{"alg":"RS256","kid":"active-key","typ":"JWT"}"#.as_bytes());
-            let claims = URL_SAFE_NO_PAD.encode(
-                serde_json::json!({
-                    "iss": issuer,
-                    "sub": subject,
-                    "aud": audience,
-                    "email": "token-user@example.com",
-                    "name": "Token User",
-                    "nonce": nonce,
-                    "exp": 1_893_456_000_i64,
-                    "iat": 1_704_067_200_i64
-                })
-                .to_string()
-                .as_bytes(),
-            );
+            let mut claims_json = serde_json::json!({
+                "iss": issuer,
+                "sub": subject,
+                "aud": audience,
+                "nonce": nonce,
+                "exp": 1_893_456_000_i64,
+                "iat": 1_704_067_200_i64
+            });
+            if let Some(email) = email {
+                claims_json["email"] = serde_json::json!(email);
+            }
+            if let Some(name) = name {
+                claims_json["name"] = serde_json::json!(name);
+            }
+            let claims = URL_SAFE_NO_PAD.encode(claims_json.to_string().as_bytes());
             let signing_input = format!("{header}.{claims}");
             let signature = SigningKey::<Sha256>::new(self.private_key.clone())
                 .sign_with_rng(&mut rsa::rand_core::OsRng, signing_input.as_bytes())

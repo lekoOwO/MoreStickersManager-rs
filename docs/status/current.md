@@ -223,7 +223,7 @@ Last verification:
 - OIDC nonce and trusted-claim validation slice: RED/GREEN test with `cargo test -p msm-api oidc_callback_rejects_nonce_and_provider_claim_mismatches --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Continue Phase D by wiring OIDC userinfo fetching into callback fallback/claim derivation, then completing non-API SSO admin/client surfaces.
+- Continue Phase D by completing non-API OIDC/SSO admin and client surfaces, including Web login controls and CLI/MCP documentation.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

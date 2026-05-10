@@ -1434,3 +1434,12 @@
   display-name fallback from name, preferred username, email, then subject.
 - Kept callback userinfo fetch fallback and non-API SSO admin/client surfaces
   as the next Phase D work.
+
+## 2026-05-10 OIDC Userinfo Callback Fallback
+
+- Added injectable userinfo fetcher support and HTTP Bearer-token userinfo
+  fetching.
+- Callback completion now fetches userinfo when verified ID-token profile claims
+  are incomplete, validates subject equality, and uses validated userinfo email/
+  display-name fallback for user-link creation.
+- Kept non-API SSO admin/client surfaces as the next Phase D work.

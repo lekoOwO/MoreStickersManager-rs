@@ -171,7 +171,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Wire OIDC userinfo fetching into callback fallback/claim derivation, then complete non-API SSO admin/client surfaces.
+1. Complete non-API OIDC/SSO admin and client surfaces, including Web login controls and CLI/MCP documentation.
 
 ## Later Planned Work
 
