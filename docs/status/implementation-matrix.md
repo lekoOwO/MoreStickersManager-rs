@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue Phase E with planned-provider registry placeholders.
+Continue with Phase F media conversion: ffprobe probing, execution diagnostics, cache completion, and surface visibility.

@@ -114,3 +114,5 @@ Not implemented yet:
 
 - Provider-side remote fetch/download orchestration.
 - Reconciliation policies for updating or deleting remote Telegram sticker sets.
+
+Planned-provider registry placeholders exist for Signal, WhatsApp, Kakao, Band, OGQ, and Viber as `ProviderStatus::Planned`; they are discovery metadata only and must not be treated as implemented import/export flows.

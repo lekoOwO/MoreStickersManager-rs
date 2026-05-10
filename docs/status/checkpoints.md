@@ -1662,3 +1662,8 @@
 - Runtime planning uses config `apiBaseUrl`/`baseUrl` when the queued job does not provide an explicit base URL.
 - Telegram worker execution replaces Bot API `<token>` placeholders from config `botToken`/`token`, covering metadata, `getFile`, and file download URLs.
 - Added focused worker coverage for credential-backed Telegram imports; next Phase E slice should add planned-provider placeholders.
+
+## 2026-05-10 Planned Provider Registry Checkpoint
+
+- Confirmed `msm-providers` already exposes planned-provider metadata for Signal, WhatsApp, Kakao, Band, OGQ, and Viber with `ProviderStatus::Planned`.
+- Updated PRD/status/provider docs so Phase E can hand off to Phase F media conversion work without duplicating existing registry placeholders.

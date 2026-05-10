@@ -75,7 +75,7 @@ Status meanings:
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import job, and provider credential/config commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, provider import job tools, and provider credential/config tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
-| Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Provider import worker credential consumption now exists for enabled tenant-scoped configs; future-provider flows remain incomplete. |
+| Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, LINE product-page embedded metadata normalization, planned-provider registry placeholders, and tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web redacted management exist. Provider import worker credential consumption now exists for enabled tenant-scoped configs; concrete future-provider implementations remain incomplete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
@@ -88,9 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band, OGQ, and Viber.
-2. Add placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ, and
-   Viber without pretending they are implemented.
+1. Start Phase F media conversion with ffprobe probing and richer diagnostics.
 
 Each queue item must update this section when completed or reordered.
 
@@ -257,8 +255,9 @@ tests and docs are updated.
   `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS`,
   `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS`, and `MSM_PUBLIC_ASSET_BASE_URL` wire
   the worker into service startup. CLI, MCP, and Web job create/get/events controls now exist.
-- [ ] Placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ,
+- [x] Placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ,
   Viber without pretending they are implemented.
+  Progress: `msm-providers` registry exposes planned metadata for Signal, WhatsApp, Kakao, Band, OGQ, and Viber with `ProviderStatus::Planned` and tests that keep them distinct from implemented Telegram/LINE providers.
 
 ### Phase F: Media Conversion
 
