@@ -8,6 +8,9 @@ pub const LIST_STICKER_PACKS: &str = "msm.list_sticker_packs";
 pub const EXPORT_STICKER_PACK: &str = "msm.export_sticker_pack";
 pub const IMPORT_STICKER_PACK: &str = "msm.import_sticker_pack";
 pub const CREATE_PROVIDER_IMPORT_PLAN: &str = "msm.create_provider_import_plan";
+pub const CREATE_PROVIDER_IMPORT_JOB: &str = "msm.create_provider_import_job";
+pub const GET_PROVIDER_IMPORT_JOB: &str = "msm.get_provider_import_job";
+pub const LIST_PROVIDER_IMPORT_JOB_EVENTS: &str = "msm.list_provider_import_job_events";
 pub const UPDATE_STICKER_PACK: &str = "msm.update_sticker_pack";
 pub const DELETE_STICKER_PACK: &str = "msm.delete_sticker_pack";
 pub const LIST_FOLDERS: &str = "msm.list_folders";
@@ -57,6 +60,9 @@ pub fn list_tools_result() -> ListToolsResult {
             export_tool(),
             import_tool(),
             create_provider_import_plan_tool(),
+            create_provider_import_job_tool(),
+            get_provider_import_job_tool(),
+            list_provider_import_job_events_tool(),
             update_tool(),
             delete_tool(),
             list_folders_tool(),
@@ -205,6 +211,62 @@ fn create_provider_import_plan_tool() -> ToolDefinition {
             &["tenantId", "ownerUserId", "providerId", "remoteId"],
         ),
         annotations: read_only_annotations(),
+    }
+}
+
+fn create_provider_import_job_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: CREATE_PROVIDER_IMPORT_JOB,
+        title: "Create provider import job",
+        description: "Queue a provider sticker pack import job for Telegram or LINE.",
+        input_schema: object_schema(
+            &json!({
+                "id": { "type": "string" },
+                "tenantId": { "type": "string" },
+                "ownerUserId": { "type": "string" },
+                "providerId": { "type": "string", "enum": ["telegram", "line-stickers"] },
+                "remoteId": { "type": "string" },
+                "targetPackId": { "type": "string" },
+                "baseUrl": { "type": "string" }
+            }),
+            &["id", "tenantId", "ownerUserId", "providerId", "remoteId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn get_provider_import_job_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: GET_PROVIDER_IMPORT_JOB,
+        title: "Get provider import job",
+        description: "Read a queued or completed provider import job.",
+        input_schema: object_schema(&json!({ "jobId": { "type": "string" } }), &["jobId"]),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn list_provider_import_job_events_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_PROVIDER_IMPORT_JOB_EVENTS,
+        title: "List provider import job events",
+        description: "List ordered event records for a provider import job.",
+        input_schema: object_schema(&json!({ "jobId": { "type": "string" } }), &["jobId"]),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
     }
 }
 
@@ -1010,14 +1072,15 @@ fn read_only_annotations() -> ToolAnnotations {
 mod tests {
     use crate::tools::{
         list_tools_result, ADD_PACK_TO_FOLDER, ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK,
-        CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_PROVIDER_IMPORT_PLAN,
-        CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER,
-        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY,
-        GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
-        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
-        LIST_OIDC_PROVIDERS, LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
-        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
-        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_PROVIDER_IMPORT_JOB,
+        CREATE_PROVIDER_IMPORT_PLAN, CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK,
+        CREATE_TAG, DELETE_OIDC_PROVIDER, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
+        GET_PAT_SCOPE_POLICY, GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION,
+        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
+        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS,
+        LIST_PACK_TAGS, LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS,
+        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
+        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
         SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER,
@@ -1036,6 +1099,9 @@ mod tests {
                 EXPORT_STICKER_PACK,
                 IMPORT_STICKER_PACK,
                 CREATE_PROVIDER_IMPORT_PLAN,
+                CREATE_PROVIDER_IMPORT_JOB,
+                GET_PROVIDER_IMPORT_JOB,
+                LIST_PROVIDER_IMPORT_JOB_EVENTS,
                 UPDATE_STICKER_PACK,
                 DELETE_STICKER_PACK,
                 LIST_FOLDERS,

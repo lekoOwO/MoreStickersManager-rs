@@ -117,9 +117,10 @@ Last completed:
 - Provider import planning MCP slice: MCP now exposes `msm.create_provider_import_plan`, protected by `provider.import` and tenant resource RBAC, to create Telegram and LINE provider fetch plans for automation clients.
 - Provider import planning Web slice: Web now has a Providers workspace with a protected provider import planner for Telegram/LINE remote IDs, displays metadata requests and asset strategies, and exposes `provider.import` in PAT/role scope pickers.
 - Provider import job API foundation slice: SQLite storage now persists provider import jobs/events, and API/OpenAPI can queue/read provider import jobs plus their queued event with `provider.import` and tenant resource RBAC.
+- Provider import job MCP slice: MCP now exposes `msm.create_provider_import_job`, `msm.get_provider_import_job`, and `msm.list_provider_import_job_events`, protected by `provider.import` and tenant resource RBAC.
 
 Current task:
-- Wire provider import worker execution for queued jobs, then add CLI/MCP/Web provider import job controls.
+- Add Web provider import job controls, then implement Telegram `getFile` and LINE product parsing.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -249,9 +250,10 @@ Last verification:
 - Provider import worker foundation slice: added app-worker execution for queued LINE fixture-schema/direct-asset provider import jobs, private pack upsert, event recording, and retry scheduling for unsupported/retryable flows. Verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-app --locked`, `cargo clippy -p msm-storage -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-import-worker`.
 - Provider import service-loop slice: added `MSM_PROVIDER_IMPORT_WORKER_ENABLED`, `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS`, `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS`, and `MSM_PUBLIC_ASSET_BASE_URL` config, reqwest-backed metadata/asset runtime, service startup polling, and config tests. Verification passed with `cargo test -p msm-app config_ --locked`, `cargo test -p msm-app provider_import_worker --locked`, plus final full msm-app verification recorded below. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-import-service`.
 - Provider import job CLI slice: added `msm providers jobs create/get/events`, CLI client DTOs/methods for provider import job create/read/event APIs, human/JSON formatting, fake-client coverage, and parser/execution tests. Verification passed with `cargo test -p msm-cli provider_import --locked`; final full CLI verification is recorded in the working slice before commit. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-import-cli-jobs`.
+- Provider import job MCP slice: focused MCP tests cover provider import job tool registration and create/get/events calls. Verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-mcp provider_import --locked`, `cargo test -p msm-mcp --locked` (41 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-mcp-provider-jobs`.
 
 Next step:
-- Continue Phase E by adding MCP/Web provider import job controls, followed by Telegram `getFile` and LINE product parsing.
+- Continue Phase E by adding Web provider import job controls, followed by Telegram `getFile` and LINE product parsing.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

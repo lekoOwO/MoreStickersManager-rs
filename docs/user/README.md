@@ -422,8 +422,8 @@ Provider import planning surfaces:
 - Web: open the Providers workspace and use the Provider import planner.
 
 These currently return a safe fetch plan for Telegram or LINE provider imports.
-Executable provider import jobs and runtime parsing/download completion are
-still pending.
+Executable provider import jobs can be queued/read through API, CLI, and MCP;
+Web job controls and broader runtime parsing/download completion are still pending.
 
 Provider import job surfaces:
 
@@ -433,8 +433,11 @@ Provider import job surfaces:
 - CLI `msm providers jobs create --id <job_id> --tenant-id <tenant_id> --owner-user-id <user_id> --provider-id telegram|line-stickers --remote-id <remote_id> [--target-pack-id <pack_id>] [--base-url <url>]`
 - CLI `msm providers jobs get --job-id <job_id>`
 - CLI `msm providers jobs events --job-id <job_id>`
+- MCP `msm.create_provider_import_job`
+- MCP `msm.get_provider_import_job`
+- MCP `msm.list_provider_import_job_events`
 
-These routes persist and read queued provider import jobs with `provider.import`
+These routes and tools persist and read queued provider import jobs with `provider.import`
 authorization. The app crate now has a tested worker foundation that can execute
 LINE jobs when the fetched metadata already matches MSM's LINE fixture schema:
 it downloads direct remote sticker assets into local storage, rewrites pack
@@ -444,8 +447,8 @@ events. Service startup can poll provider import jobs when
 `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS` for polling cadence,
 `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS` for retry delay, and
 `MSM_PUBLIC_ASSET_BASE_URL` for the public URL embedded into imported sticker
-assets. CLI/MCP/Web job controls, Telegram provider `getFile` downloads, and
-LINE product-page parsing are still pending.
+assets. Web job controls, Telegram provider `getFile` downloads, and LINE
+product-page parsing are still pending.
 
 PAT foundation status:
 

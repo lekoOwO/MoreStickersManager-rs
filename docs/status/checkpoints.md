@@ -1594,3 +1594,11 @@
 - Added parser and fake-client execution coverage for provider import job commands.
 - Verification: `cargo test -p msm-cli provider_import --locked` passed with Rust temp paths pointed at `D:\Temp`; final full CLI fmt/test/clippy/diff checks were run before commit.
 - Updated PRD/status/provider/user docs; next Phase E slice should add MCP/Web provider import job controls.
+
+## 2026-05-10 Provider Import Job MCP
+
+- Added MCP tools `msm.create_provider_import_job`, `msm.get_provider_import_job`, and `msm.list_provider_import_job_events`.
+- Tool calls require `provider.import`, same-user ownership, and tenant resource RBAC, validate Telegram/LINE provider sources through the same planning boundary, persist queued jobs, and expose ordered job events.
+- Added MCP tool registry and call coverage for creating a LINE provider import job, reading it back, and listing the initial queued event.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-mcp provider_import --locked`, `cargo test -p msm-mcp --locked` (41 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider/user docs; next Phase E slice should add Web provider import job controls, then Telegram `getFile` and LINE product parsing.

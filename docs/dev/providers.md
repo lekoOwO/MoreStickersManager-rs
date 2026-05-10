@@ -63,6 +63,9 @@ same-user tenant access, and returns Telegram or LINE fetch plans suitable for
 runtime execution. CLI can call the same surface with
 `msm providers plan --tenant-id ... --owner-user-id ... --provider-id ... --remote-id ...`.
 MCP can call the same planning boundary with `msm.create_provider_import_plan`.
+MCP can also create/read provider import jobs and list events with
+`msm.create_provider_import_job`, `msm.get_provider_import_job`, and
+`msm.list_provider_import_job_events`.
 Web has a Providers workspace planner that calls the same endpoint, displays the
 metadata request and asset strategy, and keeps the flow explicitly planning-only.
 `POST /api/v1/provider-import-jobs` now persists a queued provider import job
@@ -70,8 +73,9 @@ with the same protected planning payload and records an initial queued event.
 `GET /api/v1/provider-import-jobs/{job_id}` and
 `GET /api/v1/provider-import-jobs/{job_id}/events` expose status/event reads.
 A tested app worker foundation can execute LINE direct-asset jobs, and service
-startup can run that worker loop when enabled. MCP/Web job controls, Telegram `getFile` resolution, and LINE product parsing
-are still pending. CLI can create provider import jobs and read job status/events.
+startup can run that worker loop when enabled. Web job controls, Telegram `getFile`
+resolution, and LINE product parsing are still pending. CLI and MCP can create
+provider import jobs and read job status/events.
 
 ## Provider Versus Export Target
 

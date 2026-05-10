@@ -18,10 +18,11 @@ use msm_providers::{
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
-    NewExportTarget, NewOidcProviderConfig, NewTag, OidcProviderConfigRecord, PackVisibility,
-    RoleRecord, StickerPackRecord, SubscriptionAccessResourceType, SubscriptionAccessTokenRecord,
-    SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord, TenantMemberRecord,
-    TenantRecord, UserRecord,
+    NewExportTarget, NewOidcProviderConfig, NewProviderImportJob, NewProviderImportJobEvent,
+    NewTag, OidcProviderConfigRecord, PackVisibility, ProviderImportJobEventRecord,
+    ProviderImportJobRecord, RoleRecord, StickerPackRecord, SubscriptionAccessResourceType,
+    SubscriptionAccessTokenRecord, SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord,
+    TenantMemberRecord, TenantRecord, UserRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -32,12 +33,13 @@ use crate::{
     tools::{
         execution_error_result, list_tools_result, success_result, ADD_PACK_TO_FOLDER,
         ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
-        CREATE_FOLDER, CREATE_PROVIDER_IMPORT_PLAN, CREATE_SUBSCRIPTION_GROUP,
-        CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER, DELETE_STICKER_PACK,
-        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_TELEGRAM_PUBLICATION,
-        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
-        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS,
-        LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        CREATE_FOLDER, CREATE_PROVIDER_IMPORT_JOB, CREATE_PROVIDER_IMPORT_PLAN,
+        CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER,
+        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY,
+        GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS,
+        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
+        LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS, LIST_PACK_TAGS,
+        LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
         LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
         LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
@@ -99,6 +101,11 @@ async fn call_tool(
         IMPORT_STICKER_PACK => import_sticker_pack(&state, headers, arguments).await,
         CREATE_PROVIDER_IMPORT_PLAN => {
             create_provider_import_plan(&state, headers, arguments).await
+        }
+        CREATE_PROVIDER_IMPORT_JOB => create_provider_import_job(&state, headers, arguments).await,
+        GET_PROVIDER_IMPORT_JOB => get_provider_import_job(&state, headers, arguments).await,
+        LIST_PROVIDER_IMPORT_JOB_EVENTS => {
+            list_provider_import_job_events(&state, headers, arguments).await
         }
         UPDATE_STICKER_PACK => update_sticker_pack(&state, headers, arguments).await,
         DELETE_STICKER_PACK => delete_sticker_pack(&state, headers, arguments).await,
@@ -275,6 +282,126 @@ async fn create_provider_import_plan(
         ),
         json!({ "plan": provider_import_plan_value(plan) }),
     ))
+}
+
+async fn create_provider_import_job(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<CreateProviderImportJobArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ProviderImport).await?;
+    pat.require_user(&args.owner_user_id)
+        .map_err(auth_error_message)?;
+    require_tenant_resource_access(
+        state,
+        &pat,
+        &args.tenant_id,
+        &args.owner_user_id,
+        Permission::ProviderImport,
+        "PAT user cannot import provider packs into this tenant",
+    )
+    .await
+    .map_err(auth_error_message)?;
+    validate_provider_import_source(&args.provider_id, &args.remote_id, args.base_url.as_deref())?;
+
+    let request_json = serde_json::to_string(&CreateProviderImportJobRequest {
+        id: args.id.clone(),
+        tenant_id: args.tenant_id.clone(),
+        owner_user_id: args.owner_user_id.clone(),
+        provider_id: args.provider_id.clone(),
+        remote_id: args.remote_id.clone(),
+        target_pack_id: args.target_pack_id.clone(),
+        base_url: args.base_url.clone(),
+    })
+    .map_err(|error| error.to_string())?;
+    let job = state
+        .repository()
+        .create_provider_import_job(NewProviderImportJob {
+            id: &args.id,
+            tenant_id: &args.tenant_id,
+            owner_user_id: &args.owner_user_id,
+            provider_id: &args.provider_id,
+            remote_id: &args.remote_id,
+            target_pack_id: args.target_pack_id.as_deref(),
+            request_json: &request_json,
+            max_attempts: 3,
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+    state
+        .repository()
+        .append_provider_import_job_event(NewProviderImportJobEvent {
+            job_id: &args.id,
+            sequence: 1,
+            level: "info",
+            stage: "queued",
+            message: "Provider import queued.",
+            metadata_json: "{}",
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Queued provider import job `{}`.", args.id),
+        json!({ "job": provider_import_job_value(&job)? }),
+    ))
+}
+
+async fn get_provider_import_job(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ProviderImportJobArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ProviderImport).await?;
+    let job = load_owned_provider_import_job(state, &args.job_id, &pat.user_id).await?;
+    Ok(success_result(
+        format!("Read provider import job `{}`.", args.job_id),
+        json!({ "job": provider_import_job_value(&job)? }),
+    ))
+}
+
+async fn list_provider_import_job_events(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ProviderImportJobArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ProviderImport).await?;
+    let _job = load_owned_provider_import_job(state, &args.job_id, &pat.user_id).await?;
+    let events = state
+        .repository()
+        .list_provider_import_job_events(&args.job_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .map(|event| provider_import_job_event_value(&event))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(success_result(
+        format!("Found {} provider import job event(s).", events.len()),
+        json!({ "events": events }),
+    ))
+}
+
+fn validate_provider_import_source(
+    provider_id: &str,
+    remote_id: &str,
+    base_url: Option<&str>,
+) -> Result<(), String> {
+    match provider_id {
+        "telegram" => telegram_sticker_set_fetch_plan(
+            base_url.unwrap_or("https://api.telegram.org"),
+            remote_id,
+        ),
+        "line-stickers" => {
+            line_sticker_pack_fetch_plan(base_url.unwrap_or("https://store.line.me"), remote_id)
+        }
+        other => return Err(format!("unsupported provider `{other}`")),
+    }
+    .map(|_| ())
+    .map_err(|error| error.to_string())
 }
 
 async fn update_sticker_pack(
@@ -1502,6 +1629,38 @@ fn export_job_event_value(record: &ExportJobEventRecord) -> Result<Value, String
     }))
 }
 
+fn provider_import_job_value(record: &ProviderImportJobRecord) -> Result<Value, String> {
+    Ok(json!({
+        "id": record.id,
+        "tenantId": record.tenant_id,
+        "ownerUserId": record.owner_user_id,
+        "providerId": record.provider_id,
+        "remoteId": record.remote_id,
+        "targetPackId": record.target_pack_id,
+        "status": record.status.as_str(),
+        "request": parse_json_value(&record.request_json)?,
+        "result": record.result_json.as_deref().map(parse_json_value).transpose()?,
+        "errorSummary": record.error_summary,
+        "attemptCount": record.attempt_count,
+        "maxAttempts": record.max_attempts,
+        "nextAttemptAt": record.next_attempt_at,
+        "createdAt": record.created_at,
+        "updatedAt": record.updated_at
+    }))
+}
+
+fn provider_import_job_event_value(record: &ProviderImportJobEventRecord) -> Result<Value, String> {
+    Ok(json!({
+        "jobId": record.job_id,
+        "sequence": record.sequence,
+        "level": record.level,
+        "stage": record.stage,
+        "message": record.message,
+        "metadata": parse_json_value(&record.metadata_json)?,
+        "createdAt": record.created_at
+    }))
+}
+
 fn provider_import_plan_value(plan: ProviderRemoteFetchPlan) -> Value {
     json!({
         "providerId": plan.provider_id,
@@ -1646,6 +1805,24 @@ async fn load_owned_export_job(
         Ok(job)
     } else {
         Err("PAT user does not own the export job".to_owned())
+    }
+}
+
+async fn load_owned_provider_import_job(
+    state: &ApiState,
+    job_id: &str,
+    user_id: &str,
+) -> Result<ProviderImportJobRecord, String> {
+    let job = state
+        .repository()
+        .find_provider_import_job(job_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Provider import job `{job_id}` was not found."))?;
+    if job.owner_user_id == user_id {
+        Ok(job)
+    } else {
+        Err("PAT user does not own the provider import job".to_owned())
     }
 }
 
@@ -1872,6 +2049,38 @@ struct CreateProviderImportPlanArgs {
     remote_id: String,
     #[serde(default)]
     base_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateProviderImportJobArgs {
+    id: String,
+    tenant_id: String,
+    owner_user_id: String,
+    provider_id: String,
+    remote_id: String,
+    #[serde(default)]
+    target_pack_id: Option<String>,
+    #[serde(default)]
+    base_url: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateProviderImportJobRequest {
+    id: String,
+    tenant_id: String,
+    owner_user_id: String,
+    provider_id: String,
+    remote_id: String,
+    target_pack_id: Option<String>,
+    base_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProviderImportJobArgs {
+    job_id: String,
 }
 
 #[derive(Deserialize)]

@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 44);
+        assert_eq!(tools.len(), 47);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools
             .iter()
@@ -205,6 +205,18 @@ mod tests {
                     .unwrap()
                     .len()
                     == 2));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.create_provider_import_job"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 5));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.get_provider_import_job"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.list_provider_import_job_events"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
     }
 
     #[tokio::test]
@@ -359,6 +371,88 @@ mod tests {
         assert_eq!(
             response["result"]["structuredContent"]["plan"]["metadataRequest"]["url"],
             "https://store.line.me/stickershop/product/12345/en"
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_manages_provider_import_jobs() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(
+            &state,
+            "patproviderjob",
+            "user_1",
+            [Permission::ProviderImport],
+        )
+        .await;
+        let create = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.create_provider_import_job",
+                    "arguments": {
+                        "id": "provider_job_1",
+                        "tenantId": "tenant_1",
+                        "ownerUserId": "user_1",
+                        "providerId": "line-stickers",
+                        "remoteId": "12345",
+                        "targetPackId": "pack_line_12345",
+                        "baseUrl": "https://store.line.me"
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(create["result"]["isError"], false);
+        assert_eq!(
+            create["result"]["structuredContent"]["job"]["status"],
+            "queued"
+        );
+        assert_eq!(
+            create["result"]["structuredContent"]["job"]["targetPackId"],
+            "pack_line_12345"
+        );
+
+        let get = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.get_provider_import_job",
+                    "arguments": { "jobId": "provider_job_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            get["result"]["structuredContent"]["job"]["providerId"],
+            "line-stickers"
+        );
+
+        let events = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_provider_import_job_events",
+                    "arguments": { "jobId": "provider_job_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            events["result"]["structuredContent"]["events"][0]["stage"],
+            "queued"
         );
     }
 
