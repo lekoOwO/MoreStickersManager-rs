@@ -805,33 +805,56 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn create_provider_import_job(
         &self,
         job: NewProviderImportJob<'_>,
     ) -> StorageResult<ProviderImportJobRecord> {
         let now = now();
         let status = ExportJobStatus::Queued;
-        sqlx::query(
-            "INSERT INTO provider_import_jobs (
-                id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
-                request_json, result_json, error_summary, attempt_count, max_attempts,
-                next_attempt_at, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, ?, NULL, ?, ?)",
-        )
-        .bind(job.id)
-        .bind(job.tenant_id)
-        .bind(job.owner_user_id)
-        .bind(job.provider_id)
-        .bind(job.remote_id)
-        .bind(job.target_pack_id)
-        .bind(status.as_str())
-        .bind(job.request_json)
-        .bind(job.max_attempts)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO provider_import_jobs (
+                    id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
+                    request_json, result_json, error_summary, attempt_count, max_attempts,
+                    next_attempt_at, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, NULL, 0, $9, NULL, $10, $11)",
+            )
+            .bind(job.id)
+            .bind(job.tenant_id)
+            .bind(job.owner_user_id)
+            .bind(job.provider_id)
+            .bind(job.remote_id)
+            .bind(job.target_pack_id)
+            .bind(status.as_str())
+            .bind(job.request_json)
+            .bind(job.max_attempts)
+            .bind(&now)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO provider_import_jobs (
+                    id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
+                    request_json, result_json, error_summary, attempt_count, max_attempts,
+                    next_attempt_at, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, ?, NULL, ?, ?)",
+            )
+            .bind(job.id)
+            .bind(job.tenant_id)
+            .bind(job.owner_user_id)
+            .bind(job.provider_id)
+            .bind(job.remote_id)
+            .bind(job.target_pack_id)
+            .bind(status.as_str())
+            .bind(job.request_json)
+            .bind(job.max_attempts)
+            .bind(&now)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         Ok(ProviderImportJobRecord {
             id: job.id.to_owned(),
@@ -856,60 +879,77 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
-    /// is invalid.
+    /// Returns an error when SQL fails or stored status is invalid.
     pub async fn find_provider_import_job(
         &self,
         id: &str,
     ) -> StorageResult<Option<ProviderImportJobRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
-                request_json, result_json, error_summary, attempt_count, max_attempts,
-                next_attempt_at, created_at, updated_at
-            FROM provider_import_jobs
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(&provider_import_job_select_sql("WHERE id = $1"))
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.map(|row| provider_import_job_from_row(&row))
-            .transpose()
+            row.as_ref()
+                .map(provider_import_job_from_pg_row)
+                .transpose()
+        } else {
+            let row = sqlx::query(&provider_import_job_select_sql("WHERE id = ?"))
+                .bind(id)
+                .fetch_optional(self.sqlite()?)
+                .await?;
+
+            row.as_ref()
+                .map(provider_import_job_from_sqlite_row)
+                .transpose()
+        }
     }
 
     /// Finds the oldest queued provider import job whose retry backoff has elapsed.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
-    /// is invalid.
+    /// Returns an error when SQL fails or stored status is invalid.
     pub async fn find_next_due_provider_import_job(
         &self,
         now: &str,
     ) -> StorageResult<Option<ProviderImportJobRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
-                request_json, result_json, error_summary, attempt_count, max_attempts,
-                next_attempt_at, created_at, updated_at
-            FROM provider_import_jobs
-            WHERE status = ? AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
-            ORDER BY created_at, id
-            LIMIT 1",
-        )
-        .bind(ExportJobStatus::Queued.as_str())
-        .bind(now)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let row = sqlx::query(&provider_import_job_select_sql(
+                "WHERE status = $1 AND (next_attempt_at IS NULL OR next_attempt_at <= $2)
+                ORDER BY created_at, id
+                LIMIT 1",
+            ))
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(now)
+            .fetch_optional(pool)
+            .await?;
 
-        row.map(|row| provider_import_job_from_row(&row))
-            .transpose()
+            row.as_ref()
+                .map(provider_import_job_from_pg_row)
+                .transpose()
+        } else {
+            let row = sqlx::query(&provider_import_job_select_sql(
+                "WHERE status = ? AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+                ORDER BY created_at, id
+                LIMIT 1",
+            ))
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(now)
+            .fetch_optional(self.sqlite()?)
+            .await?;
+
+            row.as_ref()
+                .map(provider_import_job_from_sqlite_row)
+                .transpose()
+        }
     }
 
     /// Updates a provider import job status and optional payload fields.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn update_provider_import_job_status(
         &self,
         id: &str,
@@ -917,48 +957,83 @@ impl StorageRepository {
         error_summary: Option<&str>,
         result_json: Option<&str>,
     ) -> StorageResult<bool> {
-        let result = sqlx::query(
-            "UPDATE provider_import_jobs
-            SET status = ?, error_summary = ?, result_json = ?, next_attempt_at = NULL, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(status.as_str())
-        .bind(error_summary)
-        .bind(result_json)
-        .bind(now())
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "UPDATE provider_import_jobs
+                SET status = $1, error_summary = $2, result_json = $3, next_attempt_at = NULL, updated_at = $4
+                WHERE id = $5",
+            )
+            .bind(status.as_str())
+            .bind(error_summary)
+            .bind(result_json)
+            .bind(now())
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query(
+                "UPDATE provider_import_jobs
+                SET status = ?, error_summary = ?, result_json = ?, next_attempt_at = NULL, updated_at = ?
+                WHERE id = ?",
+            )
+            .bind(status.as_str())
+            .bind(error_summary)
+            .bind(result_json)
+            .bind(now())
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?
+            .rows_affected()
+        };
 
-        Ok(result.rows_affected() == 1)
+        Ok(rows_affected == 1)
     }
 
     /// Records a failed provider import attempt and requeues the job.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn record_provider_import_job_retry(
         &self,
         id: &str,
         error_summary: &str,
         next_attempt_at: &str,
     ) -> StorageResult<Option<ProviderImportJobRecord>> {
-        let result = sqlx::query(
-            "UPDATE provider_import_jobs
-            SET status = ?, error_summary = ?, result_json = NULL,
-                attempt_count = attempt_count + 1, next_attempt_at = ?, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(ExportJobStatus::Queued.as_str())
-        .bind(error_summary)
-        .bind(next_attempt_at)
-        .bind(now())
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "UPDATE provider_import_jobs
+                SET status = $1, error_summary = $2, result_json = NULL,
+                    attempt_count = attempt_count + 1, next_attempt_at = $3, updated_at = $4
+                WHERE id = $5",
+            )
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(error_summary)
+            .bind(next_attempt_at)
+            .bind(now())
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query(
+                "UPDATE provider_import_jobs
+                SET status = ?, error_summary = ?, result_json = NULL,
+                    attempt_count = attempt_count + 1, next_attempt_at = ?, updated_at = ?
+                WHERE id = ?",
+            )
+            .bind(ExportJobStatus::Queued.as_str())
+            .bind(error_summary)
+            .bind(next_attempt_at)
+            .bind(now())
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?
+            .rows_affected()
+        };
 
-        if result.rows_affected() == 0 {
+        if rows_affected == 0 {
             Ok(None)
         } else {
             self.find_provider_import_job(id).await
@@ -969,26 +1044,43 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn record_provider_import_job_failure(
         &self,
         id: &str,
         error_summary: &str,
     ) -> StorageResult<Option<ProviderImportJobRecord>> {
-        let result = sqlx::query(
-            "UPDATE provider_import_jobs
-            SET status = ?, error_summary = ?, result_json = NULL,
-                attempt_count = attempt_count + 1, next_attempt_at = NULL, updated_at = ?
-            WHERE id = ?",
-        )
-        .bind(ExportJobStatus::Failed.as_str())
-        .bind(error_summary)
-        .bind(now())
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "UPDATE provider_import_jobs
+                SET status = $1, error_summary = $2, result_json = NULL,
+                    attempt_count = attempt_count + 1, next_attempt_at = NULL, updated_at = $3
+                WHERE id = $4",
+            )
+            .bind(ExportJobStatus::Failed.as_str())
+            .bind(error_summary)
+            .bind(now())
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query(
+                "UPDATE provider_import_jobs
+                SET status = ?, error_summary = ?, result_json = NULL,
+                    attempt_count = attempt_count + 1, next_attempt_at = NULL, updated_at = ?
+                WHERE id = ?",
+            )
+            .bind(ExportJobStatus::Failed.as_str())
+            .bind(error_summary)
+            .bind(now())
+            .bind(id)
+            .execute(self.sqlite()?)
+            .await?
+            .rows_affected()
+        };
 
-        if result.rows_affected() == 0 {
+        if rows_affected == 0 {
             Ok(None)
         } else {
             self.find_provider_import_job(id).await
@@ -999,26 +1091,43 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn append_provider_import_job_event(
         &self,
         event: NewProviderImportJobEvent<'_>,
     ) -> StorageResult<ProviderImportJobEventRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO provider_import_job_events (
-                job_id, sequence, level, stage, message, metadata_json, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(event.job_id)
-        .bind(event.sequence)
-        .bind(event.level)
-        .bind(event.stage)
-        .bind(event.message)
-        .bind(event.metadata_json)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            sqlx::query(
+                "INSERT INTO provider_import_job_events (
+                    job_id, sequence, level, stage, message, metadata_json, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            )
+            .bind(event.job_id)
+            .bind(event.sequence)
+            .bind(event.level)
+            .bind(event.stage)
+            .bind(event.message)
+            .bind(event.metadata_json)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "INSERT INTO provider_import_job_events (
+                    job_id, sequence, level, stage, message, metadata_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(event.job_id)
+            .bind(event.sequence)
+            .bind(event.level)
+            .bind(event.stage)
+            .bind(event.message)
+            .bind(event.metadata_json)
+            .bind(&now)
+            .execute(self.sqlite()?)
+            .await?;
+        }
 
         Ok(ProviderImportJobEventRecord {
             job_id: event.job_id.to_owned(),
@@ -1035,33 +1144,42 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_provider_import_job_events(
         &self,
         job_id: &str,
     ) -> StorageResult<Vec<ProviderImportJobEventRecord>> {
-        let rows = sqlx::query(
-            "SELECT job_id, sequence, level, stage, message, metadata_json, created_at
-            FROM provider_import_job_events
-            WHERE job_id = ?
-            ORDER BY sequence",
-        )
-        .bind(job_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        if let Ok(pool) = self.postgres() {
+            let rows = sqlx::query(
+                "SELECT job_id, sequence, level, stage, message, metadata_json, created_at
+                FROM provider_import_job_events
+                WHERE job_id = $1
+                ORDER BY sequence",
+            )
+            .bind(job_id)
+            .fetch_all(pool)
+            .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| ProviderImportJobEventRecord {
-                job_id: row.get("job_id"),
-                sequence: row.get("sequence"),
-                level: row.get("level"),
-                stage: row.get("stage"),
-                message: row.get("message"),
-                metadata_json: row.get("metadata_json"),
-                created_at: row.get("created_at"),
-            })
-            .collect())
+            Ok(rows
+                .iter()
+                .map(provider_import_job_event_from_pg_row)
+                .collect())
+        } else {
+            let rows = sqlx::query(
+                "SELECT job_id, sequence, level, stage, message, metadata_json, created_at
+                FROM provider_import_job_events
+                WHERE job_id = ?
+                ORDER BY sequence",
+            )
+            .bind(job_id)
+            .fetch_all(self.sqlite()?)
+            .await?;
+
+            Ok(rows
+                .iter()
+                .map(provider_import_job_event_from_sqlite_row)
+                .collect())
+        }
     }
 
     /// Inserts or replaces a prepared media cache record.
@@ -1573,9 +1691,17 @@ fn export_job_event_from_pg_row(row: &PgRow) -> ExportJobEventRecord {
     }
 }
 
-fn provider_import_job_from_row(
-    row: &sqlx::sqlite::SqliteRow,
-) -> StorageResult<ProviderImportJobRecord> {
+fn provider_import_job_select_sql(where_clause: &str) -> String {
+    format!(
+        "SELECT id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
+            request_json, result_json, error_summary, attempt_count, max_attempts,
+            next_attempt_at, created_at, updated_at
+        FROM provider_import_jobs
+        {where_clause}"
+    )
+}
+
+fn provider_import_job_from_sqlite_row(row: &SqliteRow) -> StorageResult<ProviderImportJobRecord> {
     let status_value: String = row.get("status");
     let status = ExportJobStatus::from_storage(&status_value).ok_or(
         StorageError::InvalidExportJobStatus {
@@ -1600,6 +1726,57 @@ fn provider_import_job_from_row(
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
+}
+
+fn provider_import_job_from_pg_row(row: &PgRow) -> StorageResult<ProviderImportJobRecord> {
+    let status_value: String = row.get("status");
+    let status = ExportJobStatus::from_storage(&status_value).ok_or(
+        StorageError::InvalidExportJobStatus {
+            status: status_value,
+        },
+    )?;
+
+    Ok(ProviderImportJobRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        provider_id: row.get("provider_id"),
+        remote_id: row.get("remote_id"),
+        target_pack_id: row.get("target_pack_id"),
+        status,
+        request_json: row.get("request_json"),
+        result_json: row.get("result_json"),
+        error_summary: row.get("error_summary"),
+        attempt_count: row.get("attempt_count"),
+        max_attempts: row.get("max_attempts"),
+        next_attempt_at: row.get("next_attempt_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+fn provider_import_job_event_from_sqlite_row(row: &SqliteRow) -> ProviderImportJobEventRecord {
+    ProviderImportJobEventRecord {
+        job_id: row.get("job_id"),
+        sequence: row.get("sequence"),
+        level: row.get("level"),
+        stage: row.get("stage"),
+        message: row.get("message"),
+        metadata_json: row.get("metadata_json"),
+        created_at: row.get("created_at"),
+    }
+}
+
+fn provider_import_job_event_from_pg_row(row: &PgRow) -> ProviderImportJobEventRecord {
+    ProviderImportJobEventRecord {
+        job_id: row.get("job_id"),
+        sequence: row.get("sequence"),
+        level: row.get("level"),
+        stage: row.get("stage"),
+        message: row.get("message"),
+        metadata_json: row.get("metadata_json"),
+        created_at: row.get("created_at"),
+    }
 }
 
 fn export_target_from_sqlite_row(row: &SqliteRow) -> ExportTargetRecord {

@@ -1904,3 +1904,11 @@
 - Added optional PostgreSQL provider config repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite provider config coverage active.
 - Updated PRD/status docs to show provider config PostgreSQL progress while keeping provider import-job and portability parity open.
 - Verification: `cargo test -p msm-storage provider_config --locked`.
+
+## 2026-05-11 PostgreSQL Provider Import Job Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for provider import-job create/find/due/status/retry/failure operations.
+- Added backend-aware SQLite/PostgreSQL SQL paths for provider import-job event append/list operations.
+- Added optional PostgreSQL provider import-job repository coverage that runs when `MSM_TEST_POSTGRES_URL` is configured, while keeping existing SQLite provider import-job coverage active.
+- Updated PRD/status docs to show provider import-job PostgreSQL progress while keeping portability and membership-removal parity open.
+- Verification: `cargo test -p msm-storage provider_import --locked`.

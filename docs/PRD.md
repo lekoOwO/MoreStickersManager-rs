@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue Phase J PostgreSQL support: expand backend-aware repository execution into export, provider, and portability repositories; then add CI coverage for PostgreSQL when service credentials are available.
+1. Continue Phase J PostgreSQL support: expand backend-aware repository execution into portability repositories and membership removal; then add CI coverage for PostgreSQL when service credentials are available.
 
 Each queue item must update this section when completed or reordered.
 
@@ -309,7 +309,7 @@ tests and docs are updated.
 - [x] PostgreSQL migrations.
   Progress: backend-specific `migrations/sqlite` and `migrations/postgres` sets exist; PostgreSQL migrations use boolean columns where repository models expect booleans, and `DbPool::run_migrations` selects the correct migrator per backend. Live PostgreSQL repository coverage remains in the next checkbox.
 - [ ] Repository abstraction verified against SQLite and PostgreSQL.
-  Progress: tenant/user/tenant-member core identity operations, sticker-pack upsert/find/list/read-record operations, folder create/list/find operations, tag create/list/find operations, subscription-group create/list/find operations, folder-pack, pack-tag, and subscription-group-pack membership add/list operations, personal-access-token create/list/find/verify/revoke operations, Web-session create/verify/revoke operations, local-credential create/read/verify operations, OIDC provider/state/user-link operations, subscription access-token create/list/find/verify/rotate/revoke operations, export-target create/list/find/update/delete operations, export-job create/find/queue/retry/status/recovery/event operations, prepared-media upsert/find operations, and Telegram publication/mapping upsert/find/list operations, and provider config upsert/list/find/delete operations now have backend-aware SQLite/PostgreSQL SQL paths and shared contract tests. The PostgreSQL legs run when `MSM_TEST_POSTGRES_URL` is configured; membership removal plus provider import-job and portability repositories remain SQLite-only.
+  Progress: tenant/user/tenant-member core identity operations, sticker-pack upsert/find/list/read-record operations, folder create/list/find operations, tag create/list/find operations, subscription-group create/list/find operations, folder-pack, pack-tag, and subscription-group-pack membership add/list operations, personal-access-token create/list/find/verify/revoke operations, Web-session create/verify/revoke operations, local-credential create/read/verify operations, OIDC provider/state/user-link operations, subscription access-token create/list/find/verify/rotate/revoke operations, export-target create/list/find/update/delete operations, export-job create/find/queue/retry/status/recovery/event operations, prepared-media upsert/find operations, and Telegram publication/mapping upsert/find/list operations, provider config upsert/list/find/delete operations, and provider import-job create/find/due/status/retry/failure/event operations now have backend-aware SQLite/PostgreSQL SQL paths and shared contract tests. The PostgreSQL legs run when `MSM_TEST_POSTGRES_URL` is configured; membership removal plus portability repositories remain SQLite-only.
 - [ ] CI matrix for both database backends.
 - [ ] Deployment docs for both backends.
 

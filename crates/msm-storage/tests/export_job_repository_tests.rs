@@ -2,7 +2,8 @@ use msm_domain::{Sticker, StickerPack};
 use msm_storage::{
     models::{
         ExportJobStatus, NewExportJob, NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset,
-        NewProviderConfig, NewTelegramPublication, NewTelegramStickerMapping, PackVisibility,
+        NewProviderConfig, NewProviderImportJob, NewProviderImportJobEvent, NewTelegramPublication,
+        NewTelegramStickerMapping, PackVisibility,
     },
     DatabaseConfig, DbPool, StorageRepository,
 };
@@ -138,6 +139,85 @@ async fn postgres_provider_configs_roundtrip_when_configured() {
         .await
         .unwrap()
         .is_none());
+}
+
+#[tokio::test]
+async fn postgres_provider_import_jobs_events_and_retries_roundtrip_when_configured() {
+    let Some(context) = postgres_export_context().await else {
+        return;
+    };
+    let job_id = format!("provider_job_{}", context.suffix);
+    let retry_at = "2026-05-08T11:00:00Z";
+
+    let queued = context
+        .repo
+        .create_provider_import_job(NewProviderImportJob {
+            id: &job_id,
+            tenant_id: &context.tenant_id,
+            owner_user_id: &context.user_id,
+            provider_id: "telegram",
+            remote_id: "remote-pack",
+            target_pack_id: Some(&context.pack_id),
+            request_json: r#"{"mode":"import"}"#,
+            max_attempts: 3,
+        })
+        .await
+        .unwrap();
+    assert_eq!(queued.status, ExportJobStatus::Queued);
+
+    assert!(context
+        .repo
+        .update_provider_import_job_status(&job_id, ExportJobStatus::Running, None, None)
+        .await
+        .unwrap());
+    assert_eq!(
+        context
+            .repo
+            .find_provider_import_job(&job_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        ExportJobStatus::Running
+    );
+    context
+        .repo
+        .append_provider_import_job_event(NewProviderImportJobEvent {
+            job_id: &job_id,
+            sequence: 1,
+            level: "info",
+            stage: "fetch",
+            message: "fetched remote pack",
+            metadata_json: "{}",
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        context
+            .repo
+            .list_provider_import_job_events(&job_id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    let retry = context
+        .repo
+        .record_provider_import_job_retry(&job_id, "rate limited", retry_at)
+        .await
+        .unwrap()
+        .expect("provider import job should exist");
+    assert_eq!(retry.attempt_count, 1);
+    assert_eq!(
+        context
+            .repo
+            .find_next_due_provider_import_job(retry_at)
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        job_id
+    );
 }
 
 #[tokio::test]
