@@ -23,6 +23,7 @@ use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 
 pub mod export_worker;
 pub mod provider_import;
+pub mod provider_import_worker;
 
 pub use export_worker::{
     spawn_export_worker_if_enabled, ConversionCommandRunner, ExportWorker, ExportWorkerConfig,
@@ -35,6 +36,10 @@ pub use export_worker::{
 pub use provider_import::{
     internalize_direct_remote_pack_assets, ProviderAssetDownloader, ProviderImportError,
     ProviderImportResult, ProviderMetadataFetcher,
+};
+pub use provider_import_worker::{
+    ProviderImportWorker, ProviderImportWorkerConfig, ProviderImportWorkerError,
+    ProviderImportWorkerResult,
 };
 
 static EMBEDDED_WEB_DIR: Dir<'_> = include_dir!("$OUT_DIR/web-dist-embed");

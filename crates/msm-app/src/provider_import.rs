@@ -87,7 +87,7 @@ pub async fn internalize_direct_remote_pack_assets(
     pack_public_id: &str,
     public_asset_base_url: &str,
     strategy: ProviderAssetDownloadStrategy,
-    downloader: &impl ProviderAssetDownloader,
+    downloader: &(impl ProviderAssetDownloader + ?Sized),
     asset_store: &LocalAssetStore,
 ) -> ProviderImportResult<StickerPack> {
     if strategy != ProviderAssetDownloadStrategy::DirectRemoteUrls {

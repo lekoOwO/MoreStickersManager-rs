@@ -1570,3 +1570,11 @@
 - Provider import job routes require `provider.import`, same-user ownership, and tenant resource RBAC; job creation stores the resolved provider fetch plan in the request payload and appends an initial queued event.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-storage provider_import_jobs --locked`, `cargo test -p msm-api provider_import --locked`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider/user docs; next Phase E slice should wire provider import worker execution for queued jobs, then add CLI/MCP/Web job controls.
+
+## 2026-05-10 Provider Import Worker Foundation
+
+- Added `msm-app` provider import worker execution for queued LINE fixture-schema/direct-asset jobs.
+- The worker marks jobs running, fetches metadata through injected runtime boundaries, normalizes LINE packs, downloads direct assets into `LocalAssetStore`, rewrites image URLs to MSM-hosted assets, upserts private packs, records success/failure events, and schedules retryable failures.
+- Added storage helpers for due provider import job selection and status/retry/failure transitions.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-app --locked`, `cargo clippy -p msm-storage -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider/user docs; next Phase E slice should wire the provider import worker into service loop/config, then add CLI/MCP/Web job controls.

@@ -8,14 +8,14 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 ## Current Focus
 
-Telegram export has moved past basic dry-run and publication. The P33
-reconciliation usability slice is functionally covered across Web, API, CLI,
-and MCP; the active handoff focus is tenant/RBAC administration.
+Phase E provider ingestion is the active focus. Provider import planning exists
+across API, CLI, MCP, and Web; API job persistence exists; and `msm-app` now has
+a tested worker foundation that can execute queued LINE direct-asset imports
+when invoked by runtime code.
 
-Web, CLI, and MCP now expose dry-run, reconciliation mode,
-execute-reconciliation, and destructive mirror guard controls without requiring
-hand-written worker JSON. OpenAPI now documents the target-specific
-`TelegramExportJobOptions` schema behind the generic export job options object.
+The remaining immediate gaps are service-loop/config wiring for provider import
+jobs, CLI/MCP/Web job status controls, Telegram `getFile` download execution,
+and LINE product-page parsing beyond fixture-schema metadata.
 
 ## Recently Completed
 
@@ -171,8 +171,11 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Wire provider import worker execution for queued jobs, then add CLI/MCP/Web
-   provider import job controls.
+1. Wire provider import worker execution into the service loop/config.
+2. Add CLI/MCP/Web provider import job controls.
+3. Implement Telegram provider import `getFile`/file download execution.
+4. Implement LINE product-page parsing into the existing LINE normalization
+   schema.
 
 ## Later Planned Work
 

@@ -43,6 +43,13 @@ feed resulting JSON to `StickerProvider`, then internalize assets.
   `LocalAssetStore`, sets sticker filenames, rewrites image URLs to MSM-hosted
   `/assets/packs/{pack_id}/{filename}` URLs, and updates the pack logo.
 
+`ProviderImportWorker` can now pick a queued provider import job, mark it
+running, execute the injected metadata fetch, normalize LINE fixture-schema
+metadata, download direct remote sticker assets into `LocalAssetStore`, upsert a
+private MSM pack, record success/failure events, and schedule retryable failures
+with backoff. This is intentionally still a worker foundation: service-loop
+configuration is not wired yet.
+
 Telegram still needs runtime `getFile` resolution before it can reuse the asset
 internalization path. LINE still needs a runtime parser that converts fetched
 product data into the existing LINE fixture schema.
@@ -59,8 +66,9 @@ metadata request and asset strategy, and keeps the flow explicitly planning-only
 with the same protected planning payload and records an initial queued event.
 `GET /api/v1/provider-import-jobs/{job_id}` and
 `GET /api/v1/provider-import-jobs/{job_id}/events` expose status/event reads.
-Worker execution, CLI/MCP/Web job controls, Telegram `getFile` resolution, and
-LINE product parsing are still pending.
+A tested app worker foundation can execute LINE direct-asset jobs when invoked
+by runtime code or tests. Service-loop wiring, CLI/MCP/Web job controls,
+Telegram `getFile` resolution, and LINE product parsing are still pending.
 
 ## Provider Versus Export Target
 

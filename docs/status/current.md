@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: Auth Providers / tenant administration settings.
+Phase: Provider ingestion / queued import execution.
 
 Last completed:
 - P23 Web pack import: dashboard `.stickerpack` JSON import backed by the protected pack import API.
@@ -246,9 +246,10 @@ Last verification:
 - Provider import planning MCP slice: focused RED/GREEN test `cargo test -p msm-mcp provider_import --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked` (40 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-mcp-provider-plan`.
 - Provider import planning Web slice: focused RED/GREEN tests with `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client`; full verification with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (59 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check`.
 - Provider import job API foundation slice: focused RED/GREEN tests with `cargo test -p msm-storage provider_import_jobs --locked` and `cargo test -p msm-api provider_import --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-import-jobs`.
+- Provider import worker foundation slice: added app-worker execution for queued LINE fixture-schema/direct-asset provider import jobs, private pack upsert, event recording, and retry scheduling for unsupported/retryable flows. Verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-app --locked`, `cargo clippy -p msm-storage -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-import-worker`.
 
 Next step:
-- Continue Phase E by wiring provider import worker execution for queued jobs, then add CLI/MCP/Web provider import job controls.
+- Continue Phase E by wiring provider import worker execution into the service loop/config, then add CLI/MCP/Web provider import job controls, followed by Telegram `getFile` and LINE product parsing.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

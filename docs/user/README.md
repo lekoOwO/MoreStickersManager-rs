@@ -432,8 +432,13 @@ Provider import job API foundation:
 - `GET /api/v1/provider-import-jobs/{job_id}/events`
 
 These routes persist and read queued provider import jobs with `provider.import`
-authorization. Background execution and CLI/MCP/Web job controls are not wired
-yet.
+authorization. The app crate now has a tested worker foundation that can execute
+LINE jobs when the fetched metadata already matches MSM's LINE fixture schema:
+it downloads direct remote sticker assets into local storage, rewrites pack
+image URLs to MSM-hosted assets, upserts a private sticker pack, and records job
+events. Service startup does not yet poll provider import jobs, and CLI/MCP/Web
+job controls, Telegram provider `getFile` downloads, and LINE product-page
+parsing are still pending.
 
 PAT foundation status:
 

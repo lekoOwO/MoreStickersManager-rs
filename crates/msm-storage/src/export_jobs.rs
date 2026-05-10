@@ -495,6 +495,124 @@ impl StorageRepository {
             .transpose()
     }
 
+    /// Finds the oldest queued provider import job whose retry backoff has elapsed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
+    /// is invalid.
+    pub async fn find_next_due_provider_import_job(
+        &self,
+        now: &str,
+    ) -> StorageResult<Option<ProviderImportJobRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
+                request_json, result_json, error_summary, attempt_count, max_attempts,
+                next_attempt_at, created_at, updated_at
+            FROM provider_import_jobs
+            WHERE status = ? AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+            ORDER BY created_at, id
+            LIMIT 1",
+        )
+        .bind(ExportJobStatus::Queued.as_str())
+        .bind(now)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.map(|row| provider_import_job_from_row(&row))
+            .transpose()
+    }
+
+    /// Updates a provider import job status and optional payload fields.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn update_provider_import_job_status(
+        &self,
+        id: &str,
+        status: ExportJobStatus,
+        error_summary: Option<&str>,
+        result_json: Option<&str>,
+    ) -> StorageResult<bool> {
+        let result = sqlx::query(
+            "UPDATE provider_import_jobs
+            SET status = ?, error_summary = ?, result_json = ?, next_attempt_at = NULL, updated_at = ?
+            WHERE id = ?",
+        )
+        .bind(status.as_str())
+        .bind(error_summary)
+        .bind(result_json)
+        .bind(now())
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Records a failed provider import attempt and requeues the job.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn record_provider_import_job_retry(
+        &self,
+        id: &str,
+        error_summary: &str,
+        next_attempt_at: &str,
+    ) -> StorageResult<Option<ProviderImportJobRecord>> {
+        let result = sqlx::query(
+            "UPDATE provider_import_jobs
+            SET status = ?, error_summary = ?, result_json = NULL,
+                attempt_count = attempt_count + 1, next_attempt_at = ?, updated_at = ?
+            WHERE id = ?",
+        )
+        .bind(ExportJobStatus::Queued.as_str())
+        .bind(error_summary)
+        .bind(next_attempt_at)
+        .bind(now())
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            Ok(None)
+        } else {
+            self.find_provider_import_job(id).await
+        }
+    }
+
+    /// Records a terminal provider import failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn record_provider_import_job_failure(
+        &self,
+        id: &str,
+        error_summary: &str,
+    ) -> StorageResult<Option<ProviderImportJobRecord>> {
+        let result = sqlx::query(
+            "UPDATE provider_import_jobs
+            SET status = ?, error_summary = ?, result_json = NULL,
+                attempt_count = attempt_count + 1, next_attempt_at = NULL, updated_at = ?
+            WHERE id = ?",
+        )
+        .bind(ExportJobStatus::Failed.as_str())
+        .bind(error_summary)
+        .bind(now())
+        .bind(id)
+        .execute(self.sqlite()?)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            Ok(None)
+        } else {
+            self.find_provider_import_job(id).await
+        }
+    }
+
     /// Appends an ordered provider import job event.
     ///
     /// # Errors
@@ -1024,10 +1142,25 @@ mod tests {
             .list_provider_import_job_events("provider_import_1")
             .await
             .unwrap();
+        let updated = repo
+            .update_provider_import_job_status(
+                "provider_import_1",
+                ExportJobStatus::Succeeded,
+                None,
+                Some(r#"{"packId":"pack_line_12345"}"#),
+            )
+            .await
+            .unwrap();
+        let due = repo
+            .find_next_due_provider_import_job(&chrono::Utc::now().to_rfc3339())
+            .await
+            .unwrap();
 
         assert_eq!(job.status, ExportJobStatus::Queued);
         assert_eq!(found.provider_id, "line-stickers");
         assert_eq!(found.target_pack_id.as_deref(), Some("pack_line_12345"));
         assert_eq!(events[0].stage, "queued");
+        assert!(updated);
+        assert!(due.is_none());
     }
 }
