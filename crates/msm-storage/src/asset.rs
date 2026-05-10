@@ -54,6 +54,18 @@ impl LocalAssetStore {
         Self { root: root.into() }
     }
 
+    /// Checks whether the local asset directory can be prepared for pack assets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the directory cannot be created or inspected.
+    pub async fn check(&self) -> StorageResult<()> {
+        let dir = self.root.join("assets").join("packs");
+        fs::create_dir_all(&dir).await?;
+        fs::metadata(&dir).await?;
+        Ok(())
+    }
+
     /// Writes asset bytes to the local asset store.
     ///
     /// # Errors

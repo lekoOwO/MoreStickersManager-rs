@@ -74,6 +74,23 @@ impl DbPool {
             Self::Postgres(pool) => Some(pool),
         }
     }
+
+    /// Checks whether the database pool can execute a trivial query.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the pool cannot acquire a connection or execute the query.
+    pub async fn check(&self) -> StorageResult<()> {
+        match self {
+            Self::Sqlite(pool) => {
+                sqlx::query("SELECT 1").execute(pool).await?;
+            }
+            Self::Postgres(pool) => {
+                sqlx::query("SELECT 1").execute(pool).await?;
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Connects to a `SQLite` database URL.

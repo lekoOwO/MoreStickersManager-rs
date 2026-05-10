@@ -47,6 +47,7 @@ pub fn build_router_with_body_limit(state: ApiState, request_body_limit_bytes: u
 fn system_routes() -> Router<ApiState> {
     Router::new()
         .route("/healthz", get(routes::health::healthz))
+        .route("/readyz", get(routes::health::readyz))
         .route("/openapi.json", get(openapi::openapi_json))
         .route(
             "/assets/packs/{pack_public_id}/{filename}",
@@ -342,6 +343,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn readiness_endpoint_reports_dependency_diagnostics() {
+        let response = build_router(test_state().await)
+            .oneshot(
+                Request::builder()
+                    .uri("/readyz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(json["status"], "ok");
+        assert!(json["components"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|component| component["name"] == "database" && component["status"] == "ok"));
+        assert!(json["components"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|component| component["name"] == "assetStore" && component["status"] == "ok"));
+    }
+
+    #[tokio::test]
     async fn openapi_endpoint_contains_health_path() {
         let response = build_router(test_state().await)
             .oneshot(
@@ -358,6 +388,7 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
         assert!(json["paths"].get("/healthz").is_some());
+        assert!(json["paths"].get("/readyz").is_some());
         assert!(json["paths"]
             .get("/api/public/packs/{pack_id}/stickerpack")
             .is_some());

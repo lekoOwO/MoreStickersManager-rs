@@ -1968,3 +1968,10 @@
 - Added app configuration for `MSM_IMPORT_RATE_LIMIT_REQUESTS` and `MSM_IMPORT_RATE_LIMIT_WINDOW_SECS`, including invalid-value tests.
 - Updated PRD/status/user docs to mark the import/upload request-size and rate-limit Phase K item complete.
 - Verification: `cargo test -p msm-api -p msm-app -p msm-mcp --locked`; `cargo clippy -p msm-api -p msm-app -p msm-mcp --all-targets --locked -- -D warnings`; `cargo fmt --all -- --check`; `git diff --check`.
+## 2026-05-11 Production Diagnostics
+
+- Added storage readiness checks for database `SELECT 1` and local asset-store directory preparation.
+- Added `GET /readyz` with database and asset-store component diagnostics plus OpenAPI schema/path coverage.
+- Added structured JSON stderr logs for service startup, listen, and HTTP request summaries without query strings or credentials.
+- Updated PRD/status/user docs to mark structured logs and operator-facing health diagnostics complete.
+- Verification: `cargo test -p msm-storage -p msm-api -p msm-app --locked`; `cargo clippy -p msm-storage -p msm-api -p msm-app --all-targets --locked -- -D warnings`; `cargo fmt --all -- --check`; `git diff --check`.

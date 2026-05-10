@@ -373,6 +373,12 @@ Database deployment choices:
 - Repository tests use `MSM_TEST_POSTGRES_URL` for optional PostgreSQL legs; the
   project CI starts a PostgreSQL service and sets this variable for the Rust job.
 
+Operator diagnostics:
+
+- `GET /healthz` is the lightweight liveness endpoint and returns `{ "status": "ok" }`.
+- `GET /readyz` checks the database and local asset store and returns component diagnostics. Use it for deployment readiness probes and operational troubleshooting.
+- Service logs are JSON lines on stderr for startup, listen, and HTTP request events. Request logs include method, path, status, and elapsed milliseconds; they do not include query strings or credentials.
+
 Current MCP endpoint:
 
 ```text

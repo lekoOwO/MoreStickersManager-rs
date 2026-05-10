@@ -11,10 +11,10 @@ use crate::{
         CreateSubscriptionGroupRequest, CreateTagRequest, CreatedPersonalAccessTokenResponse,
         CreatedSubscriptionAccessTokenResponse, ExportJobEventResponse, ExportJobResponse,
         ExportTargetKindResponse, ExportTargetResponse, FolderPackResponse, FolderResponse,
-        HealthResponse, ImportPackRequest, ImportUserDataRequest, LocalUserResponse,
-        LoginLocalUserRequest, OidcLoginStartResponse, OidcProviderResponse, PackTagResponse,
-        PatScopePolicyResponse, PersonalAccessTokenResponse, ProviderConfigResponse,
-        ProviderHttpHeaderResponse, ProviderHttpRequestPlanResponse,
+        HealthComponentResponse, HealthDiagnosticsResponse, HealthResponse, ImportPackRequest,
+        ImportUserDataRequest, LocalUserResponse, LoginLocalUserRequest, OidcLoginStartResponse,
+        OidcProviderResponse, PackTagResponse, PatScopePolicyResponse, PersonalAccessTokenResponse,
+        ProviderConfigResponse, ProviderHttpHeaderResponse, ProviderHttpRequestPlanResponse,
         ProviderImportJobEventResponse, ProviderImportJobResponse, ProviderImportPlanResponse,
         RegisterLocalUserRequest, SubscriptionAccessResourceTypeDto,
         SubscriptionAccessTokenResponse, SubscriptionGroupPackResponse, SubscriptionGroupResponse,
@@ -36,6 +36,7 @@ use crate::{
 #[openapi(
     paths(
         health::healthz,
+        health::readyz,
         auth::register_local_user,
         auth::login_local_user,
         auth::start_oidc_login,
@@ -105,6 +106,8 @@ use crate::{
     ),
     components(schemas(
         HealthResponse,
+        HealthDiagnosticsResponse,
+        HealthComponentResponse,
         ApiErrorBody,
         ImportPackRequest,
         CreateProviderImportPlanRequest,

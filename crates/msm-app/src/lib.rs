@@ -10,8 +10,9 @@ use std::{
 
 use axum::{
     body::Body,
-    extract::OriginalUri,
+    extract::{OriginalUri, Request},
     http::{header::CONTENT_TYPE, Response, StatusCode, Uri},
+    middleware::{from_fn, Next},
     routing::get,
     Router,
 };
@@ -287,6 +288,37 @@ pub fn build_app_router(
         .fallback(get(move |OriginalUri(uri): OriginalUri| {
             serve_web_asset(uri, assets.clone())
         }))
+        .layer(from_fn(log_request))
+}
+
+pub fn log_service_event(event: &str, fields: impl serde::Serialize) {
+    let payload = serde_json::json!({
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "level": "info",
+        "event": event,
+        "fields": serde_json::to_value(fields).unwrap_or_else(|error| {
+            serde_json::json!({ "serializationError": error.to_string() })
+        }),
+    });
+    eprintln!("{payload}");
+}
+
+async fn log_request(request: Request, next: Next) -> Response<Body> {
+    let method = request.method().as_str().to_owned();
+    let path = request.uri().path().to_owned();
+    let started = std::time::Instant::now();
+    let response = next.run(request).await;
+    let status = response.status().as_u16();
+    log_service_event(
+        "http_request",
+        serde_json::json!({
+            "method": method,
+            "path": path,
+            "status": status,
+            "elapsedMs": started.elapsed().as_millis(),
+        }),
+    );
+    response
 }
 
 #[derive(Clone, Debug)]

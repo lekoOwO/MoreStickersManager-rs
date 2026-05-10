@@ -34,6 +34,15 @@ impl StorageRepository {
         Self { pool }
     }
 
+    /// Checks whether the backing database is reachable.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database pool cannot execute a trivial query.
+    pub async fn check(&self) -> StorageResult<()> {
+        self.pool.check().await
+    }
+
     /// Creates a tenant row.
     ///
     /// # Errors

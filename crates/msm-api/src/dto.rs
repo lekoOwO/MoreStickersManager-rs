@@ -137,6 +137,21 @@ pub struct HealthResponse {
     pub status: &'static str,
 }
 
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthDiagnosticsResponse {
+    pub status: &'static str,
+    pub components: Vec<HealthComponentResponse>,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthComponentResponse {
+    pub name: &'static str,
+    pub status: &'static str,
+    pub message: String,
+}
+
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]

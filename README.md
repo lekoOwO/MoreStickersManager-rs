@@ -62,6 +62,7 @@ The current CLI is an HTTP client for the API slice:
 
 ```powershell
 cargo run -p msm-cli -- health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/readyz
 cargo run -p msm-cli -- packs list --user-id user_1
 cargo run -p msm-cli -- packs import --tenant-id tenant_1 --owner-user-id user_1 --pack-id pack_1 --visibility private --file pack.stickerpack
 cargo run -p msm-cli -- packs export --pack-id pack_1 --output -
@@ -245,6 +246,11 @@ Environment variables:
 - `MSM_EXPORT_WORKER_POLL_INTERVAL_MS`: export worker poll interval, default `5000`.
 - `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`: optional JSON array of export targets to create/update at startup.
 
+
+Structured operator logs and readiness diagnostics:
+
+- `msm-app` writes JSON lines to stderr for `service_starting`, `service_listening`, and `http_request` events. HTTP request logs include method, path, status, and elapsed milliseconds, and intentionally omit query strings and credentials.
+- `GET /readyz` returns dependency diagnostics for the database and local asset store. It returns `200` when all components are ready and `503` when any component is degraded.
 Database backends:
 
 - SQLite: use `sqlite:data/msm.sqlite3` or another `sqlite:<path>` URL. Ensure
