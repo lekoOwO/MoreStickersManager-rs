@@ -435,7 +435,7 @@ Provider config responses redact keys containing `token` or `secret` at any JSON
 depth. Update requests replace the stored config with the submitted JSON.
 Listing requires `provider.import` and tenant membership; create/update/delete
 require `provider.import` plus tenant admin or a custom role that grants provider
-import management. CLI controls are available; MCP/Web controls and worker
+import management. CLI and MCP controls are available; Web controls and worker
 consumption of these stored configs are still in progress.
 
 CLI equivalents:

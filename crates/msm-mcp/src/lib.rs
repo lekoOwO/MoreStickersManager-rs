@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 47);
+        assert_eq!(tools.len(), 50);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools
             .iter()
@@ -216,6 +216,18 @@ mod tests {
         assert!(tools
             .iter()
             .any(|tool| tool["name"] == "msm.list_provider_import_job_events"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.list_provider_configs"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.upsert_provider_config"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 6));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.delete_provider_config"
                 && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
     }
 
@@ -1407,6 +1419,110 @@ mod tests {
         .await;
         assert_eq!(
             list_after_delete["result"]["structuredContent"]["providers"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_manages_provider_configs() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(
+            &state,
+            "providerconfigs",
+            "user_1",
+            [Permission::ProviderImport],
+        )
+        .await;
+
+        let upsert = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 44,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.upsert_provider_config",
+                    "arguments": {
+                        "id": "provider_telegram",
+                        "tenantId": "tenant_1",
+                        "providerId": "telegram",
+                        "name": "Telegram Import Bot",
+                        "config": { "botToken": "123456:secret", "nested": { "clientSecret": "secret_1" } },
+                        "isEnabled": true
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(upsert["result"]["isError"], false);
+        assert_eq!(
+            upsert["result"]["structuredContent"]["config"]["config"]["botToken"],
+            "<redacted>"
+        );
+        assert_eq!(
+            upsert["result"]["structuredContent"]["config"]["config"]["nested"]["clientSecret"],
+            "<redacted>"
+        );
+
+        let list = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 45,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_provider_configs",
+                    "arguments": { "tenantId": "tenant_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            list["result"]["structuredContent"]["configs"][0]["id"],
+            "provider_telegram"
+        );
+        assert_eq!(
+            list["result"]["structuredContent"]["configs"][0]["config"]["botToken"],
+            "<redacted>"
+        );
+
+        let deleted = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 46,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.delete_provider_config",
+                    "arguments": { "id": "provider_telegram" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(deleted["result"]["structuredContent"]["deleted"], true);
+
+        let list_after_delete = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 47,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_provider_configs",
+                    "arguments": { "tenantId": "tenant_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            list_after_delete["result"]["structuredContent"]["configs"]
                 .as_array()
                 .unwrap()
                 .len(),

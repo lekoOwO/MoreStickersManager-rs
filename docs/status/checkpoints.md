@@ -1640,3 +1640,11 @@
 - Added parser and fake-client execution tests covering list, disabled upsert, JSON config forwarding, and delete behavior.
 - Verification: focused `cargo test -p msm-cli provider_config --locked` passed with Rust temp paths pointed at `D:\Temp`; final full CLI fmt/test/clippy/diff checks are run before commit.
 - Updated PRD/status/provider/user docs; next Phase E slice should add MCP/Web provider config controls and then worker config consumption.
+
+## 2026-05-10 Provider Config MCP
+
+- Added MCP tools `msm.list_provider_configs`, `msm.upsert_provider_config`, and `msm.delete_provider_config`.
+- Tool calls use `provider.import`, allow same-tenant members to list redacted configs, and require tenant admin authorization for upsert/delete.
+- Provider config responses recursively redact JSON keys containing `token` or `secret`, matching the API/CLI contract.
+- Verification: focused `cargo test -p msm-mcp provider_config --locked` passed with Rust temp paths pointed at `D:\Temp`; final full MCP fmt/test/clippy/diff checks are run before commit.
+- Updated PRD/status/provider/user docs; next Phase E slice should add Web provider config controls and then worker config consumption.

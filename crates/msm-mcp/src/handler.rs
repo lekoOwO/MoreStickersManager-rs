@@ -18,11 +18,12 @@ use msm_providers::{
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
-    NewExportTarget, NewOidcProviderConfig, NewProviderImportJob, NewProviderImportJobEvent,
-    NewTag, OidcProviderConfigRecord, PackVisibility, ProviderImportJobEventRecord,
-    ProviderImportJobRecord, RoleRecord, StickerPackRecord, SubscriptionAccessResourceType,
-    SubscriptionAccessTokenRecord, SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord,
-    TenantMemberRecord, TenantRecord, UserRecord,
+    NewExportTarget, NewOidcProviderConfig, NewProviderConfig, NewProviderImportJob,
+    NewProviderImportJobEvent, NewTag, OidcProviderConfigRecord, PackVisibility,
+    ProviderConfigRecord, ProviderImportJobEventRecord, ProviderImportJobRecord, RoleRecord,
+    StickerPackRecord, SubscriptionAccessResourceType, SubscriptionAccessTokenRecord,
+    SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord, TenantMemberRecord,
+    TenantRecord, UserRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -35,17 +36,17 @@ use crate::{
         ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
         CREATE_FOLDER, CREATE_PROVIDER_IMPORT_JOB, CREATE_PROVIDER_IMPORT_PLAN,
         CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER,
-        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY,
-        GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS,
-        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
-        LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS, LIST_PACK_TAGS,
-        LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
-        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
-        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        DELETE_PROVIDER_CONFIG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
+        GET_PAT_SCOPE_POLICY, GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION,
+        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
+        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS,
+        LIST_PACK_TAGS, LIST_PROVIDER_CONFIGS, LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS,
+        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
+        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
         SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER,
-        UPSERT_TENANT_ROLE,
+        UPSERT_PROVIDER_CONFIG, UPSERT_TENANT_ROLE,
     },
 };
 
@@ -107,6 +108,9 @@ async fn call_tool(
         LIST_PROVIDER_IMPORT_JOB_EVENTS => {
             list_provider_import_job_events(&state, headers, arguments).await
         }
+        LIST_PROVIDER_CONFIGS => list_provider_configs(&state, headers, arguments).await,
+        UPSERT_PROVIDER_CONFIG => upsert_provider_config(&state, headers, arguments).await,
+        DELETE_PROVIDER_CONFIG => delete_provider_config(&state, headers, arguments).await,
         UPDATE_STICKER_PACK => update_sticker_pack(&state, headers, arguments).await,
         DELETE_STICKER_PACK => delete_sticker_pack(&state, headers, arguments).await,
         LIST_FOLDERS => list_folders(&state, headers, arguments).await,
@@ -383,6 +387,103 @@ async fn list_provider_import_job_events(
         format!("Found {} provider import job event(s).", events.len()),
         json!({ "events": events }),
     ))
+}
+
+async fn list_provider_configs(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<TenantIdArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ProviderImport).await?;
+    state
+        .repository()
+        .find_tenant_member(&args.tenant_id, &pat.user_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "PAT user cannot access provider configs for this tenant".to_owned())?;
+    let configs = state
+        .repository()
+        .list_provider_configs(&args.tenant_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .iter()
+        .map(provider_config_value)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(success_result(
+        format!("Found {} provider config(s).", configs.len()),
+        json!({ "configs": configs }),
+    ))
+}
+
+async fn upsert_provider_config(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<UpsertProviderConfigArgs>(arguments)?;
+    let _pat =
+        require_tenant_admin(state, headers, &args.tenant_id, Permission::ProviderImport).await?;
+    validate_provider_config_source(&args.provider_id)?;
+    let name = require_non_empty("name", &args.name)?;
+    let config_json = serde_json::to_string(&args.config).map_err(|error| error.to_string())?;
+    let config = state
+        .repository()
+        .upsert_provider_config(NewProviderConfig {
+            id: &args.id,
+            tenant_id: &args.tenant_id,
+            provider_id: &args.provider_id,
+            name: &name,
+            config_json: &config_json,
+            is_enabled: args.is_enabled,
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Upserted provider config `{}`.", args.id),
+        json!({ "config": provider_config_value(&config)? }),
+    ))
+}
+
+async fn delete_provider_config(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ProviderConfigIdArgs>(arguments)?;
+    let existing = state
+        .repository()
+        .find_provider_config(&args.id)
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("provider config not found: {}", args.id))?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &existing.tenant_id,
+        Permission::ProviderImport,
+    )
+    .await?;
+    let deleted = state
+        .repository()
+        .delete_provider_config(&args.id)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Deleted provider config `{}`.", args.id),
+        json!({ "deleted": deleted, "id": args.id }),
+    ))
+}
+
+fn validate_provider_config_source(provider_id: &str) -> Result<(), String> {
+    if matches!(provider_id, "telegram" | "line-stickers") {
+        Ok(())
+    } else {
+        Err(format!("unsupported provider config source: {provider_id}"))
+    }
 }
 
 fn validate_provider_import_source(
@@ -1781,6 +1882,19 @@ fn oidc_provider_value(record: &OidcProviderConfigRecord) -> Value {
     })
 }
 
+fn provider_config_value(record: &ProviderConfigRecord) -> Result<Value, String> {
+    Ok(json!({
+        "id": record.id,
+        "tenantId": record.tenant_id,
+        "providerId": record.provider_id,
+        "name": record.name,
+        "config": redacted_config(&record.config_json)?,
+        "isEnabled": record.is_enabled,
+        "createdAt": record.created_at,
+        "updatedAt": record.updated_at
+    }))
+}
+
 fn subscription_access_resource_type_value(
     resource_type: &SubscriptionAccessResourceType,
 ) -> &'static str {
@@ -2297,6 +2411,23 @@ struct UpsertOidcProviderArgs {
 struct DeleteOidcProviderArgs {
     tenant_id: String,
     provider_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpsertProviderConfigArgs {
+    id: String,
+    tenant_id: String,
+    provider_id: String,
+    name: String,
+    config: Value,
+    is_enabled: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProviderConfigIdArgs {
+    id: String,
 }
 
 #[derive(Deserialize)]
