@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 40);
+        assert_eq!(tools.len(), 43);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools
             .iter()
@@ -154,6 +154,33 @@ mod tests {
             .iter()
             .any(|tool| tool["name"] == "msm.get_telegram_publication"
                 && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+    }
+
+    #[tokio::test]
+    async fn tools_list_returns_oidc_provider_tools() {
+        let response = post_mcp(
+            test_state().await,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/list"
+            }),
+        )
+        .await;
+
+        let tools = response["result"]["tools"].as_array().unwrap();
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.list_oidc_providers"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 1));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.upsert_oidc_provider"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 8));
+        assert!(tools
+            .iter()
+            .any(|tool| tool["name"] == "msm.delete_oidc_provider"
+                && tool["inputSchema"]["required"].as_array().unwrap().len() == 2));
     }
 
     #[tokio::test]
@@ -1113,6 +1140,113 @@ mod tests {
         assert_eq!(
             get_settings["result"]["structuredContent"]["settings"]["name"],
             "Production"
+        );
+    }
+
+    #[tokio::test]
+    async fn tools_call_manages_oidc_providers() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(
+            &state,
+            "oidcproviders",
+            "user_1",
+            [Permission::TenantManageSettings],
+        )
+        .await;
+
+        let upsert = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 40,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.upsert_oidc_provider",
+                    "arguments": {
+                        "tenantId": "tenant_1",
+                        "providerId": "google",
+                        "displayName": "Google Workspace",
+                        "issuerUrl": "https://accounts.google.com",
+                        "clientId": "client_1",
+                        "clientSecret": "secret_1",
+                        "scopes": ["openid", "email"],
+                        "isEnabled": true,
+                        "allowRegistration": false
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(upsert["result"]["isError"], false);
+        assert_eq!(
+            upsert["result"]["structuredContent"]["provider"]["clientSecret"],
+            "[redacted]"
+        );
+        assert_eq!(
+            upsert["result"]["structuredContent"]["provider"]["allowRegistration"],
+            false
+        );
+
+        let list = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 41,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_oidc_providers",
+                    "arguments": { "tenantId": "tenant_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            list["result"]["structuredContent"]["providers"][0]["id"],
+            "google"
+        );
+        assert_eq!(
+            list["result"]["structuredContent"]["providers"][0]["clientSecret"],
+            "[redacted]"
+        );
+
+        let deleted = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 42,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.delete_oidc_provider",
+                    "arguments": { "tenantId": "tenant_1", "providerId": "google" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(deleted["result"]["structuredContent"]["deleted"], true);
+
+        let list_after_delete = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 43,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.list_oidc_providers",
+                    "arguments": { "tenantId": "tenant_1" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(
+            list_after_delete["result"]["structuredContent"]["providers"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
         );
     }
 

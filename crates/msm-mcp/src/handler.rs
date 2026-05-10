@@ -14,9 +14,10 @@ use msm_exporters::{
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
-    NewExportTarget, NewTag, PackVisibility, RoleRecord, StickerPackRecord,
-    SubscriptionAccessResourceType, SubscriptionAccessTokenRecord, SubscriptionGroupRecord,
-    TagRecord, TelegramPublicationRecord, TenantMemberRecord, TenantRecord, UserRecord,
+    NewExportTarget, NewOidcProviderConfig, NewTag, OidcProviderConfigRecord, PackVisibility,
+    RoleRecord, StickerPackRecord, SubscriptionAccessResourceType, SubscriptionAccessTokenRecord,
+    SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord, TenantMemberRecord,
+    TenantRecord, UserRecord,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -28,15 +29,16 @@ use crate::{
         execution_error_result, list_tools_result, success_result, ADD_PACK_TO_FOLDER,
         ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
         CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG,
-        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY,
-        GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
-        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
-        LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
-        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
-        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        DELETE_OIDC_PROVIDER, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
+        GET_PAT_SCOPE_POLICY, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK,
+        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS,
+        LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS, LIST_PACK_TAGS, LIST_STICKER_PACKS,
+        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
+        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
-        SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_TENANT_ROLE,
+        SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER,
+        UPSERT_TENANT_ROLE,
     },
 };
 
@@ -125,6 +127,9 @@ async fn call_tool(
         SET_TENANT_USER_STATUS => set_tenant_user_status(&state, headers, arguments).await,
         LIST_TENANT_ROLES => list_tenant_roles(&state, headers, arguments).await,
         UPSERT_TENANT_ROLE => upsert_tenant_role(&state, headers, arguments).await,
+        LIST_OIDC_PROVIDERS => list_oidc_providers(&state, headers, arguments).await,
+        UPSERT_OIDC_PROVIDER => upsert_oidc_provider(&state, headers, arguments).await,
+        DELETE_OIDC_PROVIDER => delete_oidc_provider(&state, headers, arguments).await,
         LIST_EXPORT_TARGET_KINDS => list_export_target_kinds(&state, headers, arguments).await,
         LIST_EXPORT_TARGETS => list_export_targets(&state, headers, arguments).await,
         CREATE_EXPORT_TARGET => create_export_target(&state, headers, arguments).await,
@@ -990,6 +995,102 @@ async fn upsert_tenant_role(
     ))
 }
 
+async fn list_oidc_providers(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<TenantIdArgs>(arguments)?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let providers = state
+        .repository()
+        .list_oidc_provider_configs(&args.tenant_id)
+        .await
+        .map_err(|error| error.to_string())?
+        .iter()
+        .map(oidc_provider_value)
+        .collect::<Vec<_>>();
+
+    Ok(success_result(
+        format!("Found {} OIDC provider(s).", providers.len()),
+        json!({ "providers": providers }),
+    ))
+}
+
+async fn upsert_oidc_provider(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<UpsertOidcProviderArgs>(arguments)?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let display_name = require_non_empty("displayName", &args.display_name)?;
+    let issuer_url = require_non_empty("issuerUrl", &args.issuer_url)?;
+    let client_id = require_non_empty("clientId", &args.client_id)?;
+    let client_secret = require_non_empty("clientSecret", &args.client_secret)?;
+    let scopes = normalize_scopes(args.scopes)?;
+    let provider = state
+        .repository()
+        .upsert_oidc_provider_config(NewOidcProviderConfig {
+            id: &args.provider_id,
+            tenant_id: &args.tenant_id,
+            display_name: &display_name,
+            issuer_url: &issuer_url,
+            client_id: &client_id,
+            client_secret: &client_secret,
+            scopes: &scopes,
+            is_enabled: args.is_enabled,
+            allow_registration: args.allow_registration.unwrap_or(false),
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Upserted OIDC provider `{}`.", args.provider_id),
+        json!({ "provider": oidc_provider_value(&provider) }),
+    ))
+}
+
+async fn delete_oidc_provider(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<DeleteOidcProviderArgs>(arguments)?;
+    let _pat = require_tenant_admin(
+        state,
+        headers,
+        &args.tenant_id,
+        Permission::TenantManageSettings,
+    )
+    .await?;
+    let deleted = state
+        .repository()
+        .delete_oidc_provider_config(&args.tenant_id, &args.provider_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    if !deleted {
+        return Err("OIDC provider not found".to_owned());
+    }
+
+    Ok(success_result(
+        format!("Deleted OIDC provider `{}`.", args.provider_id),
+        json!({ "deleted": true, "tenantId": args.tenant_id, "providerId": args.provider_id }),
+    ))
+}
+
 async fn list_export_target_kinds(
     state: &ApiState,
     headers: &HeaderMap,
@@ -1432,6 +1533,22 @@ fn tenant_role_value(record: &RoleRecord) -> Value {
     })
 }
 
+fn oidc_provider_value(record: &OidcProviderConfigRecord) -> Value {
+    json!({
+        "id": record.id,
+        "tenantId": record.tenant_id,
+        "displayName": record.display_name,
+        "issuerUrl": record.issuer_url,
+        "clientId": record.client_id,
+        "clientSecret": "[redacted]",
+        "scopes": record.scopes,
+        "isEnabled": record.is_enabled,
+        "allowRegistration": record.allow_registration,
+        "createdAt": record.created_at,
+        "updatedAt": record.updated_at
+    })
+}
+
 fn subscription_access_resource_type_value(
     resource_type: &SubscriptionAccessResourceType,
 ) -> &'static str {
@@ -1591,6 +1708,28 @@ fn require_removed(removed: bool) -> Result<(), String> {
         Ok(())
     } else {
         Err("membership link was not found".to_owned())
+    }
+}
+
+fn require_non_empty(label: &str, value: &str) -> Result<String, String> {
+    let value = value.trim();
+    if value.is_empty() {
+        Err(format!("{label} must not be empty"))
+    } else {
+        Ok(value.to_owned())
+    }
+}
+
+fn normalize_scopes(scopes: Vec<String>) -> Result<BTreeSet<String>, String> {
+    let scopes = scopes
+        .into_iter()
+        .map(|scope| scope.trim().to_owned())
+        .filter(|scope| !scope.is_empty())
+        .collect::<BTreeSet<_>>();
+    if scopes.is_empty() {
+        Err("scopes must not be empty".to_owned())
+    } else {
+        Ok(scopes)
     }
 }
 
@@ -1844,6 +1983,27 @@ struct UpsertTenantRoleArgs {
     role_id: String,
     name: String,
     permissions: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpsertOidcProviderArgs {
+    tenant_id: String,
+    provider_id: String,
+    display_name: String,
+    issuer_url: String,
+    client_id: String,
+    client_secret: String,
+    scopes: Vec<String>,
+    is_enabled: bool,
+    allow_registration: Option<bool>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteOidcProviderArgs {
+    tenant_id: String,
+    provider_id: String,
 }
 
 #[derive(Deserialize)]

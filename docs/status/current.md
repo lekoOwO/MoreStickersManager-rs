@@ -108,7 +108,7 @@ Last completed:
 - OIDC provider configuration storage slice: RED/GREEN test with `cargo test -p msm-storage oidc_provider_configs_can_be_upserted_listed_and_deleted --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-api-rbac-check`.
 
 Current task:
-- Complete remaining non-API OIDC/SSO admin and client surfaces after adding CLI OIDC provider administration.
+- Complete remaining OIDC/SSO Web provider/login controls and SSO-backed account documentation after adding MCP OIDC provider administration.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -222,9 +222,10 @@ Last verification:
 - OIDC provider tenant admin API slice: RED/GREEN test with `cargo test -p msm-api tenant_oidc_provider_routes_require_tenant_admin_and_redact_secret --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-api --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 - OIDC nonce and trusted-claim validation slice: RED/GREEN test with `cargo test -p msm-api oidc_callback_rejects_nonce_and_provider_claim_mismatches --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`.
 - OIDC provider CLI parity slice: RED failure observed with `cargo test -p msm-cli parses_tenant_administration_parity_commands --locked` before implementing commands; targeted GREEN tests `cargo test -p msm-cli tenant_oidc --locked` and `cargo test -p msm-cli parses_tenant_administration_parity_commands --locked`; full suite `cargo test -p msm-cli --locked` passed. Final verification: `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked` (51 tests), `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
+- OIDC provider MCP parity slice: RED failure observed with `cargo test -p msm-mcp tools_call_manages_oidc_providers --locked` before implementing tools; final verification: `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked` (38 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 
 Next step:
-- Continue Phase D by adding MCP OIDC provider administration, then Web provider/login controls and SSO-backed account documentation.
+- Continue Phase D with Web OIDC provider/login controls and SSO-backed account documentation.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

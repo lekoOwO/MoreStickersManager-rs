@@ -36,6 +36,9 @@ pub const UPDATE_TENANT_SETTINGS: &str = "msm.update_tenant_settings";
 pub const SET_TENANT_USER_STATUS: &str = "msm.set_tenant_user_status";
 pub const LIST_TENANT_ROLES: &str = "msm.list_tenant_roles";
 pub const UPSERT_TENANT_ROLE: &str = "msm.upsert_tenant_role";
+pub const LIST_OIDC_PROVIDERS: &str = "msm.list_oidc_providers";
+pub const UPSERT_OIDC_PROVIDER: &str = "msm.upsert_oidc_provider";
+pub const DELETE_OIDC_PROVIDER: &str = "msm.delete_oidc_provider";
 pub const LIST_EXPORT_TARGET_KINDS: &str = "msm.list_export_target_kinds";
 pub const LIST_EXPORT_TARGETS: &str = "msm.list_export_targets";
 pub const CREATE_EXPORT_TARGET: &str = "msm.create_export_target";
@@ -81,6 +84,9 @@ pub fn list_tools_result() -> ListToolsResult {
             set_tenant_user_status_tool(),
             list_tenant_roles_tool(),
             upsert_tenant_role_tool(),
+            list_oidc_providers_tool(),
+            upsert_oidc_provider_tool(),
+            delete_oidc_provider_tool(),
             list_export_target_kinds_tool(),
             list_export_targets_tool(),
             create_export_target_tool(),
@@ -732,6 +738,82 @@ fn upsert_tenant_role_tool() -> ToolDefinition {
     }
 }
 
+fn list_oidc_providers_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: LIST_OIDC_PROVIDERS,
+        title: "List OIDC providers",
+        description:
+            "List OIDC provider configurations for one tenant. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" }
+            }),
+            &["tenantId"],
+        ),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn upsert_oidc_provider_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: UPSERT_OIDC_PROVIDER,
+        title: "Upsert OIDC provider",
+        description:
+            "Add or update a tenant OIDC provider configuration. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "providerId": { "type": "string" },
+                "displayName": { "type": "string" },
+                "issuerUrl": { "type": "string" },
+                "clientId": { "type": "string" },
+                "clientSecret": { "type": "string" },
+                "scopes": { "type": "array", "items": { "type": "string" } },
+                "isEnabled": { "type": "boolean" },
+                "allowRegistration": { "type": "boolean" }
+            }),
+            &[
+                "tenantId",
+                "providerId",
+                "displayName",
+                "issuerUrl",
+                "clientId",
+                "clientSecret",
+                "scopes",
+                "isEnabled",
+            ],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn delete_oidc_provider_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: DELETE_OIDC_PROVIDER,
+        title: "Delete OIDC provider",
+        description:
+            "Delete one tenant OIDC provider configuration. Requires tenant admin membership.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "providerId": { "type": "string" }
+            }),
+            &["tenantId", "providerId"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: true,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
 fn list_export_target_kinds_tool() -> ToolDefinition {
     ToolDefinition {
         name: LIST_EXPORT_TARGET_KINDS,
@@ -898,15 +980,17 @@ mod tests {
     use crate::tools::{
         list_tools_result, ADD_PACK_TO_FOLDER, ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK,
         CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP,
-        CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK,
-        GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS,
-        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
-        LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_PACK_TAGS, LIST_STICKER_PACKS,
-        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
-        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER, DELETE_STICKER_PACK,
+        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_TELEGRAM_PUBLICATION,
+        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
+        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS,
+        LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
+        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
-        SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_TENANT_ROLE,
+        SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER,
+        UPSERT_TENANT_ROLE,
     };
 
     #[test]
@@ -949,6 +1033,9 @@ mod tests {
                 SET_TENANT_USER_STATUS,
                 LIST_TENANT_ROLES,
                 UPSERT_TENANT_ROLE,
+                LIST_OIDC_PROVIDERS,
+                UPSERT_OIDC_PROVIDER,
+                DELETE_OIDC_PROVIDER,
                 LIST_EXPORT_TARGET_KINDS,
                 LIST_EXPORT_TARGETS,
                 CREATE_EXPORT_TARGET,

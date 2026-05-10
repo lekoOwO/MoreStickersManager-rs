@@ -1457,3 +1457,15 @@
 - Verification: RED compile failure was observed before implementation, then `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked` (51 tests), `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/user docs; next Phase D slice should add MCP OIDC provider
   administration before Web provider/login controls and SSO-backed account docs.
+
+## 2026-05-10 OIDC Provider MCP Parity
+
+- Added MCP tools/list entries for `msm.list_oidc_providers`,
+  `msm.upsert_oidc_provider`, and `msm.delete_oidc_provider`.
+- Added MCP tool handlers that require `tenant.manage_settings` plus admin tenant
+  membership, store provider configs through the same repository path as the API,
+  redact `clientSecret` in structured responses, and delete missing providers
+  as tool errors.
+- Verification: RED failure was observed before implementation, then `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked` (38 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/user docs; next Phase D slice should add Web OIDC
+  provider/login controls and SSO-backed account docs.

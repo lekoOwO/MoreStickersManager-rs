@@ -609,13 +609,19 @@ When `localRegistrationEnabled` is `false`, existing users can still log in,
 but `POST /api/v1/auth/local/register` rejects new registrations into that
 existing tenant. New-tenant bootstrap registrations are still allowed.
 
-OIDC provider administration currently exists on the API and CLI surfaces. Provider
+OIDC provider administration currently exists on the API, CLI, and MCP surfaces. Provider
 responses redact `clientSecret`; update calls replace it with the submitted
 secret. CLI commands:
 
 - `msm tenants oidc-providers list --tenant-id <tenant_id>`
 - `msm tenants oidc-providers upsert --tenant-id <tenant_id> --provider-id <provider_id> --display-name <name> --issuer-url <issuer_url> --client-id <client_id> --client-secret <client_secret> --scope openid [--scope email] [--disabled] [--deny-registration]`
 - `msm tenants oidc-providers delete --tenant-id <tenant_id> --provider-id <provider_id>`
+
+MCP tools:
+
+- `msm.list_oidc_providers`
+- `msm.upsert_oidc_provider`
+- `msm.delete_oidc_provider`
 
 The API request body is:
 
