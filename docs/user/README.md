@@ -363,6 +363,15 @@ POST /mcp
 
 Supported methods are `initialize`, `ping`, `tools/list`, and `tools/call`.
 
+
+Portability MCP tools:
+
+- `msm.export_user_data` with `{ "userId": "<user_id>" }` and a same-user
+  `pack.read` PAT returns portable user JSON.
+- `msm.import_user_data` with `{ "tenantId": "<tenant_id>", "export": ... }`
+  and a same-user `import.run` PAT imports that JSON into a tenant where the
+  user has import access.
+
 Pack MCP tools:
 
 - `msm.list_sticker_packs`
@@ -525,6 +534,13 @@ CLI:
 
 - `msm portability export --user-id <user_id> --output <path|->`
 - `msm portability import --tenant-id <tenant_id> --file <path>`
+
+MCP:
+
+- `msm.export_user_data` exports portable user data for a same-user `pack.read`
+  PAT.
+- `msm.import_user_data` imports a portable export into a target tenant for a
+  same-user `import.run` PAT with tenant import access.
 
 Web:
 

@@ -67,7 +67,7 @@ mod tests {
         .await;
 
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 53);
+        assert_eq!(tools.len(), 55);
         assert_eq!(tools[0]["name"], "msm.list_sticker_packs");
         assert!(tools
             .iter()
@@ -338,6 +338,72 @@ mod tests {
 
         assert_eq!(response["result"]["isError"], false);
         assert_eq!(response["result"]["structuredContent"]["imported"], true);
+    }
+
+    #[tokio::test]
+    async fn tools_call_exports_and_imports_portable_user_data() {
+        let state = seeded_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_2", "Target")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .add_tenant_member("tenant_2", "user_1", "admin")
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "patportable",
+            "user_1",
+            [Permission::PackRead, Permission::ImportRun],
+        )
+        .await;
+        let export_response = post_mcp_with_auth(
+            state.clone(),
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.export_user_data",
+                    "arguments": { "userId": "user_1" }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(export_response["result"]["isError"], false);
+        assert_eq!(
+            export_response["result"]["structuredContent"]["export"]["user"]["id"],
+            "user_1"
+        );
+
+        let import_response = post_mcp_with_auth(
+            state,
+            &token,
+            json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "msm.import_user_data",
+                    "arguments": {
+                        "tenantId": "tenant_2",
+                        "export": export_response["result"]["structuredContent"]["export"].clone()
+                    }
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(import_response["result"]["isError"], false);
+        assert_eq!(
+            import_response["result"]["structuredContent"]["tenantId"],
+            "tenant_2"
+        );
     }
 
     #[tokio::test]

@@ -25,6 +25,7 @@ use msm_storage::models::{
     SubscriptionGroupRecord, TagRecord, TelegramPublicationRecord, TenantMemberRecord,
     TenantRecord, UserRecord,
 };
+use msm_storage::portability::{export_user_data, import_user_data, PortableUserExport};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
@@ -37,12 +38,13 @@ use crate::{
         CREATE_FOLDER, CREATE_PROVIDER_IMPORT_JOB, CREATE_PROVIDER_IMPORT_PLAN,
         CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_EXPORT_TARGET,
         DELETE_OIDC_PROVIDER, DELETE_PROVIDER_CONFIG, DELETE_STICKER_PACK, EXPORT_STICKER_PACK,
-        GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION,
-        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
-        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS,
-        LIST_PACK_TAGS, LIST_PROVIDER_CONFIGS, LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS,
-        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
-        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        EXPORT_USER_DATA, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_PROVIDER_IMPORT_JOB,
+        GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, IMPORT_USER_DATA,
+        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS,
+        LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS, LIST_PACK_TAGS, LIST_PROVIDER_CONFIGS,
+        LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
+        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REQUEUE_EXPORT_JOB, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
         SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_EXPORT_TARGET, UPDATE_STICKER_PACK,
@@ -100,6 +102,8 @@ async fn call_tool(
         LIST_STICKER_PACKS => list_sticker_packs(&state, headers, arguments).await,
         EXPORT_STICKER_PACK => export_sticker_pack(&state, headers, arguments).await,
         IMPORT_STICKER_PACK => import_sticker_pack(&state, headers, arguments).await,
+        EXPORT_USER_DATA => export_user_data_tool(&state, headers, arguments).await,
+        IMPORT_USER_DATA => import_user_data_tool(&state, headers, arguments).await,
         CREATE_PROVIDER_IMPORT_PLAN => {
             create_provider_import_plan(&state, headers, arguments).await
         }
@@ -244,6 +248,57 @@ async fn import_sticker_pack(
     Ok(success_result(
         format!("Imported sticker pack `{}`.", args.pack_id),
         json!({ "imported": true, "packId": args.pack_id }),
+    ))
+}
+
+async fn export_user_data_tool(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<UserIdArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::PackRead).await?;
+    pat.require_user(&args.user_id)
+        .map_err(auth_error_message)?;
+    let export = export_user_data(state.repository(), &args.user_id)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Exported portable user data for `{}`.", args.user_id),
+        json!({ "export": export }),
+    ))
+}
+
+async fn import_user_data_tool(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<ImportUserDataArgs>(arguments)?;
+    let export: PortableUserExport =
+        serde_json::from_value(args.export).map_err(|error| error.to_string())?;
+    let pat = require_tool_pat(state, headers, Permission::ImportRun).await?;
+    pat.require_user(&export.user.id)
+        .map_err(auth_error_message)?;
+    require_tenant_resource_access(
+        state,
+        &pat,
+        &args.tenant_id,
+        &export.user.id,
+        Permission::ImportRun,
+        "PAT user cannot import portable data into this tenant",
+    )
+    .await
+    .map_err(auth_error_message)?;
+
+    import_user_data(state.repository(), &args.tenant_id, &export)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!("Imported portable user data into `{}`.", args.tenant_id),
+        json!({ "imported": true, "tenantId": args.tenant_id }),
     ))
 }
 
@@ -2247,6 +2302,19 @@ struct ImportStickerPackArgs {
     pack_id: String,
     visibility: String,
     pack: Value,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UserIdArgs {
+    user_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportUserDataArgs {
+    tenant_id: String,
+    export: Value,
 }
 
 #[derive(Deserialize)]

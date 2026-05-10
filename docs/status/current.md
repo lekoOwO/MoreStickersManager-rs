@@ -1,8 +1,9 @@
 # Current Status
 
-Phase: Asset privacy and CDN.
+Phase: Data portability.
 
 Last completed:
+- Data portability MCP slice: added `msm.export_user_data` and `msm.import_user_data` tools with same-user PAT enforcement, tenant import authorization, registry/schema coverage, and portable JSON round-trip tests.
 - Data portability Web slice: added a Migration workspace with portable user export/import controls backed by the Web API client.
 - Data portability CLI slice: added `msm portability export` and `msm portability import` commands backed by the portable user API.
 - Data portability API slice: added protected API/OpenAPI portable user export/import endpoints backed by existing storage portability helpers.

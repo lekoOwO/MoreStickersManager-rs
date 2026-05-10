@@ -10,11 +10,12 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 Phase I data portability is the active focus. Storage portability helpers,
 protected API/OpenAPI user export/import endpoints, CLI export/import commands,
-and Web migration controls now exist. The next work is MCP portability tools and
-a migration completeness audit.
+Web migration controls, and MCP export/import tools now exist. The next work is
+a migration completeness audit and compatibility coverage before PostgreSQL support.
 
 ## Recently Completed
 
+- MCP portable user export/import tools now expose instance migration workflows through `msm.export_user_data` and `msm.import_user_data` with same-user PAT checks and target-tenant import authorization.
 - Export jobs can now be requeued for operator recovery across API/OpenAPI, CLI, MCP, and Web. The recovery flow resets failed/cancelled jobs to queued and records/refreshes recovery events for operator handoff.
 - Tenant CDN URL payload rewriting now applies to protected pack exports and public pack/subscription payloads while preserving MoreStickers-compatible JSON shape.
 - `MSM_PUBLIC_ASSET_URL` now provides system-wide CDN fallback behavior for pack/subscription payloads, with tenant CDN URLs taking precedence.
@@ -177,14 +178,13 @@ a migration completeness audit.
 
 ## Immediate Plan
 
-1. Add MCP portable user export/import tools.
-2. Audit remaining Phase I migration gaps before moving to PostgreSQL support.
+1. Audit remaining Phase I migration gaps and add compatibility coverage.
+2. Begin Phase J PostgreSQL support once Phase I is fully checked.
 
 ## Later Planned Work
 
 - Pack and subscription-group access-management APIs beyond membership links.
 - Pack and subscription-group public/private access-token model.
-- User data export/import for instance migration.
 - Provider download integrations beyond Telegram/LINE fixtures.
 - Media probing through ffprobe and richer conversion diagnostics.
 - MCP auth/session/SSE hardening.

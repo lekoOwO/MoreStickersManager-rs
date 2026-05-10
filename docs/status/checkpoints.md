@@ -1768,3 +1768,10 @@
 - Added `createPortabilityClient` plus URL helpers for API-backed portable user export/import.
 - Added `PortabilityPanel` with export-to-textarea and import-from-pasted-JSON controls.
 - Added focused Web API-client and component tests; next Phase I slice is MCP parity plus migration gap audit.
+
+## 2026-05-10 Data Portability MCP
+
+- Added `msm.export_user_data` and `msm.import_user_data` MCP tools.
+- Enforced same-user PAT scope checks for export/import and target-tenant import authorization.
+- Updated user/PRD/status docs to show API, CLI, Web, and MCP portability parity.
+- Verification: `cargo test -p msm-mcp tools_call_exports_and_imports_portable_user_data --locked`; `cargo test -p msm-mcp tool_registry_contains_pack_tools --locked`.

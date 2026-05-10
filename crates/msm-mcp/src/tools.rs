@@ -7,6 +7,8 @@ use crate::protocol::{
 pub const LIST_STICKER_PACKS: &str = "msm.list_sticker_packs";
 pub const EXPORT_STICKER_PACK: &str = "msm.export_sticker_pack";
 pub const IMPORT_STICKER_PACK: &str = "msm.import_sticker_pack";
+pub const EXPORT_USER_DATA: &str = "msm.export_user_data";
+pub const IMPORT_USER_DATA: &str = "msm.import_user_data";
 pub const CREATE_PROVIDER_IMPORT_PLAN: &str = "msm.create_provider_import_plan";
 pub const CREATE_PROVIDER_IMPORT_JOB: &str = "msm.create_provider_import_job";
 pub const GET_PROVIDER_IMPORT_JOB: &str = "msm.get_provider_import_job";
@@ -65,6 +67,8 @@ pub fn list_tools_result() -> ListToolsResult {
             list_tool(),
             export_tool(),
             import_tool(),
+            export_user_data_tool(),
+            import_user_data_tool(),
             create_provider_import_plan_tool(),
             create_provider_import_job_tool(),
             get_provider_import_job_tool(),
@@ -187,6 +191,37 @@ fn import_tool() -> ToolDefinition {
                 "pack": { "type": "object" }
             }),
             &["tenantId", "ownerUserId", "packId", "visibility", "pack"],
+        ),
+        annotations: ToolAnnotations {
+            read_only_hint: false,
+            destructive_hint: false,
+            idempotent_hint: true,
+            open_world_hint: false,
+        },
+    }
+}
+
+fn export_user_data_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: EXPORT_USER_DATA,
+        title: "Export user data",
+        description: "Export one user's portable MSM migration JSON.",
+        input_schema: object_schema(&json!({ "userId": { "type": "string" } }), &["userId"]),
+        annotations: read_only_annotations(),
+    }
+}
+
+fn import_user_data_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: IMPORT_USER_DATA,
+        title: "Import user data",
+        description: "Import portable MSM user migration JSON into an existing tenant.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "export": { "type": "object" }
+            }),
+            &["tenantId", "export"],
         ),
         annotations: ToolAnnotations {
             read_only_hint: false,
@@ -1207,13 +1242,14 @@ mod tests {
         CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_PROVIDER_IMPORT_JOB,
         CREATE_PROVIDER_IMPORT_PLAN, CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK,
         CREATE_TAG, DELETE_EXPORT_TARGET, DELETE_OIDC_PROVIDER, DELETE_PROVIDER_CONFIG,
-        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY,
-        GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS,
-        IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS,
-        LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS, LIST_PACK_TAGS,
-        LIST_PROVIDER_CONFIGS, LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS,
-        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
-        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, EXPORT_USER_DATA, GET_EXPORT_JOB,
+        GET_PAT_SCOPE_POLICY, GET_PROVIDER_IMPORT_JOB, GET_TELEGRAM_PUBLICATION,
+        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, IMPORT_USER_DATA, LIST_EXPORT_JOB_EVENTS,
+        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
+        LIST_OIDC_PROVIDERS, LIST_PACK_TAGS, LIST_PROVIDER_CONFIGS,
+        LIST_PROVIDER_IMPORT_JOB_EVENTS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
+        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REQUEUE_EXPORT_JOB, REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK,
         SET_TENANT_MEMBER_ROLE, SET_TENANT_USER_STATUS, UPDATE_EXPORT_TARGET, UPDATE_STICKER_PACK,
@@ -1231,6 +1267,8 @@ mod tests {
                 LIST_STICKER_PACKS,
                 EXPORT_STICKER_PACK,
                 IMPORT_STICKER_PACK,
+                EXPORT_USER_DATA,
+                IMPORT_USER_DATA,
                 CREATE_PROVIDER_IMPORT_PLAN,
                 CREATE_PROVIDER_IMPORT_JOB,
                 GET_PROVIDER_IMPORT_JOB,
