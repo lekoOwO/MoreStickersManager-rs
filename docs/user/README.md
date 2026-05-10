@@ -425,6 +425,16 @@ These currently return a safe fetch plan for Telegram or LINE provider imports.
 Executable provider import jobs and runtime parsing/download completion are
 still pending.
 
+Provider import job API foundation:
+
+- `POST /api/v1/provider-import-jobs`
+- `GET /api/v1/provider-import-jobs/{job_id}`
+- `GET /api/v1/provider-import-jobs/{job_id}/events`
+
+These routes persist and read queued provider import jobs with `provider.import`
+authorization. Background execution and CLI/MCP/Web job controls are not wired
+yet.
+
 PAT foundation status:
 
 - token format is `msm_pat_<token_id>_<random_secret>`;

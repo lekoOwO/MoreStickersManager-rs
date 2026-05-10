@@ -178,10 +178,23 @@ fn pat_routes() -> Router<ApiState> {
 }
 
 fn provider_import_routes() -> Router<ApiState> {
-    Router::new().route(
-        "/api/v1/provider-imports/plan",
-        post(routes::provider_imports::create_provider_import_plan),
-    )
+    Router::new()
+        .route(
+            "/api/v1/provider-imports/plan",
+            post(routes::provider_imports::create_provider_import_plan),
+        )
+        .route(
+            "/api/v1/provider-import-jobs",
+            post(routes::provider_imports::create_provider_import_job),
+        )
+        .route(
+            "/api/v1/provider-import-jobs/{job_id}",
+            get(routes::provider_imports::get_provider_import_job),
+        )
+        .route(
+            "/api/v1/provider-import-jobs/{job_id}/events",
+            get(routes::provider_imports::list_provider_import_job_events),
+        )
 }
 
 fn subscription_access_token_routes() -> Router<ApiState> {
@@ -552,6 +565,79 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn queues_and_reads_provider_import_jobs_with_events() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(
+            &state,
+            "patproviderjob",
+            "user_1",
+            [Permission::ProviderImport],
+        )
+        .await;
+        let body = serde_json::json!({
+            "id": "provider_job_1",
+            "tenantId": "tenant_1",
+            "ownerUserId": "user_1",
+            "providerId": "line-stickers",
+            "remoteId": "12345",
+            "targetPackId": "pack_line_12345",
+            "baseUrl": "https://store.line.me"
+        });
+
+        let create_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/provider-import-jobs")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+        let body = to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let created: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(created["status"], "queued");
+        assert_eq!(
+            created["request"]["plan"]["assetStrategy"],
+            "directRemoteUrls"
+        );
+
+        let read_response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/provider-import-jobs/provider_job_1")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(read_response.status(), StatusCode::OK);
+
+        let events_response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/provider-import-jobs/provider_job_1/events")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(events_response.status(), StatusCode::OK);
+        let body = to_bytes(events_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let events: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(events[0]["stage"], "queued");
     }
 
     #[tokio::test]

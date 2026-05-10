@@ -337,6 +337,58 @@ pub struct NewExportJobEvent<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct ProviderImportJobRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub provider_id: String,
+    pub remote_id: String,
+    pub target_pack_id: Option<String>,
+    pub status: ExportJobStatus,
+    pub request_json: String,
+    pub result_json: Option<String>,
+    pub error_summary: Option<String>,
+    pub attempt_count: i64,
+    pub max_attempts: i64,
+    pub next_attempt_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewProviderImportJob<'a> {
+    pub id: &'a str,
+    pub tenant_id: &'a str,
+    pub owner_user_id: &'a str,
+    pub provider_id: &'a str,
+    pub remote_id: &'a str,
+    pub target_pack_id: Option<&'a str>,
+    pub request_json: &'a str,
+    pub max_attempts: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct ProviderImportJobEventRecord {
+    pub job_id: String,
+    pub sequence: i64,
+    pub level: String,
+    pub stage: String,
+    pub message: String,
+    pub metadata_json: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewProviderImportJobEvent<'a> {
+    pub job_id: &'a str,
+    pub sequence: i64,
+    pub level: &'a str,
+    pub stage: &'a str,
+    pub message: &'a str,
+    pub metadata_json: &'a str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct PreparedMediaAssetRecord {
     pub source_asset_hash: String,
     pub profile_key: String,

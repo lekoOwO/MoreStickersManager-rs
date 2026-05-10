@@ -4,9 +4,10 @@ use sqlx::Row;
 use crate::{
     models::{
         ExportJobEventRecord, ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJob,
-        NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset, NewTelegramPublication,
-        NewTelegramStickerMapping, PreparedMediaAssetRecord, TelegramPublicationRecord,
-        TelegramStickerMappingRecord,
+        NewExportJobEvent, NewExportTarget, NewPreparedMediaAsset, NewProviderImportJob,
+        NewProviderImportJobEvent, NewTelegramPublication, NewTelegramStickerMapping,
+        PreparedMediaAssetRecord, ProviderImportJobEventRecord, ProviderImportJobRecord,
+        TelegramPublicationRecord, TelegramStickerMappingRecord,
     },
     StorageError, StorageRepository, StorageResult,
 };
@@ -418,6 +419,151 @@ impl StorageRepository {
             .collect())
     }
 
+    /// Creates a queued provider import job.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn create_provider_import_job(
+        &self,
+        job: NewProviderImportJob<'_>,
+    ) -> StorageResult<ProviderImportJobRecord> {
+        let now = now();
+        let status = ExportJobStatus::Queued;
+        sqlx::query(
+            "INSERT INTO provider_import_jobs (
+                id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
+                request_json, result_json, error_summary, attempt_count, max_attempts,
+                next_attempt_at, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, ?, NULL, ?, ?)",
+        )
+        .bind(job.id)
+        .bind(job.tenant_id)
+        .bind(job.owner_user_id)
+        .bind(job.provider_id)
+        .bind(job.remote_id)
+        .bind(job.target_pack_id)
+        .bind(status.as_str())
+        .bind(job.request_json)
+        .bind(job.max_attempts)
+        .bind(&now)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(ProviderImportJobRecord {
+            id: job.id.to_owned(),
+            tenant_id: job.tenant_id.to_owned(),
+            owner_user_id: job.owner_user_id.to_owned(),
+            provider_id: job.provider_id.to_owned(),
+            remote_id: job.remote_id.to_owned(),
+            target_pack_id: job.target_pack_id.map(str::to_owned),
+            status,
+            request_json: job.request_json.to_owned(),
+            result_json: None,
+            error_summary: None,
+            attempt_count: 0,
+            max_attempts: job.max_attempts,
+            next_attempt_at: None,
+            created_at: now.clone(),
+            updated_at: now,
+        })
+    }
+
+    /// Finds a provider import job by ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored status
+    /// is invalid.
+    pub async fn find_provider_import_job(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<ProviderImportJobRecord>> {
+        let row = sqlx::query(
+            "SELECT id, tenant_id, owner_user_id, provider_id, remote_id, target_pack_id, status,
+                request_json, result_json, error_summary, attempt_count, max_attempts,
+                next_attempt_at, created_at, updated_at
+            FROM provider_import_jobs
+            WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.sqlite()?)
+        .await?;
+
+        row.map(|row| provider_import_job_from_row(&row))
+            .transpose()
+    }
+
+    /// Appends an ordered provider import job event.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn append_provider_import_job_event(
+        &self,
+        event: NewProviderImportJobEvent<'_>,
+    ) -> StorageResult<ProviderImportJobEventRecord> {
+        let now = now();
+        sqlx::query(
+            "INSERT INTO provider_import_job_events (
+                job_id, sequence, level, stage, message, metadata_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(event.job_id)
+        .bind(event.sequence)
+        .bind(event.level)
+        .bind(event.stage)
+        .bind(event.message)
+        .bind(event.metadata_json)
+        .bind(&now)
+        .execute(self.sqlite()?)
+        .await?;
+
+        Ok(ProviderImportJobEventRecord {
+            job_id: event.job_id.to_owned(),
+            sequence: event.sequence,
+            level: event.level.to_owned(),
+            stage: event.stage.to_owned(),
+            message: event.message.to_owned(),
+            metadata_json: event.metadata_json.to_owned(),
+            created_at: now,
+        })
+    }
+
+    /// Lists provider import job events by ascending sequence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn list_provider_import_job_events(
+        &self,
+        job_id: &str,
+    ) -> StorageResult<Vec<ProviderImportJobEventRecord>> {
+        let rows = sqlx::query(
+            "SELECT job_id, sequence, level, stage, message, metadata_json, created_at
+            FROM provider_import_job_events
+            WHERE job_id = ?
+            ORDER BY sequence",
+        )
+        .bind(job_id)
+        .fetch_all(self.sqlite()?)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| ProviderImportJobEventRecord {
+                job_id: row.get("job_id"),
+                sequence: row.get("sequence"),
+                level: row.get("level"),
+                stage: row.get("stage"),
+                message: row.get("message"),
+                metadata_json: row.get("metadata_json"),
+                created_at: row.get("created_at"),
+            })
+            .collect())
+    }
+
     /// Inserts or replaces a prepared media cache record.
     ///
     /// # Errors
@@ -739,6 +885,35 @@ fn export_job_from_row(row: &sqlx::sqlite::SqliteRow) -> StorageResult<ExportJob
     })
 }
 
+fn provider_import_job_from_row(
+    row: &sqlx::sqlite::SqliteRow,
+) -> StorageResult<ProviderImportJobRecord> {
+    let status_value: String = row.get("status");
+    let status = ExportJobStatus::from_storage(&status_value).ok_or(
+        StorageError::InvalidExportJobStatus {
+            status: status_value,
+        },
+    )?;
+
+    Ok(ProviderImportJobRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        provider_id: row.get("provider_id"),
+        remote_id: row.get("remote_id"),
+        target_pack_id: row.get("target_pack_id"),
+        status,
+        request_json: row.get("request_json"),
+        result_json: row.get("result_json"),
+        error_summary: row.get("error_summary"),
+        attempt_count: row.get("attempt_count"),
+        max_attempts: row.get("max_attempts"),
+        next_attempt_at: row.get("next_attempt_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
 fn export_target_from_row(row: &sqlx::sqlite::SqliteRow) -> ExportTargetRecord {
     let is_enabled: i64 = row.get("is_enabled");
     ExportTargetRecord {
@@ -795,4 +970,64 @@ fn telegram_sticker_mapping_id(
 
 fn now() -> String {
     Utc::now().to_rfc3339()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        models::{ExportJobStatus, NewProviderImportJob, NewProviderImportJobEvent},
+        DatabaseConfig, DbPool, StorageRepository,
+    };
+
+    #[tokio::test]
+    async fn provider_import_jobs_can_be_created_and_read_with_events() {
+        let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
+        let pool = DbPool::connect(&config).await.unwrap();
+        pool.run_migrations().await.unwrap();
+        let repo = StorageRepository::new(pool);
+
+        repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+        repo.create_user("user_1", "leko@example.com", "Leko")
+            .await
+            .unwrap();
+
+        let job = repo
+            .create_provider_import_job(NewProviderImportJob {
+                id: "provider_import_1",
+                tenant_id: "tenant_1",
+                owner_user_id: "user_1",
+                provider_id: "line-stickers",
+                remote_id: "12345",
+                target_pack_id: Some("pack_line_12345"),
+                request_json: r#"{"providerId":"line-stickers"}"#,
+                max_attempts: 3,
+            })
+            .await
+            .unwrap();
+        repo.append_provider_import_job_event(NewProviderImportJobEvent {
+            job_id: "provider_import_1",
+            sequence: 1,
+            level: "info",
+            stage: "queued",
+            message: "Provider import queued.",
+            metadata_json: "{}",
+        })
+        .await
+        .unwrap();
+
+        let found = repo
+            .find_provider_import_job("provider_import_1")
+            .await
+            .unwrap()
+            .unwrap();
+        let events = repo
+            .list_provider_import_job_events("provider_import_1")
+            .await
+            .unwrap();
+
+        assert_eq!(job.status, ExportJobStatus::Queued);
+        assert_eq!(found.provider_id, "line-stickers");
+        assert_eq!(found.target_pack_id.as_deref(), Some("pack_line_12345"));
+        assert_eq!(events[0].stage, "queued");
+    }
 }

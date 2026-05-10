@@ -171,7 +171,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Wire executable provider import jobs for Telegram and LINE.
+1. Wire provider import worker execution for queued jobs, then add CLI/MCP/Web
+   provider import job controls.
 
 ## Later Planned Work
 

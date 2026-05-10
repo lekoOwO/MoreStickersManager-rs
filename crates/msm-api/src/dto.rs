@@ -44,6 +44,50 @@ pub struct ProviderHttpHeaderResponse {
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct CreateProviderImportJobRequest {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub provider_id: String,
+    pub remote_id: String,
+    pub target_pack_id: Option<String>,
+    pub base_url: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderImportJobResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub provider_id: String,
+    pub remote_id: String,
+    pub target_pack_id: Option<String>,
+    pub status: String,
+    pub request: serde_json::Value,
+    pub result: Option<serde_json::Value>,
+    pub error_summary: Option<String>,
+    pub attempt_count: i64,
+    pub max_attempts: i64,
+    pub next_attempt_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderImportJobEventResponse {
+    pub job_id: String,
+    pub sequence: i64,
+    pub level: String,
+    pub stage: String,
+    pub message: String,
+    pub metadata: serde_json::Value,
+    pub created_at: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdatePackRequest {
     pub title: String,
     pub visibility: PackVisibilityDto,

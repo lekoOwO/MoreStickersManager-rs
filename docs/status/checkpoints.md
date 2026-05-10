@@ -1561,3 +1561,12 @@
 - Added Web API/client and component tests for the provider import planning flow.
 - Verification: `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client`, `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (59 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
 - Updated PRD/status/provider/user docs; next Phase E slice should wire executable provider import jobs for Telegram and LINE.
+
+## 2026-05-10 Provider Import Job API Foundation
+
+- Added SQLite tables for provider import jobs and provider import job events.
+- Added storage models/repository methods for creating and reading queued provider import jobs and ordered events.
+- Added API/OpenAPI routes for `POST /api/v1/provider-import-jobs`, `GET /api/v1/provider-import-jobs/{job_id}`, and `GET /api/v1/provider-import-jobs/{job_id}/events`.
+- Provider import job routes require `provider.import`, same-user ownership, and tenant resource RBAC; job creation stores the resolved provider fetch plan in the request payload and appends an initial queued event.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-storage provider_import_jobs --locked`, `cargo test -p msm-api provider_import --locked`, `cargo test -p msm-storage -p msm-api --locked`, `cargo clippy -p msm-storage -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider/user docs; next Phase E slice should wire provider import worker execution for queued jobs, then add CLI/MCP/Web job controls.
