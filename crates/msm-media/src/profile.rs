@@ -1,3 +1,5 @@
+use crate::{MediaPlanError, MediaPlanResult, MediaProbeReport};
+
 /// Source media categories understood by the export media planner.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MediaKind {
@@ -128,5 +130,55 @@ impl PreparedMediaSpec {
     #[must_use]
     pub const fn extension(&self) -> &'static str {
         self.extension
+    }
+
+    /// Validates prepared media probe facts against this target profile.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MediaPlanError::TargetValidation`] when dimensions, file size,
+    /// or duration exceed this profile's constraints.
+    pub fn validate_probe_report(&self, report: &MediaProbeReport) -> MediaPlanResult<()> {
+        let profile = self.profile();
+        let expected = u32::from(profile.canvas_size_px());
+        if report.width() != Some(expected) || report.height() != Some(expected) {
+            return Err(MediaPlanError::TargetValidation {
+                profile_key: profile.profile_key().to_owned(),
+                message: format!(
+                    "dimensions must be {expected}x{expected}, got {}x{}",
+                    report
+                        .width()
+                        .map_or_else(|| "unknown".to_owned(), |value| value.to_string()),
+                    report
+                        .height()
+                        .map_or_else(|| "unknown".to_owned(), |value| value.to_string())
+                ),
+            });
+        }
+
+        if let Some(size) = report.size_bytes() {
+            if size > profile.max_file_size_bytes() {
+                return Err(MediaPlanError::TargetValidation {
+                    profile_key: profile.profile_key().to_owned(),
+                    message: format!(
+                        "file size {size} exceeds maximum {}",
+                        profile.max_file_size_bytes()
+                    ),
+                });
+            }
+        }
+
+        if let (Some(duration), Some(max_duration)) =
+            (report.duration_ms(), profile.max_duration_ms())
+        {
+            if duration > max_duration {
+                return Err(MediaPlanError::TargetValidation {
+                    profile_key: profile.profile_key().to_owned(),
+                    message: format!("duration {duration}ms exceeds maximum {max_duration}ms"),
+                });
+            }
+        }
+
+        Ok(())
     }
 }

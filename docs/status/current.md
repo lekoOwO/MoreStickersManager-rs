@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase F media conversion with target-specific validation for Telegram and future export targets.
+- Start Phase G export/publication target work with export-target execution abstraction for non-Telegram remote targets.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -267,9 +267,10 @@ Last verification:
 - ffmpeg diagnostics slice: process-backed media execution now captures converter stdout, stderr, and exit code in `ConversionCommandOutput` and returns those fields through `PreparedMediaOutput`.
 - Prepared media cache reuse slice: export worker now reuses matching `prepared_media_assets` records by source asset hash and profile key before invoking the media executor.
 - Prepared media surface visibility slice: export job result `preparedMedia` entries now include converter stdout, stderr, and exit code for newly converted assets, making diagnostics visible through existing API/CLI/MCP/Web job read surfaces.
+- Target-specific media validation slice: `PreparedMediaSpec::validate_probe_report` validates ffprobe dimensions, file size, and duration against reusable target profile constraints.
 
 Next step:
-- Phase F media conversion is active: next slice should add target-specific validation for Telegram and future export targets.
+- Phase F media conversion checklist is complete. Next slice should start Phase G export/publication target work with non-Telegram remote target execution abstraction.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

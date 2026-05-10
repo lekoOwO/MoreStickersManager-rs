@@ -36,7 +36,7 @@ roadmap, and completion definition.
 
 | Area | Planned entrypoint | Notes |
 | --- | --- | --- |
-| Media conversion pipeline | P25 | Partially implemented: `msm-media` now has source media kinds, Telegram static/video/thumbnail profiles, prepared output specs, conversion plan selection, and shell-free ffmpeg command planning. Probing, converter execution, and cache persistence are not implemented. |
+| Media conversion pipeline | P25 | Implemented: `msm-media` now has source media kinds, Telegram static/video/thumbnail profiles, prepared output specs, conversion plan selection, and shell-free ffmpeg command planning. Probing, converter execution, and cache persistence are not implemented. |
 | Export target registry | P27 | Partially implemented: `msm-exporters` has target kind keys, capability metadata, request/plan types, target trait, duplicate-safe registry, a concrete `morestickers` target, and Telegram sticker set planning. Remote execution is not wired. |
 | Telegram bot framework boundary | P28 | Implemented foundation: `msm-telegram` uses `teloxide`, redacts bot tokens, validates configurable Bot API URLs, builds `teloxide::Bot`, and exposes mockable sticker set create/append, title update, sticker replace/delete, and sticker set fetch execution through teloxide requester methods. |
 | Telegram sticker set export | P29-P32/P33 | Partially implemented: planner normalizes Telegram set names, enforces size constraints, splits create/append batches, maps static/animated MSM stickers to Telegram media profiles, builds teloxide `InputSticker` data, exposes Web/API/CLI/MCP job surfaces, the app worker can publish when job options explicitly set `"dryRun": false`, successful publication and reconciliation mutation jobs persist durable records and per-sticker Telegram file mappings, API/CLI/MCP/Web routes expose publication history, the Web export wizard/timeline surface completed sticker set URLs and reconciliation controls, exporter-level reconciliation policies can plan create-only, append-missing, or mirror update/delete operations, the Telegram boundary can execute mutation sequences and fetch remote sticker set metadata, worker dry-run jobs can return reconciliation operation/mutation summaries, non-dry-run append-missing reconciliation can execute mutations when explicitly enabled, omitted `remoteSet` values are derived from fetched Telegram metadata plus stored mappings, destructive mirror replace/delete is separately gated, CLI/MCP expose named reconciliation affordances, and OpenAPI documents `TelegramExportJobOptions` behind the generic export job options object. |
@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue with Phase F media conversion: target-specific validation for Telegram and future export targets.
+Continue with Phase G export/publication targets: non-Telegram remote target execution abstraction.

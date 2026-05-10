@@ -1691,3 +1691,9 @@
 - Export job result `preparedMedia` summaries now include converter stdout, stderr, and exit code for newly converted media.
 - Existing export-job API/CLI/MCP/Web read surfaces share the same result payload, so conversion diagnostics are visible without a separate route.
 - Added focused worker coverage for diagnostics in job result JSON; next Phase F slice should add target-specific validation.
+
+## 2026-05-10 Target Media Validation
+
+- Added `PreparedMediaSpec::validate_probe_report` to validate ffprobe facts against reusable target profile constraints.
+- Validation covers required canvas dimensions, maximum file size, and maximum duration.
+- Added focused media validation tests for Telegram static and video profiles; Phase F media conversion is now complete in the PRD.

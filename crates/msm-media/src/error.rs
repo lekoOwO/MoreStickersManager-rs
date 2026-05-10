@@ -21,4 +21,13 @@ pub enum MediaPlanError {
         /// Human-readable parser failure summary.
         message: String,
     },
+
+    /// Prepared media probe facts violate target constraints.
+    #[error("prepared media validation failed for {profile_key}: {message}")]
+    TargetValidation {
+        /// Target profile key that rejected the media.
+        profile_key: String,
+        /// Human-readable validation summary.
+        message: String,
+    },
 }

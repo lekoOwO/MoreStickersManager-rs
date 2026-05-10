@@ -174,7 +174,7 @@ downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-sco
 
 ## Immediate Plan
 
-1. Continue Phase F media conversion with target-specific validation for Telegram and future export targets.
+1. Start Phase G export/publication target work with export-target execution abstraction for non-Telegram remote targets.
 2. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band,
    OGQ, and Viber if any are still missing.
 
