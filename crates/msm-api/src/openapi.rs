@@ -77,6 +77,7 @@ use crate::{
         exports::delete_target,
         exports::create_job,
         exports::get_job,
+        exports::requeue_job,
         exports::list_job_events,
         exports::list_telegram_publications,
         exports::get_telegram_publication,

@@ -1706,3 +1706,12 @@
 - The default executor preserves safe behavior by returning the existing unsupported-target error until concrete target adapters are implemented.
 - Added focused worker coverage proving a future `signal` target receives job, target config, and pack snapshots through the boundary.
 - Updated PRD/status docs; next Phase G slice should verify/close Web/API/CLI/MCP parity for implemented targets and then add publication recovery tooling.
+
+
+## 2026-05-10 Export Job API Recovery
+
+- Added storage support for operator-triggered failed/cancelled export job requeue.
+- Added protected API/OpenAPI route `POST /api/v1/export-jobs/{job_id}/requeue`, guarded by `export.run` plus tenant resource access.
+- Requeue resets attempt count, error summary, result payload, and next-attempt scheduling, then appends a `requeued` recovery event for handoff/audit history.
+- Added focused API coverage proving failed jobs can be requeued and recovery events are recorded.
+- Updated PRD/status docs; next Phase G slice should add CLI/MCP/Web recovery controls.

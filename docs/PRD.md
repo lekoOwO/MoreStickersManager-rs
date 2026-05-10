@@ -71,7 +71,7 @@ Status meanings:
 | --- | --- | --- |
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
 | Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
-| API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, provider import plan/job routes, Telegram publication history, product metadata, and product membership endpoints exist. |
+| API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, export job recovery requeue, provider import plan/job routes, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import job, and provider credential/config commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, provider import job tools, and provider credential/config tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue Phase G export/publication target work: Web/API/CLI/MCP target parity for all implemented targets and recovery tools for failed or partially-applied remote publication jobs.
+1. Continue Phase G export/publication target work: add CLI/MCP/Web recovery controls for failed or partially-applied remote publication jobs, then verify target parity for all implemented targets.
 
 Each queue item must update this section when completed or reordered.
 
@@ -282,6 +282,7 @@ tests and docs are updated.
   Progress: `RemoteExportTargetExecutor` now receives target/job/config/pack snapshots for future remote targets and returns target-neutral execution summaries. The default executor safely reports unsupported target kinds until concrete target adapters are implemented.
 - [ ] Web/API/CLI/MCP target parity for all implemented targets.
 - [ ] Recovery tools for failed or partially-applied remote publication jobs.
+  Progress: API/OpenAPI can requeue failed or cancelled export jobs for operator recovery via `POST /api/v1/export-jobs/{job_id}/requeue`, resetting attempt/error state and recording a recovery event. CLI/MCP/Web controls remain incomplete.
 
 ### Phase H: Asset Privacy And CDN
 

@@ -8,7 +8,7 @@ use msm_exporters::{ExportCapabilities, ExportTarget, ExportTargetKind, MoreStic
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, TelegramPublicationRecord,
 };
-use msm_storage::models::{NewExportJob, NewExportTarget};
+use msm_storage::models::{NewExportJob, NewExportJobEvent, NewExportTarget};
 
 use crate::{
     auth::require_pat,
@@ -335,6 +335,45 @@ pub async fn get_job(
     export_job_response(job).map(Json)
 }
 
+/// Requeues a failed or cancelled export job for operator recovery.
+///
+/// # Errors
+///
+/// Returns an API error when the PAT lacks run scope, the job does not exist, the PAT user does not
+/// have run access to the job owner resource, the job is not recoverable, or storage fails.
+#[utoipa::path(
+    post,
+    path = "/api/v1/export-jobs/{job_id}/requeue",
+    tag = "exports",
+    params(("job_id" = String, Path, description = "Export job ID")),
+    responses(
+        (status = 200, description = "Export job requeued", body = ExportJobResponse),
+        (status = 400, description = "Export job is not in a recoverable state", body = crate::error::ApiErrorBody),
+        (status = 401, description = "Missing or invalid PAT", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Missing export.run scope or job ownership", body = crate::error::ApiErrorBody),
+        (status = 404, description = "Export job not found", body = crate::error::ApiErrorBody)
+    )
+)]
+pub async fn requeue_job(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    Path(job_id): Path<String>,
+) -> ApiResult<Json<ExportJobResponse>> {
+    let pat = require_pat(&headers, &state, Permission::ExportRun).await?;
+    let job = load_job_for_permission(&state, &job_id, &pat, Permission::ExportRun).await?;
+    let requeued = state
+        .repository()
+        .requeue_export_job_for_recovery(&job.id)
+        .await?
+        .ok_or_else(|| {
+            ApiError::BadRequest(
+                "export job must be failed or cancelled before it can be requeued".to_owned(),
+            )
+        })?;
+    append_requeue_event(&state, &job.id).await?;
+    export_job_response(requeued).map(Json)
+}
+
 /// Lists ordered events for one export job.
 ///
 /// # Errors
@@ -563,6 +602,52 @@ async fn load_accessible_job(
     )
     .await?;
     Ok(job)
+}
+
+async fn load_job_for_permission(
+    state: &ApiState,
+    job_id: &str,
+    pat: &crate::auth::VerifiedPat,
+    permission: Permission,
+) -> ApiResult<ExportJobRecord> {
+    let job = state
+        .repository()
+        .find_export_job(job_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("export job not found: {job_id}")))?;
+    require_tenant_resource_access(
+        state,
+        pat,
+        &job.tenant_id,
+        &job.owner_user_id,
+        permission,
+        "PAT user cannot access this export job",
+    )
+    .await?;
+    Ok(job)
+}
+
+async fn append_requeue_event(state: &ApiState, job_id: &str) -> ApiResult<()> {
+    let event_count = state
+        .repository()
+        .list_export_job_events(job_id)
+        .await?
+        .len();
+    let sequence = i64::try_from(event_count)
+        .map_err(|_| ApiError::BadRequest("export job event sequence overflow".to_owned()))?
+        + 1;
+    state
+        .repository()
+        .append_export_job_event(NewExportJobEvent {
+            job_id,
+            sequence,
+            level: "info",
+            stage: "requeued",
+            message: "export job requeued for recovery",
+            metadata_json: "{}",
+        })
+        .await?;
+    Ok(())
 }
 
 fn redacted_config(config_json: &str) -> ApiResult<serde_json::Value> {

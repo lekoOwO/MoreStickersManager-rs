@@ -152,6 +152,10 @@ fn export_routes() -> Router<ApiState> {
             get(routes::exports::get_job),
         )
         .route(
+            "/api/v1/export-jobs/{job_id}/requeue",
+            post(routes::exports::requeue_job),
+        )
+        .route(
             "/api/v1/export-jobs/{job_id}/events",
             get(routes::exports::list_job_events),
         )
@@ -345,6 +349,9 @@ mod tests {
         assert!(json["paths"].get("/api/v1/export-target-kinds").is_some());
         assert!(json["paths"].get("/api/v1/export-targets").is_some());
         assert!(json["paths"].get("/api/v1/export-jobs").is_some());
+        assert!(json["paths"]
+            .get("/api/v1/export-jobs/{job_id}/requeue")
+            .is_some());
         assert!(json["paths"].get("/api/v1/provider-configs").is_some());
         assert!(json["paths"].get("/api/v1/folders").is_some());
         assert!(json["paths"]
@@ -1970,6 +1977,76 @@ mod tests {
         let events: serde_json::Value = serde_json::from_slice(&events_body).unwrap();
         assert_eq!(events[0]["message"], "job queued");
         assert_eq!(events[0]["metadata"]["target"], "telegram");
+    }
+
+    #[tokio::test]
+    async fn failed_export_job_can_be_requeued_for_recovery() {
+        let state = seeded_state().await;
+        state
+            .repository()
+            .create_export_target(NewExportTarget {
+                id: "target_telegram",
+                tenant_id: "tenant_1",
+                kind: "telegram",
+                name: "Telegram",
+                config_json: r#"{"botUsername":"msm_bot","botToken":"123456:secret"}"#,
+                is_enabled: true,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .create_export_job(msm_storage::models::NewExportJob {
+                id: "job_failed",
+                tenant_id: "tenant_1",
+                owner_user_id: "user_1",
+                source_pack_id: "pack_1",
+                target_id: "target_telegram",
+                request_json: r#"{"id":"job_failed"}"#,
+                max_attempts: 3,
+            })
+            .await
+            .unwrap();
+        state
+            .repository()
+            .record_export_job_failure("job_failed", "telegram api down")
+            .await
+            .unwrap();
+        let token = create_pat(
+            &state,
+            "exportrequeue",
+            "user_1",
+            [Permission::ExportRun, Permission::ExportRead],
+        )
+        .await;
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/export-jobs/job_failed/requeue")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let job: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(job["status"], "queued");
+        assert_eq!(job["attemptCount"], 0);
+        assert_eq!(job["errorSummary"], serde_json::Value::Null);
+        assert_eq!(job["nextAttemptAt"], serde_json::Value::Null);
+
+        let events = state
+            .repository()
+            .list_export_job_events("job_failed")
+            .await
+            .unwrap();
+        assert_eq!(events[0].stage, "requeued");
+        assert_eq!(events[0].message, "export job requeued for recovery");
     }
 
     #[tokio::test]

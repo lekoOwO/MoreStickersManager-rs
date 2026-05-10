@@ -450,6 +450,36 @@ impl StorageRepository {
         }
     }
 
+    /// Manually requeues a failed or cancelled export job for operator recovery.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    pub async fn requeue_export_job_for_recovery(
+        &self,
+        id: &str,
+    ) -> StorageResult<Option<ExportJobRecord>> {
+        let result = sqlx::query(
+            "UPDATE export_jobs
+            SET status = ?, error_summary = NULL, result_json = NULL,
+                attempt_count = 0, next_attempt_at = NULL, updated_at = ?
+            WHERE id = ? AND status IN (?, ?)",
+        )
+        .bind(ExportJobStatus::Queued.as_str())
+        .bind(now())
+        .bind(id)
+        .bind(ExportJobStatus::Failed.as_str())
+        .bind(ExportJobStatus::Cancelled.as_str())
+        .execute(self.sqlite()?)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            Ok(None)
+        } else {
+            self.find_export_job(id).await
+        }
+    }
+
     /// Appends an ordered export job event.
     ///
     /// # Errors

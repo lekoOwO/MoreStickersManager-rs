@@ -11,11 +11,13 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 Phase G export/publication targets are the active focus. MoreStickers export,
 Telegram planning/publication/reconciliation, prepared-media conversion, and
 non-Telegram remote target execution boundaries now exist. The next work is
-surface parity for every implemented target and recovery tooling for failed or
-partially-applied remote publication jobs.
+API recovery requeue for failed/cancelled export jobs now exists. The next work
+is CLI/MCP/Web recovery controls and target parity checks for every implemented
+target.
 
 ## Recently Completed
 
+- Export jobs can now be requeued for operator recovery through the protected API/OpenAPI route `POST /api/v1/export-jobs/{job_id}/requeue`, resetting failed/cancelled jobs to queued and recording a recovery event.
 - Non-Telegram remote export targets now dispatch through `RemoteExportTargetExecutor`, an injectable worker boundary that receives job/target/config/pack snapshots and returns target-neutral remote execution summaries while the default executor safely rejects unsupported future targets.
 - Provider config CLI commands now exist for list/upsert/delete with human/JSON
   output and PAT forwarding to the protected API.
@@ -172,8 +174,8 @@ partially-applied remote publication jobs.
 
 ## Immediate Plan
 
-1. Continue Phase G export/publication target work with Web/API/CLI/MCP target parity checks for implemented targets.
-2. Add recovery tooling for failed or partially-applied Telegram and future remote publication jobs.
+1. Add CLI, MCP, and Web controls for export job recovery requeue.
+2. Verify/close Web/API/CLI/MCP parity for implemented export targets and job operations.
 
 ## Later Planned Work
 
