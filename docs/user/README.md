@@ -414,6 +414,16 @@ Export MCP tools:
 - `msm.list_telegram_publications`
 - `msm.get_telegram_publication`
 
+Provider import planning surfaces:
+
+- API: `POST /api/v1/provider-imports/plan`
+- CLI: `msm providers plan --tenant-id <tenant_id> --owner-user-id <user_id> --provider-id telegram|line-stickers --remote-id <remote_id> [--base-url <url>]`
+- MCP: `msm.create_provider_import_plan`
+
+These currently return a safe fetch plan for Telegram or LINE provider imports.
+Executable provider import jobs, Web controls, and runtime parsing/download
+completion are still pending.
+
 PAT foundation status:
 
 - token format is `msm_pat_<token_id>_<random_secret>`;
@@ -493,6 +503,8 @@ PAT enforcement status:
   MCP tools.
 - `pack.delete` is required for pack delete API routes and MCP tools.
 - `import.run` is required for pack import API routes and MCP tools.
+- `provider.import` is required for provider import planning API/CLI/MCP
+  surfaces.
 - `export.read` is required for export target/job/publication read API routes
   and MCP tools.
 - `export.run` is required for export job creation API routes and MCP tools.

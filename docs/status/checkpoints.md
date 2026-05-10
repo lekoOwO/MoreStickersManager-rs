@@ -1543,3 +1543,12 @@
 - Added CLI parsing/execution tests backed by the fake client.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked` (53 tests), `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider docs; next Phase E slice should add MCP/Web provider import plan controls, then executable provider import jobs.
+
+## 2026-05-10 Provider Import Planning MCP
+
+- Added `msm.create_provider_import_plan` to MCP `tools/list` with Telegram and LINE provider choices.
+- Added MCP handler support for protected provider import fetch plan creation using `provider.import`, same-user enforcement, and tenant resource RBAC.
+- Reused the API tenant resource access helper through a focused public re-export so MCP and API enforce the same planning boundary.
+- Added MCP registry and tool-call tests for LINE provider import plan creation.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-mcp provider_import --locked`, `cargo test -p msm-mcp --locked` (40 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider/user docs; next Phase E slice should add Web provider import plan controls, then executable provider import jobs.

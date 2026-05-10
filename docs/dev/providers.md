@@ -52,7 +52,8 @@ The API exposes the first protected workflow surface at
 same-user tenant access, and returns Telegram or LINE fetch plans suitable for
 runtime execution. CLI can call the same surface with
 `msm providers plan --tenant-id ... --owner-user-id ... --provider-id ... --remote-id ...`.
-MCP, Web controls, and executable import jobs are still pending.
+MCP can call the same planning boundary with `msm.create_provider_import_plan`.
+Web controls and executable import jobs are still pending.
 
 ## Provider Versus Export Target
 

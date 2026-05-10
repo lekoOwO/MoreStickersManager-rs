@@ -5,12 +5,16 @@ use axum::{
 };
 use msm_api::{
     auth::{require_pat, VerifiedPat},
-    ApiError, ApiState,
+    require_tenant_resource_access, ApiError, ApiState,
 };
 use msm_domain::{Permission, StickerPack};
 use msm_exporters::{
     ExportCapabilities, ExportTarget as ExportTargetTrait, ExportTargetKind,
     MoreStickersExportTarget,
+};
+use msm_providers::{
+    line_sticker_pack_fetch_plan, telegram_sticker_set_fetch_plan, ProviderAssetDownloadStrategy,
+    ProviderRemoteFetchPlan,
 };
 use msm_storage::models::{
     ExportJobEventRecord, ExportJobRecord, ExportTargetRecord, FolderRecord, NewExportJob,
@@ -28,13 +32,14 @@ use crate::{
     tools::{
         execution_error_result, list_tools_result, success_result, ADD_PACK_TO_FOLDER,
         ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK, CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET,
-        CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG,
-        DELETE_OIDC_PROVIDER, DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB,
-        GET_PAT_SCOPE_POLICY, GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK,
-        LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS,
-        LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS, LIST_PACK_TAGS, LIST_STICKER_PACKS,
-        LIST_SUBSCRIPTION_GROUPS, LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS,
-        LIST_TAGS, LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
+        CREATE_FOLDER, CREATE_PROVIDER_IMPORT_PLAN, CREATE_SUBSCRIPTION_GROUP,
+        CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER, DELETE_STICKER_PACK,
+        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_TELEGRAM_PUBLICATION,
+        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
+        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS,
+        LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
+        LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
         REVOKE_SUBSCRIPTION_LINK, ROTATE_SUBSCRIPTION_LINK, SET_TENANT_MEMBER_ROLE,
         SET_TENANT_USER_STATUS, UPDATE_STICKER_PACK, UPDATE_TENANT_SETTINGS, UPSERT_OIDC_PROVIDER,
@@ -92,6 +97,9 @@ async fn call_tool(
         LIST_STICKER_PACKS => list_sticker_packs(&state, headers, arguments).await,
         EXPORT_STICKER_PACK => export_sticker_pack(&state, headers, arguments).await,
         IMPORT_STICKER_PACK => import_sticker_pack(&state, headers, arguments).await,
+        CREATE_PROVIDER_IMPORT_PLAN => {
+            create_provider_import_plan(&state, headers, arguments).await
+        }
         UPDATE_STICKER_PACK => update_sticker_pack(&state, headers, arguments).await,
         DELETE_STICKER_PACK => delete_sticker_pack(&state, headers, arguments).await,
         LIST_FOLDERS => list_folders(&state, headers, arguments).await,
@@ -222,6 +230,50 @@ async fn import_sticker_pack(
     Ok(success_result(
         format!("Imported sticker pack `{}`.", args.pack_id),
         json!({ "imported": true, "packId": args.pack_id }),
+    ))
+}
+
+async fn create_provider_import_plan(
+    state: &ApiState,
+    headers: &HeaderMap,
+    arguments: Value,
+) -> Result<CallToolResult, String> {
+    let args = parse_arguments::<CreateProviderImportPlanArgs>(arguments)?;
+    let pat = require_tool_pat(state, headers, Permission::ProviderImport).await?;
+    pat.require_user(&args.owner_user_id)
+        .map_err(auth_error_message)?;
+    require_tenant_resource_access(
+        state,
+        &pat,
+        &args.tenant_id,
+        &args.owner_user_id,
+        Permission::ProviderImport,
+        "PAT user cannot import provider packs into this tenant",
+    )
+    .await
+    .map_err(auth_error_message)?;
+
+    let plan = match args.provider_id.as_str() {
+        "telegram" => telegram_sticker_set_fetch_plan(
+            args.base_url
+                .as_deref()
+                .unwrap_or("https://api.telegram.org"),
+            &args.remote_id,
+        ),
+        "line-stickers" => line_sticker_pack_fetch_plan(
+            args.base_url.as_deref().unwrap_or("https://store.line.me"),
+            &args.remote_id,
+        ),
+        other => return Err(format!("unsupported provider import source: {other}")),
+    }
+    .map_err(|error| error.to_string())?;
+
+    Ok(success_result(
+        format!(
+            "Created provider import plan for `{}` remote `{}`.",
+            args.provider_id, args.remote_id
+        ),
+        json!({ "plan": provider_import_plan_value(plan) }),
     ))
 }
 
@@ -1450,6 +1502,27 @@ fn export_job_event_value(record: &ExportJobEventRecord) -> Result<Value, String
     }))
 }
 
+fn provider_import_plan_value(plan: ProviderRemoteFetchPlan) -> Value {
+    json!({
+        "providerId": plan.provider_id,
+        "remoteId": plan.remote_id,
+        "metadataRequest": {
+            "method": plan.metadata_request.method,
+            "url": plan.metadata_request.url,
+            "redactedHeaders": plan
+                .metadata_request
+                .redacted_headers
+                .into_iter()
+                .map(|(name, value)| json!({ "name": name, "value": value }))
+                .collect::<Vec<_>>()
+        },
+        "assetStrategy": match plan.asset_strategy {
+            ProviderAssetDownloadStrategy::TelegramBotFileApi => "telegramBotFileApi",
+            ProviderAssetDownloadStrategy::DirectRemoteUrls => "directRemoteUrls",
+        }
+    })
+}
+
 fn telegram_publication_value(record: &TelegramPublicationRecord) -> Value {
     json!({
         "id": record.id,
@@ -1788,6 +1861,17 @@ struct ImportStickerPackArgs {
     pack_id: String,
     visibility: String,
     pack: Value,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateProviderImportPlanArgs {
+    tenant_id: String,
+    owner_user_id: String,
+    provider_id: String,
+    remote_id: String,
+    #[serde(default)]
+    base_url: Option<String>,
 }
 
 #[derive(Deserialize)]

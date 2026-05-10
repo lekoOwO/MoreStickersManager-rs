@@ -7,6 +7,7 @@ use crate::protocol::{
 pub const LIST_STICKER_PACKS: &str = "msm.list_sticker_packs";
 pub const EXPORT_STICKER_PACK: &str = "msm.export_sticker_pack";
 pub const IMPORT_STICKER_PACK: &str = "msm.import_sticker_pack";
+pub const CREATE_PROVIDER_IMPORT_PLAN: &str = "msm.create_provider_import_plan";
 pub const UPDATE_STICKER_PACK: &str = "msm.update_sticker_pack";
 pub const DELETE_STICKER_PACK: &str = "msm.delete_sticker_pack";
 pub const LIST_FOLDERS: &str = "msm.list_folders";
@@ -55,6 +56,7 @@ pub fn list_tools_result() -> ListToolsResult {
             list_tool(),
             export_tool(),
             import_tool(),
+            create_provider_import_plan_tool(),
             update_tool(),
             delete_tool(),
             list_folders_tool(),
@@ -174,6 +176,35 @@ fn import_tool() -> ToolDefinition {
             idempotent_hint: true,
             open_world_hint: false,
         },
+    }
+}
+
+fn create_provider_import_plan_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: CREATE_PROVIDER_IMPORT_PLAN,
+        title: "Create provider import plan",
+        description:
+            "Plan remote metadata and asset fetches for importing a provider sticker pack into MSM.",
+        input_schema: object_schema(
+            &json!({
+                "tenantId": { "type": "string" },
+                "ownerUserId": { "type": "string" },
+                "providerId": {
+                    "type": "string",
+                    "enum": ["telegram", "line-stickers"]
+                },
+                "remoteId": {
+                    "type": "string",
+                    "description": "Provider-native sticker set or pack identifier."
+                },
+                "baseUrl": {
+                    "type": "string",
+                    "description": "Optional provider API/store base URL override for tests or mirrors."
+                }
+            }),
+            &["tenantId", "ownerUserId", "providerId", "remoteId"],
+        ),
+        annotations: read_only_annotations(),
     }
 }
 
@@ -979,12 +1010,12 @@ fn read_only_annotations() -> ToolAnnotations {
 mod tests {
     use crate::tools::{
         list_tools_result, ADD_PACK_TO_FOLDER, ADD_PACK_TO_SUBSCRIPTION_GROUP, ADD_TAG_TO_PACK,
-        CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_SUBSCRIPTION_GROUP,
-        CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER, DELETE_STICKER_PACK,
-        EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY, GET_TELEGRAM_PUBLICATION,
-        GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS, LIST_EXPORT_TARGETS,
-        LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS, LIST_OIDC_PROVIDERS,
-        LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
+        CREATE_EXPORT_JOB, CREATE_EXPORT_TARGET, CREATE_FOLDER, CREATE_PROVIDER_IMPORT_PLAN,
+        CREATE_SUBSCRIPTION_GROUP, CREATE_SUBSCRIPTION_LINK, CREATE_TAG, DELETE_OIDC_PROVIDER,
+        DELETE_STICKER_PACK, EXPORT_STICKER_PACK, GET_EXPORT_JOB, GET_PAT_SCOPE_POLICY,
+        GET_TELEGRAM_PUBLICATION, GET_TENANT_SETTINGS, IMPORT_STICKER_PACK, LIST_EXPORT_JOB_EVENTS,
+        LIST_EXPORT_TARGETS, LIST_EXPORT_TARGET_KINDS, LIST_FOLDERS, LIST_FOLDER_PACKS,
+        LIST_OIDC_PROVIDERS, LIST_PACK_TAGS, LIST_STICKER_PACKS, LIST_SUBSCRIPTION_GROUPS,
         LIST_SUBSCRIPTION_GROUP_PACKS, LIST_SUBSCRIPTION_LINKS, LIST_TAGS,
         LIST_TELEGRAM_PUBLICATIONS, LIST_TENANT_MEMBERS, LIST_TENANT_ROLES,
         REMOVE_PACK_FROM_FOLDER, REMOVE_PACK_FROM_SUBSCRIPTION_GROUP, REMOVE_TAG_FROM_PACK,
@@ -1004,6 +1035,7 @@ mod tests {
                 LIST_STICKER_PACKS,
                 EXPORT_STICKER_PACK,
                 IMPORT_STICKER_PACK,
+                CREATE_PROVIDER_IMPORT_PLAN,
                 UPDATE_STICKER_PACK,
                 DELETE_STICKER_PACK,
                 LIST_FOLDERS,

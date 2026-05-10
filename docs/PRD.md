@@ -73,7 +73,7 @@ Status meanings:
 | Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration commands exist. |
-| MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration tools exist. Session/SSE hardening remains incomplete. |
+| MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, and provider import planning tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
@@ -88,8 +88,8 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add MCP/Web provider import plan controls, then wire executable provider
-   import jobs.
+1. Add Web provider import plan controls, then wire executable provider import
+   jobs.
 
 Each queue item must update this section when completed or reordered.
 
@@ -234,15 +234,15 @@ tests and docs are updated.
   asset strategy. `msm-app` now has injected runtime metadata fetch and direct
   asset internalization helpers; Telegram-specific `getFile` execution and
   executable import workflow wiring remain. API can now create protected
-  provider import fetch plans for Telegram sources, and CLI can request/display
-  those plans.
+  provider import fetch plans for Telegram sources, and CLI/MCP can
+  request/display those plans.
 - [ ] LINE network fetch with asset download/internalization.
   Progress: `msm-providers` now exposes a testable LINE sticker-shop product
   fetch plan boundary and direct remote URL asset strategy. `msm-app` can execute
   planned metadata fetches through an injected runtime and download direct remote
   sticker assets into `LocalAssetStore` while rewriting pack image URLs. Parsing
   and executable import workflow wiring remain. API can now create protected
-  provider import fetch plans for LINE sticker sources, and CLI can
+  provider import fetch plans for LINE sticker sources, and CLI/MCP can
   request/display those plans.
 - [ ] Provider credential/config UI and API.
 - [ ] Provider job progress and retry model.

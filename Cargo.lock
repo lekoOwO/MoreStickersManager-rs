@@ -1428,6 +1428,7 @@ dependencies = [
  "msm-api",
  "msm-domain",
  "msm-exporters",
+ "msm-providers",
  "msm-storage",
  "serde",
  "serde_json",

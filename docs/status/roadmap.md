@@ -171,8 +171,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Add MCP/Web provider import plan controls, then wire executable provider
-   import jobs.
+1. Add Web provider import plan controls, then wire executable provider import
+   jobs.
 
 ## Later Planned Work
 

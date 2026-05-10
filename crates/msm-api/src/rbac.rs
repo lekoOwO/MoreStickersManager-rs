@@ -53,6 +53,12 @@ pub async fn require_pack_access(
     }
 }
 
+/// Requires that a PAT principal can access a tenant-owned user resource.
+///
+/// # Errors
+///
+/// Returns an API error when the PAT user is not a tenant member, lacks the
+/// required permission, or is not allowed to act on the requested owner.
 pub async fn require_tenant_resource_access(
     state: &ApiState,
     pat: &VerifiedPat,
