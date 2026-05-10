@@ -1521,7 +1521,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn create_subscription_group(
         &self,
         id: &str,
@@ -1531,19 +1531,38 @@ impl StorageRepository {
         visibility: PackVisibility,
     ) -> StorageResult<SubscriptionGroupRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO subscription_groups (
-                id, tenant_id, owner_user_id, title, visibility, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(id)
-        .bind(tenant_id)
-        .bind(owner_user_id)
-        .bind(title)
-        .bind(visibility.as_str())
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO subscription_groups (
+                        id, tenant_id, owner_user_id, title, visibility, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)",
+                )
+                .bind(id)
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .bind(title)
+                .bind(visibility.as_str())
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO subscription_groups (
+                        id, tenant_id, owner_user_id, title, visibility, created_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6)",
+                )
+                .bind(id)
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .bind(title)
+                .bind(visibility.as_str())
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
         Ok(SubscriptionGroupRecord {
             id: id.to_owned(),
             tenant_id: tenant_id.to_owned(),
@@ -1558,24 +1577,44 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL/timestamp parsing fails.
+    /// Returns an error when SQL/timestamp parsing fails.
     pub async fn list_subscription_groups(
         &self,
         tenant_id: &str,
         owner_user_id: &str,
     ) -> StorageResult<Vec<SubscriptionGroupRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, title, visibility, created_at
-            FROM subscription_groups
-            WHERE tenant_id = ? AND owner_user_id = ?
-            ORDER BY created_at, id",
-        )
-        .bind(tenant_id)
-        .bind(owner_user_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, title, visibility, created_at
+                    FROM subscription_groups
+                    WHERE tenant_id = ? AND owner_user_id = ?
+                    ORDER BY created_at, id",
+                )
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .fetch_all(pool)
+                .await?;
 
-        rows.iter().map(subscription_group_from_row).collect()
+                rows.iter()
+                    .map(subscription_group_from_sqlite_row)
+                    .collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, title, visibility, created_at
+                    FROM subscription_groups
+                    WHERE tenant_id = $1 AND owner_user_id = $2
+                    ORDER BY created_at, id",
+                )
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .fetch_all(pool)
+                .await?;
+
+                rows.iter().map(subscription_group_from_pg_row).collect()
+            }
+        }
     }
 
     /// Renames a subscription group.
@@ -1616,8 +1655,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, visibility is
-    /// invalid, or timestamp parsing fails.
+    /// Returns an error when SQL fails, visibility is invalid, or timestamp parsing fails.
     pub async fn find_subscription_group_record(
         &self,
         id: &str,
@@ -1629,16 +1667,34 @@ impl StorageRepository {
         &self,
         id: &str,
     ) -> StorageResult<Option<SubscriptionGroupRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, title, visibility, created_at
-            FROM subscription_groups
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, title, visibility, created_at
+                    FROM subscription_groups
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.as_ref().map(subscription_group_from_row).transpose()
+                row.as_ref()
+                    .map(subscription_group_from_sqlite_row)
+                    .transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, title, visibility, created_at
+                    FROM subscription_groups
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+
+                row.as_ref().map(subscription_group_from_pg_row).transpose()
+            }
+        }
     }
 
     /// Adds a sticker pack to a subscription group.
@@ -2674,7 +2730,23 @@ fn oidc_user_link_from_row(row: &SqliteRow) -> OidcUserLinkRecord {
     }
 }
 
-fn subscription_group_from_row(row: &SqliteRow) -> StorageResult<SubscriptionGroupRecord> {
+fn subscription_group_from_sqlite_row(row: &SqliteRow) -> StorageResult<SubscriptionGroupRecord> {
+    let visibility: String = row.get("visibility");
+    let Some(visibility) = PackVisibility::from_storage(&visibility) else {
+        return Err(StorageError::InvalidVisibility { visibility });
+    };
+    let created_at: String = row.get("created_at");
+    Ok(SubscriptionGroupRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        owner_user_id: row.get("owner_user_id"),
+        title: row.get("title"),
+        visibility,
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn subscription_group_from_pg_row(row: &PgRow) -> StorageResult<SubscriptionGroupRecord> {
     let visibility: String = row.get("visibility");
     let Some(visibility) = PackVisibility::from_storage(&visibility) else {
         return Err(StorageError::InvalidVisibility { visibility });
@@ -2939,6 +3011,21 @@ mod tests {
         assert_tag_contract(&repo, "postgres_tag").await;
     }
 
+    #[tokio::test]
+    async fn subscription_group_records_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_subscription_group_contract(&repo, "sqlite_subscription").await;
+    }
+
+    #[tokio::test]
+    async fn subscription_group_records_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_subscription_group_contract(&repo, "postgres_subscription").await;
+    }
+
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
         let suffix = uuid::Uuid::new_v4().simple().to_string();
         let tenant_id = format!("{prefix}_tenant_{suffix}");
@@ -3081,6 +3168,49 @@ mod tests {
         );
         assert_eq!(
             repo.list_tags(&created.tenant_id).await.unwrap(),
+            vec![created]
+        );
+    }
+
+    async fn assert_subscription_group_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let tenant_id = format!("{prefix}_tenant_{suffix}");
+        let user_id = format!("{prefix}_user_{suffix}");
+        let email = format!("{prefix}_{suffix}@example.com");
+        let group_id = format!("{prefix}_group_{suffix}");
+
+        repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+        repo.create_user(&user_id, &email, "User").await.unwrap();
+        repo.add_tenant_member(&tenant_id, &user_id, "admin")
+            .await
+            .unwrap();
+
+        let created = repo
+            .create_subscription_group(
+                &group_id,
+                &tenant_id,
+                &user_id,
+                "Favorites",
+                PackVisibility::Private,
+            )
+            .await
+            .unwrap();
+        assert_eq!(created.id, group_id);
+        assert_eq!(created.tenant_id, tenant_id);
+        assert_eq!(created.owner_user_id, user_id);
+        assert_eq!(created.title, "Favorites");
+        assert_eq!(created.visibility, PackVisibility::Private);
+
+        assert_eq!(
+            repo.find_subscription_group_record(&created.id)
+                .await
+                .unwrap(),
+            Some(created.clone())
+        );
+        assert_eq!(
+            repo.list_subscription_groups(&created.tenant_id, &created.owner_user_id)
+                .await
+                .unwrap(),
             vec![created]
         );
     }

@@ -1818,3 +1818,10 @@
 - Added shared tag repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
 - Updated PRD/status docs to show tag metadata PostgreSQL progress while keeping subscription metadata and other repositories open.
 - Verification: `cargo test -p msm-storage tag_records_work_on_sqlite --locked`; `cargo test -p msm-storage tag_records_work_on_postgres_when_configured --locked`.
+
+## 2026-05-10 PostgreSQL Subscription Group Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for subscription-group create, list, and find operations.
+- Added shared subscription-group repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
+- Updated PRD/status docs to show subscription metadata PostgreSQL progress while keeping metadata membership and other repositories open.
+- Verification: `cargo test -p msm-storage subscription_group_records_work_on_sqlite --locked`; `cargo test -p msm-storage subscription_group_records_work_on_postgres_when_configured --locked`.

@@ -3,6 +3,7 @@
 Phase: PostgreSQL support.
 
 Last completed:
+- PostgreSQL subscription-group repository slice: subscription-group create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL tag repository slice: tag create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL folder repository slice: folder create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL sticker-pack repository slice: sticker-pack upsert/find/list/read-record operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
