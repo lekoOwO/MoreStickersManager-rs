@@ -52,6 +52,7 @@ pub struct AppConfig {
     pub database_url: String,
     pub asset_dir: PathBuf,
     pub web_dist_dir: PathBuf,
+    pub public_asset_url: Option<String>,
     pub export_worker: ExportWorkerConfig,
     pub provider_import_worker: ProviderImportWorkerConfig,
     pub bootstrap_export_targets: Vec<BootstrapExportTargetConfig>,
@@ -143,6 +144,7 @@ impl AppConfig {
             database_url: read(vars, "MSM_DATABASE_URL", Self::DEFAULT_DATABASE_URL),
             asset_dir: PathBuf::from(read(vars, "MSM_ASSET_DIR", Self::DEFAULT_ASSET_DIR)),
             web_dist_dir: PathBuf::from(read(vars, "MSM_WEB_DIST_DIR", Self::DEFAULT_WEB_DIST_DIR)),
+            public_asset_url: read_optional(vars, "MSM_PUBLIC_ASSET_URL"),
             export_worker: ExportWorkerConfig {
                 enabled: read_bool(
                     vars,
@@ -213,7 +215,8 @@ pub async fn initialize_state(config: &AppConfig) -> AppResult<ApiState> {
     let repository = StorageRepository::new(pool);
     bootstrap_export_targets(&repository, &config.bootstrap_export_targets).await?;
     let asset_store = LocalAssetStore::new(config.asset_dir.clone());
-    Ok(ApiState::new(repository, asset_store))
+    Ok(ApiState::new(repository, asset_store)
+        .with_public_asset_url(config.public_asset_url.clone()))
 }
 
 async fn bootstrap_export_targets(
@@ -285,6 +288,13 @@ fn read(vars: &BTreeMap<String, String>, key: &str, default: &str) -> String {
         .filter(|value| !value.trim().is_empty())
         .cloned()
         .unwrap_or_else(|| default.to_owned())
+}
+
+fn read_optional(vars: &BTreeMap<String, String>, key: &str) -> Option<String> {
+    vars.get(key)
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
 }
 
 fn read_usize(vars: &BTreeMap<String, String>, key: &str, default: usize) -> AppResult<usize> {
@@ -454,6 +464,7 @@ mod tests {
         assert_eq!(config.database_url, "sqlite:data/msm.sqlite3");
         assert_eq!(config.asset_dir, PathBuf::from("data/assets"));
         assert_eq!(config.web_dist_dir, PathBuf::from("apps/web/dist"));
+        assert_eq!(config.public_asset_url, None);
         assert_eq!(config.export_worker.ffmpeg_path, PathBuf::from("ffmpeg"));
         assert_eq!(config.export_worker.ffprobe_path, PathBuf::from("ffprobe"));
         assert_eq!(
@@ -496,6 +507,10 @@ mod tests {
         );
         vars.insert("MSM_ASSET_DIR".to_owned(), "tmp/assets".to_owned());
         vars.insert("MSM_WEB_DIST_DIR".to_owned(), "tmp/web".to_owned());
+        vars.insert(
+            "MSM_PUBLIC_ASSET_URL".to_owned(),
+            "https://global-cdn.example.test/msm".to_owned(),
+        );
         vars.insert("MSM_FFMPEG_PATH".to_owned(), "bin/ffmpeg".to_owned());
         vars.insert("MSM_FFPROBE_PATH".to_owned(), "bin/ffprobe".to_owned());
         vars.insert(
@@ -536,6 +551,10 @@ mod tests {
         assert_eq!(config.database_url, "sqlite:data/test.sqlite3");
         assert_eq!(config.asset_dir, PathBuf::from("tmp/assets"));
         assert_eq!(config.web_dist_dir, PathBuf::from("tmp/web"));
+        assert_eq!(
+            config.public_asset_url.as_deref(),
+            Some("https://global-cdn.example.test/msm")
+        );
         assert_eq!(
             config.export_worker.ffmpeg_path,
             PathBuf::from("bin/ffmpeg")

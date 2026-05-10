@@ -15,6 +15,7 @@ pub struct ApiState {
     oidc_discovery_fetcher: Arc<dyn OidcDiscoveryFetcher>,
     oidc_jwks_fetcher: Arc<dyn OidcJwksFetcher>,
     oidc_userinfo_fetcher: Arc<dyn OidcUserinfoFetcher>,
+    public_asset_url: Option<String>,
 }
 
 impl ApiState {
@@ -27,6 +28,7 @@ impl ApiState {
             oidc_discovery_fetcher: Arc::new(HttpOidcDiscoveryFetcher::new()),
             oidc_jwks_fetcher: Arc::new(HttpOidcJwksFetcher::new()),
             oidc_userinfo_fetcher: Arc::new(HttpOidcUserinfoFetcher::new()),
+            public_asset_url: None,
         }
     }
 
@@ -64,6 +66,12 @@ impl ApiState {
     }
 
     #[must_use]
+    pub fn with_public_asset_url(mut self, public_asset_url: Option<String>) -> Self {
+        self.public_asset_url = public_asset_url;
+        self
+    }
+
+    #[must_use]
     pub fn repository(&self) -> &StorageRepository {
         &self.repository
     }
@@ -91,5 +99,10 @@ impl ApiState {
     #[must_use]
     pub fn oidc_userinfo_fetcher(&self) -> &dyn OidcUserinfoFetcher {
         self.oidc_userinfo_fetcher.as_ref()
+    }
+
+    #[must_use]
+    pub fn public_asset_url(&self) -> Option<&str> {
+        self.public_asset_url.as_deref()
     }
 }

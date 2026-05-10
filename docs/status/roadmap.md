@@ -8,16 +8,18 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 ## Current Focus
 
-Phase H asset privacy/CDN is the active focus. Tenant-level public asset URL
-configuration exists across API/OpenAPI, CLI, MCP, and Web, and protected pack
-exports plus public subscription payloads now rewrite local sticker asset URLs
-to the tenant CDN base when configured. The next work is system-wide public
-asset URL fallback/default configuration and precedence verification.
+Phase H asset privacy/CDN is closing. Tenant-level public asset URL
+configuration exists across API/OpenAPI, CLI, MCP, and Web. `MSM_PUBLIC_ASSET_URL`
+provides a system-wide fallback CDN base, tenant settings take precedence, and
+protected pack exports plus public subscription payloads rewrite local sticker
+asset URLs to the selected CDN base when configured. The next work is CDN docs
+polish and then Phase I data portability surfaces.
 
 ## Recently Completed
 
 - Export jobs can now be requeued for operator recovery across API/OpenAPI, CLI, MCP, and Web. The recovery flow resets failed/cancelled jobs to queued and records/refreshes recovery events for operator handoff.
 - Tenant CDN URL payload rewriting now applies to protected pack exports and public pack/subscription payloads while preserving MoreStickers-compatible JSON shape.
+- `MSM_PUBLIC_ASSET_URL` now provides system-wide CDN fallback behavior for pack/subscription payloads, with tenant CDN URLs taking precedence.
 - Non-Telegram remote export targets now dispatch through `RemoteExportTargetExecutor`, an injectable worker boundary that receives job/target/config/pack snapshots and returns target-neutral remote execution summaries while the default executor safely rejects unsupported future targets.
 - Provider config CLI commands now exist for list/upsert/delete with human/JSON
   output and PAT forwarding to the protected API.
@@ -174,8 +176,8 @@ asset URL fallback/default configuration and precedence verification.
 
 ## Immediate Plan
 
-1. Add system-wide public asset URL fallback/default configuration.
-2. Verify precedence: tenant CDN URL overrides system-wide CDN URL, and system-wide CDN URL overrides the request-derived MSM app URL.
+1. Document CDN URL precedence and the difference between `MSM_PUBLIC_ASSET_URL` and provider-import `MSM_PUBLIC_ASSET_BASE_URL`.
+2. Start Phase I data portability API export/import surfaces.
 
 ## Later Planned Work
 

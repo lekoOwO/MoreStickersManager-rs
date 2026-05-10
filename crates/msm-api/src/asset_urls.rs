@@ -11,12 +11,13 @@ pub(crate) async fn pack_with_resolved_asset_urls(
     pack: StickerPack,
 ) -> ApiResult<StickerPack> {
     let mut config = AssetUrlConfig::new(&public_base_url(headers))?;
-    if let Some(public_asset_url) = state
+    let public_asset_url = state
         .repository()
         .find_tenant(tenant_id)
         .await?
         .and_then(|tenant| tenant.public_asset_url)
-    {
+        .or_else(|| state.public_asset_url().map(str::to_owned));
+    if let Some(public_asset_url) = public_asset_url {
         config = config.with_public_asset_url(&public_asset_url)?;
     }
 

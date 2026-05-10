@@ -55,6 +55,13 @@ with backoff. Service startup can poll jobs when
 `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS`, and `MSM_PUBLIC_ASSET_BASE_URL` for
 polling, retry, and rewritten asset URLs.
 
+`MSM_PUBLIC_ASSET_BASE_URL` is used by provider-import workers when they
+internalize newly downloaded provider assets into pack JSON. Separately,
+`MSM_PUBLIC_ASSET_URL` is the API runtime fallback CDN base used when serving
+stored pack exports and dynamic subscription payloads. Tenant `public_asset_url`
+settings take precedence over `MSM_PUBLIC_ASSET_URL`; if both are absent, the
+API falls back to the request-derived MSM app URL.
+
 Telegram still needs runtime `getFile` resolution before it can reuse the asset
 internalization path. LINE still needs a runtime parser that converts fetched
 product data into the existing LINE fixture schema.

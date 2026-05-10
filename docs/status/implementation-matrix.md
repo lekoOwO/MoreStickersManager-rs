@@ -48,7 +48,7 @@ roadmap, and completion definition.
 | Asset privacy enforcement | Future phase | Private pack asset and subscription paths reject anonymous reads and accept owner PATs, pack subscription tokens, subscription-group tokens containing the pack, or an owner `msm_session` Web session cookie. Final read-access rules are recorded in `docs/status/decisions.md`. |
 | OIDC/SSO | Partially implemented | Local auth bootstrap and tenant-level local-registration disable controls exist; OIDC/SSO provider configuration, login-state, and provider-user-link storage exist in SQLite. API can start OIDC authorization and complete login with state/nonce checks, authorization-code exchange, discovery, JWKS parsing/key selection, ID-token parsing, issuer/audience/nonce/expiration validation, RS256 JWKS-backed signature verification, callback user-link derivation from validated ID-token claims, userinfo response parsing, and callback userinfo fetch fallback. CLI, MCP, and Web tenant administration can list/upsert/delete OIDC providers; Web auth can start OIDC login, show authorization state, prefill provider redirect callbacks, complete callback requests, and store returned PATs. User docs cover SSO-backed PAT usage for Web/API/CLI/MCP. |
 | Tenant CDN public asset URL | Implemented | Tenant public asset URL is configurable through API/OpenAPI, CLI, MCP, and Web. Protected pack exports and public subscription payloads rewrite local sticker asset URLs to the tenant CDN base when configured. |
-| System-wide CDN public asset URL | Future phase | Domain URL resolver supports CDN preference; tenant-level configuration exists, but a system-wide fallback/default config surface is not implemented. |
+| System-wide CDN public asset URL | Implemented | `MSM_PUBLIC_ASSET_URL` provides an app-wide fallback CDN base for exported pack and subscription payloads; tenant public asset URLs take precedence. |
 | Tenant admin console | Current phase | Bootstrap admin plus tenant member/settings/local-registration/user-status/role-template API/CLI/MCP/Web surfaces exist, and route-by-route fine-grained RBAC audit/closure is complete for current API tenant/resource-owning routes. Remaining work is role assignment semantics beyond templates and SSO-backed account documentation. |
 | Full user migration UI/API | Future phase | Storage portability helpers exist; complete Web/API/CLI migration workflow is not implemented. |
 | Future providers | Future phases | Signal, WhatsApp, Kakao, Band, OGQ, and Viber are registered as planned only. |
@@ -56,4 +56,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue with Phase H asset privacy/CDN work: system-wide public asset URL fallback/default configuration and precedence verification against tenant CDN URLs.
+Continue by documenting CDN environment behavior in user/developer docs, then move to Phase I data portability surfaces.

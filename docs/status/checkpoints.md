@@ -1740,3 +1740,10 @@
 - Tenant `public_asset_url` now replaces the request-derived MSM app URL for local sticker asset paths when configured, while preserving the MoreStickers-compatible payload shape.
 - Added focused API coverage for protected pack export and public dynamic subscription payload CDN behavior.
 - Updated the PRD to mark tenant CDN configuration and payload rewriting complete; remaining Phase H work is system-wide CDN fallback/default configuration and precedence verification.
+
+## 2026-05-10 System CDN Fallback
+
+- Added an app-wide API public asset URL fallback on `ApiState`, wired from `MSM_PUBLIC_ASSET_URL` in service configuration.
+- Public pack/subscription payload rewriting now uses precedence: tenant `public_asset_url`, then `MSM_PUBLIC_ASSET_URL`, then the request-derived MSM app URL.
+- Added focused API coverage for system fallback plus tenant precedence, and app config coverage for the new environment variable.
+- Updated the PRD/status docs to mark system-wide CDN fallback complete; remaining Phase H work is documentation polish before Phase I data portability.

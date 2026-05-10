@@ -80,7 +80,7 @@ Status meanings:
 | Media conversion | Implemented | Profiles, ffmpeg command plans, ffprobe command/report parsing, converter stdout/stderr/exit-code diagnostics, prepared-media cache reuse, export-job result visibility for output metadata, and target-specific validation exist. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
 | Auth/RBAC | Partially complete | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, and cross-tenant audit coverage exist. OIDC/SSO remains incomplete. |
-| Asset privacy/CDN | Partially complete | Tenant public asset/CDN URL settings exist across API/OpenAPI, CLI, MCP, and Web. Protected pack exports and public pack/subscription payloads rewrite local sticker asset URLs to the tenant CDN base when configured. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. System-wide CDN default remains incomplete. |
+| Asset privacy/CDN | Partially complete | Tenant public asset/CDN URL settings exist across API/OpenAPI, CLI, MCP, and Web. `MSM_PUBLIC_ASSET_URL` provides a system-wide fallback CDN base, and tenant settings take precedence. Protected pack exports and public pack/subscription payloads rewrite local sticker asset URLs to the selected CDN base when configured. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. |
 | Data portability | Partially complete | Storage helpers exist. Full API/CLI/Web migration workflow is incomplete. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
 
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue Phase H asset privacy/CDN work: add system-wide public asset URL default configuration and verify precedence against tenant CDN URLs.
+1. Continue Phase H asset privacy/CDN work: verify/document asset URL fallback behavior across user/admin docs and then move to Phase I data portability.
 
 Each queue item must update this section when completed or reordered.
 
@@ -288,7 +288,7 @@ tests and docs are updated.
 ### Phase H: Asset Privacy And CDN
 
 - [x] Tenant setting for public asset URL across API/OpenAPI, CLI, MCP, and Web.
-- [ ] System-wide default setting for public asset URL.
+- [x] System-wide default setting for public asset URL through `MSM_PUBLIC_ASSET_URL`.
 - [x] Admin UI/API for tenant CDN URL configuration.
 - [x] Sticker pack and subscription payloads rewrite local asset URLs to the tenant CDN base when configured.
 - [x] Private asset authorization through pack subscription secret,

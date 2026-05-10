@@ -489,6 +489,11 @@ assets. Telegram provider `getFile` downloads and LINE product pages with
 embedded metadata are handled by the worker when the job can reach the provider
 fetch/download URLs.
 
+`MSM_PUBLIC_ASSET_URL` is the runtime system-wide CDN fallback for pack export
+and subscription payloads served by the API. When a tenant also has
+`publicAssetUrl` configured, the tenant value wins; when neither is configured,
+MSM uses the request-derived app URL from `Host`/`X-Forwarded-Proto`.
+
 PAT foundation status:
 
 - token format is `msm_pat_<token_id>_<random_secret>`;
@@ -695,6 +700,8 @@ The `PUT` body replaces editable settings:
 ```
 
 Use `null` for `publicAssetUrl` to clear the tenant-level CDN/public asset URL.
+Tenant CDN URLs take precedence over the system-wide `MSM_PUBLIC_ASSET_URL`
+fallback for protected pack exports and public subscription payloads.
 When `localRegistrationEnabled` is `false`, existing users can still log in,
 but `POST /api/v1/auth/local/register` rejects new registrations into that
 existing tenant. New-tenant bootstrap registrations are still allowed.

@@ -3137,6 +3137,71 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn system_public_asset_url_fallback_applies_when_tenant_cdn_is_absent() {
+        let state = empty_state_with_owner()
+            .await
+            .with_public_asset_url(Some("https://global-cdn.example.test/msm".to_owned()));
+        state
+            .repository()
+            .upsert_sticker_pack(
+                "pack_public",
+                "tenant_1",
+                "user_1",
+                msm_storage::models::PackVisibility::Public,
+                Some("telegram"),
+                &sample_pack_with_suffix("public"),
+            )
+            .await
+            .unwrap();
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_public/stickerpack")
+                    .header("host", "msm.example")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            payload["stickers"][0]["image"],
+            "https://global-cdn.example.test/msm/assets/packs/pack_public/file.webp"
+        );
+
+        state
+            .repository()
+            .update_tenant_settings(
+                "tenant_1",
+                "Tenant",
+                Some("https://tenant-cdn.example.test/msm"),
+                true,
+            )
+            .await
+            .unwrap();
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/api/public/packs/pack_public/stickerpack")
+                    .header("host", "msm.example")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            payload["stickers"][0]["image"],
+            "https://tenant-cdn.example.test/msm/assets/packs/pack_public/file.webp"
+        );
+    }
+
+    #[tokio::test]
     #[allow(clippy::too_many_lines)]
     async fn public_subscription_routes_accept_subscription_access_tokens() {
         let state = empty_state_with_owner().await;
