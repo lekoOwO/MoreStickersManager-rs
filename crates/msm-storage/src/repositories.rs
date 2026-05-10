@@ -1276,23 +1276,39 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn add_pack_to_folder(
         &self,
         folder_id: &str,
         pack_id: &str,
         sort_order: i64,
     ) -> StorageResult<FolderPackRecord> {
-        sqlx::query(
-            "INSERT INTO folder_packs (folder_id, pack_id, sort_order)
-            VALUES (?, ?, ?)
-            ON CONFLICT(folder_id, pack_id) DO UPDATE SET sort_order = excluded.sort_order",
-        )
-        .bind(folder_id)
-        .bind(pack_id)
-        .bind(sort_order)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO folder_packs (folder_id, pack_id, sort_order)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(folder_id, pack_id) DO UPDATE SET sort_order = excluded.sort_order",
+                )
+                .bind(folder_id)
+                .bind(pack_id)
+                .bind(sort_order)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO folder_packs (folder_id, pack_id, sort_order)
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT(folder_id, pack_id) DO UPDATE SET sort_order = excluded.sort_order",
+                )
+                .bind(folder_id)
+                .bind(pack_id)
+                .bind(sort_order)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(FolderPackRecord {
             folder_id: folder_id.to_owned(),
@@ -1305,18 +1321,32 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_folder_pack_ids(&self, folder_id: &str) -> StorageResult<Vec<String>> {
-        let rows = sqlx::query(
-            "SELECT pack_id FROM folder_packs
-            WHERE folder_id = ?
-            ORDER BY sort_order, pack_id",
-        )
-        .bind(folder_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
-
-        Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT pack_id FROM folder_packs
+                    WHERE folder_id = ?
+                    ORDER BY sort_order, pack_id",
+                )
+                .bind(folder_id)
+                .fetch_all(pool)
+                .await?;
+                Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT pack_id FROM folder_packs
+                    WHERE folder_id = $1
+                    ORDER BY sort_order, pack_id",
+                )
+                .bind(folder_id)
+                .fetch_all(pool)
+                .await?;
+                Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
+            }
+        }
     }
 
     /// Removes a sticker pack from a folder.
@@ -1464,20 +1494,35 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn add_tag_to_pack(
         &self,
         pack_id: &str,
         tag_id: &str,
     ) -> StorageResult<PackTagRecord> {
-        sqlx::query(
-            "INSERT OR IGNORE INTO pack_tags (pack_id, tag_id)
-            VALUES (?, ?)",
-        )
-        .bind(pack_id)
-        .bind(tag_id)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT OR IGNORE INTO pack_tags (pack_id, tag_id)
+                    VALUES (?, ?)",
+                )
+                .bind(pack_id)
+                .bind(tag_id)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO pack_tags (pack_id, tag_id)
+                    VALUES ($1, $2)
+                    ON CONFLICT(pack_id, tag_id) DO NOTHING",
+                )
+                .bind(pack_id)
+                .bind(tag_id)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(PackTagRecord {
             pack_id: pack_id.to_owned(),
@@ -1489,18 +1534,32 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_pack_tag_ids(&self, pack_id: &str) -> StorageResult<Vec<String>> {
-        let rows = sqlx::query(
-            "SELECT tag_id FROM pack_tags
-            WHERE pack_id = ?
-            ORDER BY tag_id",
-        )
-        .bind(pack_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
-
-        Ok(rows.into_iter().map(|row| row.get("tag_id")).collect())
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT tag_id FROM pack_tags
+                    WHERE pack_id = ?
+                    ORDER BY tag_id",
+                )
+                .bind(pack_id)
+                .fetch_all(pool)
+                .await?;
+                Ok(rows.into_iter().map(|row| row.get("tag_id")).collect())
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT tag_id FROM pack_tags
+                    WHERE pack_id = $1
+                    ORDER BY tag_id",
+                )
+                .bind(pack_id)
+                .fetch_all(pool)
+                .await?;
+                Ok(rows.into_iter().map(|row| row.get("tag_id")).collect())
+            }
+        }
     }
 
     /// Removes a tag from a sticker pack.
@@ -1701,24 +1760,41 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn add_pack_to_subscription_group(
         &self,
         subscription_group_id: &str,
         pack_id: &str,
         sort_order: i64,
     ) -> StorageResult<SubscriptionGroupPackRecord> {
-        sqlx::query(
-            "INSERT INTO subscription_group_packs (
-                subscription_group_id, pack_id, sort_order
-            ) VALUES (?, ?, ?)
-            ON CONFLICT(subscription_group_id, pack_id) DO UPDATE SET sort_order = excluded.sort_order",
-        )
-        .bind(subscription_group_id)
-        .bind(pack_id)
-        .bind(sort_order)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO subscription_group_packs (
+                        subscription_group_id, pack_id, sort_order
+                    ) VALUES (?, ?, ?)
+                    ON CONFLICT(subscription_group_id, pack_id) DO UPDATE SET sort_order = excluded.sort_order",
+                )
+                .bind(subscription_group_id)
+                .bind(pack_id)
+                .bind(sort_order)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO subscription_group_packs (
+                        subscription_group_id, pack_id, sort_order
+                    ) VALUES ($1, $2, $3)
+                    ON CONFLICT(subscription_group_id, pack_id) DO UPDATE SET sort_order = excluded.sort_order",
+                )
+                .bind(subscription_group_id)
+                .bind(pack_id)
+                .bind(sort_order)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(SubscriptionGroupPackRecord {
             subscription_group_id: subscription_group_id.to_owned(),
@@ -2403,21 +2479,35 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn list_subscription_pack_ids(
         &self,
         subscription_group_id: &str,
     ) -> StorageResult<Vec<String>> {
-        let rows = sqlx::query(
-            "SELECT pack_id FROM subscription_group_packs
-            WHERE subscription_group_id = ?
-            ORDER BY sort_order, pack_id",
-        )
-        .bind(subscription_group_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
-
-        Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT pack_id FROM subscription_group_packs
+                    WHERE subscription_group_id = ?
+                    ORDER BY sort_order, pack_id",
+                )
+                .bind(subscription_group_id)
+                .fetch_all(pool)
+                .await?;
+                Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT pack_id FROM subscription_group_packs
+                    WHERE subscription_group_id = $1
+                    ORDER BY sort_order, pack_id",
+                )
+                .bind(subscription_group_id)
+                .fetch_all(pool)
+                .await?;
+                Ok(rows.into_iter().map(|row| row.get("pack_id")).collect())
+            }
+        }
     }
 
     /// Removes a sticker pack from a subscription group.
@@ -3026,6 +3116,21 @@ mod tests {
         assert_subscription_group_contract(&repo, "postgres_subscription").await;
     }
 
+    #[tokio::test]
+    async fn metadata_memberships_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_metadata_membership_contract(&repo, "sqlite_membership").await;
+    }
+
+    #[tokio::test]
+    async fn metadata_memberships_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_metadata_membership_contract(&repo, "postgres_membership").await;
+    }
+
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
         let suffix = uuid::Uuid::new_v4().simple().to_string();
         let tenant_id = format!("{prefix}_tenant_{suffix}");
@@ -3212,6 +3317,179 @@ mod tests {
                 .await
                 .unwrap(),
             vec![created]
+        );
+    }
+
+    async fn assert_metadata_membership_contract(repo: &StorageRepository, prefix: &str) {
+        let fixture = seed_metadata_membership_fixture(repo, prefix).await;
+
+        assert_folder_membership_contract(repo, &fixture).await;
+        assert_pack_tag_membership_contract(repo, &fixture).await;
+        assert_subscription_membership_contract(repo, &fixture).await;
+    }
+
+    struct MetadataMembershipFixture {
+        pack: String,
+        second_pack: String,
+        folder: String,
+        tag: String,
+        group: String,
+    }
+
+    async fn seed_metadata_membership_fixture(
+        repo: &StorageRepository,
+        prefix: &str,
+    ) -> MetadataMembershipFixture {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let tenant_id = format!("{prefix}_tenant_{suffix}");
+        let user_id = format!("{prefix}_user_{suffix}");
+        let email = format!("{prefix}_{suffix}@example.com");
+        let pack_id = format!("{prefix}_pack_{suffix}");
+        let second_pack_id = format!("{prefix}_pack_2_{suffix}");
+        let folder_id = format!("{prefix}_folder_{suffix}");
+        let tag_id = format!("{prefix}_tag_{suffix}");
+        let group_id = format!("{prefix}_group_{suffix}");
+
+        repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+        repo.create_user(&user_id, &email, "User").await.unwrap();
+        repo.add_tenant_member(&tenant_id, &user_id, "admin")
+            .await
+            .unwrap();
+
+        let pack = sample_pack();
+        let mut second_pack = sample_pack();
+        second_pack.id = format!("MoreStickers:Telegram:Pack:{second_pack_id}");
+        second_pack.title = "Sample 2".to_owned();
+        second_pack.logo.id = format!("MoreStickers:Telegram:Sticker:{second_pack_id}:logo");
+        second_pack.logo.sticker_pack_id = second_pack.id.clone();
+        for (index, sticker) in second_pack.stickers.iter_mut().enumerate() {
+            sticker.id = format!("MoreStickers:Telegram:Sticker:{second_pack_id}:{index}");
+            sticker.sticker_pack_id = second_pack.id.clone();
+        }
+        repo.upsert_sticker_pack(
+            &pack_id,
+            &tenant_id,
+            &user_id,
+            PackVisibility::Private,
+            Some("telegram"),
+            &pack,
+        )
+        .await
+        .unwrap();
+        repo.upsert_sticker_pack(
+            &second_pack_id,
+            &tenant_id,
+            &user_id,
+            PackVisibility::Private,
+            Some("telegram"),
+            &second_pack,
+        )
+        .await
+        .unwrap();
+
+        repo.create_folder(&folder_id, &tenant_id, &user_id, "Favorites")
+            .await
+            .unwrap();
+        repo.create_tag(NewTag {
+            id: &tag_id,
+            tenant_id: &tenant_id,
+            name: "Animated",
+        })
+        .await
+        .unwrap();
+        repo.create_subscription_group(
+            &group_id,
+            &tenant_id,
+            &user_id,
+            "Daily",
+            PackVisibility::Private,
+        )
+        .await
+        .unwrap();
+
+        MetadataMembershipFixture {
+            pack: pack_id,
+            second_pack: second_pack_id,
+            folder: folder_id,
+            tag: tag_id,
+            group: group_id,
+        }
+    }
+
+    async fn assert_folder_membership_contract(
+        repo: &StorageRepository,
+        fixture: &MetadataMembershipFixture,
+    ) {
+        let folder_pack = repo
+            .add_pack_to_folder(&fixture.folder, &fixture.pack, 20)
+            .await
+            .unwrap();
+        assert_eq!(folder_pack.folder_id, fixture.folder);
+        assert_eq!(folder_pack.pack_id, fixture.pack);
+        assert_eq!(folder_pack.sort_order, 20);
+        repo.add_pack_to_folder(&folder_pack.folder_id, &fixture.second_pack, 10)
+            .await
+            .unwrap();
+        repo.add_pack_to_folder(&folder_pack.folder_id, &fixture.pack, 5)
+            .await
+            .unwrap();
+        assert_eq!(
+            repo.list_folder_pack_ids(&folder_pack.folder_id)
+                .await
+                .unwrap(),
+            vec![fixture.pack.clone(), fixture.second_pack.clone()]
+        );
+    }
+
+    async fn assert_pack_tag_membership_contract(
+        repo: &StorageRepository,
+        fixture: &MetadataMembershipFixture,
+    ) {
+        let pack_tag = repo
+            .add_tag_to_pack(&fixture.pack, &fixture.tag)
+            .await
+            .unwrap();
+        assert_eq!(pack_tag.pack_id, fixture.pack);
+        assert_eq!(pack_tag.tag_id, fixture.tag);
+        repo.add_tag_to_pack(&pack_tag.pack_id, &pack_tag.tag_id)
+            .await
+            .unwrap();
+        assert_eq!(
+            repo.list_pack_tag_ids(&pack_tag.pack_id).await.unwrap(),
+            vec![fixture.tag.clone()]
+        );
+    }
+
+    async fn assert_subscription_membership_contract(
+        repo: &StorageRepository,
+        fixture: &MetadataMembershipFixture,
+    ) {
+        let subscription_pack = repo
+            .add_pack_to_subscription_group(&fixture.group, &fixture.pack, 20)
+            .await
+            .unwrap();
+        assert_eq!(subscription_pack.subscription_group_id, fixture.group);
+        assert_eq!(subscription_pack.pack_id, fixture.pack);
+        assert_eq!(subscription_pack.sort_order, 20);
+        repo.add_pack_to_subscription_group(
+            &subscription_pack.subscription_group_id,
+            &fixture.second_pack,
+            10,
+        )
+        .await
+        .unwrap();
+        repo.add_pack_to_subscription_group(
+            &subscription_pack.subscription_group_id,
+            &fixture.pack,
+            5,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            repo.list_subscription_pack_ids(&subscription_pack.subscription_group_id)
+                .await
+                .unwrap(),
+            vec![fixture.pack.clone(), fixture.second_pack.clone()]
         );
     }
 

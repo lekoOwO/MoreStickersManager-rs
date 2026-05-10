@@ -10,11 +10,12 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 Phase J PostgreSQL support is the active focus. Phase I data portability is now
 closed across storage, API/OpenAPI, CLI, MCP, Web, and cross-instance API
-compatibility coverage. The next work is PostgreSQL migration/repository
+compatibility coverage. The next work is continuing PostgreSQL repository
 compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Folder-pack, pack-tag, and subscription-group-pack membership add/list operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Subscription-group create/list/find repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Tag create/list/find repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Folder create/list/find repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
@@ -185,7 +186,7 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Move metadata membership and auth/PAT repository operations off SQLite-only pool access toward backend-aware SQL execution.
+1. Move auth/PAT repository operations off SQLite-only pool access toward backend-aware SQL execution.
 2. Continue expanding shared contract tests before adding PostgreSQL CI service wiring.
 
 ## Later Planned Work

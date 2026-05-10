@@ -3,6 +3,7 @@
 Phase: PostgreSQL support.
 
 Last completed:
+- PostgreSQL metadata membership repository slice: folder-pack, pack-tag, and subscription-group-pack membership add/list operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage. Membership removal remains SQLite-only for a follow-up parity pass.
 - PostgreSQL subscription-group repository slice: subscription-group create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL tag repository slice: tag create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL folder repository slice: folder create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
@@ -136,7 +137,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Begin Phase J PostgreSQL support with migration/repository compatibility planning and shared backend test coverage.
+- Continue Phase J PostgreSQL support by moving auth/PAT repositories and remaining storage surfaces toward backend-aware SQL execution with shared backend test coverage.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
