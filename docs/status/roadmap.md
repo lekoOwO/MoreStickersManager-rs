@@ -13,10 +13,9 @@ across API, CLI, MCP, and Web; API job persistence exists; and `msm-app` now has
 a tested worker foundation that can execute queued LINE direct-asset imports
 from the service loop when enabled.
 
-The remaining immediate gap in provider import execution is LINE product-page
-parsing beyond fixture-schema metadata. API, CLI, MCP, and Web provider import
-job controls exist, and the worker can execute LINE direct-asset jobs plus
-Telegram `getFile` asset downloads.
+Provider import execution now handles LINE fixture-schema/direct-asset payloads,
+LINE product pages with embedded metadata, and Telegram `getFile` asset
+downloads. API, CLI, MCP, and Web provider import job controls exist.
 
 ## Recently Completed
 
@@ -172,10 +171,10 @@ Telegram `getFile` asset downloads.
 
 ## Immediate Plan
 
-1. Implement LINE product-page parsing into the existing LINE normalization
-   schema.
-2. Add provider credential/config UI and API for production Telegram tokens and
+1. Add provider credential/config UI and API for production Telegram tokens and
    other provider secrets.
+2. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band,
+   OGQ, and Viber if any are still missing.
 
 ## Later Planned Work
 

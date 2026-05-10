@@ -95,6 +95,83 @@ async fn provider_import_worker_internalizes_line_pack_assets() {
 }
 
 #[tokio::test]
+async fn provider_import_worker_parses_line_product_page_metadata() {
+    let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
+    let pool = DbPool::connect(&config).await.unwrap();
+    pool.run_migrations().await.unwrap();
+    let repo = StorageRepository::new(pool);
+    repo.create_tenant("tenant_1", "Tenant").await.unwrap();
+    repo.create_user("user_1", "leko@example.com", "Leko")
+        .await
+        .unwrap();
+    repo.create_provider_import_job(NewProviderImportJob {
+        id: "provider_job_line_page",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        provider_id: "line-stickers",
+        remote_id: "12345",
+        target_pack_id: Some("pack_line_page"),
+        request_json: r#"{
+            "providerId": "line-stickers",
+            "remoteId": "12345",
+            "targetPackId": "pack_line_page",
+            "baseUrl": "https://store.line.me"
+        }"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let asset_store = LocalAssetStore::new(temp.path());
+    let worker = ProviderImportWorker::new(
+        repo.clone(),
+        asset_store,
+        ProviderImportWorkerConfig {
+            enabled: false,
+            public_asset_base_url: "https://msm.example.test".to_owned(),
+            poll_interval: Duration::from_millis(5),
+            retry_backoff: Duration::from_millis(5),
+        },
+        Arc::new(FakeFetcher::new(line_product_page_metadata())),
+        Arc::new(FakeDownloader::new(BTreeMap::from([
+            (
+                "https://stickershop.line-scdn.net/stickershop/v1/sticker/1001/iphone/sticker.png"
+                    .to_owned(),
+                b"line-page-one".to_vec(),
+            ),
+            (
+                "https://stickershop.line-scdn.net/stickershop/v1/sticker/1002/iPhone/sticker_animation@2x.png"
+                    .to_owned(),
+                b"line-page-two".to_vec(),
+            ),
+        ]))),
+    );
+
+    let job = worker.run_job("provider_job_line_page").await.unwrap();
+    let pack = repo
+        .find_sticker_pack("pack_line_page")
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(job.status, ExportJobStatus::Succeeded);
+    assert_eq!(pack.title, "LINE Cats");
+    assert_eq!(
+        pack.stickers[1].image,
+        "https://msm.example.test/assets/packs/pack_line_page/sticker_animation@2x.png"
+    );
+    assert_eq!(
+        tokio::fs::read(
+            temp.path()
+                .join("assets/packs/pack_line_page/sticker_animation@2x.png")
+        )
+        .await
+        .unwrap(),
+        b"line-page-two"
+    );
+}
+
+#[tokio::test]
 async fn provider_import_worker_requeues_retryable_failures() {
     let config = DatabaseConfig::parse("sqlite::memory:").unwrap();
     let pool = DbPool::connect(&config).await.unwrap();
@@ -317,5 +394,38 @@ fn telegram_metadata() -> Vec<u8> {
             ]
         }
     }"#
+    .to_vec()
+}
+
+fn line_product_page_metadata() -> Vec<u8> {
+    br#"
+        <!doctype html>
+        <script id="__NEXT_DATA__" type="application/json">
+          {
+            "props": {
+              "pageProps": {
+                "product": {
+                  "id": "12345",
+                  "title": "LINE Cats",
+                  "author": { "name": "LINE Creators" },
+                  "mainImage": "https://stickershop.line-scdn.net/stickershop/v1/product/12345/LINEStorePC/main.png",
+                  "stickers": [
+                    {
+                      "id": "1001",
+                      "title": "Wave",
+                      "staticUrl": "https://stickershop.line-scdn.net/stickershop/v1/sticker/1001/iphone/sticker.png"
+                    },
+                    {
+                      "id": "1002",
+                      "staticUrl": "https://stickershop.line-scdn.net/stickershop/v1/sticker/1002/iphone/sticker.png",
+                      "animationUrl": "https://stickershop.line-scdn.net/stickershop/v1/sticker/1002/iPhone/sticker_animation@2x.png"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        </script>
+    "#
     .to_vec()
 }

@@ -75,7 +75,7 @@ Status meanings:
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, and provider import job tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
-| Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
+| Provider normalization | Partially complete | Telegram fixtures, LINE fixtures, and LINE product-page embedded metadata normalization exist. Some provider network credential/config and future-provider flows remain incomplete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
 | Telegram publication | Partially complete | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, and mapping persistence exist. Further operator polish and failure recovery remain. |
@@ -88,8 +88,9 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Implement LINE product metadata parsing beyond fixture-schema direct URL payloads.
-2. Add provider credential/config UI and API.
+1. Add provider credential/config UI and API.
+2. Add placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ, and
+   Viber without pretending they are implemented.
 
 Each queue item must update this section when completed or reordered.
 
@@ -242,9 +243,9 @@ tests and docs are updated.
   Progress: `msm-providers` now exposes a testable LINE sticker-shop product
   fetch plan boundary and direct remote URL asset strategy. `msm-app` can execute
   planned metadata fetches through an injected runtime and download direct remote
-  sticker assets into `LocalAssetStore` while rewriting pack image URLs. Parsing
-  and worker execution remain. API can now create protected provider import
-  fetch plans and queue provider import jobs for LINE sticker sources.
+  sticker assets into `LocalAssetStore` while rewriting pack image URLs. Worker execution now accepts fixture-schema JSON and LINE product pages with
+  embedded metadata, then internalizes direct remote assets. API can create protected
+  provider import fetch plans and queue provider import jobs for LINE sticker sources.
   CLI/MCP/Web can request/display those plans, and CLI/MCP/Web can create/read
   provider import jobs and list job events.
 - [ ] Provider credential/config UI and API.

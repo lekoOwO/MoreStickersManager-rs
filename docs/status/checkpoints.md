@@ -1617,3 +1617,10 @@
 - Added worker coverage for Telegram getFile/file download execution and adjusted retry coverage now that Telegram is no longer treated as an unsupported provider path.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-app provider_import_worker --locked` (3 worker tests plus filtered config coverage), `cargo test -p msm-app --locked` (29 tests), `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider/user docs; next Phase E slice should implement LINE product-page parsing and provider credential/config UI.
+
+## 2026-05-10 LINE Product Page Parsing
+
+- Extended LINE normalization to accept fixture-schema JSON, direct product objects, product wrappers, and Next-style page props containing embedded product metadata.
+- Added provider and worker tests proving LINE product pages with embedded metadata normalize into MoreStickers packs and execute through provider import worker asset internalization.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-providers line --locked` (5 focused tests), `cargo test -p msm-app provider_import_worker --locked` (4 worker tests plus filtered config coverage), `cargo test -p msm-providers -p msm-app --locked` (40 tests), `cargo clippy -p msm-providers -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider/user docs; next Phase E slice should add provider credential/config UI and API.

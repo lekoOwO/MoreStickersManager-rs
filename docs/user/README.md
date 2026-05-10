@@ -447,9 +447,9 @@ events. Service startup can poll provider import jobs when
 `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS` for polling cadence,
 `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS` for retry delay, and
 `MSM_PUBLIC_ASSET_BASE_URL` for the public URL embedded into imported sticker
-assets. Telegram provider `getFile` downloads are handled by the worker when
-the job can use a Bot API URL/token boundary; LINE product-page parsing is still
-pending.
+assets. Telegram provider `getFile` downloads and LINE product pages with
+embedded metadata are handled by the worker when the job can reach the provider
+fetch/download URLs.
 
 PAT foundation status:
 

@@ -73,10 +73,11 @@ status, and lists job events.
 with the same protected planning payload and records an initial queued event.
 `GET /api/v1/provider-import-jobs/{job_id}` and
 `GET /api/v1/provider-import-jobs/{job_id}/events` expose status/event reads.
-A tested app worker foundation can execute LINE direct-asset jobs and Telegram
-`getFile` asset downloads, and service startup can run that worker loop when
-enabled. LINE product parsing and provider credential/config UI remain pending.
-CLI, MCP, and Web can create provider import jobs and read job status/events.
+A tested app worker foundation can execute LINE fixture-schema/direct-asset jobs,
+LINE product pages with embedded metadata, and Telegram `getFile` asset
+downloads; service startup can run that worker loop when enabled. Provider
+credential/config UI remains pending. CLI, MCP, and Web can create provider
+import jobs and read job status/events.
 
 ## Provider Versus Export Target
 

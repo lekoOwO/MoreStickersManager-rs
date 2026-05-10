@@ -120,9 +120,10 @@ Last completed:
 - Provider import job MCP slice: MCP now exposes `msm.create_provider_import_job`, `msm.get_provider_import_job`, and `msm.list_provider_import_job_events`, protected by `provider.import` and tenant resource RBAC.
 - Provider import job Web slice: Web now queues provider import jobs, refreshes job status, and displays ordered job events from the Providers workspace.
 - Provider import Telegram getFile slice: worker execution now parses Telegram sticker-set responses, resolves sticker `fileId` values through `getFile`, downloads Bot API file URLs, internalizes assets, and upserts imported packs.
+- LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Implement LINE product parsing for provider imports, then provider credential/config UI.
+- Add provider credential/config UI for provider imports, then planned-provider placeholders if any are missing.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -255,9 +256,10 @@ Last verification:
 - Provider import job MCP slice: focused MCP tests cover provider import job tool registration and create/get/events calls. Verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-mcp provider_import --locked`, `cargo test -p msm-mcp --locked` (41 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-mcp-provider-jobs`.
 - Provider import job Web slice: focused Web tests cover API client job create/read/events and UI queue/status/event controls. Verification passed with `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client` (26 tests), `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (61 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check`.
 - Provider import Telegram getFile slice: focused worker tests cover Telegram getFile resolution and file download internalization. Verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-app provider_import_worker --locked`, `cargo test -p msm-app --locked` (29 tests), `cargo clippy -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-import-telegram`.
+- LINE product page parsing slice: focused provider and worker tests cover embedded product metadata parsing and worker internalization. Verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-providers line --locked`, `cargo test -p msm-app provider_import_worker --locked`, `cargo test -p msm-providers -p msm-app --locked` (40 tests), `cargo clippy -p msm-providers -p msm-app --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-line-product-parser`.
 
 Next step:
-- Continue Phase E with LINE product parsing, then provider credential/config UI.
+- Continue Phase E with provider credential/config UI, then planned-provider placeholders if any are missing.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
