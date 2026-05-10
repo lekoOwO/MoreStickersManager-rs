@@ -120,6 +120,41 @@ export interface LocalAuthClient {
   loginLocalUser(request: LoginLocalUserRequest): Promise<CreatedPersonalAccessTokenResponse>;
 }
 
+export interface StartOidcLoginRequest {
+  tenantId: string;
+  providerId: string;
+  redirectUri: string;
+}
+
+export interface OidcLoginStartResponse {
+  tenantId: string;
+  providerId: string;
+  authorizationUrl: string;
+  state: string;
+  nonce: string;
+  expiresAt: string;
+}
+
+export interface CompleteOidcLoginRequest {
+  state: string;
+  nonce: string;
+  authorizationCode: string | null;
+  issuer: string;
+  audience: string;
+  providerSubject: string;
+  email: string;
+  displayName: string;
+  tokenId: string;
+  tokenName: string;
+  scopes: string[];
+  expiresAt: string | null;
+}
+
+export interface OidcAuthClient {
+  startOidcLogin(request: StartOidcLoginRequest): Promise<OidcLoginStartResponse>;
+  completeOidcLogin(request: CompleteOidcLoginRequest): Promise<CreatedPersonalAccessTokenResponse>;
+}
+
 export type TenantMemberRole = "admin" | "user";
 
 export interface TenantMemberResponse {
@@ -796,6 +831,40 @@ export function createLocalAuthClient(options: PackClientOptions = {}): LocalAut
   };
 }
 
+export function createOidcAuthClient(options: PackClientOptions = {}): OidcAuthClient {
+  const baseUrl = options.baseUrl?.trim();
+  if (!baseUrl) {
+    throw new Error("OIDC auth API client requires a base URL");
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  return {
+    async startOidcLogin(request) {
+      const response = await fetchImpl(
+        oidcLoginStartUrl(baseUrl, request.tenantId, request.providerId, request.redirectUri),
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to start OIDC login: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as OidcLoginStartResponse;
+    },
+    async completeOidcLogin(request) {
+      const response = await fetchImpl(`${trimBaseUrl(baseUrl)}/api/v1/auth/oidc/callback`, {
+        method: "POST",
+        headers: jsonHeaders(undefined),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to complete OIDC login: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as CreatedPersonalAccessTokenResponse;
+    },
+  };
+}
+
 export function mapApiPackRecord(record: ApiStickerPackRecord): StickerPackSummary {
   const stickerPack = record.sticker_pack ?? record.stickerPack;
   const compatibilityId = record.compatibility_id ?? record.compatibilityId ?? stickerPack?.id ?? record.id;
@@ -827,6 +896,12 @@ export function patListUrl(baseUrl: string, userId: string) {
 export function patScopePolicyUrl(baseUrl: string, userId: string) {
   const path = `${trimBaseUrl(baseUrl)}/api/v1/pats/scope-policy`;
   const query = new URLSearchParams({ userId });
+  return `${path}?${query.toString()}`;
+}
+
+export function oidcLoginStartUrl(baseUrl: string, tenantId: string, providerId: string, redirectUri: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/auth/oidc/${encodeURIComponent(tenantId)}/${encodeURIComponent(providerId)}/login`;
+  const query = new URLSearchParams({ redirectUri });
   return `${path}?${query.toString()}`;
 }
 

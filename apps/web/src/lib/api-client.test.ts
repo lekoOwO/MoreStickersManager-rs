@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createPackClient,
   createLocalAuthClient,
+  createOidcAuthClient,
   createPatClient,
   createProductMetadataClient,
   createTenantAdminClient,
@@ -12,6 +13,7 @@ import {
   packListUrl,
   packTagListUrl,
   patScopePolicyUrl,
+  oidcLoginStartUrl,
   subscriptionGroupPackListUrl,
   subscriptionGroupListUrl,
   subscriptionLinkListUrl,
@@ -693,6 +695,89 @@ describe("local auth API client", () => {
       }),
     });
     expect(login.token).toBe("msm_pat_webui_secret");
+  });
+});
+
+describe("OIDC auth API client", () => {
+  it("constructs OIDC login start URLs with encoded path and redirect URI", () => {
+    expect(
+      oidcLoginStartUrl("https://msm.example.test/", "tenant 1", "google workspace", "https://app.example.test/callback"),
+    ).toBe(
+      "https://msm.example.test/api/v1/auth/oidc/tenant%201/google%20workspace/login?redirectUri=https%3A%2F%2Fapp.example.test%2Fcallback",
+    );
+  });
+
+  it("starts and completes OIDC login with JSON requests", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/login?")) {
+        return jsonResponse({
+          tenantId: "tenant_1",
+          providerId: "google",
+          authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth?state=state_1",
+          state: "state_1",
+          nonce: "nonce_1",
+          expiresAt: "2026-05-10T00:10:00Z",
+        });
+      }
+      if (url.endsWith("/api/v1/auth/oidc/callback") && init?.method === "POST") {
+        return jsonResponse({
+          id: "web_oidc",
+          userId: "oidc-user",
+          name: "Web OIDC",
+          token: "msm_pat_oidc_secret",
+          scopes: ["pack.read"],
+          expiresAt: null,
+          revokedAt: null,
+          createdAt: "2026-05-10T00:00:00Z",
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }) as unknown as typeof fetch;
+    const client = createOidcAuthClient({ baseUrl: "https://msm.example.test", fetchImpl });
+
+    const start = await client.startOidcLogin({
+      tenantId: "tenant_1",
+      providerId: "google",
+      redirectUri: "https://app.example.test/callback",
+    });
+    const completed = await client.completeOidcLogin({
+      state: "state_1",
+      nonce: "nonce_1",
+      authorizationCode: "code_1",
+      issuer: "https://accounts.google.com",
+      audience: "client_1",
+      providerSubject: "subject_1",
+      email: "user@example.test",
+      displayName: "OIDC User",
+      tokenId: "web_oidc",
+      tokenName: "Web OIDC",
+      scopes: ["pack.read"],
+      expiresAt: null,
+    });
+
+    expect(start.authorizationUrl).toContain("state_1");
+    expect(completed.token).toBe("msm_pat_oidc_secret");
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://msm.example.test/api/v1/auth/oidc/tenant_1/google/login?redirectUri=https%3A%2F%2Fapp.example.test%2Fcallback",
+    );
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/auth/oidc/callback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        state: "state_1",
+        nonce: "nonce_1",
+        authorizationCode: "code_1",
+        issuer: "https://accounts.google.com",
+        audience: "client_1",
+        providerSubject: "subject_1",
+        email: "user@example.test",
+        displayName: "OIDC User",
+        tokenId: "web_oidc",
+        tokenName: "Web OIDC",
+        scopes: ["pack.read"],
+        expiresAt: null,
+      }),
+    });
   });
 });
 

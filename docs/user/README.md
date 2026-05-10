@@ -82,7 +82,7 @@ to opt out. The `testing` example keeps bootstrap disabled by default.
 
 The Web UI can run against mock data or the current API. It uses a wide desktop
 workspace, Ant Design-inspired blue/gray theme tokens, workspace tabs, and
-dialogs for local login, PAT management, and `.stickerpack` import instead of
+dialogs for local login, OIDC login-start, PAT management, and `.stickerpack` import instead of
 placing every workflow on one page. It supports theme toggle, language toggle,
 pack list, pack rename, visibility edit, delete, and pasted `.stickerpack`
 import. It also exposes export target settings, Telegram target token
@@ -112,6 +112,14 @@ When the stored PAT has `pat.manage`, the PAT and local-login dialogs load
 role-allowed scopes from `GET /api/v1/pats/scope-policy?userId=...` and filter
 the selectable scope cards. If no suitable PAT or API is available, the dialogs
 fall back to the built-in scope catalog.
+
+The auth dialog can also start an OIDC/SSO login against a configured tenant
+provider. Set or confirm the tenant ID, provider ID, and redirect URI, then use
+the SSO/OIDC action to call
+`GET /api/v1/auth/oidc/{tenant_id}/{provider_id}/login?redirectUri=...`. The UI
+shows the returned provider authorization URL plus state, nonce, and expiry.
+Web callback completion UX is still in progress; the API callback endpoint is
+available for clients that already handle the provider redirect.
 
 The dashboard can rename packs, change public/private visibility, and delete
 packs when the stored PAT has `pack.update` and `pack.delete`.
@@ -623,7 +631,7 @@ MCP tools:
 - `msm.upsert_oidc_provider`
 - `msm.delete_oidc_provider`
 
-The Web Tenant admin workspace can list providers, create or update a provider, toggle provider enablement, toggle provider-backed registration, and delete providers. The API request body is:
+The Web Tenant admin workspace can list providers, create or update a provider, toggle provider enablement, toggle provider-backed registration, and delete providers. The Web auth dialog can start OIDC login with a configured provider and display the authorization URL/state/nonce response. Callback completion UX and SSO-backed account documentation are still in progress. The API request body is:
 
 ```json
 {

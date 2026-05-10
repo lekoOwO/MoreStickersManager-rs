@@ -22,8 +22,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   createLocalAuthClient,
+  createOidcAuthClient,
   createPatClient,
   type CreatedPersonalAccessTokenResponse,
+  type OidcLoginStartResponse,
   type PersonalAccessTokenResponse,
 } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
@@ -53,6 +55,14 @@ const authDisplayName = ref("Leko");
 const authEmail = ref("");
 const authPassword = ref("");
 const authTokenId = ref("webui");
+const oidcTenantId = ref(import.meta.env.VITE_MSM_TENANT_ID || "tenant_1");
+const oidcProviderId = ref(import.meta.env.VITE_MSM_OIDC_PROVIDER_ID || "google");
+const oidcRedirectUri = ref(
+  typeof window === "undefined"
+    ? "http://127.0.0.1:5173/auth/oidc/callback"
+    : `${window.location.origin}/auth/oidc/callback`,
+);
+const oidcStartResult = ref<OidcLoginStartResponse | null>(null);
 const defaultPatScopes = [
   "pack.create",
   "pack.read",
@@ -203,6 +213,10 @@ const localAuthClient = computed(() => {
   const baseUrl = apiBaseUrl.value;
   return baseUrl ? createLocalAuthClient({ baseUrl }) : null;
 });
+const oidcAuthClient = computed(() => {
+  const baseUrl = apiBaseUrl.value;
+  return baseUrl ? createOidcAuthClient({ baseUrl }) : null;
+});
 const patUserId = computed(() => import.meta.env.VITE_MSM_USER_ID || "demo");
 
 watch(
@@ -279,6 +293,20 @@ async function loginLocalUser() {
   }
 }
 
+async function startOidcLogin() {
+  authError.value = "";
+  oidcStartResult.value = null;
+  try {
+    oidcStartResult.value = await requireOidcAuthClient().startOidcLogin({
+      tenantId: oidcTenantId.value.trim(),
+      providerId: oidcProviderId.value.trim(),
+      redirectUri: oidcRedirectUri.value.trim(),
+    });
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
 async function loadPatScopePolicy() {
   scopePolicyError.value = "";
   if (!patClient.value || !props.patToken.trim()) {
@@ -320,6 +348,14 @@ function requireLocalAuthClient() {
   }
 
   return localAuthClient.value;
+}
+
+function requireOidcAuthClient() {
+  if (!oidcAuthClient.value) {
+    throw new Error("VITE_MSM_API_BASE_URL is not configured");
+  }
+
+  return oidcAuthClient.value;
 }
 
 async function listTokens() {
@@ -535,7 +571,7 @@ function requirePatClient() {
     </div>
 
     <div v-show="authDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
-      <section class="w-full max-w-3xl rounded-3xl border bg-card p-5 shadow-2xl" role="dialog" aria-modal="true" :aria-label="labels.localLogin">
+      <section class="max-h-[88dvh] w-full max-w-3xl overflow-y-auto rounded-3xl border bg-card p-5 shadow-2xl msm-scrollbar" role="dialog" aria-modal="true" :aria-label="labels.localLogin">
         <div class="flex items-start justify-between gap-4">
           <div>
             <h2 class="text-xl font-semibold">{{ labels.localLogin }}</h2>
@@ -597,6 +633,66 @@ function requirePatClient() {
           <Button type="button" variant="outline" @click="registerLocalUser">{{ labels.registerLocalUser }}</Button>
           <Button type="button" @click="loginLocalUser">{{ labels.loginLocalUser }}</Button>
         </div>
+
+        <section class="mt-6 border-t pt-5" :aria-label="labels.oidcLogin">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-base font-semibold">{{ labels.oidcLogin }}</h3>
+            <p class="text-sm leading-6 text-muted-foreground">{{ labels.oidcLoginHelp }}</p>
+          </div>
+          <div class="mt-4 grid gap-3 md:grid-cols-3">
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcTenantId }}
+              <input
+                v-model="oidcTenantId"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcTenantId"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcProviderId }}
+              <input
+                v-model="oidcProviderId"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcProviderId"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium md:col-span-3">
+              {{ labels.oidcRedirectUri }}
+              <input
+                v-model="oidcRedirectUri"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcRedirectUri"
+              />
+            </label>
+          </div>
+          <Button type="button" class="mt-4" :aria-label="labels.startOidcLogin" @click="startOidcLogin">
+            {{ labels.startOidcLogin }}
+          </Button>
+          <div v-if="oidcStartResult" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm">
+            <a
+              class="font-semibold text-primary underline-offset-4 hover:underline"
+              :href="oidcStartResult.authorizationUrl"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {{ labels.openOidcAuthorizationUrl }}
+            </a>
+            <dl class="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
+              <div>
+                <dt class="font-semibold text-foreground">{{ labels.oidcState }}</dt>
+                <dd class="break-all font-mono">{{ oidcStartResult.state }}</dd>
+              </div>
+              <div>
+                <dt class="font-semibold text-foreground">{{ labels.oidcNonce }}</dt>
+                <dd class="break-all font-mono">{{ oidcStartResult.nonce }}</dd>
+              </div>
+              <div>
+                <dt class="font-semibold text-foreground">{{ labels.oidcExpiresAt }}</dt>
+                <dd class="break-all font-mono">{{ oidcStartResult.expiresAt }}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
         <p v-if="authResult" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm">
           {{ labels.loginTokenStored }} <code class="font-mono">{{ authResult.token }}</code>
         </p>

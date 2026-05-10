@@ -1481,3 +1481,11 @@
 - Verification: RED failures were observed before implementation, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (52 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
 - Updated PRD/status/user docs; next Phase D slice should add end-user Web SSO
   login controls/callback UX and SSO-backed account docs.
+
+## 2026-05-10 OIDC Web Login Start
+
+- Added Web API client support for OIDC login-start URL construction and callback completion calls.
+- Added Web auth dialog controls for tenant/provider/redirect URI, starting provider authorization, and displaying the returned authorization URL, state, nonce, and expiry.
+- Added Traditional Chinese and English labels for the SSO/OIDC login-start workflow.
+- Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding controls, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (55 tests), and `pnpm --filter @morestickersmanager/web build` passed.
+- Updated PRD/status/user docs; next Phase D slice should wire Web OIDC callback completion UX and SSO-backed account documentation.

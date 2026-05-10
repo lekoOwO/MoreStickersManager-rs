@@ -170,7 +170,7 @@ npm run web:build
 ```
 
 The Web UI includes a wide desktop workspace with Ant Design-inspired blue/gray
-tokens, real workspace tabs, PAT and local login dialogs, pack management,
+tokens, real workspace tabs, PAT, local login, and OIDC login-start dialogs, pack management,
 pack import dialog, folder/tag/subscription-group metadata management, export
 target settings, and a pack export wizard. API/OpenAPI, CLI, MCP, and Web now
 expose folder-pack, pack-tag, and subscription-group pack membership links. It
@@ -210,6 +210,11 @@ P19 adds Web local register/login controls backed by
 `/api/v1/auth/local/register` and `/api/v1/auth/local/login`. Successful login
 stores the returned PAT through the same `msm.pat` browser-local path and sets a
 server-verified `msm_session` cookie.
+
+The auth dialog can also start OIDC login through
+`GET /api/v1/auth/oidc/{tenant_id}/{provider_id}/login?redirectUri=...` and show
+the returned provider authorization URL, state, nonce, and expiry. Web callback
+completion UX is still planned.
 
 ## Service Binary
 
@@ -406,7 +411,8 @@ OIDC provider administration currently has API/OpenAPI, CLI, MCP, and Web tenant
 
 Provider responses redact `clientSecret`; update calls replace it with the
 submitted secret. These routes require `tenant.manage_settings` and an admin
-tenant membership. End-user Web SSO login controls remain planned.
+tenant membership. End-user Web SSO login-start controls exist; callback
+completion UX remains planned.
 
 Tenant role template administration currently has API/OpenAPI, CLI, MCP, and
 Web support:

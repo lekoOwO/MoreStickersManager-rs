@@ -106,9 +106,10 @@ Last completed:
 - Fine-grained RBAC audit closure: API route scan found no remaining tenant/resource-owning routes without a membership, ownership, tenant-admin/custom-role, pack/subscription policy, or explicit subscription-secret gate; Phase C fine-grained RBAC is marked complete in the PRD.
 - Local registration tenant setting slice: added tenant-level `localRegistrationEnabled` storage/API/CLI/MCP/Web controls and enforcement for existing-tenant local registration.
 - OIDC provider configuration storage slice: RED/GREEN test with `cargo test -p msm-storage oidc_provider_configs_can_be_upserted_listed_and_deleted --locked`; full verification with `cargo fmt --all -- --check`, `cargo test -p msm-storage --locked`, `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification commands set `TMP`/`TEMP` to `D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-api-rbac-check`.
+- OIDC Web login-start slice: Web auth dialog can start provider authorization through the live OIDC login-start API and display the authorization URL/state/nonce/expiry. Verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (55 tests), and `pnpm --filter @morestickersmanager/web build`.
 
 Current task:
-- Complete remaining OIDC/SSO Web login controls and SSO-backed account documentation after adding Web OIDC provider administration.
+- Complete Web OIDC callback completion UX and SSO-backed account documentation after adding login-start controls.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -224,9 +225,10 @@ Last verification:
 - OIDC provider CLI parity slice: RED failure observed with `cargo test -p msm-cli parses_tenant_administration_parity_commands --locked` before implementing commands; targeted GREEN tests `cargo test -p msm-cli tenant_oidc --locked` and `cargo test -p msm-cli parses_tenant_administration_parity_commands --locked`; full suite `cargo test -p msm-cli --locked` passed. Final verification: `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked` (51 tests), `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check`.
 - OIDC provider MCP parity slice: RED failure observed with `cargo test -p msm-mcp tools_call_manages_oidc_providers --locked` before implementing tools; final verification: `cargo fmt --all -- --check`, `cargo test -p msm-mcp --locked` (38 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check`.
 - OIDC provider Web admin parity slice: RED failures observed in `pnpm --filter @morestickersmanager/web test -- api-client.test.ts` and `pnpm --filter @morestickersmanager/web test -- tenant-admin-ui.test.ts`; final verification: `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (52 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check`.
+- OIDC Web login-start slice: RED failure observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding auth dialog controls; targeted AppShell tests passed, then full verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (55 tests), and `pnpm --filter @morestickersmanager/web build`.
 
 Next step:
-- Continue Phase D with Web SSO login controls/callback UX and SSO-backed account documentation.
+- Continue Phase D with Web OIDC callback completion UX and SSO-backed account documentation.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

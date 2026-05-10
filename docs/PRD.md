@@ -74,7 +74,7 @@ Status meanings:
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration tools exist. Session/SSE hardening remains incomplete. |
-| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, pack CRUD/import, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
+| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Complete remaining OIDC/SSO Web login controls and SSO-backed account documentation.
+1. Complete Web OIDC callback completion UX and SSO-backed account documentation.
 
 Each queue item must update this section when completed or reordered.
 
@@ -207,13 +207,15 @@ tests and docs are updated.
   fallback. Callback completion now fetches userinfo when a verified ID token
   omits email/name, validates userinfo subject against the ID-token subject, and
   uses validated userinfo profile claims for user/link creation. Remaining work:
-  Web SSO login/client surfaces and user-facing SSO documentation.
+  Web callback completion UX and user-facing SSO documentation.
 - [ ] Web SSO login controls.
   Progress: Web tenant administration now lists, creates/updates, and deletes
-  OIDC providers; actual end-user SSO login buttons/callback handling remain.
+  OIDC providers. The Web auth dialog can start OIDC login, call the live
+  login-start endpoint, and show the provider authorization URL with state,
+  nonce, and expiry details; callback completion UX still remains.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
   Progress: CLI, MCP, and Web tenant administration now manage OIDC providers;
-  SSO-backed PAT usage docs still need completion.
+  SSO-backed PAT usage docs still need completion after callback UX is wired.
 
 ### Phase E: Provider Ingestion
 
@@ -302,7 +304,7 @@ Current parity gaps:
   tenant/pack RBAC helpers. Subscription-link management routes use
   pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
   enforce `pat.manage` and role-allowed scopes across API, CLI, MCP, and Web.
-  Cross-tenant audit tests exist; OIDC/SSO remains incomplete, with authorization-code exchange, discovery, signed ID-token validation, and userinfo fallback wired in the API; remaining gaps are Web SSO login/client surfaces and SSO-backed account documentation.
+  Cross-tenant audit tests exist; OIDC/SSO remains incomplete, with authorization-code exchange, discovery, signed ID-token validation, and userinfo fallback wired in the API; remaining gaps are Web OIDC callback completion UX and SSO-backed account documentation.
 
 ## Open Product Questions
 
