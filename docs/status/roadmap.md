@@ -138,8 +138,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
   storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
   new local registrations.
 - OIDC provider configuration storage now exists for per-tenant issuer, client,
-  scope, enabled-state, and registration-policy settings. API OIDC start/state and trusted callback completion now exist with nonce plus issuer/audience checks; authorization-code exchange and signed claim validation are next.
-  role-allowed PAT scopes for the current user.
+  scope, enabled-state, and registration-policy settings. API OIDC start/state and callback completion now exist with authorization-code exchange, discovery, signed ID-token validation, and userinfo fallback. CLI provider list/upsert/delete commands now exist; MCP/Web admin/client surfaces are next.
+
 - CLI now exposes `msm pats scope-policy --user-id ...` with human/JSON output
   backed by the same protected API endpoint.
 - MCP now exposes `msm.get_pat_scope_policy` with the same `pat.manage`
@@ -171,7 +171,7 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Complete non-API OIDC/SSO admin and client surfaces, including Web login controls and CLI/MCP documentation.
+1. Complete remaining non-API OIDC/SSO admin and client surfaces, including MCP provider administration, Web provider/login controls, and SSO-backed account documentation.
 
 ## Later Planned Work
 

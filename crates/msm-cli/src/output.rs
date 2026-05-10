@@ -3,7 +3,7 @@ use msm_domain::StickerPack;
 use crate::{
     client::{
         CreatedPersonalAccessToken, CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent,
-        ExportTarget, ExportTargetKind, Folder, FolderPack, PackTag, PatScopePolicy,
+        ExportTarget, ExportTargetKind, Folder, FolderPack, OidcProvider, PackTag, PatScopePolicy,
         PersonalAccessToken, SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack,
         Tag, TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
     },
@@ -50,6 +50,14 @@ pub struct MembershipMutationResponse {
     pub status: &'static str,
     pub left_id: String,
     pub right_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OidcProviderMutationResponse {
+    pub status: &'static str,
+    pub tenant_id: String,
+    pub provider_id: String,
 }
 
 /// Formats a health response.
@@ -291,6 +299,59 @@ pub fn format_tenant_role(format: OutputFormat, role: &TenantRole) -> CliResult<
     match format {
         OutputFormat::Human => Ok(tenant_role_line(role)),
         OutputFormat::Json => Ok(serde_json::to_string_pretty(role)?),
+    }
+}
+
+/// Formats tenant OIDC provider list responses.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_oidc_providers(
+    format: OutputFormat,
+    providers: &[OidcProvider],
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(providers
+            .iter()
+            .map(oidc_provider_line)
+            .collect::<Vec<_>>()
+            .join("\n")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(providers)?),
+    }
+}
+
+/// Formats one tenant OIDC provider response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_oidc_provider(format: OutputFormat, provider: &OidcProvider) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(oidc_provider_line(provider)),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(provider)?),
+    }
+}
+
+/// Formats an OIDC provider delete response.
+///
+/// # Errors
+///
+/// Returns an error when JSON serialization fails.
+pub fn format_oidc_provider_delete(
+    format: OutputFormat,
+    tenant_id: &str,
+    provider_id: &str,
+) -> CliResult<String> {
+    match format {
+        OutputFormat::Human => Ok(format!("deleted {provider_id}")),
+        OutputFormat::Json => Ok(serde_json::to_string_pretty(
+            &OidcProviderMutationResponse {
+                status: "deleted",
+                tenant_id: tenant_id.to_owned(),
+                provider_id: provider_id.to_owned(),
+            },
+        )?),
     }
 }
 
@@ -650,6 +711,23 @@ fn tenant_member_line(member: &TenantMember) -> String {
 
 fn tenant_role_line(role: &TenantRole) -> String {
     format!("{}\t{}\t{}", role.id, role.name, role.permissions.join(","))
+}
+
+fn oidc_provider_line(provider: &OidcProvider) -> String {
+    let state = if provider.is_enabled {
+        "enabled"
+    } else {
+        "disabled"
+    };
+    let registration = if provider.allow_registration {
+        "registration"
+    } else {
+        "login-only"
+    };
+    format!(
+        "{}\t{}\t{}\t{}\t{}",
+        provider.id, provider.display_name, provider.issuer_url, state, registration
+    )
 }
 
 fn folder_line(folder: &Folder) -> String {

@@ -9,15 +9,17 @@ use crate::{
         CreatePersonalAccessTokenPayload, CreateSubscriptionAccessTokenPayload,
         CreateSubscriptionGroupPayload, CreateTagPayload, ImportPackPayload, MsmClient,
         ReqwestMsmClient, SubscriptionAccessResourceType, UpdatePackPayload,
-        UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertTenantRolePayload,
+        UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertOidcProviderPayload,
+        UpsertTenantRolePayload,
     },
     output::{
         format_export, format_export_job, format_export_job_events, format_export_target,
         format_export_target_kinds, format_export_targets, format_folder, format_folder_pack,
-        format_folders, format_health, format_import, format_membership_remove, format_pack_delete,
-        format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag, format_pat_create,
-        format_pat_list, format_pat_revoke, format_pat_scope_policy, format_subscription_group,
-        format_subscription_group_pack, format_subscription_groups,
+        format_folders, format_health, format_import, format_membership_remove,
+        format_oidc_provider, format_oidc_provider_delete, format_oidc_providers,
+        format_pack_delete, format_pack_ids, format_pack_list, format_pack_rename, format_pack_tag,
+        format_pat_create, format_pat_list, format_pat_revoke, format_pat_scope_policy,
+        format_subscription_group, format_subscription_group_pack, format_subscription_groups,
         format_subscription_link_revoke, format_subscription_link_secret,
         format_subscription_links, format_tag, format_tag_ids, format_tags,
         format_telegram_publication, format_telegram_publications, format_tenant_member,
@@ -156,6 +158,10 @@ pub enum TenantCommand {
         #[command(subcommand)]
         command: TenantRoleCommand,
     },
+    OidcProviders {
+        #[command(subcommand)]
+        command: TenantOidcProviderCommand,
+    },
 }
 
 #[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
@@ -219,6 +225,40 @@ pub enum TenantRoleCommand {
         name: String,
         #[arg(long = "permission")]
         permissions: Vec<String>,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand, PartialEq, Eq)]
+pub enum TenantOidcProviderCommand {
+    List {
+        #[arg(long)]
+        tenant_id: String,
+    },
+    Upsert {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        provider_id: String,
+        #[arg(long)]
+        display_name: String,
+        #[arg(long)]
+        issuer_url: String,
+        #[arg(long)]
+        client_id: String,
+        #[arg(long)]
+        client_secret: String,
+        #[arg(long = "scope")]
+        scopes: Vec<String>,
+        #[arg(long = "disabled", default_value_t = true, action = clap::ArgAction::SetFalse)]
+        is_enabled: bool,
+        #[arg(long = "deny-registration", default_value_t = true, action = clap::ArgAction::SetFalse)]
+        allow_registration: bool,
+    },
+    Delete {
+        #[arg(long)]
+        tenant_id: String,
+        #[arg(long)]
+        provider_id: String,
     },
 }
 
@@ -730,6 +770,49 @@ pub async fn execute_with_client<C: MsmClient + Sync>(cli: Cli, client: &C) -> C
                     format_tenant_role(cli.output_format, &role)
                 }
             },
+            TenantCommand::OidcProviders { command } => match command {
+                TenantOidcProviderCommand::List { tenant_id } => {
+                    let providers = client.list_oidc_providers(&tenant_id).await?;
+                    format_oidc_providers(cli.output_format, &providers)
+                }
+                TenantOidcProviderCommand::Upsert {
+                    tenant_id,
+                    provider_id,
+                    display_name,
+                    issuer_url,
+                    client_id,
+                    client_secret,
+                    scopes,
+                    is_enabled,
+                    allow_registration,
+                } => {
+                    let provider = client
+                        .upsert_oidc_provider(
+                            &tenant_id,
+                            &provider_id,
+                            UpsertOidcProviderPayload {
+                                display_name,
+                                issuer_url,
+                                client_id,
+                                client_secret,
+                                scopes,
+                                is_enabled,
+                                allow_registration,
+                            },
+                        )
+                        .await?;
+                    format_oidc_provider(cli.output_format, &provider)
+                }
+                TenantOidcProviderCommand::Delete {
+                    tenant_id,
+                    provider_id,
+                } => {
+                    client
+                        .delete_oidc_provider(&tenant_id, &provider_id)
+                        .await?;
+                    format_oidc_provider_delete(cli.output_format, &tenant_id, &provider_id)
+                }
+            },
         },
         Command::Metadata { command } => match command {
             MetadataCommand::Folders { command } => match command {
@@ -1128,11 +1211,12 @@ mod tests {
             CreatePersonalAccessTokenPayload, CreateSubscriptionAccessTokenPayload,
             CreateSubscriptionGroupPayload, CreateTagPayload, CreatedPersonalAccessToken,
             CreatedSubscriptionAccessToken, ExportJob, ExportJobEvent, ExportTarget,
-            ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, PackTag,
-            PatScopePolicy, PersonalAccessToken, SubscriptionAccessResourceType,
+            ExportTargetKind, Folder, FolderPack, ImportPackPayload, MsmClient, OidcProvider,
+            PackTag, PatScopePolicy, PersonalAccessToken, SubscriptionAccessResourceType,
             SubscriptionAccessToken, SubscriptionGroup, SubscriptionGroupPack, Tag,
             TelegramPublication, TenantMember, TenantRole, TenantSettings, TenantUser,
-            UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertTenantRolePayload,
+            UpdateTenantSettingsPayload, UpdateTenantUserStatusPayload, UpsertOidcProviderPayload,
+            UpsertTenantRolePayload,
         },
         command::{
             execute_with_client, Cli, Command, ExportCommand, ExportJobCommand,
@@ -1140,13 +1224,15 @@ mod tests {
             MetadataCommand, OutputFormat, PackCommand, PackTagCommand, PackVisibility, PatCommand,
             SubscriptionGroupCommand, SubscriptionGroupPackCommand, SubscriptionLinkCommand,
             SubscriptionLinkResourceType, TagCommand, TenantCommand, TenantMemberCommand,
-            TenantMemberRoleArg, TenantRoleCommand, TenantSettingsCommand, TenantUserCommand,
+            TenantMemberRoleArg, TenantOidcProviderCommand, TenantRoleCommand,
+            TenantSettingsCommand, TenantUserCommand,
         },
         output::HealthResponse,
         CliResult,
     };
 
     type TenantRoleUpsertCall = (String, String, String, Vec<String>);
+    type OidcProviderUpsertCall = (String, String, UpsertOidcProviderPayload);
 
     #[test]
     fn parses_health_command() {
@@ -1551,6 +1637,97 @@ mod tests {
                 && role_id == "role_editor"
                 && name == "Editors"
                 && permissions == &vec!["pack.read".to_owned(), "pack.update".to_owned()]
+        ));
+    }
+
+    #[test]
+    fn parses_tenant_oidc_provider_commands() {
+        let oidc_list = Cli::parse_from([
+            "msm",
+            "tenants",
+            "oidc-providers",
+            "list",
+            "--tenant-id",
+            "tenant_1",
+        ]);
+        assert!(matches!(
+            oidc_list.command,
+            Command::Tenants {
+                command: TenantCommand::OidcProviders {
+                    command: TenantOidcProviderCommand::List { ref tenant_id }
+                }
+            } if tenant_id == "tenant_1"
+        ));
+
+        let oidc_upsert = Cli::parse_from([
+            "msm",
+            "tenants",
+            "oidc-providers",
+            "upsert",
+            "--tenant-id",
+            "tenant_1",
+            "--provider-id",
+            "google",
+            "--display-name",
+            "Google Workspace",
+            "--issuer-url",
+            "https://accounts.google.com",
+            "--client-id",
+            "client_1",
+            "--client-secret",
+            "secret_1",
+            "--scope",
+            "openid",
+            "--scope",
+            "email",
+            "--disabled",
+            "--deny-registration",
+        ]);
+        assert!(matches!(
+            oidc_upsert.command,
+            Command::Tenants {
+                command: TenantCommand::OidcProviders {
+                    command: TenantOidcProviderCommand::Upsert {
+                        ref tenant_id,
+                        ref provider_id,
+                        ref display_name,
+                        ref issuer_url,
+                        ref client_id,
+                        ref client_secret,
+                        ref scopes,
+                        is_enabled: false,
+                        allow_registration: false,
+                    }
+                }
+            } if tenant_id == "tenant_1"
+                && provider_id == "google"
+                && display_name == "Google Workspace"
+                && issuer_url == "https://accounts.google.com"
+                && client_id == "client_1"
+                && client_secret == "secret_1"
+                && scopes == &vec!["openid".to_owned(), "email".to_owned()]
+        ));
+
+        let oidc_delete = Cli::parse_from([
+            "msm",
+            "tenants",
+            "oidc-providers",
+            "delete",
+            "--tenant-id",
+            "tenant_1",
+            "--provider-id",
+            "google",
+        ]);
+        assert!(matches!(
+            oidc_delete.command,
+            Command::Tenants {
+                command: TenantCommand::OidcProviders {
+                    command: TenantOidcProviderCommand::Delete {
+                        ref tenant_id,
+                        ref provider_id,
+                    }
+                }
+            } if tenant_id == "tenant_1" && provider_id == "google"
         ));
     }
 
@@ -2329,6 +2506,99 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn executes_tenant_oidc_provider_commands() {
+        let client = FakeClient::default();
+
+        let providers = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "oidc-providers",
+                "list",
+                "--tenant-id",
+                "tenant_1",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            providers,
+            "google\tGoogle Workspace\thttps://accounts.google.com\tenabled\tregistration"
+        );
+
+        let provider = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "oidc-providers",
+                "upsert",
+                "--tenant-id",
+                "tenant_1",
+                "--provider-id",
+                "google",
+                "--display-name",
+                "Google Workspace",
+                "--issuer-url",
+                "https://accounts.google.com",
+                "--client-id",
+                "client_1",
+                "--client-secret",
+                "secret_1",
+                "--scope",
+                "openid",
+                "--disabled",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            provider,
+            "google\tGoogle Workspace\thttps://accounts.google.com\tdisabled\tregistration"
+        );
+        let oidc_call = client
+            .upserted_oidc_provider
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .clone();
+        assert_eq!(oidc_call.0, "tenant_1");
+        assert_eq!(oidc_call.1, "google");
+        assert_eq!(oidc_call.2.client_secret, "secret_1");
+        assert_eq!(oidc_call.2.scopes, vec!["openid".to_owned()]);
+        assert!(!oidc_call.2.is_enabled);
+        assert!(oidc_call.2.allow_registration);
+
+        let deleted = execute_with_client(
+            Cli::parse_from([
+                "msm",
+                "tenants",
+                "oidc-providers",
+                "delete",
+                "--tenant-id",
+                "tenant_1",
+                "--provider-id",
+                "google",
+            ]),
+            &client,
+        )
+        .await
+        .unwrap();
+        assert_eq!(deleted, "deleted google");
+        assert_eq!(
+            client
+                .deleted_oidc_provider
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap(),
+            &("tenant_1".to_owned(), "google".to_owned())
+        );
+    }
+
+    #[tokio::test]
     async fn executes_export_kinds_command() {
         let output = execute_with_client(
             Cli::parse_from(["msm", "exports", "kinds"]),
@@ -2723,6 +2993,8 @@ mod tests {
         updated_tenant_settings: Mutex<Option<TenantSettingsUpdateCall>>,
         updated_tenant_user_status: Mutex<Option<(String, String, bool)>>,
         upserted_tenant_role: Mutex<Option<TenantRoleUpsertCall>>,
+        upserted_oidc_provider: Mutex<Option<OidcProviderUpsertCall>>,
+        deleted_oidc_provider: Mutex<Option<(String, String)>>,
         created_export_target: Mutex<Option<CreateExportTargetPayload>>,
         created_export_job: Mutex<Option<CreateExportJobPayload>>,
     }
@@ -2886,6 +3158,44 @@ mod tests {
                 &payload.name,
                 payload.permissions,
             ))
+        }
+
+        async fn list_oidc_providers(&self, _tenant_id: &str) -> CliResult<Vec<OidcProvider>> {
+            Ok(vec![sample_oidc_provider(
+                "google",
+                "tenant_1",
+                "Google Workspace",
+                "https://accounts.google.com",
+                true,
+                true,
+            )])
+        }
+
+        async fn upsert_oidc_provider(
+            &self,
+            tenant_id: &str,
+            provider_id: &str,
+            payload: UpsertOidcProviderPayload,
+        ) -> CliResult<OidcProvider> {
+            *self.upserted_oidc_provider.lock().unwrap() = Some((
+                tenant_id.to_owned(),
+                provider_id.to_owned(),
+                payload.clone(),
+            ));
+            Ok(sample_oidc_provider(
+                provider_id,
+                tenant_id,
+                &payload.display_name,
+                &payload.issuer_url,
+                payload.is_enabled,
+                payload.allow_registration,
+            ))
+        }
+
+        async fn delete_oidc_provider(&self, tenant_id: &str, provider_id: &str) -> CliResult<()> {
+            *self.deleted_oidc_provider.lock().unwrap() =
+                Some((tenant_id.to_owned(), provider_id.to_owned()));
+            Ok(())
         }
 
         async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder> {
@@ -3088,6 +3398,29 @@ mod tests {
             is_enabled: true,
             created_at: "2026-05-07T00:00:00Z".to_owned(),
             updated_at: "2026-05-07T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sample_oidc_provider(
+        id: &str,
+        tenant_id: &str,
+        display_name: &str,
+        issuer_url: &str,
+        is_enabled: bool,
+        allow_registration: bool,
+    ) -> OidcProvider {
+        OidcProvider {
+            id: id.to_owned(),
+            tenant_id: tenant_id.to_owned(),
+            display_name: display_name.to_owned(),
+            issuer_url: issuer_url.to_owned(),
+            client_id: "client_1".to_owned(),
+            client_secret: "[redacted]".to_owned(),
+            scopes: vec!["openid".to_owned(), "email".to_owned()],
+            is_enabled,
+            allow_registration,
+            created_at: "2026-05-10T00:00:00Z".to_owned(),
+            updated_at: "2026-05-10T00:00:00Z".to_owned(),
         }
     }
 

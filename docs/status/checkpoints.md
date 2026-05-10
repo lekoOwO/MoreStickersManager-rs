@@ -1443,3 +1443,17 @@
   are incomplete, validates subject equality, and uses validated userinfo email/
   display-name fallback for user-link creation.
 - Kept non-API SSO admin/client surfaces as the next Phase D work.
+
+## 2026-05-10 OIDC Provider CLI Parity
+
+- Added `msm tenants oidc-providers list --tenant-id <tenant_id>`.
+- Added `msm tenants oidc-providers upsert --tenant-id <tenant_id>
+  --provider-id <provider_id> --display-name <name> --issuer-url <issuer_url>
+  --client-id <client_id> --client-secret <client_secret> --scope <scope>...`
+  with `--disabled` and `--deny-registration` flags.
+- Added `msm tenants oidc-providers delete --tenant-id <tenant_id>
+  --provider-id <provider_id>` plus human/JSON output and HTTP client methods
+  for the tenant OIDC provider API routes.
+- Verification: RED compile failure was observed before implementation, then `cargo fmt --all -- --check`, `cargo test -p msm-cli --locked` (51 tests), `cargo clippy -p msm-cli --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/user docs; next Phase D slice should add MCP OIDC provider
+  administration before Web provider/login controls and SSO-backed account docs.

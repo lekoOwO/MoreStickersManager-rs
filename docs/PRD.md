@@ -72,7 +72,7 @@ Status meanings:
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
 | Storage foundation | Partially complete | SQLite migrations and repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, and portability helpers. PostgreSQL remains incomplete. |
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, Telegram publication history, product metadata, and product membership endpoints exist. |
-| CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, and role template administration commands exist. |
+| CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, and role template administration tools exist. Session/SSE hardening remains incomplete. |
 | Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, pack CRUD/import, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Complete non-API OIDC/SSO admin and client surfaces, including Web login controls and CLI/MCP documentation.
+1. Complete remaining non-API OIDC/SSO admin and client surfaces, including MCP provider administration, Web provider/login controls, and SSO-backed account documentation.
 
 Each queue item must update this section when completed or reordered.
 
@@ -186,8 +186,8 @@ tests and docs are updated.
 - [x] OIDC provider configuration storage.
   Progress: SQLite migration, repository methods, and tenant admin API/OpenAPI
   routes now store per-tenant OIDC provider configs with issuer, redacted client
-  credentials, scopes, enabled state, and registration policy. CLI/MCP/Web
-  parity remains future work.
+  credentials, scopes, enabled state, and registration policy. CLI list/upsert/delete
+  parity now exists; MCP/Web parity remains future work.
 - [ ] OIDC login/callback flow.
   Progress: API now starts OIDC login by creating one-time hashed state and
   nonce tokens and building provider authorization URLs. The callback endpoint
@@ -207,9 +207,11 @@ tests and docs are updated.
   fallback. Callback completion now fetches userinfo when a verified ID token
   omits email/name, validates userinfo subject against the ID-token subject, and
   uses validated userinfo profile claims for user/link creation. Remaining work:
-  non-API SSO admin/client surfaces.
+  MCP/Web SSO admin/client surfaces and user-facing SSO documentation.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
+  Progress: CLI now manages OIDC providers with `msm tenants oidc-providers
+  list|upsert|delete`; SSO-backed PAT usage docs still need completion.
 
 ### Phase E: Provider Ingestion
 
@@ -298,7 +300,7 @@ Current parity gaps:
   tenant/pack RBAC helpers. Subscription-link management routes use
   pack/subscription-group/tenant RBAC helpers. PAT lifecycle endpoints now
   enforce `pat.manage` and role-allowed scopes across API, CLI, MCP, and Web.
-  Cross-tenant audit tests exist; OIDC/SSO remains incomplete, with callback-path authorization-code token exchange wired but signed/userinfo claim validation still outstanding.
+  Cross-tenant audit tests exist; OIDC/SSO remains incomplete, with authorization-code exchange, discovery, signed ID-token validation, and userinfo fallback wired in the API; remaining gaps are MCP/Web admin/client surfaces and SSO-backed account documentation.
 
 ## Open Product Questions
 

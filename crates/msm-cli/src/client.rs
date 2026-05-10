@@ -258,6 +258,34 @@ pub struct UpsertTenantRolePayload {
     pub permissions: Vec<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertOidcProviderPayload {
+    pub display_name: String,
+    pub issuer_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub scopes: Vec<String>,
+    pub is_enabled: bool,
+    pub allow_registration: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OidcProvider {
+    pub id: String,
+    pub tenant_id: String,
+    pub display_name: String,
+    pub issuer_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub scopes: Vec<String>,
+    pub is_enabled: bool,
+    pub allow_registration: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportTargetKind {
@@ -389,6 +417,14 @@ pub trait MsmClient {
         role_id: &str,
         payload: UpsertTenantRolePayload,
     ) -> CliResult<TenantRole>;
+    async fn list_oidc_providers(&self, tenant_id: &str) -> CliResult<Vec<OidcProvider>>;
+    async fn upsert_oidc_provider(
+        &self,
+        tenant_id: &str,
+        provider_id: &str,
+        payload: UpsertOidcProviderPayload,
+    ) -> CliResult<OidcProvider>;
+    async fn delete_oidc_provider(&self, tenant_id: &str, provider_id: &str) -> CliResult<()>;
     async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder>;
     async fn list_folders(&self, tenant_id: &str, owner_user_id: &str) -> CliResult<Vec<Folder>>;
     async fn create_tag(&self, payload: CreateTagPayload) -> CliResult<Tag>;
@@ -748,6 +784,47 @@ impl MsmClient for ReqwestMsmClient {
             .error_for_status()?
             .json()
             .await?)
+    }
+
+    async fn list_oidc_providers(&self, tenant_id: &str) -> CliResult<Vec<OidcProvider>> {
+        Ok(self
+            .authorize(
+                self.http
+                    .get(self.endpoint(&format!("/api/v1/tenants/{tenant_id}/oidc-providers"))?),
+            )
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn upsert_oidc_provider(
+        &self,
+        tenant_id: &str,
+        provider_id: &str,
+        payload: UpsertOidcProviderPayload,
+    ) -> CliResult<OidcProvider> {
+        Ok(self
+            .authorize(self.http.put(self.endpoint(&format!(
+                "/api/v1/tenants/{tenant_id}/oidc-providers/{provider_id}"
+            ))?))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?)
+    }
+
+    async fn delete_oidc_provider(&self, tenant_id: &str, provider_id: &str) -> CliResult<()> {
+        self.authorize(self.http.delete(self.endpoint(&format!(
+            "/api/v1/tenants/{tenant_id}/oidc-providers/{provider_id}"
+        ))?))
+        .send()
+        .await?
+        .error_for_status()?;
+        Ok(())
     }
 
     async fn create_folder(&self, payload: CreateFolderPayload) -> CliResult<Folder> {
