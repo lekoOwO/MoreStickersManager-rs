@@ -936,6 +936,80 @@ describe("provider import API client", () => {
       headers: { Authorization: "Bearer msm_pat_secret" },
     });
   });
+
+  it("manages provider configs with bearer auth and preserves redacted responses", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/api/v1/provider-configs?tenantId=tenant_1") && !init?.method) {
+        return jsonResponse([
+          {
+            id: "provider_telegram",
+            tenantId: "tenant_1",
+            providerId: "telegram",
+            name: "Telegram Import Bot",
+            config: { botToken: "<redacted>" },
+            isEnabled: true,
+            createdAt: "2026-05-10T00:00:00Z",
+            updatedAt: "2026-05-10T00:00:00Z",
+          },
+        ]);
+      }
+      if (url.endsWith("/api/v1/provider-configs/provider_telegram") && init?.method === "PUT") {
+        return jsonResponse({
+          id: "provider_telegram",
+          tenantId: "tenant_1",
+          providerId: "telegram",
+          name: "Telegram Import Bot",
+          config: { botToken: "<redacted>", nested: { clientSecret: "<redacted>" } },
+          isEnabled: false,
+          createdAt: "2026-05-10T00:00:00Z",
+          updatedAt: "2026-05-10T00:01:00Z",
+        });
+      }
+      if (url.endsWith("/api/v1/provider-configs/provider_telegram") && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    }) as unknown as typeof fetch;
+    const client = createProviderImportClient({
+      baseUrl: "https://msm.example.test",
+      authToken: "msm_pat_secret",
+      fetchImpl,
+    });
+
+    const configs = await client.listProviderConfigs("tenant_1");
+    const upserted = await client.upsertProviderConfig("provider_telegram", {
+      tenantId: "tenant_1",
+      providerId: "telegram",
+      name: "Telegram Import Bot",
+      config: { botToken: "123456:secret", nested: { clientSecret: "secret_1" } },
+      isEnabled: false,
+    });
+    await client.deleteProviderConfig("provider_telegram");
+
+    expect(configs[0]?.config.botToken).toBe("<redacted>");
+    expect(upserted.config.nested).toEqual({ clientSecret: "<redacted>" });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/provider-configs?tenantId=tenant_1", {
+      headers: { Authorization: "Bearer msm_pat_secret" },
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/provider-configs/provider_telegram", {
+      method: "PUT",
+      headers: {
+        Authorization: "Bearer msm_pat_secret",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tenantId: "tenant_1",
+        providerId: "telegram",
+        name: "Telegram Import Bot",
+        config: { botToken: "123456:secret", nested: { clientSecret: "secret_1" } },
+        isEnabled: false,
+      }),
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/provider-configs/provider_telegram", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer msm_pat_secret" },
+    });
+  });
 });
 
 describe("product metadata API client", () => {

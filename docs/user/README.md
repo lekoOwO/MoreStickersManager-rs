@@ -425,13 +425,13 @@ These currently return a safe fetch plan for Telegram or LINE provider imports.
 Executable provider import jobs can be queued/read through API, CLI, MCP, and Web;
 broader runtime parsing/download completion is still pending.
 
-Provider import credential API endpoints currently available:
+Provider import credential management is available through the Web provider workspace and these API endpoints:
 
 - `GET /api/v1/provider-configs?tenantId=...`
 - `PUT /api/v1/provider-configs/{config_id}`
 - `DELETE /api/v1/provider-configs/{config_id}`
 
-Provider config responses redact keys containing `token` or `secret` at any JSON
+The Web provider credential panel can list, upsert, and delete tenant-scoped provider configs, and shows the API-redacted JSON returned by the server. Provider config responses redact keys containing `token` or `secret` at any JSON
 depth. Update requests replace the stored config with the submitted JSON.
 Listing requires `provider.import` and tenant membership; create/update/delete
 require `provider.import` plus tenant admin or a custom role that grants provider

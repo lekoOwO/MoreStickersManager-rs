@@ -62,6 +62,9 @@ describe("provider import UI", () => {
           createdAt: "2026-05-10T00:00:00Z",
         },
       ]),
+      listProviderConfigs: vi.fn(async () => []),
+      upsertProviderConfig: vi.fn(),
+      deleteProviderConfig: vi.fn(),
     };
     const wrapper = mount(ProviderImportPlanner, {
       props: {
@@ -146,6 +149,9 @@ describe("provider import UI", () => {
           createdAt: "2026-05-10T00:01:00Z",
         },
       ]),
+      listProviderConfigs: vi.fn(async () => []),
+      upsertProviderConfig: vi.fn(),
+      deleteProviderConfig: vi.fn(),
     };
     const wrapper = mount(ProviderImportPlanner, {
       props: {
@@ -177,5 +183,72 @@ describe("provider import UI", () => {
     expect(client.listProviderImportJobEvents).toHaveBeenCalledWith("provider_job_1");
     expect(wrapper.get('[data-testid="provider-import-job-panel"]').text()).toContain("succeeded");
     expect(wrapper.text()).toContain("Provider import job completed.");
+  });
+
+  it("manages provider configs and displays redacted secrets", async () => {
+    const client: ProviderImportClient = {
+      createProviderImportPlan: vi.fn(),
+      createProviderImportJob: vi.fn(),
+      getProviderImportJob: vi.fn(),
+      listProviderImportJobEvents: vi.fn(),
+      listProviderConfigs: vi.fn(async () => [
+        {
+          id: "provider_telegram",
+          tenantId: "tenant_1",
+          providerId: "telegram",
+          name: "Telegram Import Bot",
+          config: { botToken: "<redacted>" },
+          isEnabled: true,
+          createdAt: "2026-05-10T00:00:00Z",
+          updatedAt: "2026-05-10T00:00:00Z",
+        },
+      ]),
+      upsertProviderConfig: vi.fn(async (id, request) => ({
+        id,
+        tenantId: request.tenantId,
+        providerId: request.providerId,
+        name: request.name,
+        config: { botToken: "<redacted>", nested: { clientSecret: "<redacted>" } },
+        isEnabled: request.isEnabled,
+        createdAt: "2026-05-10T00:00:00Z",
+        updatedAt: "2026-05-10T00:01:00Z",
+      })),
+      deleteProviderConfig: vi.fn(async () => undefined),
+    };
+    const wrapper = mount(ProviderImportPlanner, {
+      props: {
+        locale: "en",
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        providerImportClient: client,
+      },
+    });
+    await flushPromises();
+
+    expect(client.listProviderConfigs).toHaveBeenCalledWith("tenant_1");
+    expect(wrapper.text()).toContain("Telegram Import Bot");
+    expect(wrapper.text()).toContain("<redacted>");
+
+    await wrapper.get('[aria-label="Provider config ID"]').setValue("provider_line");
+    await wrapper.get('[aria-label="Provider config source"]').setValue("line-stickers");
+    await wrapper.get('[aria-label="Provider config name"]').setValue("LINE Store");
+    await wrapper.get('[aria-label="Provider config JSON"]').setValue('{"botToken":"123456:secret","nested":{"clientSecret":"secret_1"}}');
+    await wrapper.get('[aria-label="Save provider config"]').trigger("click");
+    await flushPromises();
+
+    expect(client.upsertProviderConfig).toHaveBeenCalledWith("provider_line", {
+      tenantId: "tenant_1",
+      providerId: "line-stickers",
+      name: "LINE Store",
+      config: { botToken: "123456:secret", nested: { clientSecret: "secret_1" } },
+      isEnabled: true,
+    });
+    expect(wrapper.text()).toContain("LINE Store");
+    expect(wrapper.text()).toContain("<redacted>");
+
+    await wrapper.get('[aria-label="Delete provider config provider_line"]').trigger("click");
+    await flushPromises();
+
+    expect(client.deleteProviderConfig).toHaveBeenCalledWith("provider_line");
   });
 });

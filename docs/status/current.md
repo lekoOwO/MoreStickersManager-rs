@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Add Web provider credential/config controls, then wire provider import jobs to consume enabled configs before planned-provider placeholders.
+- Wire provider import jobs to consume enabled provider configs, then add planned-provider placeholders.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -260,9 +260,10 @@ Last verification:
 - Provider config API foundation slice: added tenant-scoped SQLite storage plus protected API/OpenAPI routes for provider import credentials, with recursive token/secret response redaction, tenant admin/custom-role modification checks, regular member read checks, and focused storage/API coverage.
 - Provider config CLI slice: added `msm providers configs list/upsert/delete`, CLI DTO/client support for provider config API routes, human/JSON output formatting, parser coverage, and fake-client execution tests. Focused RED/GREEN verification used `cargo test -p msm-cli provider_config --locked` with Rust temp paths pointed at `D:\Temp`.
 - Provider config MCP slice: added provider config list/upsert/delete tools, registry schemas, tenant-member list authorization, tenant-admin write authorization, recursive token/secret redaction, and focused tool-call coverage. Focused RED/GREEN verification used `cargo test -p msm-mcp provider_config --locked` with Rust temp paths pointed at `D:\Temp`.
+- Provider config Web slice: added provider config API client methods, provider workspace controls for list/upsert/delete, redacted JSON display, and focused client/component tests. Focused RED/GREEN verification used `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client`.
 
 Next step:
-- Continue Phase E with Web provider credential/config controls, then wire provider import jobs to consume enabled configs before planned-provider placeholders.
+- Continue Phase E by wiring provider import jobs to consume enabled provider configs before planned-provider placeholders.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

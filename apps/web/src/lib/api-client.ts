@@ -90,11 +90,33 @@ export interface ProviderImportJobEvent {
   createdAt: string;
 }
 
+export interface ProviderConfigResponse {
+  id: string;
+  tenantId: string;
+  providerId: ProviderImportSource;
+  name: string;
+  config: Record<string, unknown>;
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertProviderConfigRequest {
+  tenantId: string;
+  providerId: ProviderImportSource;
+  name: string;
+  config: Record<string, unknown>;
+  isEnabled: boolean;
+}
+
 export interface ProviderImportClient {
   createProviderImportPlan(request: CreateProviderImportPlanRequest): Promise<ProviderImportPlan>;
   createProviderImportJob(request: CreateProviderImportJobRequest): Promise<ProviderImportJob>;
   getProviderImportJob(jobId: string): Promise<ProviderImportJob>;
   listProviderImportJobEvents(jobId: string): Promise<ProviderImportJobEvent[]>;
+  listProviderConfigs(tenantId: string): Promise<ProviderConfigResponse[]>;
+  upsertProviderConfig(configId: string, request: UpsertProviderConfigRequest): Promise<ProviderConfigResponse>;
+  deleteProviderConfig(configId: string): Promise<void>;
 }
 
 export interface ImportStickerPackRequest {
@@ -496,6 +518,15 @@ export function createProviderImportClient(options: PackClientOptions = {}): Pro
       async listProviderImportJobEvents() {
         throw new Error("Provider import job events require VITE_MSM_API_BASE_URL");
       },
+      async listProviderConfigs() {
+        throw new Error("Provider configs require VITE_MSM_API_BASE_URL");
+      },
+      async upsertProviderConfig() {
+        throw new Error("Provider configs require VITE_MSM_API_BASE_URL");
+      },
+      async deleteProviderConfig() {
+        throw new Error("Provider configs require VITE_MSM_API_BASE_URL");
+      },
     };
   }
 
@@ -548,6 +579,35 @@ export function createProviderImportClient(options: PackClientOptions = {}): Pro
       }
 
       return (await response.json()) as ProviderImportJobEvent[];
+    },
+    async listProviderConfigs(tenantId) {
+      const response = await fetchImpl(providerConfigsUrl(baseUrl, tenantId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list provider configs: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProviderConfigResponse[];
+    },
+    async upsertProviderConfig(configId, request) {
+      const response = await fetchImpl(providerConfigUrl(baseUrl, configId), {
+        method: "PUT",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify(request),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to upsert provider config: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProviderConfigResponse;
+    },
+    async deleteProviderConfig(configId) {
+      const response = await fetchImpl(providerConfigUrl(baseUrl, configId), {
+        method: "DELETE",
+        ...authInit(options.authToken),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to delete provider config: HTTP ${response.status}`);
+      }
     },
   };
 }
@@ -1037,6 +1097,16 @@ export function patScopePolicyUrl(baseUrl: string, userId: string) {
   const path = `${trimBaseUrl(baseUrl)}/api/v1/pats/scope-policy`;
   const query = new URLSearchParams({ userId });
   return `${path}?${query.toString()}`;
+}
+
+export function providerConfigsUrl(baseUrl: string, tenantId: string) {
+  const path = `${trimBaseUrl(baseUrl)}/api/v1/provider-configs`;
+  const query = new URLSearchParams({ tenantId });
+  return `${path}?${query.toString()}`;
+}
+
+export function providerConfigUrl(baseUrl: string, configId: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/provider-configs/${encodeURIComponent(configId)}`;
 }
 
 export function providerImportPlanUrl(baseUrl: string) {

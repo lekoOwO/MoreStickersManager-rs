@@ -1648,3 +1648,10 @@
 - Provider config responses recursively redact JSON keys containing `token` or `secret`, matching the API/CLI contract.
 - Verification: focused `cargo test -p msm-mcp provider_config --locked` passed with Rust temp paths pointed at `D:\Temp`; final full MCP fmt/test/clippy/diff checks are run before commit.
 - Updated PRD/status/provider/user docs; next Phase E slice should add Web provider config controls and then worker config consumption.
+
+## 2026-05-10 Provider Config Web
+
+- Added Web API client methods for tenant-scoped provider config list/upsert/delete routes.
+- Added provider workspace controls for provider config ID/source/name/enabled state, JSON credential payload editing, redacted response display, refresh, and delete actions.
+- Added focused API-client and component coverage for bearer auth, redacted config preservation, Web upsert, and Web deletion flows.
+- Updated PRD/status/provider/user docs; next Phase E slice should wire provider import jobs to consume enabled provider configs before planned-provider placeholders.

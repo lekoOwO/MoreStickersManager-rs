@@ -15,7 +15,7 @@ from the service loop when enabled.
 
 Provider import execution now handles LINE fixture-schema/direct-asset payloads,
 LINE product pages with embedded metadata, and Telegram `getFile` asset
-downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, and MCP management now exist; Web controls and worker credential consumption remain next.
+downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-scoped provider credential/config storage plus API/OpenAPI, CLI, MCP, and Web management now exist; worker credential consumption remains next.
 
 ## Recently Completed
 
@@ -174,8 +174,7 @@ downloads. API, CLI, MCP, and Web provider import job controls exist. Tenant-sco
 
 ## Immediate Plan
 
-1. Add Web provider credential/config controls and wire provider import jobs
-   to consume enabled provider configs.
+1. Wire provider import jobs to consume enabled provider configs.
 2. Add planned-provider registry placeholders for Signal, WhatsApp, Kakao, Band,
    OGQ, and Viber if any are still missing.
 

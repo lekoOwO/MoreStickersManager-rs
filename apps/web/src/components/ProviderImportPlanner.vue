@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   createProviderImportClient,
+  type ProviderConfigResponse,
   type ProviderImportClient,
   type ProviderImportJob,
   type ProviderImportJobEvent,
@@ -33,6 +34,15 @@ const errorMessage = ref("");
 const isPlanning = ref(false);
 const isCreatingJob = ref(false);
 const isRefreshingJob = ref(false);
+const providerConfigs = ref<ProviderConfigResponse[]>([]);
+const configId = ref("provider_telegram");
+const configProviderId = ref<ProviderImportSource>("telegram");
+const configName = ref("Telegram Import Bot");
+const configJson = ref('{\n  "botToken": "123456:secret",\n  "apiBaseUrl": "https://api.telegram.org"\n}');
+const configEnabled = ref(true);
+const isLoadingConfigs = ref(false);
+const isSavingConfig = ref(false);
+const deletingConfigId = ref("");
 
 const labels = computed(() => allMessages()[props.locale]);
 const strategyLabel = computed(() => {
@@ -108,6 +118,63 @@ async function refreshJob(id = jobId.value.trim()) {
   }
 }
 
+
+async function loadProviderConfigs() {
+  errorMessage.value = "";
+  isLoadingConfigs.value = true;
+  try {
+    providerConfigs.value = await providerImportClient().listProviderConfigs(props.tenantId);
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    isLoadingConfigs.value = false;
+  }
+}
+
+async function saveProviderConfig() {
+  errorMessage.value = "";
+  isSavingConfig.value = true;
+  try {
+    const config = JSON.parse(configJson.value) as Record<string, unknown>;
+    const saved = await providerImportClient().upsertProviderConfig(configId.value.trim(), {
+      tenantId: props.tenantId,
+      providerId: configProviderId.value,
+      name: configName.value.trim(),
+      config,
+      isEnabled: configEnabled.value,
+    });
+    providerConfigs.value = [saved, ...providerConfigs.value.filter((config) => config.id !== saved.id)];
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    isSavingConfig.value = false;
+  }
+}
+
+async function deleteProviderConfig(id: string) {
+  errorMessage.value = "";
+  deletingConfigId.value = id;
+  try {
+    await providerImportClient().deleteProviderConfig(id);
+    providerConfigs.value = providerConfigs.value.filter((config) => config.id !== id);
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    deletingConfigId.value = "";
+  }
+}
+
+function formatConfig(config: Record<string, unknown>) {
+  return JSON.stringify(config, null, 2);
+}
+
+onMounted(loadProviderConfigs);
+watch(
+  () => [props.tenantId, props.providerImportClient, props.patToken] as const,
+  () => {
+    void loadProviderConfigs();
+  },
+);
 function providerImportClient() {
   return (
     props.providerImportClient ??
@@ -220,6 +287,108 @@ function providerImportClient() {
           {{ errorMessage }}
         </p>
       </form>
+
+      <section class="grid gap-4 rounded-[1.35rem] border bg-background/70 p-4 xl:col-span-2" data-testid="provider-configs-panel">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-semibold">{{ labels.providerConfigs }}</h3>
+            <p class="mt-1 text-xs text-muted-foreground">{{ labels.providerConfigsHelp }}</p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            :disabled="isLoadingConfigs"
+            :aria-label="labels.refreshProviderConfigs"
+            @click="loadProviderConfigs"
+          >
+            {{ isLoadingConfigs ? labels.loading : labels.refreshProviderConfigs }}
+          </Button>
+        </div>
+
+        <form class="grid gap-3 lg:grid-cols-[minmax(9rem,0.7fr)_minmax(9rem,0.7fr)_minmax(10rem,1fr)_auto]" @submit.prevent="saveProviderConfig">
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.providerConfigId }}
+            <input
+              v-model="configId"
+              class="h-10 rounded-lg border bg-background px-3 font-mono text-sm outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Provider config ID"
+              autocomplete="off"
+            />
+          </label>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.providerConfigSource }}
+            <select
+              v-model="configProviderId"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Provider config source"
+            >
+              <option value="telegram">Telegram</option>
+              <option value="line-stickers">LINE Stickers</option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.providerConfigName }}
+            <input
+              v-model="configName"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Provider config name"
+              autocomplete="off"
+            />
+          </label>
+          <label class="flex items-end gap-2 pb-2 text-sm font-medium lg:justify-end">
+            <input v-model="configEnabled" type="checkbox" class="size-4 rounded border" :aria-label="labels.providerConfigEnabled" />
+            {{ labels.providerConfigEnabled }}
+          </label>
+          <label class="flex flex-col gap-2 text-sm font-medium lg:col-span-3">
+            {{ labels.providerConfigJson }}
+            <textarea
+              v-model="configJson"
+              class="min-h-32 rounded-lg border bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Provider config JSON"
+              spellcheck="false"
+            />
+            <span class="text-xs text-muted-foreground">{{ labels.providerConfigJsonHelp }}</span>
+          </label>
+          <div class="flex items-end">
+            <Button type="submit" class="w-full" :disabled="isSavingConfig || !configId.trim() || !configName.trim()" aria-label="Save provider config" @click="saveProviderConfig">
+              {{ isSavingConfig ? labels.loading : labels.saveProviderConfig }}
+            </Button>
+          </div>
+        </form>
+
+        <div v-if="providerConfigs.length" class="grid gap-3">
+          <article
+            v-for="config in providerConfigs"
+            :key="config.id"
+            class="grid gap-3 rounded-2xl border bg-card/70 p-3 lg:grid-cols-[minmax(12rem,0.9fr)_minmax(16rem,1.4fr)_auto]"
+          >
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h4 class="text-sm font-semibold">{{ config.name }}</h4>
+                <Badge :variant="config.isEnabled ? 'secondary' : 'outline'">
+                  {{ config.isEnabled ? labels.providerConfigStatusEnabled : labels.providerConfigStatusDisabled }}
+                </Badge>
+              </div>
+              <p class="mt-1 break-all font-mono text-xs text-muted-foreground">{{ config.id }} · {{ config.providerId }}</p>
+            </div>
+            <pre class="max-h-40 overflow-auto rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">{{ formatConfig(config.config) }}</pre>
+            <div class="flex items-start lg:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                :disabled="deletingConfigId === config.id"
+                :aria-label="'Delete provider config ' + config.id"
+                @click="deleteProviderConfig(config.id)"
+              >
+                {{ deletingConfigId === config.id ? labels.loading : labels.deleteProviderConfig }}
+              </Button>
+            </div>
+          </article>
+        </div>
+        <p v-else class="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+          {{ labels.providerConfigsEmpty }}
+        </p>
+      </section>
 
       <div class="grid gap-5">
       <div class="rounded-[1.35rem] border bg-background/70">
