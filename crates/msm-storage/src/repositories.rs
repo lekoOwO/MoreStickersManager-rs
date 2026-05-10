@@ -565,8 +565,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when password hashing fails, the repository is not backed by `SQLite`, or
-    /// SQL fails.
+    /// Returns an error when password hashing fails or SQL fails.
     pub async fn create_local_user_with_password(
         &self,
         id: &str,
@@ -576,31 +575,60 @@ impl StorageRepository {
     ) -> StorageResult<UserRecord> {
         let password_hash = hash_password(password)?;
         let now = now();
-        let sqlite = self.sqlite()?;
-        let mut tx = sqlite.begin().await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let mut tx = pool.begin().await?;
 
-        sqlx::query(
-            "INSERT INTO users (id, email, display_name, is_disabled, created_at) VALUES (?, ?, ?, 0, ?)",
-        )
-        .bind(id)
-        .bind(email)
-        .bind(display_name)
-        .bind(&now)
-        .execute(&mut *tx)
-        .await?;
+                sqlx::query(
+                    "INSERT INTO users (id, email, display_name, is_disabled, created_at) VALUES (?, ?, ?, 0, ?)",
+                )
+                .bind(id)
+                .bind(email)
+                .bind(display_name)
+                .bind(&now)
+                .execute(&mut *tx)
+                .await?;
 
-        sqlx::query(
-            "INSERT INTO local_user_credentials (user_id, password_hash, created_at, updated_at)
-            VALUES (?, ?, ?, ?)",
-        )
-        .bind(id)
-        .bind(&password_hash)
-        .bind(&now)
-        .bind(&now)
-        .execute(&mut *tx)
-        .await?;
+                sqlx::query(
+                    "INSERT INTO local_user_credentials (user_id, password_hash, created_at, updated_at)
+                    VALUES (?, ?, ?, ?)",
+                )
+                .bind(id)
+                .bind(&password_hash)
+                .bind(&now)
+                .bind(&now)
+                .execute(&mut *tx)
+                .await?;
 
-        tx.commit().await?;
+                tx.commit().await?;
+            }
+            DbPool::Postgres(pool) => {
+                let mut tx = pool.begin().await?;
+
+                sqlx::query(
+                    "INSERT INTO users (id, email, display_name, is_disabled, created_at) VALUES ($1, $2, $3, FALSE, $4)",
+                )
+                .bind(id)
+                .bind(email)
+                .bind(display_name)
+                .bind(&now)
+                .execute(&mut *tx)
+                .await?;
+
+                sqlx::query(
+                    "INSERT INTO local_user_credentials (user_id, password_hash, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4)",
+                )
+                .bind(id)
+                .bind(&password_hash)
+                .bind(&now)
+                .bind(&now)
+                .execute(&mut *tx)
+                .await?;
+
+                tx.commit().await?;
+            }
+        }
 
         Ok(UserRecord {
             id: id.to_owned(),
@@ -615,70 +643,81 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn local_credential_for_user(
         &self,
         user_id: &str,
     ) -> StorageResult<Option<LocalUserCredentialRecord>> {
-        let row = sqlx::query(
-            "SELECT user_id, password_hash, created_at, updated_at
-            FROM local_user_credentials
-            WHERE user_id = ?",
-        )
-        .bind(user_id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        Ok(row.map(|row| LocalUserCredentialRecord {
-            user_id: row.get("user_id"),
-            password_hash: row.get("password_hash"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }))
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT user_id, password_hash, created_at, updated_at
+                    FROM local_user_credentials
+                    WHERE user_id = ?",
+                )
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await?;
+                Ok(row.as_ref().map(local_credential_from_sqlite_row))
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT user_id, password_hash, created_at, updated_at
+                    FROM local_user_credentials
+                    WHERE user_id = $1",
+                )
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await?;
+                Ok(row.as_ref().map(local_credential_from_pg_row))
+            }
+        }
     }
 
     /// Verifies a local user password by email.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or stored user
-    /// timestamps are invalid.
+    /// Returns an error when SQL fails or stored user timestamps are invalid.
     pub async fn verify_local_user_password(
         &self,
         email: &str,
         password: &str,
     ) -> StorageResult<Option<UserRecord>> {
-        let row = sqlx::query(
-            "SELECT users.id, users.email, users.display_name, users.is_disabled, users.created_at,
-                local_user_credentials.password_hash
-            FROM users
-            JOIN local_user_credentials ON local_user_credentials.user_id = users.id
-            WHERE users.email = ?",
-        )
-        .bind(email)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        let password_hash: String = row.get("password_hash");
-        if !verify_password(password, &password_hash) {
-            return Ok(None);
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT users.id, users.email, users.display_name, users.is_disabled, users.created_at,
+                        local_user_credentials.password_hash
+                    FROM users
+                    JOIN local_user_credentials ON local_user_credentials.user_id = users.id
+                    WHERE users.email = ?",
+                )
+                .bind(email)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref()
+                    .map(|row| verified_local_user_from_sqlite_row(row, password))
+                    .transpose()
+                    .map(Option::flatten)
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT users.id, users.email, users.display_name, users.is_disabled, users.created_at,
+                        local_user_credentials.password_hash
+                    FROM users
+                    JOIN local_user_credentials ON local_user_credentials.user_id = users.id
+                    WHERE users.email = $1",
+                )
+                .bind(email)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref()
+                    .map(|row| verified_local_user_from_pg_row(row, password))
+                    .transpose()
+                    .map(Option::flatten)
+            }
         }
-        let is_disabled: i64 = row.get("is_disabled");
-        if is_disabled != 0 {
-            return Ok(None);
-        }
-
-        let created_at: String = row.get("created_at");
-        Ok(Some(UserRecord {
-            id: row.get("id"),
-            email: row.get("email"),
-            display_name: row.get("display_name"),
-            is_disabled: false,
-            created_at: parse_rfc3339(&created_at)?,
-        }))
     }
 
     /// Adds a user to a tenant with a coarse role.
@@ -2744,6 +2783,70 @@ fn tenant_member_from_pg_row(row: &PgRow) -> StorageResult<TenantMemberRecord> {
     })
 }
 
+fn local_credential_from_sqlite_row(row: &SqliteRow) -> LocalUserCredentialRecord {
+    LocalUserCredentialRecord {
+        user_id: row.get("user_id"),
+        password_hash: row.get("password_hash"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn local_credential_from_pg_row(row: &PgRow) -> LocalUserCredentialRecord {
+    LocalUserCredentialRecord {
+        user_id: row.get("user_id"),
+        password_hash: row.get("password_hash"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn verified_local_user_from_sqlite_row(
+    row: &SqliteRow,
+    password: &str,
+) -> StorageResult<Option<UserRecord>> {
+    let password_hash: String = row.get("password_hash");
+    if !verify_password(password, &password_hash) {
+        return Ok(None);
+    }
+    let is_disabled: i64 = row.get("is_disabled");
+    if is_disabled != 0 {
+        return Ok(None);
+    }
+
+    let created_at: String = row.get("created_at");
+    Ok(Some(UserRecord {
+        id: row.get("id"),
+        email: row.get("email"),
+        display_name: row.get("display_name"),
+        is_disabled: false,
+        created_at: parse_rfc3339(&created_at)?,
+    }))
+}
+
+fn verified_local_user_from_pg_row(
+    row: &PgRow,
+    password: &str,
+) -> StorageResult<Option<UserRecord>> {
+    let password_hash: String = row.get("password_hash");
+    if !verify_password(password, &password_hash) {
+        return Ok(None);
+    }
+    let is_disabled: bool = row.get("is_disabled");
+    if is_disabled {
+        return Ok(None);
+    }
+
+    let created_at: String = row.get("created_at");
+    Ok(Some(UserRecord {
+        id: row.get("id"),
+        email: row.get("email"),
+        display_name: row.get("display_name"),
+        is_disabled: false,
+        created_at: parse_rfc3339(&created_at)?,
+    }))
+}
+
 fn tenant_from_sqlite_row(row: &SqliteRow) -> StorageResult<TenantRecord> {
     let created_at: String = row.get("created_at");
     let local_registration_enabled: i64 = row.get("local_registration_enabled");
@@ -3328,6 +3431,21 @@ mod tests {
         assert_web_session_contract(&repo, "postgres_session").await;
     }
 
+    #[tokio::test]
+    async fn local_credentials_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_local_credential_contract(&repo, "sqlite_local").await;
+    }
+
+    #[tokio::test]
+    async fn local_credentials_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_local_credential_contract(&repo, "postgres_local").await;
+    }
+
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
         let suffix = uuid::Uuid::new_v4().simple().to_string();
         let tenant_id = format!("{prefix}_tenant_{suffix}");
@@ -3772,6 +3890,42 @@ mod tests {
         repo.revoke_web_session(&session_id).await.unwrap();
         assert!(repo
             .verify_web_session(&created.token)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    async fn assert_local_credential_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let user_id = format!("{prefix}_user_{suffix}");
+        let email = format!("{prefix}_{suffix}@example.com");
+        let password = "correct horse battery staple";
+
+        let user = repo
+            .create_local_user_with_password(&user_id, &email, "User", password)
+            .await
+            .unwrap();
+        assert_eq!(user.id, user_id);
+        assert_eq!(user.email, email);
+        assert!(!user.is_disabled);
+
+        let credential = repo
+            .local_credential_for_user(&user_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(credential.user_id, user_id);
+        assert!(credential.password_hash.starts_with("$argon2"));
+        assert!(!credential.password_hash.contains(password));
+
+        assert_eq!(
+            repo.verify_local_user_password(&email, password)
+                .await
+                .unwrap(),
+            Some(user)
+        );
+        assert!(repo
+            .verify_local_user_password(&email, "wrong password")
             .await
             .unwrap()
             .is_none());
