@@ -3,6 +3,7 @@
 Phase: PostgreSQL support.
 
 Last completed:
+- PostgreSQL sticker-pack repository slice: sticker-pack upsert/find/list/read-record operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL core repository slice: tenant/user/tenant-member operations now use backend-aware SQLite/PostgreSQL SQL paths with shared contract coverage and optional `MSM_TEST_POSTGRES_URL` PostgreSQL execution.
 - PostgreSQL migration foundation slice: split storage migrations into backend-specific SQLite/PostgreSQL migrators and kept SQLite migration regression coverage passing.
 - Data portability compatibility slice: added an API-level cross-instance migration test that exports from one MSM instance and imports into another target instance, closing Phase I.

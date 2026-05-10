@@ -985,7 +985,8 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when serialization fails, the repository is not backed by `SQLite`, or SQL fails.
+    /// Returns an error when serialization fails or SQL fails.
+    #[allow(clippy::too_many_lines)]
     pub async fn upsert_sticker_pack(
         &self,
         id: &str,
@@ -997,59 +998,116 @@ impl StorageRepository {
     ) -> StorageResult<()> {
         let now = now();
         let pack_json = serde_json::to_string(pack)?;
-        let sqlite = self.sqlite()?;
-        let mut tx = sqlite.begin().await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let mut tx = pool.begin().await?;
 
-        sqlx::query(
-            "INSERT INTO sticker_packs (
-                id, tenant_id, owner_user_id, compatibility_id, title, visibility,
-                source_provider, sticker_pack_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                compatibility_id = excluded.compatibility_id,
-                title = excluded.title,
-                visibility = excluded.visibility,
-                source_provider = excluded.source_provider,
-                sticker_pack_json = excluded.sticker_pack_json,
-                updated_at = excluded.updated_at",
-        )
-        .bind(id)
-        .bind(tenant_id)
-        .bind(owner_user_id)
-        .bind(&pack.id)
-        .bind(&pack.title)
-        .bind(visibility.as_str())
-        .bind(source_provider)
-        .bind(pack_json)
-        .bind(&now)
-        .bind(&now)
-        .execute(&mut *tx)
-        .await?;
+                sqlx::query(
+                    "INSERT INTO sticker_packs (
+                        id, tenant_id, owner_user_id, compatibility_id, title, visibility,
+                        source_provider, sticker_pack_json, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        compatibility_id = excluded.compatibility_id,
+                        title = excluded.title,
+                        visibility = excluded.visibility,
+                        source_provider = excluded.source_provider,
+                        sticker_pack_json = excluded.sticker_pack_json,
+                        updated_at = excluded.updated_at",
+                )
+                .bind(id)
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .bind(&pack.id)
+                .bind(&pack.title)
+                .bind(visibility.as_str())
+                .bind(source_provider)
+                .bind(&pack_json)
+                .bind(&now)
+                .bind(&now)
+                .execute(&mut *tx)
+                .await?;
 
-        sqlx::query("DELETE FROM stickers WHERE pack_id = ?")
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
+                sqlx::query("DELETE FROM stickers WHERE pack_id = ?")
+                    .bind(id)
+                    .execute(&mut *tx)
+                    .await?;
 
-        for (index, sticker) in pack.stickers.iter().enumerate() {
-            sqlx::query(
-                "INSERT INTO stickers (
-                    id, pack_id, compatibility_id, title, asset_key, image_url, is_animated, sort_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            )
-            .bind(format!("{id}:{}", sticker.id))
-            .bind(id)
-            .bind(&sticker.id)
-            .bind(&sticker.title)
-            .bind(sticker.filename.as_deref())
-            .bind(&sticker.image)
-            .bind(sticker.is_animated.map(i64::from))
-            .bind(i64::try_from(index).unwrap_or(i64::MAX))
-            .execute(&mut *tx)
-            .await?;
+                for (index, sticker) in pack.stickers.iter().enumerate() {
+                    sqlx::query(
+                        "INSERT INTO stickers (
+                            id, pack_id, compatibility_id, title, asset_key, image_url, is_animated, sort_order
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    )
+                    .bind(format!("{id}:{}", sticker.id))
+                    .bind(id)
+                    .bind(&sticker.id)
+                    .bind(&sticker.title)
+                    .bind(sticker.filename.as_deref())
+                    .bind(&sticker.image)
+                    .bind(sticker.is_animated.map(i64::from))
+                    .bind(i64::try_from(index).unwrap_or(i64::MAX))
+                    .execute(&mut *tx)
+                    .await?;
+                }
+
+                tx.commit().await?;
+            }
+            DbPool::Postgres(pool) => {
+                let mut tx = pool.begin().await?;
+
+                sqlx::query(
+                    "INSERT INTO sticker_packs (
+                        id, tenant_id, owner_user_id, compatibility_id, title, visibility,
+                        source_provider, sticker_pack_json, created_at, updated_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    ON CONFLICT(id) DO UPDATE SET
+                        compatibility_id = excluded.compatibility_id,
+                        title = excluded.title,
+                        visibility = excluded.visibility,
+                        source_provider = excluded.source_provider,
+                        sticker_pack_json = excluded.sticker_pack_json,
+                        updated_at = excluded.updated_at",
+                )
+                .bind(id)
+                .bind(tenant_id)
+                .bind(owner_user_id)
+                .bind(&pack.id)
+                .bind(&pack.title)
+                .bind(visibility.as_str())
+                .bind(source_provider)
+                .bind(&pack_json)
+                .bind(&now)
+                .bind(&now)
+                .execute(&mut *tx)
+                .await?;
+
+                sqlx::query("DELETE FROM stickers WHERE pack_id = $1")
+                    .bind(id)
+                    .execute(&mut *tx)
+                    .await?;
+
+                for (index, sticker) in pack.stickers.iter().enumerate() {
+                    sqlx::query(
+                        "INSERT INTO stickers (
+                            id, pack_id, compatibility_id, title, asset_key, image_url, is_animated, sort_order
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                    )
+                    .bind(format!("{id}:{}", sticker.id))
+                    .bind(id)
+                    .bind(&sticker.id)
+                    .bind(&sticker.title)
+                    .bind(sticker.filename.as_deref())
+                    .bind(&sticker.image)
+                    .bind(sticker.is_animated)
+                    .bind(i64::try_from(index).unwrap_or(i64::MAX))
+                    .execute(&mut *tx)
+                    .await?;
+                }
+
+                tx.commit().await?;
+            }
         }
-
-        tx.commit().await?;
         Ok(())
     }
 
@@ -1518,63 +1576,77 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL/JSON parsing fails.
+    /// Returns an error when SQL/JSON parsing fails.
     pub async fn find_sticker_pack(&self, id: &str) -> StorageResult<Option<StickerPack>> {
-        let row = sqlx::query("SELECT sticker_pack_json FROM sticker_packs WHERE id = ?")
-            .bind(id)
-            .fetch_optional(self.sqlite()?)
-            .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query("SELECT sticker_pack_json FROM sticker_packs WHERE id = ?")
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await?;
 
-        row.map(|row| {
-            let json: String = row.get("sticker_pack_json");
-            StickerPack::from_json_str(&json).map_err(Into::into)
-        })
-        .transpose()
+                row.map(|row| {
+                    let json: String = row.get("sticker_pack_json");
+                    StickerPack::from_json_str(&json).map_err(Into::into)
+                })
+                .transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query("SELECT sticker_pack_json FROM sticker_packs WHERE id = $1")
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await?;
+
+                row.map(|row| {
+                    let json: String = row.get("sticker_pack_json");
+                    StickerPack::from_json_str(&json).map_err(Into::into)
+                })
+                .transpose()
+            }
+        }
     }
 
     /// Finds a sticker pack record by internal pack ID, including owner and tenant metadata.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, JSON parsing
-    /// fails, or timestamps are invalid.
+    /// Returns an error when SQL fails, JSON parsing fails, or timestamps are invalid.
     pub async fn find_sticker_pack_record(
         &self,
         id: &str,
     ) -> StorageResult<Option<StickerPackRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, owner_user_id, compatibility_id, title, visibility,
-                source_provider, sticker_pack_json, created_at, updated_at
-            FROM sticker_packs
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, compatibility_id, title, visibility,
+                        source_provider, sticker_pack_json, created_at, updated_at
+                    FROM sticker_packs
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.map(|row| {
-            let visibility: String = row.get("visibility");
-            let Some(visibility) = PackVisibility::from_storage(&visibility) else {
-                return Err(StorageError::InvalidVisibility { visibility });
-            };
-            let sticker_pack_json: String = row.get("sticker_pack_json");
-            let created_at: String = row.get("created_at");
-            let updated_at: String = row.get("updated_at");
+                row.as_ref()
+                    .map(sticker_pack_record_from_sqlite_row)
+                    .transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, owner_user_id, compatibility_id, title, visibility,
+                        source_provider, sticker_pack_json, created_at, updated_at
+                    FROM sticker_packs
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-            Ok(StickerPackRecord {
-                id: row.get("id"),
-                tenant_id: row.get("tenant_id"),
-                owner_user_id: row.get("owner_user_id"),
-                compatibility_id: row.get("compatibility_id"),
-                title: row.get("title"),
-                visibility,
-                source_provider: row.get("source_provider"),
-                sticker_pack: StickerPack::from_json_str(&sticker_pack_json)?,
-                created_at: parse_rfc3339(&created_at)?,
-                updated_at: parse_rfc3339(&updated_at)?,
-            })
-        })
-        .transpose()
+                row.as_ref()
+                    .map(sticker_pack_record_from_pg_row)
+                    .transpose()
+            }
+        }
     }
 
     /// Updates owned sticker pack metadata without changing sticker contents.
@@ -1643,21 +1715,40 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL/JSON parsing fails.
+    /// Returns an error when SQL/JSON parsing fails.
     pub async fn list_user_sticker_packs(&self, user_id: &str) -> StorageResult<Vec<StickerPack>> {
-        let rows = sqlx::query(
-            "SELECT sticker_pack_json FROM sticker_packs WHERE owner_user_id = ? ORDER BY title, id",
-        )
-        .bind(user_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT sticker_pack_json FROM sticker_packs WHERE owner_user_id = ? ORDER BY title, id",
+                )
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
 
-        rows.into_iter()
-            .map(|row| {
-                let json: String = row.get("sticker_pack_json");
-                StickerPack::from_json_str(&json).map_err(Into::into)
-            })
-            .collect()
+                rows.into_iter()
+                    .map(|row| {
+                        let json: String = row.get("sticker_pack_json");
+                        StickerPack::from_json_str(&json).map_err(Into::into)
+                    })
+                    .collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT sticker_pack_json FROM sticker_packs WHERE owner_user_id = $1 ORDER BY title, id",
+                )
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
+
+                rows.into_iter()
+                    .map(|row| {
+                        let json: String = row.get("sticker_pack_json");
+                        StickerPack::from_json_str(&json).map_err(Into::into)
+                    })
+                    .collect()
+            }
+        }
     }
 
     /// Lists sticker packs owned by a user in tenants where the user is still a member.
@@ -2336,6 +2427,73 @@ fn user_from_pg_row(row: &PgRow) -> StorageResult<UserRecord> {
     })
 }
 
+fn sticker_pack_record_from_sqlite_row(row: &SqliteRow) -> StorageResult<StickerPackRecord> {
+    let sticker_pack_json: String = row.get("sticker_pack_json");
+    let created_at: String = row.get("created_at");
+    let updated_at: String = row.get("updated_at");
+    sticker_pack_record_from_values(
+        row.get("id"),
+        row.get("tenant_id"),
+        row.get("owner_user_id"),
+        row.get("compatibility_id"),
+        row.get("title"),
+        row.get("visibility"),
+        row.get("source_provider"),
+        &sticker_pack_json,
+        &created_at,
+        &updated_at,
+    )
+}
+
+fn sticker_pack_record_from_pg_row(row: &PgRow) -> StorageResult<StickerPackRecord> {
+    let sticker_pack_json: String = row.get("sticker_pack_json");
+    let created_at: String = row.get("created_at");
+    let updated_at: String = row.get("updated_at");
+    sticker_pack_record_from_values(
+        row.get("id"),
+        row.get("tenant_id"),
+        row.get("owner_user_id"),
+        row.get("compatibility_id"),
+        row.get("title"),
+        row.get("visibility"),
+        row.get("source_provider"),
+        &sticker_pack_json,
+        &created_at,
+        &updated_at,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sticker_pack_record_from_values(
+    id: String,
+    tenant_id: String,
+    owner_user_id: String,
+    compatibility_id: String,
+    title: String,
+    visibility: String,
+    source_provider: Option<String>,
+    sticker_pack_json: &str,
+    created_at: &str,
+    updated_at: &str,
+) -> StorageResult<StickerPackRecord> {
+    let Some(visibility) = PackVisibility::from_storage(&visibility) else {
+        return Err(StorageError::InvalidVisibility { visibility });
+    };
+
+    Ok(StickerPackRecord {
+        id,
+        tenant_id,
+        owner_user_id,
+        compatibility_id,
+        title,
+        visibility,
+        source_provider,
+        sticker_pack: StickerPack::from_json_str(sticker_pack_json)?,
+        created_at: parse_rfc3339(created_at)?,
+        updated_at: parse_rfc3339(updated_at)?,
+    })
+}
+
 fn role_from_row(row: &SqliteRow, permissions: BTreeSet<Permission>) -> StorageResult<RoleRecord> {
     let created_at: String = row.get("created_at");
     Ok(RoleRecord {
@@ -2616,6 +2774,21 @@ mod tests {
         assert_core_identity_contract(&repo, "postgres_core").await;
     }
 
+    #[tokio::test]
+    async fn pack_records_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_pack_contract(&repo, "sqlite_pack").await;
+    }
+
+    #[tokio::test]
+    async fn pack_records_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_pack_contract(&repo, "postgres_pack").await;
+    }
+
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
         let suffix = uuid::Uuid::new_v4().simple().to_string();
         let tenant_id = format!("{prefix}_tenant_{suffix}");
@@ -2651,6 +2824,52 @@ mod tests {
             repo.list_user_tenant_members(&user.id).await.unwrap(),
             vec![member]
         );
+    }
+
+    async fn assert_pack_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let tenant_id = format!("{prefix}_tenant_{suffix}");
+        let user_id = format!("{prefix}_user_{suffix}");
+        let email = format!("{prefix}_{suffix}@example.com");
+        let pack_id = format!("{prefix}_pack_{suffix}");
+
+        repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+        repo.create_user(&user_id, &email, "User").await.unwrap();
+        repo.add_tenant_member(&tenant_id, &user_id, "admin")
+            .await
+            .unwrap();
+
+        let pack = sample_pack();
+        repo.upsert_sticker_pack(
+            &pack_id,
+            &tenant_id,
+            &user_id,
+            PackVisibility::Private,
+            Some("telegram"),
+            &pack,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            repo.find_sticker_pack(&pack_id).await.unwrap(),
+            Some(pack.clone())
+        );
+        assert_eq!(
+            repo.list_user_sticker_packs(&user_id).await.unwrap(),
+            vec![pack.clone()]
+        );
+
+        let record = repo
+            .find_sticker_pack_record(&pack_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(record.id, pack_id);
+        assert_eq!(record.tenant_id, tenant_id);
+        assert_eq!(record.owner_user_id, user_id);
+        assert_eq!(record.visibility, PackVisibility::Private);
+        assert_eq!(record.sticker_pack, pack);
     }
 
     #[tokio::test]

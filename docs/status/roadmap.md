@@ -15,6 +15,7 @@ compatibility with shared backend tests.
 
 ## Recently Completed
 
+- Sticker-pack upsert/find/list/read-record repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Core tenant/user/tenant-member repository operations now have backend-aware SQLite/PostgreSQL execution paths and shared contract tests, with PostgreSQL execution enabled by `MSM_TEST_POSTGRES_URL`.
 - Storage migrations now have backend-specific SQLite and PostgreSQL migrator sets, with `DbPool::run_migrations` selecting by pool kind.
 - Cross-instance portable user migration is now covered at the API layer by exporting from one MSM instance and importing into a separate target instance.
@@ -181,8 +182,8 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Move pack and metadata repository operations off SQLite-only pool access toward backend-aware SQL execution.
-2. Add PostgreSQL CI service wiring once enough repository/API coverage can exercise the backend meaningfully.
+1. Move auth/PAT and product metadata repository operations off SQLite-only pool access toward backend-aware SQL execution.
+2. Continue expanding shared contract tests before adding PostgreSQL CI service wiring.
 
 ## Later Planned Work
 

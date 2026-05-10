@@ -1797,3 +1797,10 @@
 - Added a shared core identity repository contract that always runs on SQLite and also runs against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
 - Kept broader repository abstraction open because pack, auth, export, metadata, provider, and portability methods still use SQLite-only execution.
 - Verification: `cargo test -p msm-storage core_identity_records_work_on_sqlite --locked`; `cargo test -p msm-storage core_identity_records_work_on_postgres_when_configured --locked`.
+
+## 2026-05-10 PostgreSQL Sticker Pack Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for sticker-pack upsert, find, list, and record-read operations.
+- Added shared sticker-pack repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
+- Updated PRD/status docs to reflect PostgreSQL repository progress while keeping auth/export/metadata/provider/portability parity open.
+- Verification: `cargo test -p msm-storage pack_records_work_on_sqlite --locked`; `cargo test -p msm-storage pack_records_work_on_postgres_when_configured --locked`.
