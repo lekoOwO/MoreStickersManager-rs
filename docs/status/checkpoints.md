@@ -1504,3 +1504,10 @@
 - On `/auth/oidc/callback?code=...&state=...`, the Web shell opens the auth dialog and pre-fills authorization code, state, nonce, tenant, provider, and redirect URI fields from the redirect URL plus pending login state.
 - Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before implementing redirect prefill, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build` passed.
 - Updated PRD/status/user docs; next Phase D slice should finish SSO-backed account documentation for Web/API/CLI/MCP users.
+
+## 2026-05-10 SSO-backed Account Documentation
+
+- Documented OIDC provider administration requirements, CLI commands, and MCP tools.
+- Documented OIDC login-start/callback endpoints, callback request shape, Web callback behavior, SSO-returned PAT reuse, CLI `MSM_PAT`, MCP Bearer usage, and role-capped scope selection.
+- Marked Phase D SSO-backed PAT usage documentation complete in the PRD and moved the current queue to Phase E provider network fetch/download/internalization planning.
+- Verification: `git diff --check` passed.

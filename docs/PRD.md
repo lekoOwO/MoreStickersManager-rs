@@ -88,7 +88,8 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Complete SSO-backed account documentation for Web/API/CLI/MCP users.
+1. Implement provider network fetch/download/internalization for Telegram and
+   LINE, starting with a provider job plan and testable boundaries.
 
 Each queue item must update this section when completed or reordered.
 
@@ -218,9 +219,11 @@ tests and docs are updated.
   reuse the existing role-filtered scope picker defaults. The Web app persists
   pending state/nonce in browser storage and pre-fills callback fields when the
   provider redirects back to `/auth/oidc/callback?code=...&state=...`.
-- [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
+- [x] CLI/MCP documentation for PAT usage with SSO-backed accounts.
   Progress: CLI, MCP, and Web tenant administration now manage OIDC providers;
-  SSO-backed PAT usage docs still need completion.
+  user docs now explain provider administration, OIDC login/callback endpoints,
+  Web callback behavior, SSO-returned PAT reuse, CLI `MSM_PAT`, MCP Bearer usage,
+  and role-capped scope selection.
 
 ### Phase E: Provider Ingestion
 

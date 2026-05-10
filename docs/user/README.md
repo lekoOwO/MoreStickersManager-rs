@@ -623,7 +623,10 @@ existing tenant. New-tenant bootstrap registrations are still allowed.
 
 OIDC provider administration currently exists on the API, CLI, MCP, and Web tenant admin surfaces. Provider
 responses redact `clientSecret`; update calls replace it with the submitted
-secret. CLI commands:
+secret. These surfaces require a PAT with `tenant.manage_settings` and an admin
+membership in the target tenant.
+
+CLI commands:
 
 - `msm tenants oidc-providers list --tenant-id <tenant_id>`
 - `msm tenants oidc-providers upsert --tenant-id <tenant_id> --provider-id <provider_id> --display-name <name> --issuer-url <issuer_url> --client-id <client_id> --client-secret <client_secret> --scope openid [--scope email] [--disabled] [--deny-registration]`
@@ -635,7 +638,57 @@ MCP tools:
 - `msm.upsert_oidc_provider`
 - `msm.delete_oidc_provider`
 
-The Web Tenant admin workspace can list providers, create or update a provider, toggle provider enablement, toggle provider-backed registration, and delete providers. The Web auth dialog can start OIDC login with a configured provider, display the authorization URL/state/nonce response, complete the callback request, and store the returned PAT. Full SSO-backed account documentation remains in progress. The API request body is:
+The Web Tenant admin workspace can list providers, create or update a provider,
+toggle provider enablement, toggle provider-backed registration, and delete
+providers. The Web auth dialog can start OIDC login with a configured provider,
+display the authorization URL/state/nonce response, pre-fill the callback form
+after the provider redirect, complete the callback request, and store the
+returned PAT.
+
+SSO-backed accounts use the same PAT model as local accounts after login. A
+successful OIDC callback links or creates a tenant user, creates a Web session
+cookie, and returns a PAT. Use that raw PAT for Web, API, CLI, or MCP operations
+until it is revoked or expires:
+
+```powershell
+$env:MSM_PAT="msm_pat_from_oidc_callback"
+cargo run -p msm-cli -- packs list --user-id oidc_tenant_1_google_subject
+```
+
+For MCP clients, send the same raw token as a Bearer token when calling protected
+`tools/call` operations. The token scopes are still capped by the linked user's
+role policy, so use the Web scope picker or `GET /api/v1/pats/scope-policy` to
+choose scopes the account can actually receive.
+
+OIDC login endpoints:
+
+- `GET /api/v1/auth/oidc/{tenant_id}/{provider_id}/login?redirectUri=...`
+- `POST /api/v1/auth/oidc/callback`
+
+The callback request shape is:
+
+```json
+{
+  "state": "opaque_state_from_login_start",
+  "nonce": "opaque_nonce_from_login_start",
+  "authorizationCode": "provider_code",
+  "issuer": "https://accounts.google.com",
+  "audience": "client-id",
+  "providerSubject": "fallback-provider-subject",
+  "email": "fallback@example.test",
+  "displayName": "Fallback Name",
+  "tokenId": "webui-oidc",
+  "tokenName": "Web OIDC",
+  "scopes": ["pack.read"],
+  "expiresAt": null
+}
+```
+
+When `authorizationCode` yields a verifiable ID token or userinfo response, the
+API derives subject/email/display name from the provider response instead of the
+fallback fields.
+
+The provider configuration API request body is:
 
 ```json
 {

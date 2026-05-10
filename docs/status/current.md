@@ -109,9 +109,10 @@ Last completed:
 - OIDC Web login-start slice: Web auth dialog can start provider authorization through the live OIDC login-start API and display the authorization URL/state/nonce/expiry. Verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (55 tests), and `pnpm --filter @morestickersmanager/web build`.
 - OIDC Web callback completion slice: Web auth dialog can submit authorization code/state/nonce and fallback claims to the OIDC callback API, store the returned PAT, and reuse the existing token result display. Verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (56 tests), and `pnpm --filter @morestickersmanager/web build`.
 - OIDC Web redirect prefill slice: the Web app stores pending OIDC state/nonce after login-start and pre-fills callback fields from `/auth/oidc/callback?code=...&state=...`. Verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build`.
+- SSO-backed account documentation slice: user docs now cover OIDC provider administration, login-start/callback endpoints, Web callback behavior, SSO-returned PAT reuse, CLI `MSM_PAT`, MCP Bearer usage, and role-capped scope selection.
 
 Current task:
-- Complete SSO-backed account documentation for Web/API/CLI/MCP users.
+- Implement provider network fetch/download/internalization for Telegram and LINE, starting with a provider job plan and testable boundaries.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -230,9 +231,10 @@ Last verification:
 - OIDC Web login-start slice: RED failure observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding auth dialog controls; targeted AppShell tests passed, then full verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (55 tests), and `pnpm --filter @morestickersmanager/web build`.
 - OIDC Web callback completion slice: RED failure observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding callback controls; final verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (56 tests), and `pnpm --filter @morestickersmanager/web build`.
 - OIDC Web redirect prefill slice: RED failure observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before storing pending state and reading redirect URL params; final verification passed with `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build`.
+- SSO-backed account documentation slice: docs-only verification with `git diff --check`.
 
 Next step:
-- Continue Phase D with SSO-backed account documentation for Web/API/CLI/MCP users.
+- Continue Phase E with provider network fetch/download/internalization planning and boundaries.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.
