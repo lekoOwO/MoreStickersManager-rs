@@ -1853,3 +1853,11 @@
 - Added shared local-credential repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
 - Updated PRD/status docs to show local auth PostgreSQL progress while keeping OIDC auth, subscription-token, export/provider/portability parity open.
 - Verification: `cargo test -p msm-storage local_credentials_work_on_sqlite --locked`; `cargo test -p msm-storage local_credentials_work_on_postgres_when_configured --locked`.
+
+## 2026-05-11 PostgreSQL OIDC Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for OIDC provider configuration upsert/list/find/delete operations.
+- Added backend-aware SQLite/PostgreSQL SQL paths for OIDC login-state create/verify/consume and provider-user-link upsert/find operations.
+- Added shared OIDC repository contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
+- Updated PRD/status docs to show OIDC PostgreSQL progress while keeping subscription-token, export/provider/portability parity open.
+- Verification: `cargo test -p msm-storage oidc_records_work_on_sqlite --locked`; `cargo test -p msm-storage oidc_records_work_on_postgres_when_configured --locked`.

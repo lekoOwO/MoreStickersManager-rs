@@ -134,8 +134,8 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, JSON serialization fails,
-    /// the referenced tenant does not exist, SQL fails, or timestamps are invalid.
+    /// Returns an error when JSON serialization fails, the referenced tenant does not exist, SQL
+    /// fails, or timestamps are invalid.
     pub async fn upsert_oidc_provider_config(
         &self,
         config: NewOidcProviderConfig<'_>,
@@ -143,36 +143,72 @@ impl StorageRepository {
         let now = now();
         let scopes_json =
             serde_json::to_string(&config.scopes.iter().map(String::as_str).collect::<Vec<_>>())?;
-        sqlx::query(
-            "INSERT INTO oidc_provider_configs (
-                id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
-                is_enabled, allow_registration, created_at, updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                tenant_id = excluded.tenant_id,
-                display_name = excluded.display_name,
-                issuer_url = excluded.issuer_url,
-                client_id = excluded.client_id,
-                client_secret = excluded.client_secret,
-                scopes_json = excluded.scopes_json,
-                is_enabled = excluded.is_enabled,
-                allow_registration = excluded.allow_registration,
-                updated_at = excluded.updated_at",
-        )
-        .bind(config.id)
-        .bind(config.tenant_id)
-        .bind(config.display_name)
-        .bind(config.issuer_url)
-        .bind(config.client_id)
-        .bind(config.client_secret)
-        .bind(scopes_json)
-        .bind(config.is_enabled)
-        .bind(config.allow_registration)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO oidc_provider_configs (
+                        id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                        is_enabled, allow_registration, created_at, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        tenant_id = excluded.tenant_id,
+                        display_name = excluded.display_name,
+                        issuer_url = excluded.issuer_url,
+                        client_id = excluded.client_id,
+                        client_secret = excluded.client_secret,
+                        scopes_json = excluded.scopes_json,
+                        is_enabled = excluded.is_enabled,
+                        allow_registration = excluded.allow_registration,
+                        updated_at = excluded.updated_at",
+                )
+                .bind(config.id)
+                .bind(config.tenant_id)
+                .bind(config.display_name)
+                .bind(config.issuer_url)
+                .bind(config.client_id)
+                .bind(config.client_secret)
+                .bind(&scopes_json)
+                .bind(config.is_enabled)
+                .bind(config.allow_registration)
+                .bind(&now)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO oidc_provider_configs (
+                        id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                        is_enabled, allow_registration, created_at, updated_at
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    ON CONFLICT(id) DO UPDATE SET
+                        tenant_id = excluded.tenant_id,
+                        display_name = excluded.display_name,
+                        issuer_url = excluded.issuer_url,
+                        client_id = excluded.client_id,
+                        client_secret = excluded.client_secret,
+                        scopes_json = excluded.scopes_json,
+                        is_enabled = excluded.is_enabled,
+                        allow_registration = excluded.allow_registration,
+                        updated_at = excluded.updated_at",
+                )
+                .bind(config.id)
+                .bind(config.tenant_id)
+                .bind(config.display_name)
+                .bind(config.issuer_url)
+                .bind(config.client_id)
+                .bind(config.client_secret)
+                .bind(&scopes_json)
+                .bind(config.is_enabled)
+                .bind(config.allow_registration)
+                .bind(&now)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         self.find_oidc_provider_config(config.tenant_id, config.id)
             .await?
@@ -183,71 +219,123 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, JSON is invalid,
-    /// or timestamps are invalid.
+    /// Returns an error when SQL fails, JSON is invalid, or timestamps are invalid.
     pub async fn list_oidc_provider_configs(
         &self,
         tenant_id: &str,
     ) -> StorageResult<Vec<OidcProviderConfigRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
-                is_enabled, allow_registration, created_at, updated_at
-            FROM oidc_provider_configs
-            WHERE tenant_id = ?
-            ORDER BY display_name, id",
-        )
-        .bind(tenant_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
-
-        rows.iter().map(oidc_provider_config_from_row).collect()
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                        is_enabled, allow_registration, created_at, updated_at
+                    FROM oidc_provider_configs
+                    WHERE tenant_id = ?
+                    ORDER BY display_name, id",
+                )
+                .bind(tenant_id)
+                .fetch_all(pool)
+                .await?;
+                rows.iter()
+                    .map(oidc_provider_config_from_sqlite_row)
+                    .collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                        is_enabled, allow_registration, created_at, updated_at
+                    FROM oidc_provider_configs
+                    WHERE tenant_id = $1
+                    ORDER BY display_name, id",
+                )
+                .bind(tenant_id)
+                .fetch_all(pool)
+                .await?;
+                rows.iter().map(oidc_provider_config_from_pg_row).collect()
+            }
+        }
     }
 
     /// Finds one OIDC provider configuration by tenant and ID.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, JSON is invalid,
-    /// or timestamps are invalid.
+    /// Returns an error when SQL fails, JSON is invalid, or timestamps are invalid.
     pub async fn find_oidc_provider_config(
         &self,
         tenant_id: &str,
         id: &str,
     ) -> StorageResult<Option<OidcProviderConfigRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
-                is_enabled, allow_registration, created_at, updated_at
-            FROM oidc_provider_configs
-            WHERE tenant_id = ? AND id = ?",
-        )
-        .bind(tenant_id)
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        row.as_ref().map(oidc_provider_config_from_row).transpose()
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                        is_enabled, allow_registration, created_at, updated_at
+                    FROM oidc_provider_configs
+                    WHERE tenant_id = ? AND id = ?",
+                )
+                .bind(tenant_id)
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref()
+                    .map(oidc_provider_config_from_sqlite_row)
+                    .transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, display_name, issuer_url, client_id, client_secret, scopes_json,
+                        is_enabled, allow_registration, created_at, updated_at
+                    FROM oidc_provider_configs
+                    WHERE tenant_id = $1 AND id = $2",
+                )
+                .bind(tenant_id)
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                row.as_ref()
+                    .map(oidc_provider_config_from_pg_row)
+                    .transpose()
+            }
+        }
     }
 
     /// Deletes one OIDC provider configuration by tenant and ID.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn delete_oidc_provider_config(
         &self,
         tenant_id: &str,
         id: &str,
     ) -> StorageResult<bool> {
-        let result = sqlx::query(
-            "DELETE FROM oidc_provider_configs
-            WHERE tenant_id = ? AND id = ?",
-        )
-        .bind(tenant_id)
-        .bind(id)
-        .execute(self.sqlite()?)
-        .await?;
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let result = sqlx::query(
+                    "DELETE FROM oidc_provider_configs
+                    WHERE tenant_id = ? AND id = ?",
+                )
+                .bind(tenant_id)
+                .bind(id)
+                .execute(pool)
+                .await?;
+                result.rows_affected()
+            }
+            DbPool::Postgres(pool) => {
+                let result = sqlx::query(
+                    "DELETE FROM oidc_provider_configs
+                    WHERE tenant_id = $1 AND id = $2",
+                )
+                .bind(tenant_id)
+                .bind(id)
+                .execute(pool)
+                .await?;
+                result.rows_affected()
+            }
+        };
 
-        Ok(result.rows_affected() > 0)
+        Ok(rows_affected > 0)
     }
 
     /// Creates an OIDC login state token and stores only its hash.
@@ -270,23 +358,46 @@ impl StorageRepository {
         let nonce = format!("msm_oidc_nonce_{id}_{nonce_secret}");
         let nonce_hash = hash_pat_secret(&nonce_secret);
         let now = now();
-        sqlx::query(
-            "INSERT INTO oidc_login_states (
-                id, tenant_id, provider_id, state_hash, nonce_hash, redirect_uri, expires_at,
-                created_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(&id)
-        .bind(tenant_id)
-        .bind(provider_id)
-        .bind(&state_hash)
-        .bind(&nonce_hash)
-        .bind(redirect_uri)
-        .bind(expires_at)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO oidc_login_states (
+                        id, tenant_id, provider_id, state_hash, nonce_hash, redirect_uri, expires_at,
+                        created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                )
+                .bind(&id)
+                .bind(tenant_id)
+                .bind(provider_id)
+                .bind(&state_hash)
+                .bind(&nonce_hash)
+                .bind(redirect_uri)
+                .bind(expires_at)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO oidc_login_states (
+                        id, tenant_id, provider_id, state_hash, nonce_hash, redirect_uri, expires_at,
+                        created_at
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                )
+                .bind(&id)
+                .bind(tenant_id)
+                .bind(provider_id)
+                .bind(&state_hash)
+                .bind(&nonce_hash)
+                .bind(redirect_uri)
+                .bind(expires_at)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(CreatedOidcLoginState {
             record: OidcLoginStateRecord {
@@ -332,15 +443,30 @@ impl StorageRepository {
             return Ok(None);
         };
         let consumed_at = now();
-        sqlx::query(
-            "UPDATE oidc_login_states
-            SET consumed_at = ?
-            WHERE id = ? AND consumed_at IS NULL",
-        )
-        .bind(&consumed_at)
-        .bind(&record.id)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "UPDATE oidc_login_states
+                    SET consumed_at = ?
+                    WHERE id = ? AND consumed_at IS NULL",
+                )
+                .bind(&consumed_at)
+                .bind(&record.id)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "UPDATE oidc_login_states
+                    SET consumed_at = $1
+                    WHERE id = $2 AND consumed_at IS NULL",
+                )
+                .bind(&consumed_at)
+                .bind(&record.id)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(Some(OidcLoginStateRecord {
             consumed_at: Some(consumed_at),
@@ -400,19 +526,36 @@ impl StorageRepository {
         provider_id: &str,
         provider_subject: &str,
     ) -> StorageResult<Option<OidcUserLinkRecord>> {
-        let row = sqlx::query(
-            "SELECT tenant_id, provider_id, provider_subject, user_id, email, display_name,
-                created_at, updated_at
-            FROM oidc_user_links
-            WHERE tenant_id = ? AND provider_id = ? AND provider_subject = ?",
-        )
-        .bind(tenant_id)
-        .bind(provider_id)
-        .bind(provider_subject)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        Ok(row.as_ref().map(oidc_user_link_from_row))
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT tenant_id, provider_id, provider_subject, user_id, email, display_name,
+                        created_at, updated_at
+                    FROM oidc_user_links
+                    WHERE tenant_id = ? AND provider_id = ? AND provider_subject = ?",
+                )
+                .bind(tenant_id)
+                .bind(provider_id)
+                .bind(provider_subject)
+                .fetch_optional(pool)
+                .await?;
+                Ok(row.as_ref().map(oidc_user_link_from_sqlite_row))
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT tenant_id, provider_id, provider_subject, user_id, email, display_name,
+                        created_at, updated_at
+                    FROM oidc_user_links
+                    WHERE tenant_id = $1 AND provider_id = $2 AND provider_subject = $3",
+                )
+                .bind(tenant_id)
+                .bind(provider_id)
+                .bind(provider_subject)
+                .fetch_optional(pool)
+                .await?;
+                Ok(row.as_ref().map(oidc_user_link_from_pg_row))
+            }
+        }
     }
 
     /// Creates or refreshes an OIDC provider-subject to MSM user link.
@@ -430,28 +573,56 @@ impl StorageRepository {
         display_name: &str,
     ) -> StorageResult<OidcUserLinkRecord> {
         let now = now();
-        sqlx::query(
-            "INSERT INTO oidc_user_links (
-                tenant_id, provider_id, provider_subject, user_id, email, display_name,
-                created_at, updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(tenant_id, provider_id, provider_subject) DO UPDATE SET
-                user_id = excluded.user_id,
-                email = excluded.email,
-                display_name = excluded.display_name,
-                updated_at = excluded.updated_at",
-        )
-        .bind(tenant_id)
-        .bind(provider_id)
-        .bind(provider_subject)
-        .bind(user_id)
-        .bind(email)
-        .bind(display_name)
-        .bind(&now)
-        .bind(&now)
-        .execute(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO oidc_user_links (
+                        tenant_id, provider_id, provider_subject, user_id, email, display_name,
+                        created_at, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(tenant_id, provider_id, provider_subject) DO UPDATE SET
+                        user_id = excluded.user_id,
+                        email = excluded.email,
+                        display_name = excluded.display_name,
+                        updated_at = excluded.updated_at",
+                )
+                .bind(tenant_id)
+                .bind(provider_id)
+                .bind(provider_subject)
+                .bind(user_id)
+                .bind(email)
+                .bind(display_name)
+                .bind(&now)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO oidc_user_links (
+                        tenant_id, provider_id, provider_subject, user_id, email, display_name,
+                        created_at, updated_at
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ON CONFLICT(tenant_id, provider_id, provider_subject) DO UPDATE SET
+                        user_id = excluded.user_id,
+                        email = excluded.email,
+                        display_name = excluded.display_name,
+                        updated_at = excluded.updated_at",
+                )
+                .bind(tenant_id)
+                .bind(provider_id)
+                .bind(provider_subject)
+                .bind(user_id)
+                .bind(email)
+                .bind(display_name)
+                .bind(&now)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         self.find_oidc_user_link(tenant_id, provider_id, provider_subject)
             .await?
@@ -2971,29 +3142,76 @@ fn role_from_row(row: &SqliteRow, permissions: BTreeSet<Permission>) -> StorageR
     })
 }
 
-fn oidc_provider_config_from_row(row: &SqliteRow) -> StorageResult<OidcProviderConfigRecord> {
-    let scopes_json: String = row.get("scopes_json");
-    let scope_keys: Vec<String> = serde_json::from_str(&scopes_json)?;
+fn oidc_provider_config_from_sqlite_row(
+    row: &SqliteRow,
+) -> StorageResult<OidcProviderConfigRecord> {
     let is_enabled: i64 = row.get("is_enabled");
     let allow_registration: i64 = row.get("allow_registration");
-    let created_at: String = row.get("created_at");
-    let updated_at: String = row.get("updated_at");
-    Ok(OidcProviderConfigRecord {
+    oidc_provider_config_from_values(OidcProviderConfigValues {
         id: row.get("id"),
         tenant_id: row.get("tenant_id"),
         display_name: row.get("display_name"),
         issuer_url: row.get("issuer_url"),
         client_id: row.get("client_id"),
         client_secret: row.get("client_secret"),
-        scopes: scope_keys.into_iter().collect(),
+        scopes_json: row.get("scopes_json"),
         is_enabled: is_enabled != 0,
         allow_registration: allow_registration != 0,
-        created_at: parse_rfc3339(&created_at)?,
-        updated_at: parse_rfc3339(&updated_at)?,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
     })
 }
 
-fn oidc_login_state_from_row(row: &SqliteRow) -> OidcLoginStateRecord {
+fn oidc_provider_config_from_pg_row(row: &PgRow) -> StorageResult<OidcProviderConfigRecord> {
+    oidc_provider_config_from_values(OidcProviderConfigValues {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        display_name: row.get("display_name"),
+        issuer_url: row.get("issuer_url"),
+        client_id: row.get("client_id"),
+        client_secret: row.get("client_secret"),
+        scopes_json: row.get("scopes_json"),
+        is_enabled: row.get("is_enabled"),
+        allow_registration: row.get("allow_registration"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+struct OidcProviderConfigValues {
+    id: String,
+    tenant_id: String,
+    display_name: String,
+    issuer_url: String,
+    client_id: String,
+    client_secret: String,
+    scopes_json: String,
+    is_enabled: bool,
+    allow_registration: bool,
+    created_at: String,
+    updated_at: String,
+}
+
+fn oidc_provider_config_from_values(
+    values: OidcProviderConfigValues,
+) -> StorageResult<OidcProviderConfigRecord> {
+    let scope_keys: Vec<String> = serde_json::from_str(&values.scopes_json)?;
+    Ok(OidcProviderConfigRecord {
+        id: values.id,
+        tenant_id: values.tenant_id,
+        display_name: values.display_name,
+        issuer_url: values.issuer_url,
+        client_id: values.client_id,
+        client_secret: values.client_secret,
+        scopes: scope_keys.into_iter().collect(),
+        is_enabled: values.is_enabled,
+        allow_registration: values.allow_registration,
+        created_at: parse_rfc3339(&values.created_at)?,
+        updated_at: parse_rfc3339(&values.updated_at)?,
+    })
+}
+
+fn oidc_login_state_from_sqlite_row(row: &SqliteRow) -> OidcLoginStateRecord {
     OidcLoginStateRecord {
         id: row.get("id"),
         tenant_id: row.get("tenant_id"),
@@ -3007,7 +3225,34 @@ fn oidc_login_state_from_row(row: &SqliteRow) -> OidcLoginStateRecord {
     }
 }
 
-fn oidc_user_link_from_row(row: &SqliteRow) -> OidcUserLinkRecord {
+fn oidc_login_state_from_pg_row(row: &PgRow) -> OidcLoginStateRecord {
+    OidcLoginStateRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        provider_id: row.get("provider_id"),
+        state_hash: row.get("state_hash"),
+        nonce_hash: row.get("nonce_hash"),
+        redirect_uri: row.get("redirect_uri"),
+        expires_at: row.get("expires_at"),
+        consumed_at: row.get("consumed_at"),
+        created_at: row.get("created_at"),
+    }
+}
+
+fn oidc_user_link_from_sqlite_row(row: &SqliteRow) -> OidcUserLinkRecord {
+    OidcUserLinkRecord {
+        tenant_id: row.get("tenant_id"),
+        provider_id: row.get("provider_id"),
+        provider_subject: row.get("provider_subject"),
+        user_id: row.get("user_id"),
+        email: row.get("email"),
+        display_name: row.get("display_name"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn oidc_user_link_from_pg_row(row: &PgRow) -> OidcUserLinkRecord {
     OidcUserLinkRecord {
         tenant_id: row.get("tenant_id"),
         provider_id: row.get("provider_id"),
@@ -3283,17 +3528,32 @@ impl StorageRepository {
         &self,
         id: &str,
     ) -> StorageResult<Option<OidcLoginStateRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, provider_id, state_hash, nonce_hash, redirect_uri, expires_at,
-                consumed_at, created_at
-            FROM oidc_login_states
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
-
-        Ok(row.as_ref().map(oidc_login_state_from_row))
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, provider_id, state_hash, nonce_hash, redirect_uri, expires_at,
+                        consumed_at, created_at
+                    FROM oidc_login_states
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                Ok(row.as_ref().map(oidc_login_state_from_sqlite_row))
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, provider_id, state_hash, nonce_hash, redirect_uri, expires_at,
+                        consumed_at, created_at
+                    FROM oidc_login_states
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+                Ok(row.as_ref().map(oidc_login_state_from_pg_row))
+            }
+        }
     }
 }
 
@@ -3444,6 +3704,21 @@ mod tests {
         };
 
         assert_local_credential_contract(&repo, "postgres_local").await;
+    }
+
+    #[tokio::test]
+    async fn oidc_records_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_oidc_contract(&repo, "sqlite_oidc").await;
+    }
+
+    #[tokio::test]
+    async fn oidc_records_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_oidc_contract(&repo, "postgres_oidc").await;
     }
 
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
@@ -3929,6 +4204,153 @@ mod tests {
             .await
             .unwrap()
             .is_none());
+    }
+
+    async fn assert_oidc_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let tenant_id = format!("{prefix}_tenant_{suffix}");
+        let user_id = format!("{prefix}_user_{suffix}");
+        let email = format!("{prefix}_{suffix}@example.com");
+        let provider_id = format!("{prefix}_provider_{suffix}");
+
+        repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+        repo.create_user(&user_id, &email, "User").await.unwrap();
+
+        assert_oidc_provider_contract(repo, &tenant_id, &provider_id).await;
+        assert_oidc_login_state_contract(repo, &tenant_id, &provider_id).await;
+        assert_oidc_user_link_contract(repo, &tenant_id, &provider_id, &user_id, &email).await;
+        assert!(repo
+            .delete_oidc_provider_config(&tenant_id, &provider_id)
+            .await
+            .unwrap());
+        assert!(repo
+            .find_oidc_provider_config(&tenant_id, &provider_id)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    async fn assert_oidc_provider_contract(
+        repo: &StorageRepository,
+        tenant_id: &str,
+        provider_id: &str,
+    ) {
+        let scopes = BTreeSet::from(["openid".to_owned(), "email".to_owned()]);
+        let created_provider = repo
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: provider_id,
+                tenant_id,
+                display_name: "Example",
+                issuer_url: "https://accounts.example.com",
+                client_id: "client-id",
+                client_secret: "client-secret",
+                scopes: &scopes,
+                is_enabled: true,
+                allow_registration: true,
+            })
+            .await
+            .unwrap();
+        assert_eq!(created_provider.scopes, scopes);
+
+        let updated_scopes = BTreeSet::from(["openid".to_owned(), "profile".to_owned()]);
+        let updated_provider = repo
+            .upsert_oidc_provider_config(NewOidcProviderConfig {
+                id: provider_id,
+                tenant_id,
+                display_name: "Example Workspace",
+                issuer_url: "https://accounts.example.com",
+                client_id: "client-id-2",
+                client_secret: "client-secret-2",
+                scopes: &updated_scopes,
+                is_enabled: false,
+                allow_registration: false,
+            })
+            .await
+            .unwrap();
+        assert_eq!(updated_provider.scopes, updated_scopes);
+        assert!(!updated_provider.is_enabled);
+        assert!(!updated_provider.allow_registration);
+        assert_eq!(
+            repo.list_oidc_provider_configs(tenant_id).await.unwrap(),
+            vec![updated_provider.clone()]
+        );
+        assert_eq!(
+            repo.find_oidc_provider_config(tenant_id, provider_id)
+                .await
+                .unwrap(),
+            Some(updated_provider)
+        );
+    }
+
+    async fn assert_oidc_login_state_contract(
+        repo: &StorageRepository,
+        tenant_id: &str,
+        provider_id: &str,
+    ) {
+        let expires_at = (Utc::now() + Duration::minutes(5)).to_rfc3339();
+        let state = repo
+            .create_oidc_login_state(
+                tenant_id,
+                provider_id,
+                "https://msm.example/auth/callback",
+                &expires_at,
+            )
+            .await
+            .unwrap();
+        assert!(state.state.starts_with("msm_oidc_state_"));
+        assert!(state.nonce.starts_with("msm_oidc_nonce_"));
+        assert_ne!(state.record.state_hash, state.state);
+        assert_ne!(state.record.nonce_hash, state.nonce);
+        assert_eq!(
+            repo.verify_oidc_login_state(&state.state, &state.nonce)
+                .await
+                .unwrap()
+                .map(|record| record.id),
+            Some(state.record.id.clone())
+        );
+        let consumed = repo
+            .consume_oidc_login_state(&state.state, &state.nonce)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(consumed.consumed_at.is_some());
+        assert!(repo
+            .consume_oidc_login_state(&state.state, &state.nonce)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    async fn assert_oidc_user_link_contract(
+        repo: &StorageRepository,
+        tenant_id: &str,
+        provider_id: &str,
+        user_id: &str,
+        email: &str,
+    ) {
+        let link = repo
+            .upsert_oidc_user_link(tenant_id, provider_id, "subject-1", user_id, email, "User")
+            .await
+            .unwrap();
+        assert_eq!(link.user_id, user_id);
+        let updated_link = repo
+            .upsert_oidc_user_link(
+                tenant_id,
+                provider_id,
+                "subject-1",
+                user_id,
+                "user@example.org",
+                "Updated User",
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated_link.email, "user@example.org");
+        assert_eq!(
+            repo.find_oidc_user_link(tenant_id, provider_id, "subject-1")
+                .await
+                .unwrap(),
+            Some(updated_link)
+        );
     }
 
     #[tokio::test]

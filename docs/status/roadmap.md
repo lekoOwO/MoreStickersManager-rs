@@ -15,6 +15,7 @@ compatibility with shared backend tests.
 
 ## Recently Completed
 
+- OIDC provider configuration, login-state, and provider-user-link repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Local-credential create/read/verify repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Web-session create/verify/revoke repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
 - Personal-access-token create/list/find/verify/revoke repository operations now have backend-aware SQL paths and shared optional PostgreSQL contract tests.
@@ -189,8 +190,8 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Move OIDC auth and subscription access token repository operations off SQLite-only pool access toward backend-aware SQL execution.
-2. Continue expanding shared contract tests before adding PostgreSQL CI service wiring.
+1. Move subscription access token repository operations off SQLite-only pool access toward backend-aware SQL execution.
+2. Continue expanding export/provider/portability shared contract tests before adding PostgreSQL CI service wiring.
 
 ## Later Planned Work
 
