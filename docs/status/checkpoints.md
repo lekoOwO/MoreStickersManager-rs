@@ -1552,3 +1552,12 @@
 - Added MCP registry and tool-call tests for LINE provider import plan creation.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-mcp provider_import --locked`, `cargo test -p msm-mcp --locked` (40 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider/user docs; next Phase E slice should add Web provider import plan controls, then executable provider import jobs.
+
+## 2026-05-10 Provider Import Planning Web
+
+- Added a Providers workspace route in the Web shell and dashboard navigation.
+- Added a Provider import planner UI for Telegram and LINE remote IDs that calls the protected planning endpoint and displays the metadata request, redacted headers, and asset download strategy without writing packs.
+- Added provider import planning to the Web API client and exposed `provider.import` in PAT and role permission selectors.
+- Added Web API/client and component tests for the provider import planning flow.
+- Verification: `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client`, `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (59 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
+- Updated PRD/status/provider/user docs; next Phase E slice should wire executable provider import jobs for Telegram and LINE.

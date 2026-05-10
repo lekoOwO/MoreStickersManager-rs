@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import ExportTargetPanel from "@/components/ExportTargetPanel.vue";
 import PackExportWizard from "@/components/PackExportWizard.vue";
 import ProductMetadataPanel from "@/components/ProductMetadataPanel.vue";
+import ProviderImportPlanner from "@/components/ProviderImportPlanner.vue";
 import TenantAdminPanel from "@/components/TenantAdminPanel.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   createPackClient,
   type PackClient,
   type ProductMetadataClient,
+  type ProviderImportClient,
   type TenantAdminClient,
   type WritablePackVisibility,
 } from "@/lib/api-client";
@@ -24,6 +26,7 @@ const props = defineProps<{
   patToken?: string;
   packClient?: PackClient;
   metadataClient?: ProductMetadataClient;
+  providerImportClient?: ProviderImportClient;
   tenantAdminClient?: TenantAdminClient;
   exportClient?: ExportClient;
   tenantId?: string;
@@ -53,11 +56,13 @@ const currentSectionLabel = computed(() =>
       ? labels.value.packs
       : currentSection.value === "metadata"
         ? labels.value.productMetadata
-        : currentSection.value === "admin"
-          ? labels.value.tenantAdmin
-          : currentSection.value === "exports"
-            ? labels.value.exportPack
-            : labels.value.exportTargets,
+        : currentSection.value === "providers"
+          ? labels.value.providers
+          : currentSection.value === "admin"
+            ? labels.value.tenantAdmin
+            : currentSection.value === "exports"
+              ? labels.value.exportPack
+              : labels.value.exportTargets,
 );
 const totalStickers = computed(() => packs.value.reduce((sum, pack) => sum + pack.stickerCount, 0));
 const publicPackCount = computed(() => packs.value.filter((pack) => pack.visibility === "public").length);
@@ -71,6 +76,7 @@ const providerCounts = computed(() => {
 const sectionTabs = computed<Array<{ key: WorkspaceSection; label: string }>>(() => [
   { key: "overview", label: labels.value.overview },
   { key: "packs", label: labels.value.packs },
+  { key: "providers", label: labels.value.providers },
   { key: "metadata", label: labels.value.productMetadata },
   { key: "admin", label: labels.value.tenantAdmin },
   { key: "exports", label: labels.value.exportPack },
@@ -426,6 +432,16 @@ function visibilityVariant(visibility: PackVisibility) {
         :packs="packs"
         :pat-token="patToken"
         :tenant-id="tenantId"
+      />
+    </section>
+
+    <section v-show="currentSection === 'providers'">
+      <ProviderImportPlanner
+        :provider-import-client="providerImportClient"
+        :locale="locale"
+        :pat-token="patToken"
+        :tenant-id="tenantId"
+        :owner-user-id="ownerUserId"
       />
     </section>
 

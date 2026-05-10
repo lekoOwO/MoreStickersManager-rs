@@ -6,6 +6,7 @@ import {
   createOidcAuthClient,
   createPatClient,
   createProductMetadataClient,
+  createProviderImportClient,
   createTenantAdminClient,
   folderListUrl,
   folderPackListUrl,
@@ -13,6 +14,7 @@ import {
   packListUrl,
   packTagListUrl,
   patScopePolicyUrl,
+  providerImportPlanUrl,
   oidcLoginStartUrl,
   subscriptionGroupPackListUrl,
   subscriptionGroupListUrl,
@@ -776,6 +778,55 @@ describe("OIDC auth API client", () => {
         tokenName: "Web OIDC",
         scopes: ["pack.read"],
         expiresAt: null,
+      }),
+    });
+  });
+});
+
+describe("provider import API client", () => {
+  it("creates provider import plans with bearer auth", async () => {
+    expect(providerImportPlanUrl("https://msm.example.test/")).toBe(
+      "https://msm.example.test/api/v1/provider-imports/plan",
+    );
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        providerId: "telegram",
+        remoteId: "kawaii_animals",
+        metadataRequest: {
+          method: "POST",
+          url: "https://api.telegram.org/bot<redacted>/getStickerSet",
+          redactedHeaders: [{ name: "authorization", value: "<redacted>" }],
+        },
+        assetStrategy: "telegramBotFileApi",
+      }),
+    ) as unknown as typeof fetch;
+    const client = createProviderImportClient({
+      baseUrl: "https://msm.example.test",
+      authToken: "msm_pat_secret",
+      fetchImpl,
+    });
+
+    const plan = await client.createProviderImportPlan({
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      providerId: "telegram",
+      remoteId: "kawaii_animals",
+      baseUrl: "",
+    });
+
+    expect(plan.assetStrategy).toBe("telegramBotFileApi");
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/provider-imports/plan", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer msm_pat_secret",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        providerId: "telegram",
+        remoteId: "kawaii_animals",
+        baseUrl: null,
       }),
     });
   });

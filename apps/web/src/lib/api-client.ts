@@ -29,6 +29,38 @@ export interface PackClient {
   deleteStickerPack(packId: string): Promise<void>;
 }
 
+export type ProviderImportSource = "telegram" | "line-stickers";
+
+export interface CreateProviderImportPlanRequest {
+  tenantId: string;
+  ownerUserId: string;
+  providerId: ProviderImportSource;
+  remoteId: string;
+  baseUrl: string | null;
+}
+
+export interface ProviderHttpHeader {
+  name: string;
+  value: string;
+}
+
+export interface ProviderHttpRequestPlan {
+  method: string;
+  url: string;
+  redactedHeaders: ProviderHttpHeader[];
+}
+
+export interface ProviderImportPlan {
+  providerId: ProviderImportSource;
+  remoteId: string;
+  metadataRequest: ProviderHttpRequestPlan;
+  assetStrategy: "telegramBotFileApi" | "directRemoteUrls";
+}
+
+export interface ProviderImportClient {
+  createProviderImportPlan(request: CreateProviderImportPlanRequest): Promise<ProviderImportPlan>;
+}
+
 export interface ImportStickerPackRequest {
   tenantId: string;
   ownerUserId: string;
@@ -408,6 +440,37 @@ export function createPackClient(options: PackClientOptions = {}): PackClient {
       if (!response.ok) {
         throw new Error(`Failed to delete sticker pack: HTTP ${response.status}`);
       }
+    },
+  };
+}
+
+export function createProviderImportClient(options: PackClientOptions = {}): ProviderImportClient {
+  const baseUrl = options.baseUrl?.trim();
+  if (!baseUrl) {
+    return {
+      async createProviderImportPlan() {
+        throw new Error("Provider import planning requires VITE_MSM_API_BASE_URL");
+      },
+    };
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  return {
+    async createProviderImportPlan(request) {
+      const response = await fetchImpl(providerImportPlanUrl(baseUrl), {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify({
+          ...request,
+          baseUrl: request.baseUrl?.trim() || null,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to create provider import plan: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProviderImportPlan;
     },
   };
 }
@@ -897,6 +960,10 @@ export function patScopePolicyUrl(baseUrl: string, userId: string) {
   const path = `${trimBaseUrl(baseUrl)}/api/v1/pats/scope-policy`;
   const query = new URLSearchParams({ userId });
   return `${path}?${query.toString()}`;
+}
+
+export function providerImportPlanUrl(baseUrl: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/provider-imports/plan`;
 }
 
 export function oidcLoginStartUrl(baseUrl: string, tenantId: string, providerId: string, redirectUri: string) {

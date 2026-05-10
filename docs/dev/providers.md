@@ -53,7 +53,9 @@ same-user tenant access, and returns Telegram or LINE fetch plans suitable for
 runtime execution. CLI can call the same surface with
 `msm providers plan --tenant-id ... --owner-user-id ... --provider-id ... --remote-id ...`.
 MCP can call the same planning boundary with `msm.create_provider_import_plan`.
-Web controls and executable import jobs are still pending.
+Web has a Providers workspace planner that calls the same endpoint, displays the
+metadata request and asset strategy, and keeps the flow explicitly planning-only.
+Executable import jobs are still pending.
 
 ## Provider Versus Export Target
 

@@ -57,6 +57,7 @@ const rolePermissionOptions = computed(() => [
   { key: "pack.manage_access", label: labels.value.scopePackManageAccess },
   { key: "asset.read", label: labels.value.scopeAssetRead },
   { key: "import.run", label: labels.value.scopeImportRun },
+  { key: "provider.import", label: labels.value.scopeProviderImport },
   { key: "export.read", label: labels.value.scopeExportRead },
   { key: "export.run", label: labels.value.scopeExportRun },
   { key: "export.target.manage", label: labels.value.scopeExportTargetManage },

@@ -83,6 +83,7 @@ const defaultPatScopes = [
   "pack.manage_access",
   "asset.read",
   "import.run",
+  "provider.import",
   "export.read",
   "export.run",
   "export.target.manage",
@@ -100,6 +101,7 @@ const authScopes = ref<string[]>([
   "pack.update",
   "pack.delete",
   "import.run",
+  "provider.import",
   "export.read",
   "export.run",
   "subscription.create",
@@ -155,6 +157,7 @@ const allScopeOptions = computed(() => [
   { key: "pack.manage_access", label: labels.value.scopePackManageAccess, help: labels.value.scopePackManageAccessHelp },
   { key: "asset.read", label: labels.value.scopeAssetRead, help: labels.value.scopeAssetReadHelp },
   { key: "import.run", label: labels.value.scopeImportRun, help: labels.value.scopeImportRunHelp },
+  { key: "provider.import", label: labels.value.scopeProviderImport, help: labels.value.scopeProviderImportHelp },
   { key: "export.read", label: labels.value.scopeExportRead, help: labels.value.scopeExportReadHelp },
   { key: "export.run", label: labels.value.scopeExportRun, help: labels.value.scopeExportRunHelp },
   {
@@ -211,6 +214,7 @@ const scopePolicyStatus = computed(() => {
 const navigationItems = computed<Array<{ key: WorkspaceSection; label: string; icon: Component }>>(() => [
   { key: "overview", label: labels.value.overview, icon: LayoutDashboardIcon },
   { key: "packs", label: labels.value.packs, icon: DatabaseIcon },
+  { key: "providers", label: labels.value.providers, icon: DatabaseIcon },
   { key: "metadata", label: labels.value.productMetadata, icon: TagsIcon },
   { key: "admin", label: labels.value.tenantAdmin, icon: UsersRoundIcon },
   { key: "exports", label: labels.value.exportPack, icon: SettingsIcon },
@@ -258,13 +262,15 @@ function currentSectionLabel() {
     ? labels.value.overview
     : activeSection.value === "packs"
       ? labels.value.packs
-      : activeSection.value === "metadata"
-        ? labels.value.productMetadata
-        : activeSection.value === "admin"
-          ? labels.value.tenantAdmin
-          : activeSection.value === "exports"
-            ? labels.value.exportPack
-            : labels.value.exportTargets;
+      : activeSection.value === "providers"
+        ? labels.value.providers
+        : activeSection.value === "metadata"
+          ? labels.value.productMetadata
+          : activeSection.value === "admin"
+            ? labels.value.tenantAdmin
+            : activeSection.value === "exports"
+              ? labels.value.exportPack
+              : labels.value.exportTargets;
 }
 
 function saveToken() {

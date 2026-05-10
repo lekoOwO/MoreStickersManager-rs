@@ -419,10 +419,11 @@ Provider import planning surfaces:
 - API: `POST /api/v1/provider-imports/plan`
 - CLI: `msm providers plan --tenant-id <tenant_id> --owner-user-id <user_id> --provider-id telegram|line-stickers --remote-id <remote_id> [--base-url <url>]`
 - MCP: `msm.create_provider_import_plan`
+- Web: open the Providers workspace and use the Provider import planner.
 
 These currently return a safe fetch plan for Telegram or LINE provider imports.
-Executable provider import jobs, Web controls, and runtime parsing/download
-completion are still pending.
+Executable provider import jobs and runtime parsing/download completion are
+still pending.
 
 PAT foundation status:
 
