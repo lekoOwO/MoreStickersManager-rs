@@ -1947,3 +1947,10 @@
 - Documented SQLite and PostgreSQL `MSM_DATABASE_URL` deployment choices in the root README and user documentation.
 - Updated PRD/status docs to mark Phase J PostgreSQL CI matrix and deployment documentation complete and move the active queue to Phase K production hardening.
 - Verification: `git diff --check` plus prior storage verification from the repository helper slice.
+## 2026-05-11 MCP Stateless Transport Hardening
+
+- Added no-store response headers to `/mcp` POST JSON-RPC responses.
+- Added an explicit `/mcp` GET response for SSE negotiation attempts, returning a structured unsupported-session JSON response with no-store headers instead of relying on the default method rejection.
+- Added MCP route tests covering no-store POST responses and unsupported SSE GET negotiation.
+- Updated PRD/status docs to record the stateless transport progress and keep deeper MCP session lifecycle decisions open.
+- Verification: `cargo test -p msm-mcp mcp_ --locked`; `cargo test -p msm-mcp --locked`; `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`.

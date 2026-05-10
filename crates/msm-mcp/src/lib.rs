@@ -11,7 +11,7 @@ pub use handler::handle_mcp_message;
 
 pub fn build_router(state: ApiState) -> Router {
     Router::new()
-        .route("/mcp", post(handler::mcp_post))
+        .route("/mcp", post(handler::mcp_post).get(handler::mcp_get))
         .with_state(state)
 }
 
@@ -1919,6 +1919,52 @@ mod tests {
         .await;
 
         assert_eq!(response["error"]["code"], -32601);
+    }
+
+    #[tokio::test]
+    async fn mcp_post_disables_response_caching() {
+        let response = build_router(test_state().await)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/mcp")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        json!({
+                            "jsonrpc": "2.0",
+                            "id": 1,
+                            "method": "ping"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers().get("cache-control").unwrap(), "no-store");
+    }
+
+    #[tokio::test]
+    async fn mcp_get_declares_sse_sessions_unsupported() {
+        let response = build_router(test_state().await)
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/mcp")
+                    .header("accept", "text/event-stream")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
+        assert_eq!(response.headers().get("cache-control").unwrap(), "no-store");
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body: Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body["error"]["code"], "mcp_sse_not_enabled");
     }
 
     #[tokio::test]

@@ -315,7 +315,7 @@ tests and docs are updated.
 
 ### Phase K: Production Hardening
 
-- [ ] MCP session/auth/SSE hardening.
+- [ ] MCP session/auth/SSE hardening.`n  Progress: `/mcp` now explicitly operates as stateless JSON-RPC over POST, returns `Cache-Control: no-store`, and rejects SSE GET negotiation with a structured JSON response. Deeper session lifecycle support remains open if stateful MCP sessions are required.
 - [ ] Rate limits and request size limits for upload/import routes.
 - [ ] Structured logs and operator-facing health diagnostics.
 - [ ] Backup/restore guidance.

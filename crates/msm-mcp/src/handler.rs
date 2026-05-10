@@ -1,6 +1,10 @@
 use axum::{
     extract::State,
-    http::{HeaderMap, StatusCode},
+    http::{
+        header::{CACHE_CONTROL, CONTENT_TYPE},
+        HeaderMap, HeaderValue, StatusCode,
+    },
+    response::IntoResponse,
     Json,
 };
 use msm_api::{
@@ -58,9 +62,39 @@ pub async fn mcp_post(
     State(state): State<ApiState>,
     headers: HeaderMap,
     Json(request): Json<JsonRpcRequest>,
-) -> (StatusCode, Json<JsonRpcResponse>) {
+) -> impl IntoResponse {
     let response = handle_mcp_message_with_headers(state, headers, request).await;
-    (StatusCode::OK, Json(response))
+    (
+        StatusCode::OK,
+        [(CACHE_CONTROL, HeaderValue::from_static("no-store"))],
+        Json(response),
+    )
+}
+
+pub async fn mcp_get(headers: HeaderMap) -> impl IntoResponse {
+    let accept = headers
+        .get("accept")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    let status = if accept.contains("text/event-stream") {
+        StatusCode::NOT_IMPLEMENTED
+    } else {
+        StatusCode::METHOD_NOT_ALLOWED
+    };
+
+    (
+        status,
+        [
+            (CACHE_CONTROL, HeaderValue::from_static("no-store")),
+            (CONTENT_TYPE, HeaderValue::from_static("application/json")),
+        ],
+        Json(json!({
+            "error": {
+                "code": "mcp_sse_not_enabled",
+                "message": "This MCP endpoint is stateless JSON-RPC over POST; SSE sessions are not enabled."
+            }
+        })),
+    )
 }
 
 pub async fn handle_mcp_message(state: ApiState, request: JsonRpcRequest) -> JsonRpcResponse {

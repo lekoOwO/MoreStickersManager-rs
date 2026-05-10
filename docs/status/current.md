@@ -153,7 +153,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase K production hardening by closing MCP auth/session/SSE hardening and running a PRD completion audit.
+- Continue Phase K production hardening by deciding whether stateful MCP sessions are required, then proceed to rate limits/request size limits.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,

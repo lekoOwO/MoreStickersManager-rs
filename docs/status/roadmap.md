@@ -12,6 +12,7 @@ Phase K production hardening is the active focus. Phase I data portability and P
 
 ## Recently Completed
 
+- /mcp POST responses now disable caching, and GET/SSE negotiation returns an explicit unsupported-session JSON response for the stateless transport contract.
 - CI now starts PostgreSQL for Rust tests with `MSM_TEST_POSTGRES_URL`, and README/user docs cover SQLite/PostgreSQL deployment configuration.
 - Folder rename/delete, tag delete, subscription-group rename/delete, sticker-pack metadata update/delete, and accessible pack listing now have backend-aware SQL paths and SQLite plus optional PostgreSQL contract coverage.
 - Tenant settings updates, user disabled-status updates, tenant member upsert, and role template upsert/list/find now have backend-aware SQL paths plus SQLite and optional PostgreSQL contract coverage.
@@ -199,8 +200,8 @@ Phase K production hardening is the active focus. Phase I data portability and P
 
 ## Immediate Plan
 
-1. Harden MCP auth/session/SSE behavior and document/verify the production security contract.
-2. Run a PRD completion audit and address any release-readiness gaps found by the audit.
+1. Decide and document the remaining MCP session lifecycle contract, or mark the endpoint intentionally stateless if no SSE/session state is planned.
+2. Add rate limits and request size limits for upload/import routes.
 
 ## Later Planned Work
 
