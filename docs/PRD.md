@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Continue Phase J PostgreSQL support: expand backend-aware repository execution into tag/subscription metadata, auth/PAT, export, provider, and portability repositories; then add CI coverage for PostgreSQL when service credentials are available.
+1. Continue Phase J PostgreSQL support: expand backend-aware repository execution into subscription metadata, metadata membership, auth/PAT, export, provider, and portability repositories; then add CI coverage for PostgreSQL when service credentials are available.
 
 Each queue item must update this section when completed or reordered.
 
@@ -309,7 +309,7 @@ tests and docs are updated.
 - [x] PostgreSQL migrations.
   Progress: backend-specific `migrations/sqlite` and `migrations/postgres` sets exist; PostgreSQL migrations use boolean columns where repository models expect booleans, and `DbPool::run_migrations` selects the correct migrator per backend. Live PostgreSQL repository coverage remains in the next checkbox.
 - [ ] Repository abstraction verified against SQLite and PostgreSQL.
-  Progress: tenant/user/tenant-member core identity operations, sticker-pack upsert/find/list/read-record operations, and folder create/list/find operations now have backend-aware SQLite/PostgreSQL SQL paths and shared contract tests. The PostgreSQL legs run when `MSM_TEST_POSTGRES_URL` is configured; tag/subscription metadata, auth, export, metadata membership, portability, and provider repositories remain SQLite-only.
+  Progress: tenant/user/tenant-member core identity operations, sticker-pack upsert/find/list/read-record operations, and folder create/list/find operations, and tag create/list/find operations now have backend-aware SQLite/PostgreSQL SQL paths and shared contract tests. The PostgreSQL legs run when `MSM_TEST_POSTGRES_URL` is configured; subscription metadata, auth, export, metadata membership, portability, and provider repositories remain SQLite-only.
 - [ ] CI matrix for both database backends.
 - [ ] Deployment docs for both backends.
 

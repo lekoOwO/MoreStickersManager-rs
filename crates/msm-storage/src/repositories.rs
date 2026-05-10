@@ -1341,16 +1341,33 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or the insert fails.
+    /// Returns an error when the insert fails.
     pub async fn create_tag(&self, tag: NewTag<'_>) -> StorageResult<TagRecord> {
         let now = now();
-        sqlx::query("INSERT INTO tags (id, tenant_id, name, created_at) VALUES (?, ?, ?, ?)")
-            .bind(tag.id)
-            .bind(tag.tenant_id)
-            .bind(tag.name)
-            .bind(&now)
-            .execute(self.sqlite()?)
-            .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query(
+                    "INSERT INTO tags (id, tenant_id, name, created_at) VALUES (?, ?, ?, ?)",
+                )
+                .bind(tag.id)
+                .bind(tag.tenant_id)
+                .bind(tag.name)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query(
+                    "INSERT INTO tags (id, tenant_id, name, created_at) VALUES ($1, $2, $3, $4)",
+                )
+                .bind(tag.id)
+                .bind(tag.tenant_id)
+                .bind(tag.name)
+                .bind(&now)
+                .execute(pool)
+                .await?;
+            }
+        }
 
         Ok(TagRecord {
             id: tag.id.to_owned(),
@@ -1364,38 +1381,70 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL/timestamp parsing fails.
+    /// Returns an error when SQL/timestamp parsing fails.
     pub async fn list_tags(&self, tenant_id: &str) -> StorageResult<Vec<TagRecord>> {
-        let rows = sqlx::query(
-            "SELECT id, tenant_id, name, created_at
-            FROM tags
-            WHERE tenant_id = ?
-            ORDER BY name, id",
-        )
-        .bind(tenant_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, name, created_at
+                    FROM tags
+                    WHERE tenant_id = ?
+                    ORDER BY name, id",
+                )
+                .bind(tenant_id)
+                .fetch_all(pool)
+                .await?;
 
-        rows.iter().map(tag_from_row).collect()
+                rows.iter().map(tag_from_sqlite_row).collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT id, tenant_id, name, created_at
+                    FROM tags
+                    WHERE tenant_id = $1
+                    ORDER BY name, id",
+                )
+                .bind(tenant_id)
+                .fetch_all(pool)
+                .await?;
+
+                rows.iter().map(tag_from_pg_row).collect()
+            }
+        }
     }
 
     /// Finds a tag by ID.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, or timestamp
-    /// parsing fails.
+    /// Returns an error when SQL fails or timestamp parsing fails.
     pub async fn find_tag_record(&self, id: &str) -> StorageResult<Option<TagRecord>> {
-        let row = sqlx::query(
-            "SELECT id, tenant_id, name, created_at
-            FROM tags
-            WHERE id = ?",
-        )
-        .bind(id)
-        .fetch_optional(self.sqlite()?)
-        .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, name, created_at
+                    FROM tags
+                    WHERE id = ?",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
 
-        row.as_ref().map(tag_from_row).transpose()
+                row.as_ref().map(tag_from_sqlite_row).transpose()
+            }
+            DbPool::Postgres(pool) => {
+                let row = sqlx::query(
+                    "SELECT id, tenant_id, name, created_at
+                    FROM tags
+                    WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
+
+                row.as_ref().map(tag_from_pg_row).transpose()
+            }
+        }
     }
 
     /// Deletes a tag.
@@ -2412,7 +2461,17 @@ fn folder_from_pg_row(row: &PgRow) -> StorageResult<FolderRecord> {
     })
 }
 
-fn tag_from_row(row: &SqliteRow) -> StorageResult<TagRecord> {
+fn tag_from_sqlite_row(row: &SqliteRow) -> StorageResult<TagRecord> {
+    let created_at: String = row.get("created_at");
+    Ok(TagRecord {
+        id: row.get("id"),
+        tenant_id: row.get("tenant_id"),
+        name: row.get("name"),
+        created_at: parse_rfc3339(&created_at)?,
+    })
+}
+
+fn tag_from_pg_row(row: &PgRow) -> StorageResult<TagRecord> {
     let created_at: String = row.get("created_at");
     Ok(TagRecord {
         id: row.get("id"),
@@ -2815,7 +2874,7 @@ mod tests {
 
     use crate::{
         db::DbPool,
-        models::{NewOidcProviderConfig, PackVisibility},
+        models::{NewOidcProviderConfig, NewTag, PackVisibility},
         repositories::StorageRepository,
         DatabaseConfig,
     };
@@ -2863,6 +2922,21 @@ mod tests {
         };
 
         assert_folder_contract(&repo, "postgres_folder").await;
+    }
+
+    #[tokio::test]
+    async fn tag_records_work_on_sqlite() {
+        let repo = test_repo().await;
+        assert_tag_contract(&repo, "sqlite_tag").await;
+    }
+
+    #[tokio::test]
+    async fn tag_records_work_on_postgres_when_configured() {
+        let Some(repo) = optional_postgres_repo().await else {
+            return;
+        };
+
+        assert_tag_contract(&repo, "postgres_tag").await;
     }
 
     async fn assert_core_identity_contract(repo: &StorageRepository, prefix: &str) {
@@ -2978,6 +3052,35 @@ mod tests {
             repo.list_folders(&created.tenant_id, &created.owner_user_id)
                 .await
                 .unwrap(),
+            vec![created]
+        );
+    }
+
+    async fn assert_tag_contract(repo: &StorageRepository, prefix: &str) {
+        let suffix = uuid::Uuid::new_v4().simple().to_string();
+        let tenant_id = format!("{prefix}_tenant_{suffix}");
+        let tag_id = format!("{prefix}_tag_{suffix}");
+
+        repo.create_tenant(&tenant_id, "Tenant").await.unwrap();
+
+        let created = repo
+            .create_tag(NewTag {
+                id: &tag_id,
+                tenant_id: &tenant_id,
+                name: "Favorites",
+            })
+            .await
+            .unwrap();
+        assert_eq!(created.id, tag_id);
+        assert_eq!(created.tenant_id, tenant_id);
+        assert_eq!(created.name, "Favorites");
+
+        assert_eq!(
+            repo.find_tag_record(&created.id).await.unwrap(),
+            Some(created.clone())
+        );
+        assert_eq!(
+            repo.list_tags(&created.tenant_id).await.unwrap(),
             vec![created]
         );
     }
