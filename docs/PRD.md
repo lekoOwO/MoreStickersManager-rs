@@ -88,7 +88,7 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add OIDC JWKS-backed ID-token signature validation, expiry/nonce checks, and userinfo claim derivation.
+1. Add OIDC JWKS-backed ID-token signature validation and userinfo/provider-derived callback claim flow.
 
 Each queue item must update this section when completed or reordered.
 
@@ -198,10 +198,11 @@ tests and docs are updated.
   exchanges it against the provider token endpoint using the stored redirect URI
   before creating the session. Discovery document parsing now validates issuer and required endpoint URLs,
   and callback authorization-code exchange uses the discovered token endpoint
-  through an injectable discovery fetcher. JWKS parsing/signature-key selection and unverified ID-token header/claim
-  parsing now exist. Remaining work: JWKS-backed signature validation,
-  userinfo/ID-token expiry/nonce checks, and deriving claims from validated
-  provider responses instead of trusting callback-supplied claim fields.
+  through an injectable discovery fetcher. JWKS parsing/signature-key selection, unverified ID-token header/claim
+  parsing, and issuer/audience/nonce/expiration claim validation now exist.
+  Remaining work: JWKS-backed signature validation, userinfo fetching, and
+  deriving callback user/link claims from validated provider responses instead
+  of trusting callback-supplied claim fields.
 - [ ] Web SSO login controls.
 - [ ] CLI/MCP documentation for PAT usage with SSO-backed accounts.
 

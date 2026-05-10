@@ -1402,3 +1402,10 @@
   signature bytes before trust is granted.
 - Kept JWKS-backed signature validation, expiry/nonce enforcement, and
   provider-derived callback claims as the next Phase D work.
+
+## 2026-05-10 OIDC ID Token Claim Validation
+
+- Added tested ID-token claim validation for normalized issuer, audience
+  membership, nonce matching, and expiration.
+- Kept JWKS-backed signature validation and provider-derived callback user
+  claims as the next Phase D work.

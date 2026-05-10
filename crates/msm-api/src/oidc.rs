@@ -368,6 +368,38 @@ pub fn parse_id_token_unverified(token: &str) -> Result<OidcIdTokenParts, OidcEr
     })
 }
 
+/// Validates ID-token claims after signature verification has selected a trusted token.
+///
+/// # Errors
+///
+/// Returns an error when issuer, audience, nonce, or expiration do not match
+/// the expected callback context.
+pub fn validate_id_token_claims(
+    claims: &OidcIdTokenClaims,
+    expected_issuer: &str,
+    expected_audience: &str,
+    expected_nonce: &str,
+    now_unix_seconds: i64,
+) -> Result<(), OidcError> {
+    if normalize_url_claim(&claims.issuer) != normalize_url_claim(expected_issuer) {
+        return Err(OidcError::InvalidIdToken("issuer mismatch".to_owned()));
+    }
+    if !claims
+        .audience
+        .iter()
+        .any(|audience| audience == expected_audience)
+    {
+        return Err(OidcError::InvalidIdToken("audience mismatch".to_owned()));
+    }
+    if claims.nonce.as_deref() != Some(expected_nonce) {
+        return Err(OidcError::InvalidIdToken("nonce mismatch".to_owned()));
+    }
+    if claims.expires_at <= now_unix_seconds {
+        return Err(OidcError::InvalidIdToken("token expired".to_owned()));
+    }
+    Ok(())
+}
+
 fn decode_jwt_segment(segment: &str, label: &str) -> Result<Vec<u8>, OidcError> {
     URL_SAFE_NO_PAD
         .decode(segment.as_bytes())
@@ -578,6 +610,61 @@ mod tests {
         assert_eq!(parsed.claims.nonce.as_deref(), Some("nonce-1"));
         assert_eq!(parsed.claims.expires_at, 1_893_456_000);
         assert!(super::parse_id_token_unverified("not.a.jwt.with.extra.parts").is_err());
+    }
+
+    #[test]
+    fn id_token_claim_validator_rejects_provider_claim_mismatches() {
+        let token = [
+            r#"{"alg":"RS256","kid":"active-key","typ":"JWT"}"#,
+            r#"{"iss":"https://issuer.example","sub":"subject-1","aud":"client-id","email":"leko@example.com","nonce":"nonce-1","exp":1893456000,"iat":1704067200}"#,
+            "signature",
+        ]
+        .into_iter()
+        .map(base64_url_no_pad)
+        .collect::<Vec<_>>()
+        .join(".");
+        let parsed = super::parse_id_token_unverified(&token).unwrap();
+
+        super::validate_id_token_claims(
+            &parsed.claims,
+            "https://issuer.example/",
+            "client-id",
+            "nonce-1",
+            1_704_067_300,
+        )
+        .expect("matching claims should validate");
+        assert!(super::validate_id_token_claims(
+            &parsed.claims,
+            "https://evil.example",
+            "client-id",
+            "nonce-1",
+            1_704_067_300,
+        )
+        .is_err());
+        assert!(super::validate_id_token_claims(
+            &parsed.claims,
+            "https://issuer.example",
+            "other-client",
+            "nonce-1",
+            1_704_067_300,
+        )
+        .is_err());
+        assert!(super::validate_id_token_claims(
+            &parsed.claims,
+            "https://issuer.example",
+            "client-id",
+            "wrong-nonce",
+            1_704_067_300,
+        )
+        .is_err());
+        assert!(super::validate_id_token_claims(
+            &parsed.claims,
+            "https://issuer.example",
+            "client-id",
+            "nonce-1",
+            1_893_456_001,
+        )
+        .is_err());
     }
 
     fn base64_url_no_pad(value: &str) -> String {
