@@ -3,19 +3,20 @@
 Phase: PostgreSQL support.
 
 Last completed:
-- PostgreSQL metadata membership removal slice: folder-pack, pack-tag, and subscription-group-pack removal operations now have backend-aware SQL paths and shared PostgreSQL contract coverage. Portability repositories remain follow-up parity work.
-- PostgreSQL provider import-job repository slice: provider import-job create/find/due/status/retry/failure/event operations now have backend-aware SQL paths and optional PostgreSQL contract coverage. Portability repositories remain follow-up parity work.
-- PostgreSQL provider-config repository slice: provider config upsert/list/find/delete operations now have backend-aware SQL paths and optional PostgreSQL contract coverage. Portability repositories remain follow-up parity work.
-- PostgreSQL Telegram publication repository slice: Telegram publication and sticker mapping upsert/find/list operations now have backend-aware SQL paths and optional PostgreSQL contract coverage. Portability repositories remain follow-up parity work.
-- PostgreSQL prepared-media repository slice: prepared media cache upsert/find operations now have backend-aware SQL paths and optional PostgreSQL contract coverage. Portability repositories remain follow-up parity work.
-- PostgreSQL export-job repository slice: export job create/find/queue/retry/status/recovery/event operations now have backend-aware SQL paths and optional PostgreSQL contract coverage. Portability repositories remain follow-up parity work.
+- PostgreSQL portability repository slice: portable user export/import helpers now select backend-aware SQLite/PostgreSQL SQL paths for user identity and subscription-group persistence, with SQLite and optional PostgreSQL coverage. Remaining PostgreSQL parity work is now concentrated in direct SQLite repository helper methods.
+- PostgreSQL metadata membership removal slice: folder-pack, pack-tag, and subscription-group-pack removal operations now have backend-aware SQL paths and shared PostgreSQL contract coverage.
+- PostgreSQL provider import-job repository slice: provider import-job create/find/due/status/retry/failure/event operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
+- PostgreSQL provider-config repository slice: provider config upsert/list/find/delete operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
+- PostgreSQL Telegram publication repository slice: Telegram publication and sticker mapping upsert/find/list operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
+- PostgreSQL prepared-media repository slice: prepared media cache upsert/find operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
+- PostgreSQL export-job repository slice: export job create/find/queue/retry/status/recovery/event operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
 - PostgreSQL export-target repository slice: export target create/list/find/update/delete operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
 - PostgreSQL subscription access-token repository slice: subscription access-token create/list/find/verify/rotate/revoke operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL OIDC repository slice: OIDC provider configuration, login-state, and provider-user-link operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL local-credential repository slice: local-credential create/read/verify operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL Web-session repository slice: Web-session create/verify/revoke operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL PAT repository slice: personal-access-token create/list/find/verify/revoke operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
-- PostgreSQL metadata membership repository slice: folder-pack, pack-tag, and subscription-group-pack membership add/list operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage. Membership removal remains SQLite-only for a follow-up parity pass.
+- PostgreSQL metadata membership repository slice: folder-pack, pack-tag, and subscription-group-pack membership add/list operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL subscription-group repository slice: subscription-group create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL tag repository slice: tag create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
 - PostgreSQL folder repository slice: folder create/list/find operations now have backend-aware SQL paths and shared optional PostgreSQL contract coverage.
@@ -149,7 +150,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase J PostgreSQL support by moving portability storage surfaces toward backend-aware SQL execution with shared backend test coverage.
+- Continue Phase J PostgreSQL support by converting the remaining direct SQLite repository helper methods, then add PostgreSQL CI/deployment coverage.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,

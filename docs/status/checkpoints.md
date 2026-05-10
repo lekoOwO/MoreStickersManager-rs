@@ -1919,3 +1919,11 @@
 - Extended shared metadata membership contract tests to cover successful removal and idempotent second removal on both SQLite and optional PostgreSQL.
 - Updated PRD/status docs to show membership removal PostgreSQL progress while keeping portability parity open.
 - Verification: `cargo test -p msm-storage metadata_memberships --locked`.
+
+## 2026-05-11 PostgreSQL Portability Repository Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for portable user identity export/import helpers.
+- Added backend-aware SQLite/PostgreSQL SQL paths for portable subscription-group export/import helpers while preserving pack import through the shared sticker-pack repository path.
+- Added SQLite and optional PostgreSQL portability tests for export/import round trips; PostgreSQL execution runs when `MSM_TEST_POSTGRES_URL` is configured.
+- Updated PRD/status docs to move Phase J follow-up work from portability parity to the remaining direct SQLite repository helper audit.
+- Verification: `cargo test -p msm-storage portability --locked`; `cargo test -p msm-storage --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.
