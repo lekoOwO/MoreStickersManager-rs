@@ -112,9 +112,10 @@ Last completed:
 - SSO-backed account documentation slice: user docs now cover OIDC provider administration, login-start/callback endpoints, Web callback behavior, SSO-returned PAT reuse, CLI `MSM_PAT`, MCP Bearer usage, and role-capped scope selection.
 - Provider remote fetch plan boundary slice: `msm-providers` now exposes Telegram and LINE remote fetch plan types/functions with explicit asset download strategies, without performing network I/O in the normalization crate.
 - Provider import runtime helper slice: `msm-app` now exposes injected provider metadata fetching and direct remote asset internalization helpers that write downloaded assets to `LocalAssetStore` and rewrite pack image URLs to MSM-hosted asset URLs.
+- Provider import planning API slice: API/OpenAPI now exposes `POST /api/v1/provider-imports/plan`, protected by `provider.import`, to create Telegram and LINE provider fetch plans for authorized tenant members.
 
 Current task:
-- Wire provider fetch/runtime helpers into API/CLI/MCP/Web import workflows for Telegram and LINE.
+- Add CLI/MCP/Web provider import plan controls, then wire executable provider import jobs.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -236,9 +237,10 @@ Last verification:
 - SSO-backed account documentation slice: docs-only verification with `git diff --check`.
 - Provider remote fetch plan boundary slice: verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-providers --locked` (9 tests), `cargo clippy -p msm-providers --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-fetch-plan`.
 - Provider import runtime helper slice: focused RED/GREEN coverage was added in `crates/msm-app/src/provider_import.rs`; verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-app provider_import --locked`, `cargo clippy -p msm-app --all-targets --offline -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-runtime`.
+- Provider import planning API slice: focused tests cover `provider.import` authorization and LINE plan creation; verification passed with `cargo fmt --all -- --check`, `cargo test -p msm-api provider_import --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check`. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-provider-import-api`.
 
 Next step:
-- Continue Phase E by wiring provider fetch/runtime helpers into API/CLI/MCP/Web import workflows for Telegram and LINE.
+- Continue Phase E by adding CLI/MCP/Web provider import plan controls, then executable provider import jobs.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

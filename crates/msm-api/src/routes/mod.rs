@@ -5,6 +5,7 @@ pub mod health;
 pub mod metadata;
 pub mod packs;
 pub mod pats;
+pub mod provider_imports;
 pub mod subscription_access_tokens;
 pub mod subscriptions;
 pub mod tenants;

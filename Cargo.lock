@@ -1339,6 +1339,7 @@ dependencies = [
  "mime_guess",
  "msm-domain",
  "msm-exporters",
+ "msm-providers",
  "msm-storage",
  "reqwest",
  "ring",

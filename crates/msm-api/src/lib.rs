@@ -26,6 +26,7 @@ pub fn build_router(state: ApiState) -> Router {
         .merge(metadata_routes())
         .merge(export_routes())
         .merge(pat_routes())
+        .merge(provider_import_routes())
         .merge(subscription_access_token_routes())
         .merge(tenant_routes())
         .with_state(state)
@@ -174,6 +175,13 @@ fn pat_routes() -> Router<ApiState> {
             get(routes::pats::get_pat_scope_policy),
         )
         .route("/api/v1/pats/{token_id}", delete(routes::pats::revoke_pat))
+}
+
+fn provider_import_routes() -> Router<ApiState> {
+    Router::new().route(
+        "/api/v1/provider-imports/plan",
+        post(routes::provider_imports::create_provider_import_plan),
+    )
 }
 
 fn subscription_access_token_routes() -> Router<ApiState> {
@@ -475,6 +483,75 @@ mod tests {
             .unwrap();
         let exported: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(exported["id"], "MoreStickers:Telegram:Pack:sample");
+    }
+
+    #[tokio::test]
+    async fn creates_provider_import_fetch_plan_with_provider_import_scope() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(
+            &state,
+            "patprovider",
+            "user_1",
+            [Permission::ProviderImport],
+        )
+        .await;
+        let body = serde_json::json!({
+            "tenantId": "tenant_1",
+            "ownerUserId": "user_1",
+            "providerId": "line-stickers",
+            "remoteId": "line cats",
+            "baseUrl": "https://store.line.me/"
+        });
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/provider-imports/plan")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["providerId"], "line-stickers");
+        assert_eq!(
+            json["metadataRequest"]["url"],
+            "https://store.line.me/stickershop/product/line%20cats/en"
+        );
+        assert_eq!(json["assetStrategy"], "directRemoteUrls");
+    }
+
+    #[tokio::test]
+    async fn provider_import_fetch_plan_requires_provider_import_scope() {
+        let state = empty_state_with_owner().await;
+        let token = create_pat(&state, "patread", "user_1", [Permission::PackRead]).await;
+        let body = serde_json::json!({
+            "tenantId": "tenant_1",
+            "ownerUserId": "user_1",
+            "providerId": "telegram",
+            "remoteId": "cat_pack"
+        });
+
+        let response = build_router(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/provider-imports/plan")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]

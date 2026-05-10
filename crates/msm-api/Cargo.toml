@@ -13,6 +13,7 @@ http-body-util = "0.1"
 mime_guess = "2"
 msm-domain = { path = "../msm-domain" }
 msm-exporters = { path = "../msm-exporters" }
+msm-providers = { path = "../msm-providers" }
 msm-storage = { path = "../msm-storage" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 ring = "0.17"

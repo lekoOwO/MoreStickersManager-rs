@@ -47,6 +47,12 @@ Telegram still needs runtime `getFile` resolution before it can reuse the asset
 internalization path. LINE still needs a runtime parser that converts fetched
 product data into the existing LINE fixture schema.
 
+The API exposes the first protected workflow surface at
+`POST /api/v1/provider-imports/plan`. It requires `provider.import`, validates
+same-user tenant access, and returns Telegram or LINE fetch plans suitable for
+runtime execution. CLI, MCP, Web controls, and executable import jobs are still
+pending.
+
 ## Provider Versus Export Target
 
 Providers are input-side normalizers. Export targets are output-side publishers

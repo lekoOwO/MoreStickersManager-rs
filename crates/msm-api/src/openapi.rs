@@ -6,13 +6,14 @@ use utoipa::OpenApi;
 use crate::{
     dto::{
         CompleteOidcLoginRequest, CreateExportJobRequest, CreateExportTargetRequest,
-        CreateFolderRequest, CreatePersonalAccessTokenRequest,
+        CreateFolderRequest, CreatePersonalAccessTokenRequest, CreateProviderImportPlanRequest,
         CreateSubscriptionAccessTokenRequest, CreateSubscriptionGroupRequest, CreateTagRequest,
         CreatedPersonalAccessTokenResponse, CreatedSubscriptionAccessTokenResponse,
         ExportJobEventResponse, ExportJobResponse, ExportTargetKindResponse, ExportTargetResponse,
         FolderPackResponse, FolderResponse, HealthResponse, ImportPackRequest, LocalUserResponse,
         LoginLocalUserRequest, OidcLoginStartResponse, OidcProviderResponse, PackTagResponse,
-        PatScopePolicyResponse, PersonalAccessTokenResponse, RegisterLocalUserRequest,
+        PatScopePolicyResponse, PersonalAccessTokenResponse, ProviderHttpHeaderResponse,
+        ProviderHttpRequestPlanResponse, ProviderImportPlanResponse, RegisterLocalUserRequest,
         SubscriptionAccessResourceTypeDto, SubscriptionAccessTokenResponse,
         SubscriptionGroupPackResponse, SubscriptionGroupResponse, TagResponse,
         TelegramExportJobOptions, TelegramPublicationResponse, TelegramReconcileModeOption,
@@ -23,8 +24,8 @@ use crate::{
     },
     error::ApiErrorBody,
     routes::{
-        assets, auth, exports, health, metadata, packs, pats, subscription_access_tokens,
-        subscriptions, tenants,
+        assets, auth, exports, health, metadata, packs, pats, provider_imports,
+        subscription_access_tokens, subscriptions, tenants,
     },
 };
 
@@ -41,6 +42,7 @@ use crate::{
         subscriptions::public_pack_subscription,
         subscriptions::public_subscription_group,
         packs::import_pack,
+        provider_imports::create_provider_import_plan,
         packs::list_packs,
         packs::update_pack,
         packs::delete_pack,
@@ -93,6 +95,10 @@ use crate::{
         HealthResponse,
         ApiErrorBody,
         ImportPackRequest,
+        CreateProviderImportPlanRequest,
+        ProviderImportPlanResponse,
+        ProviderHttpRequestPlanResponse,
+        ProviderHttpHeaderResponse,
         UpdatePackRequest,
         CreateFolderRequest,
         FolderResponse,

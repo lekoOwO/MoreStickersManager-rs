@@ -10,6 +10,40 @@ pub struct ImportPackRequest {
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct CreateProviderImportPlanRequest {
+    pub tenant_id: String,
+    pub owner_user_id: String,
+    pub provider_id: String,
+    pub remote_id: String,
+    pub base_url: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderImportPlanResponse {
+    pub provider_id: String,
+    pub remote_id: String,
+    pub metadata_request: ProviderHttpRequestPlanResponse,
+    pub asset_strategy: String,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderHttpRequestPlanResponse {
+    pub method: String,
+    pub url: String,
+    pub redacted_headers: Vec<ProviderHttpHeaderResponse>,
+}
+
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderHttpHeaderResponse {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdatePackRequest {
     pub title: String,
     pub visibility: PackVisibilityDto,

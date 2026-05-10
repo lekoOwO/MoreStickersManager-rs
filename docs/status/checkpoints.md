@@ -1527,3 +1527,11 @@
 - Added focused async tests for metadata fetch execution and LINE-style direct asset internalization.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-app provider_import --locked`, `cargo clippy -p msm-app --all-targets --offline -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider docs; next Phase E slice should wire provider fetch/runtime helpers into API/CLI/MCP/Web import workflows for Telegram and LINE.
+
+## 2026-05-10 Provider Import Planning API
+
+- Added `POST /api/v1/provider-imports/plan` with OpenAPI DTOs for provider import fetch plan creation.
+- The route requires a Bearer PAT with `provider.import`, same-user ownership, and tenant resource access before returning a plan.
+- Supports Telegram and LINE sticker provider plan creation with default provider base URLs and redacted request metadata.
+- Verification: `cargo fmt --all -- --check`, `cargo test -p msm-api provider_import --locked`, `cargo clippy -p msm-api --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
+- Updated PRD/status/provider docs; next Phase E slice should add CLI/MCP/Web provider import plan controls, then executable provider import jobs.

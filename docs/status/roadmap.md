@@ -171,8 +171,8 @@ hand-written worker JSON. OpenAPI now documents the target-specific
 
 ## Immediate Plan
 
-1. Wire provider fetch/runtime helpers into API/CLI/MCP/Web import workflows for
-   Telegram and LINE.
+1. Add CLI/MCP/Web provider import plan controls, then wire executable provider
+   import jobs.
 
 ## Later Planned Work
 
