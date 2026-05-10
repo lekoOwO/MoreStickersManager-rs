@@ -1927,3 +1927,10 @@
 - Added SQLite and optional PostgreSQL portability tests for export/import round trips; PostgreSQL execution runs when `MSM_TEST_POSTGRES_URL` is configured.
 - Updated PRD/status docs to move Phase J follow-up work from portability parity to the remaining direct SQLite repository helper audit.
 - Verification: `cargo test -p msm-storage portability --locked`; `cargo test -p msm-storage --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.
+## 2026-05-11 PostgreSQL Tenant Admin Helper Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for tenant settings updates, user disabled-status updates, and tenant-member role upserts.
+- Added backend-aware SQLite/PostgreSQL SQL paths for role template upsert/list/find, including per-backend permission replacement transactions.
+- Added shared tenant admin helper contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
+- Updated PRD/status docs to move Phase J follow-up work from tenant admin helper parity to metadata rename/delete and sticker-pack helper parity.
+- Verification: `cargo test -p msm-storage tenant_admin_helpers --locked`; `cargo test -p msm-storage --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.
