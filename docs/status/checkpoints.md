@@ -1602,3 +1602,11 @@
 - Added MCP tool registry and call coverage for creating a LINE provider import job, reading it back, and listing the initial queued event.
 - Verification: `cargo fmt --all -- --check`, `cargo test -p msm-mcp provider_import --locked`, `cargo test -p msm-mcp --locked` (41 tests), `cargo clippy -p msm-mcp --all-targets --locked -- -D warnings`, and `git diff --check` passed with Rust temp paths pointed at `D:\Temp`.
 - Updated PRD/status/provider/user docs; next Phase E slice should add Web provider import job controls, then Telegram `getFile` and LINE product parsing.
+
+## 2026-05-10 Provider Import Job Web
+
+- Added Web API client methods for provider import job create/read/event routes.
+- Extended the Providers workspace with job ID and target-pack controls, queue/refresh actions, status summary, attempt counts, and ordered event timeline rendering.
+- Added English and Traditional Chinese labels plus focused component/API tests for Web provider import job controls.
+- Verification: `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client` (26 tests), `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (61 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
+- Updated PRD/status/provider/user docs; next Phase E slice should implement Telegram `getFile` execution and LINE product parsing.

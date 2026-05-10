@@ -14,6 +14,9 @@ import {
   packListUrl,
   packTagListUrl,
   patScopePolicyUrl,
+  providerImportJobEventsUrl,
+  providerImportJobUrl,
+  providerImportJobsUrl,
   providerImportPlanUrl,
   oidcLoginStartUrl,
   subscriptionGroupPackListUrl,
@@ -828,6 +831,109 @@ describe("provider import API client", () => {
         remoteId: "kawaii_animals",
         baseUrl: null,
       }),
+    });
+  });
+
+  it("creates and reads provider import jobs with events", async () => {
+    expect(providerImportJobsUrl("https://msm.example.test/")).toBe(
+      "https://msm.example.test/api/v1/provider-import-jobs",
+    );
+    expect(providerImportJobUrl("https://msm.example.test/", "job 1")).toBe(
+      "https://msm.example.test/api/v1/provider-import-jobs/job%201",
+    );
+    expect(providerImportJobEventsUrl("https://msm.example.test/", "job 1")).toBe(
+      "https://msm.example.test/api/v1/provider-import-jobs/job%201/events",
+    );
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST" && url.endsWith("/api/v1/provider-import-jobs")) {
+        return jsonResponse({
+          id: "provider_job_1",
+          tenantId: "tenant_1",
+          ownerUserId: "user_1",
+          providerId: "line-stickers",
+          remoteId: "12345",
+          targetPackId: "pack_line_12345",
+          status: "queued",
+          request: {},
+          result: null,
+          errorSummary: null,
+          attemptCount: 0,
+          maxAttempts: 3,
+          nextAttemptAt: null,
+          createdAt: "2026-05-10T00:00:00Z",
+          updatedAt: "2026-05-10T00:00:00Z",
+        });
+      }
+      if (url.endsWith("/api/v1/provider-import-jobs/provider_job_1/events")) {
+        return jsonResponse([
+          {
+            jobId: "provider_job_1",
+            sequence: 1,
+            level: "info",
+            stage: "queued",
+            message: "Provider import job queued.",
+            metadata: {},
+            createdAt: "2026-05-10T00:00:00Z",
+          },
+        ]);
+      }
+      return jsonResponse({
+        id: "provider_job_1",
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        providerId: "line-stickers",
+        remoteId: "12345",
+        targetPackId: "pack_line_12345",
+        status: "running",
+        request: {},
+        result: null,
+        errorSummary: null,
+        attemptCount: 1,
+        maxAttempts: 3,
+        nextAttemptAt: null,
+        createdAt: "2026-05-10T00:00:00Z",
+        updatedAt: "2026-05-10T00:01:00Z",
+      });
+    }) as unknown as typeof fetch;
+    const client = createProviderImportClient({
+      baseUrl: "https://msm.example.test",
+      authToken: "msm_pat_secret",
+      fetchImpl,
+    });
+
+    const created = await client.createProviderImportJob({
+      id: "provider_job_1",
+      tenantId: "tenant_1",
+      ownerUserId: "user_1",
+      providerId: "line-stickers",
+      remoteId: "12345",
+      targetPackId: "pack_line_12345",
+      baseUrl: "",
+    });
+    const job = await client.getProviderImportJob("provider_job_1");
+    const events = await client.listProviderImportJobEvents("provider_job_1");
+
+    expect(created.status).toBe("queued");
+    expect(job.status).toBe("running");
+    expect(events[0]?.stage).toBe("queued");
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/provider-import-jobs", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer msm_pat_secret",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: "provider_job_1",
+        tenantId: "tenant_1",
+        ownerUserId: "user_1",
+        providerId: "line-stickers",
+        remoteId: "12345",
+        targetPackId: "pack_line_12345",
+        baseUrl: null,
+      }),
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/provider-import-jobs/provider_job_1", {
+      headers: { Authorization: "Bearer msm_pat_secret" },
     });
   });
 });

@@ -74,7 +74,7 @@ Status meanings:
 | API/OpenAPI | Partially complete | Health, OpenAPI, assets, pack CRUD/import/export, PATs, local auth, tenant member administration, export jobs, provider import plan/job routes, Telegram publication history, product metadata, and product membership endpoints exist. |
 | CLI | Partially complete | Pack, PAT, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, and OIDC provider administration commands exist. |
 | MCP | Partially complete | Pack, PAT scope-policy discovery, export, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import planning, and provider import job tools exist. Session/SSE hardening remains incomplete. |
-| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
+| Web UI | Partially complete | Desktop/mobile shell, i18n, theme, PAT/login with role-filtered scope discovery, OIDC login-start controls, pack CRUD/import, provider import planning/job controls, product metadata create/list, product membership add/remove controls, tenant member/settings/user-status/role-template/OIDC-provider administration, export target/job UI, publication history, and Telegram reconciliation controls exist. |
 | Provider normalization | Partially complete | Telegram and LINE fixture normalization exist. Network fetch/download/internalization is not complete. |
 | Export targets | Partially complete | MoreStickers target and Telegram planning/publication/reconciliation foundations exist. General remote target execution and future target support remain incomplete. |
 | Media conversion | Partially complete | Profiles and ffmpeg command plans exist. ffprobe probing, richer execution diagnostics, and cache completion remain incomplete. |
@@ -88,9 +88,9 @@ Status meanings:
 
 Work these in order unless a higher-risk bug appears:
 
-1. Add Web provider import job controls.
-2. Implement Telegram provider import `getFile`/file download execution and LINE
+1. Implement Telegram provider import `getFile`/file download execution and LINE
    product metadata parsing beyond fixture-schema direct URL payloads.
+2. Add provider credential/config UI and API.
 
 Each queue item must update this section when completed or reordered.
 
@@ -235,8 +235,8 @@ tests and docs are updated.
   asset strategy. `msm-app` now has injected runtime metadata fetch helpers and
   a provider import worker foundation; Telegram-specific `getFile` execution remains. API can now create protected provider import fetch
   plans and queue provider import jobs for Telegram sources. CLI/MCP/Web can
-  request/display those plans, and CLI/MCP can create/read provider import jobs
-  and list job events.
+  request/display those plans, and CLI/MCP/Web can create/read provider import
+  jobs and list job events.
 - [ ] LINE network fetch with asset download/internalization.
   Progress: `msm-providers` now exposes a testable LINE sticker-shop product
   fetch plan boundary and direct remote URL asset strategy. `msm-app` can execute
@@ -244,7 +244,7 @@ tests and docs are updated.
   sticker assets into `LocalAssetStore` while rewriting pack image URLs. Parsing
   and worker execution remain. API can now create protected provider import
   fetch plans and queue provider import jobs for LINE sticker sources.
-  CLI/MCP/Web can request/display those plans, and CLI/MCP can create/read
+  CLI/MCP/Web can request/display those plans, and CLI/MCP/Web can create/read
   provider import jobs and list job events.
 - [ ] Provider credential/config UI and API.
 - [ ] Provider job progress and retry model.
@@ -253,7 +253,7 @@ tests and docs are updated.
   for LINE direct-asset imports. `MSM_PROVIDER_IMPORT_WORKER_ENABLED`,
   `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS`,
   `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS`, and `MSM_PUBLIC_ASSET_BASE_URL` wire
-  the worker into service startup. CLI and MCP job create/get/events controls now exist; Web job controls remain.
+  the worker into service startup. CLI, MCP, and Web job create/get/events controls now exist.
 - [ ] Placeholder registry entries for Signal, WhatsApp, Kakao, Band, OGQ,
   Viber without pretending they are implemented.
 

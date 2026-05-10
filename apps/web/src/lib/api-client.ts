@@ -39,6 +39,11 @@ export interface CreateProviderImportPlanRequest {
   baseUrl: string | null;
 }
 
+export interface CreateProviderImportJobRequest extends CreateProviderImportPlanRequest {
+  id: string;
+  targetPackId: string | null;
+}
+
 export interface ProviderHttpHeader {
   name: string;
   value: string;
@@ -57,8 +62,39 @@ export interface ProviderImportPlan {
   assetStrategy: "telegramBotFileApi" | "directRemoteUrls";
 }
 
+export interface ProviderImportJob {
+  id: string;
+  tenantId: string;
+  ownerUserId: string;
+  providerId: ProviderImportSource;
+  remoteId: string;
+  targetPackId: string | null;
+  status: string;
+  request: unknown;
+  result: unknown | null;
+  errorSummary: string | null;
+  attemptCount: number;
+  maxAttempts: number;
+  nextAttemptAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProviderImportJobEvent {
+  jobId: string;
+  sequence: number;
+  level: string;
+  stage: string;
+  message: string;
+  metadata: unknown;
+  createdAt: string;
+}
+
 export interface ProviderImportClient {
   createProviderImportPlan(request: CreateProviderImportPlanRequest): Promise<ProviderImportPlan>;
+  createProviderImportJob(request: CreateProviderImportJobRequest): Promise<ProviderImportJob>;
+  getProviderImportJob(jobId: string): Promise<ProviderImportJob>;
+  listProviderImportJobEvents(jobId: string): Promise<ProviderImportJobEvent[]>;
 }
 
 export interface ImportStickerPackRequest {
@@ -451,6 +487,15 @@ export function createProviderImportClient(options: PackClientOptions = {}): Pro
       async createProviderImportPlan() {
         throw new Error("Provider import planning requires VITE_MSM_API_BASE_URL");
       },
+      async createProviderImportJob() {
+        throw new Error("Provider import jobs require VITE_MSM_API_BASE_URL");
+      },
+      async getProviderImportJob() {
+        throw new Error("Provider import jobs require VITE_MSM_API_BASE_URL");
+      },
+      async listProviderImportJobEvents() {
+        throw new Error("Provider import job events require VITE_MSM_API_BASE_URL");
+      },
     };
   }
 
@@ -471,6 +516,38 @@ export function createProviderImportClient(options: PackClientOptions = {}): Pro
       }
 
       return (await response.json()) as ProviderImportPlan;
+    },
+    async createProviderImportJob(request) {
+      const response = await fetchImpl(providerImportJobsUrl(baseUrl), {
+        method: "POST",
+        headers: jsonHeaders(options.authToken),
+        body: JSON.stringify({
+          ...request,
+          targetPackId: request.targetPackId?.trim() || null,
+          baseUrl: request.baseUrl?.trim() || null,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to create provider import job: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProviderImportJob;
+    },
+    async getProviderImportJob(jobId) {
+      const response = await fetchImpl(providerImportJobUrl(baseUrl, jobId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to get provider import job: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProviderImportJob;
+    },
+    async listProviderImportJobEvents(jobId) {
+      const response = await fetchImpl(providerImportJobEventsUrl(baseUrl, jobId), authInit(options.authToken));
+      if (!response.ok) {
+        throw new Error(`Failed to list provider import job events: HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as ProviderImportJobEvent[];
     },
   };
 }
@@ -964,6 +1041,18 @@ export function patScopePolicyUrl(baseUrl: string, userId: string) {
 
 export function providerImportPlanUrl(baseUrl: string) {
   return `${trimBaseUrl(baseUrl)}/api/v1/provider-imports/plan`;
+}
+
+export function providerImportJobsUrl(baseUrl: string) {
+  return `${trimBaseUrl(baseUrl)}/api/v1/provider-import-jobs`;
+}
+
+export function providerImportJobUrl(baseUrl: string, jobId: string) {
+  return `${providerImportJobsUrl(baseUrl)}/${encodeURIComponent(jobId)}`;
+}
+
+export function providerImportJobEventsUrl(baseUrl: string, jobId: string) {
+  return `${providerImportJobUrl(baseUrl, jobId)}/events`;
 }
 
 export function oidcLoginStartUrl(baseUrl: string, tenantId: string, providerId: string, redirectUri: string) {

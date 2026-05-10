@@ -419,11 +419,11 @@ Provider import planning surfaces:
 - API: `POST /api/v1/provider-imports/plan`
 - CLI: `msm providers plan --tenant-id <tenant_id> --owner-user-id <user_id> --provider-id telegram|line-stickers --remote-id <remote_id> [--base-url <url>]`
 - MCP: `msm.create_provider_import_plan`
-- Web: open the Providers workspace and use the Provider import planner.
+- Web: open the Providers workspace and use the Provider import planner/job controls.
 
 These currently return a safe fetch plan for Telegram or LINE provider imports.
-Executable provider import jobs can be queued/read through API, CLI, and MCP;
-Web job controls and broader runtime parsing/download completion are still pending.
+Executable provider import jobs can be queued/read through API, CLI, MCP, and Web;
+broader runtime parsing/download completion is still pending.
 
 Provider import job surfaces:
 
@@ -447,8 +447,8 @@ events. Service startup can poll provider import jobs when
 `MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS` for polling cadence,
 `MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS` for retry delay, and
 `MSM_PUBLIC_ASSET_BASE_URL` for the public URL embedded into imported sticker
-assets. Web job controls, Telegram provider `getFile` downloads, and LINE
-product-page parsing are still pending.
+assets. Telegram provider `getFile` downloads and LINE product-page parsing are
+still pending.
 
 PAT foundation status:
 
