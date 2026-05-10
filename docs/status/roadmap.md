@@ -8,13 +8,13 @@ chronological log, `implementation-matrix.md` for the feature truth table, and
 
 ## Current Focus
 
-Phase J PostgreSQL support is the active focus. Phase I data portability is now
-closed across storage, API/OpenAPI, CLI, MCP, Web, and cross-instance API
-compatibility coverage. The next work is continuing PostgreSQL repository
-compatibility with shared backend tests.
+Phase K production hardening is the active focus. Phase I data portability and Phase J PostgreSQL support are now closed across storage, CI, and user-facing deployment documentation.
 
 ## Recently Completed
 
+- CI now starts PostgreSQL for Rust tests with `MSM_TEST_POSTGRES_URL`, and README/user docs cover SQLite/PostgreSQL deployment configuration.
+- Folder rename/delete, tag delete, subscription-group rename/delete, sticker-pack metadata update/delete, and accessible pack listing now have backend-aware SQL paths and SQLite plus optional PostgreSQL contract coverage.
+- Tenant settings updates, user disabled-status updates, tenant member upsert, and role template upsert/list/find now have backend-aware SQL paths plus SQLite and optional PostgreSQL contract coverage.
 - Portable user export/import helpers now have backend-aware SQLite/PostgreSQL SQL paths and SQLite plus optional PostgreSQL contract coverage.
 - Folder-pack, pack-tag, and subscription-group-pack removal operations now have backend-aware SQL paths and PostgreSQL contract tests.
 - Provider import-job create/find/due/status/retry/failure/event repository operations now have backend-aware SQL paths and optional PostgreSQL contract tests.
@@ -199,8 +199,8 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Add PostgreSQL CI service wiring so repository/API tests can run against both SQLite and PostgreSQL in automation.
-2. Add PostgreSQL CI service wiring and deployment documentation after repository helper parity is closed.
+1. Harden MCP auth/session/SSE behavior and document/verify the production security contract.
+2. Run a PRD completion audit and address any release-readiness gaps found by the audit.
 
 ## Later Planned Work
 

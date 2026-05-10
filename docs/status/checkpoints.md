@@ -1941,3 +1941,9 @@
 - Extended shared folder, tag, subscription-group, and pack repository contracts so SQLite and optional PostgreSQL tests cover the converted helper operations.
 - Updated PRD/status docs to mark repository abstraction verified and move Phase J follow-up work to PostgreSQL CI/deployment coverage.
 - Verification: `cargo test -p msm-storage --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.
+## 2026-05-11 PostgreSQL CI and Deployment Coverage
+
+- Added a PostgreSQL service container to the Rust CI job and set `MSM_TEST_POSTGRES_URL` so optional PostgreSQL repository tests run in automation.
+- Documented SQLite and PostgreSQL `MSM_DATABASE_URL` deployment choices in the root README and user documentation.
+- Updated PRD/status docs to mark Phase J PostgreSQL CI matrix and deployment documentation complete and move the active queue to Phase K production hardening.
+- Verification: `git diff --check` plus prior storage verification from the repository helper slice.

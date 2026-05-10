@@ -1,9 +1,12 @@
 # Current Status
 
-Phase: PostgreSQL support.
+Phase: Production hardening.
 
 Last completed:
-- PostgreSQL portability repository slice: portable user export/import helpers now select backend-aware SQLite/PostgreSQL SQL paths for user identity and subscription-group persistence, with SQLite and optional PostgreSQL coverage. Remaining PostgreSQL parity work is now concentrated in direct SQLite repository helper methods.
+- PostgreSQL CI/deployment slice: CI now starts a PostgreSQL service for the Rust job with `MSM_TEST_POSTGRES_URL`, and README/user docs now cover SQLite/PostgreSQL deployment URLs and migration behavior. Phase J is complete.
+- PostgreSQL final repository helper slice: folder rename/delete, tag delete, subscription-group rename/delete, sticker-pack metadata update/delete, and accessible pack listing now have backend-aware SQL paths and shared SQLite/optional PostgreSQL coverage. Repository parity is now ready for PostgreSQL CI/deployment work.
+- PostgreSQL tenant admin helper slice: tenant settings updates, user disabled-status updates, tenant member upsert, and role template upsert/list/find now have backend-aware SQL paths plus SQLite and optional PostgreSQL contract coverage.
+- PostgreSQL portability repository slice: portable user export/import helpers now select backend-aware SQLite/PostgreSQL SQL paths for user identity and subscription-group persistence, with SQLite and optional PostgreSQL coverage.
 - PostgreSQL metadata membership removal slice: folder-pack, pack-tag, and subscription-group-pack removal operations now have backend-aware SQL paths and shared PostgreSQL contract coverage.
 - PostgreSQL provider import-job repository slice: provider import-job create/find/due/status/retry/failure/event operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
 - PostgreSQL provider-config repository slice: provider config upsert/list/find/delete operations now have backend-aware SQL paths and optional PostgreSQL contract coverage.
@@ -150,7 +153,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase J PostgreSQL support by adding PostgreSQL CI service coverage and deployment documentation.
+- Continue Phase K production hardening by closing MCP auth/session/SSE hardening and running a PRD completion audit.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,

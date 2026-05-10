@@ -242,6 +242,15 @@ Environment variables:
 - `MSM_EXPORT_WORKER_POLL_INTERVAL_MS`: export worker poll interval, default `5000`.
 - `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON`: optional JSON array of export targets to create/update at startup.
 
+Database backends:
+
+- SQLite: use `sqlite:data/msm.sqlite3` or another `sqlite:<path>` URL. Ensure
+  the parent directory is writable by the service user.
+- PostgreSQL: use a PostgreSQL URL such as
+  `postgres://msm:password@postgres:5432/msm`. The service selects the
+  PostgreSQL migration set automatically and runs migrations at startup. In CI,
+  `MSM_TEST_POSTGRES_URL` enables the optional PostgreSQL repository test legs.
+
 When `apps/web/dist` exists before `cargo build -p msm-app`, P10 embeds that
 dist into the binary. If dist is missing, the binary embeds a small placeholder
 page so clean Rust builds still work. At runtime `MSM_WEB_DIST_DIR` remains a

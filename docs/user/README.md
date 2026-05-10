@@ -355,6 +355,20 @@ UI from `apps/web/dist` when present. The binary also embeds Web assets at
 compile time; run `npm run web:build` before `cargo build -p msm-app` to embed
 the full UI instead of the placeholder.
 
+Database deployment choices:
+
+- SQLite is the default and is suitable for local/small deployments. Set
+  `MSM_DATABASE_URL=sqlite:/absolute/path/msm.sqlite3` or
+  `sqlite:data/msm.sqlite3`, and make sure the service can create the parent
+  directory and file.
+- PostgreSQL is selected with a URL such as
+  `MSM_DATABASE_URL=postgres://msm:password@postgres:5432/msm`. The service
+  runs the PostgreSQL migration set automatically at startup. Use a dedicated
+  database/user, back up both the database and asset directory, and keep the
+  asset/CDN public URL settings aligned when moving between instances.
+- Repository tests use `MSM_TEST_POSTGRES_URL` for optional PostgreSQL legs; the
+  project CI starts a PostgreSQL service and sets this variable for the Rust job.
+
 Current MCP endpoint:
 
 ```text
