@@ -1934,3 +1934,10 @@
 - Added shared tenant admin helper contract tests that always run on SQLite and also run against PostgreSQL when `MSM_TEST_POSTGRES_URL` is configured.
 - Updated PRD/status docs to move Phase J follow-up work from tenant admin helper parity to metadata rename/delete and sticker-pack helper parity.
 - Verification: `cargo test -p msm-storage tenant_admin_helpers --locked`; `cargo test -p msm-storage --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.
+## 2026-05-11 PostgreSQL Final Repository Helper Contract
+
+- Added backend-aware SQLite/PostgreSQL SQL paths for folder rename/delete, tag delete, and subscription-group rename/delete helpers.
+- Added backend-aware SQLite/PostgreSQL SQL paths for sticker-pack metadata update/delete and accessible pack listing helpers.
+- Extended shared folder, tag, subscription-group, and pack repository contracts so SQLite and optional PostgreSQL tests cover the converted helper operations.
+- Updated PRD/status docs to mark repository abstraction verified and move Phase J follow-up work to PostgreSQL CI/deployment coverage.
+- Verification: `cargo test -p msm-storage --locked`; `cargo clippy -p msm-storage --all-targets --locked -- -D warnings`.

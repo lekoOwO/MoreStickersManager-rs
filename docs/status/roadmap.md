@@ -199,7 +199,7 @@ compatibility with shared backend tests.
 
 ## Immediate Plan
 
-1. Convert the remaining direct SQLite repository helper methods: folder/tag/subscription-group rename/delete, sticker-pack metadata update/delete, and accessible pack listing.
+1. Add PostgreSQL CI service wiring so repository/API tests can run against both SQLite and PostgreSQL in automation.
 2. Add PostgreSQL CI service wiring and deployment documentation after repository helper parity is closed.
 
 ## Later Planned Work

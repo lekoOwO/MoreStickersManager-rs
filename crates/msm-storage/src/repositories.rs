@@ -1547,14 +1547,24 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, the folder does
-    /// not exist, or timestamp parsing fails.
+    /// Returns an error when SQL fails, the folder does not exist, or timestamp parsing fails.
     pub async fn rename_folder(&self, id: &str, name: &str) -> StorageResult<FolderRecord> {
-        sqlx::query("UPDATE folders SET name = ? WHERE id = ?")
-            .bind(name)
-            .bind(id)
-            .execute(self.sqlite()?)
-            .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query("UPDATE folders SET name = ? WHERE id = ?")
+                    .bind(name)
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query("UPDATE folders SET name = $1 WHERE id = $2")
+                    .bind(name)
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+            }
+        }
         self.find_folder(id)
             .await?
             .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
@@ -1566,11 +1576,19 @@ impl StorageRepository {
     ///
     /// Returns an error when SQL fails.
     pub async fn delete_folder(&self, id: &str) -> StorageResult<bool> {
-        let result = sqlx::query("DELETE FROM folders WHERE id = ?")
-            .bind(id)
-            .execute(self.sqlite()?)
-            .await?;
-        Ok(result.rows_affected() == 1)
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => sqlx::query("DELETE FROM folders WHERE id = ?")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected(),
+            DbPool::Postgres(pool) => sqlx::query("DELETE FROM folders WHERE id = $1")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected(),
+        };
+        Ok(rows_affected == 1)
     }
 
     /// Finds a folder by ID.
@@ -1692,7 +1710,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn remove_pack_from_folder(
         &self,
         folder_id: &str,
@@ -1835,11 +1853,19 @@ impl StorageRepository {
     ///
     /// Returns an error when SQL fails.
     pub async fn delete_tag(&self, id: &str) -> StorageResult<bool> {
-        let result = sqlx::query("DELETE FROM tags WHERE id = ?")
-            .bind(id)
-            .execute(self.sqlite()?)
-            .await?;
-        Ok(result.rows_affected() == 1)
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => sqlx::query("DELETE FROM tags WHERE id = ?")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected(),
+            DbPool::Postgres(pool) => sqlx::query("DELETE FROM tags WHERE id = $1")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected(),
+        };
+        Ok(rows_affected == 1)
     }
 
     /// Adds a tag to a sticker pack.
@@ -1918,7 +1944,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn remove_tag_from_pack(&self, pack_id: &str, tag_id: &str) -> StorageResult<bool> {
         let rows_affected = match &self.pool {
             DbPool::Sqlite(pool) => {
@@ -2045,18 +2071,28 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite`, SQL fails, the group does
-    /// not exist, or timestamp parsing fails.
+    /// Returns an error when SQL fails, the group does not exist, or timestamp parsing fails.
     pub async fn rename_subscription_group(
         &self,
         id: &str,
         title: &str,
     ) -> StorageResult<SubscriptionGroupRecord> {
-        sqlx::query("UPDATE subscription_groups SET title = ? WHERE id = ?")
-            .bind(title)
-            .bind(id)
-            .execute(self.sqlite()?)
-            .await?;
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query("UPDATE subscription_groups SET title = ? WHERE id = ?")
+                    .bind(title)
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query("UPDATE subscription_groups SET title = $1 WHERE id = $2")
+                    .bind(title)
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+            }
+        }
         self.find_subscription_group(id)
             .await?
             .ok_or(StorageError::Sqlx(sqlx::Error::RowNotFound))
@@ -2068,11 +2104,19 @@ impl StorageRepository {
     ///
     /// Returns an error when SQL fails.
     pub async fn delete_subscription_group(&self, id: &str) -> StorageResult<bool> {
-        let result = sqlx::query("DELETE FROM subscription_groups WHERE id = ?")
-            .bind(id)
-            .execute(self.sqlite()?)
-            .await?;
-        Ok(result.rows_affected() == 1)
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => sqlx::query("DELETE FROM subscription_groups WHERE id = ?")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected(),
+            DbPool::Postgres(pool) => sqlx::query("DELETE FROM subscription_groups WHERE id = $1")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected(),
+        };
+        Ok(rows_affected == 1)
     }
 
     /// Finds a subscription group by ID.
@@ -2249,7 +2293,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when serialization fails, the repository is not backed by `SQLite`, or SQL fails.
+    /// Returns an error when serialization fails or SQL fails.
     pub async fn update_sticker_pack_metadata(
         &self,
         id: &str,
@@ -2257,54 +2301,93 @@ impl StorageRepository {
         title: &str,
         visibility: PackVisibility,
     ) -> StorageResult<bool> {
-        let sqlite = self.sqlite()?;
-        let row = sqlx::query(
-            "SELECT sticker_pack_json FROM sticker_packs WHERE id = ? AND owner_user_id = ?",
-        )
-        .bind(id)
-        .bind(owner_user_id)
-        .fetch_optional(sqlite)
-        .await?;
+        let stored_pack_json = match &self.pool {
+            DbPool::Sqlite(pool) => sqlx::query(
+                "SELECT sticker_pack_json FROM sticker_packs WHERE id = ? AND owner_user_id = ?",
+            )
+            .bind(id)
+            .bind(owner_user_id)
+            .fetch_optional(pool)
+            .await?
+            .map(|row| row.get::<String, _>("sticker_pack_json")),
+            DbPool::Postgres(pool) => sqlx::query(
+                "SELECT sticker_pack_json FROM sticker_packs WHERE id = $1 AND owner_user_id = $2",
+            )
+            .bind(id)
+            .bind(owner_user_id)
+            .fetch_optional(pool)
+            .await?
+            .map(|row| row.get::<String, _>("sticker_pack_json")),
+        };
 
-        let Some(row) = row else {
+        let Some(json) = stored_pack_json else {
             return Ok(false);
         };
 
-        let json: String = row.get("sticker_pack_json");
         let mut pack = StickerPack::from_json_str(&json)?;
         pack.title = title.to_owned();
         let pack_json = serde_json::to_string(&pack)?;
 
-        let result = sqlx::query(
-            "UPDATE sticker_packs
-            SET title = ?, visibility = ?, sticker_pack_json = ?, updated_at = ?
-            WHERE id = ? AND owner_user_id = ?",
-        )
-        .bind(title)
-        .bind(visibility.as_str())
-        .bind(pack_json)
-        .bind(now())
-        .bind(id)
-        .bind(owner_user_id)
-        .execute(sqlite)
-        .await?;
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => sqlx::query(
+                "UPDATE sticker_packs
+                SET title = ?, visibility = ?, sticker_pack_json = ?, updated_at = ?
+                WHERE id = ? AND owner_user_id = ?",
+            )
+            .bind(title)
+            .bind(visibility.as_str())
+            .bind(pack_json)
+            .bind(now())
+            .bind(id)
+            .bind(owner_user_id)
+            .execute(pool)
+            .await?
+            .rows_affected(),
+            DbPool::Postgres(pool) => sqlx::query(
+                "UPDATE sticker_packs
+                SET title = $1, visibility = $2, sticker_pack_json = $3, updated_at = $4
+                WHERE id = $5 AND owner_user_id = $6",
+            )
+            .bind(title)
+            .bind(visibility.as_str())
+            .bind(pack_json)
+            .bind(now())
+            .bind(id)
+            .bind(owner_user_id)
+            .execute(pool)
+            .await?
+            .rows_affected(),
+        };
 
-        Ok(result.rows_affected() == 1)
+        Ok(rows_affected == 1)
     }
 
     /// Deletes an owned sticker pack.
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn delete_sticker_pack(&self, id: &str, owner_user_id: &str) -> StorageResult<bool> {
-        let result = sqlx::query("DELETE FROM sticker_packs WHERE id = ? AND owner_user_id = ?")
-            .bind(id)
-            .bind(owner_user_id)
-            .execute(self.sqlite()?)
-            .await?;
+        let rows_affected = match &self.pool {
+            DbPool::Sqlite(pool) => {
+                sqlx::query("DELETE FROM sticker_packs WHERE id = ? AND owner_user_id = ?")
+                    .bind(id)
+                    .bind(owner_user_id)
+                    .execute(pool)
+                    .await?
+                    .rows_affected()
+            }
+            DbPool::Postgres(pool) => {
+                sqlx::query("DELETE FROM sticker_packs WHERE id = $1 AND owner_user_id = $2")
+                    .bind(id)
+                    .bind(owner_user_id)
+                    .execute(pool)
+                    .await?
+                    .rows_affected()
+            }
+        };
 
-        Ok(result.rows_affected() == 1)
+        Ok(rows_affected == 1)
     }
 
     /// Lists sticker packs owned by a user.
@@ -2351,30 +2434,53 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL/JSON parsing fails.
+    /// Returns an error when SQL/JSON parsing fails.
     pub async fn list_user_accessible_sticker_packs(
         &self,
         user_id: &str,
     ) -> StorageResult<Vec<StickerPack>> {
-        let rows = sqlx::query(
-            "SELECT sticker_packs.sticker_pack_json
-            FROM sticker_packs
-            INNER JOIN tenant_members
-                ON tenant_members.tenant_id = sticker_packs.tenant_id
-                AND tenant_members.user_id = sticker_packs.owner_user_id
-            WHERE sticker_packs.owner_user_id = ?
-            ORDER BY sticker_packs.title, sticker_packs.id",
-        )
-        .bind(user_id)
-        .fetch_all(self.sqlite()?)
-        .await?;
-
-        rows.into_iter()
-            .map(|row| {
-                let json: String = row.get("sticker_pack_json");
-                StickerPack::from_json_str(&json).map_err(Into::into)
-            })
-            .collect()
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT sticker_packs.sticker_pack_json
+                FROM sticker_packs
+                INNER JOIN tenant_members
+                    ON tenant_members.tenant_id = sticker_packs.tenant_id
+                    AND tenant_members.user_id = sticker_packs.owner_user_id
+                WHERE sticker_packs.owner_user_id = ?
+                ORDER BY sticker_packs.title, sticker_packs.id",
+                )
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
+                rows.into_iter()
+                    .map(|row| {
+                        let json: String = row.get("sticker_pack_json");
+                        StickerPack::from_json_str(&json).map_err(Into::into)
+                    })
+                    .collect()
+            }
+            DbPool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT sticker_packs.sticker_pack_json
+                FROM sticker_packs
+                INNER JOIN tenant_members
+                    ON tenant_members.tenant_id = sticker_packs.tenant_id
+                    AND tenant_members.user_id = sticker_packs.owner_user_id
+                WHERE sticker_packs.owner_user_id = $1
+                ORDER BY sticker_packs.title, sticker_packs.id",
+                )
+                .bind(user_id)
+                .fetch_all(pool)
+                .await?;
+                rows.into_iter()
+                    .map(|row| {
+                        let json: String = row.get("sticker_pack_json");
+                        StickerPack::from_json_str(&json).map_err(Into::into)
+                    })
+                    .collect()
+            }
+        }
     }
 
     /// Creates a Personal Access Token and returns the raw token once.
@@ -3052,7 +3158,7 @@ impl StorageRepository {
     ///
     /// # Errors
     ///
-    /// Returns an error when the repository is not backed by `SQLite` or SQL fails.
+    /// Returns an error when SQL fails.
     pub async fn remove_pack_from_subscription_group(
         &self,
         subscription_group_id: &str,
@@ -4237,6 +4343,30 @@ mod tests {
         assert_eq!(record.owner_user_id, user_id);
         assert_eq!(record.visibility, PackVisibility::Private);
         assert_eq!(record.sticker_pack, pack);
+
+        assert_eq!(
+            repo.list_user_accessible_sticker_packs(&user_id)
+                .await
+                .unwrap(),
+            vec![pack.clone()]
+        );
+
+        assert!(repo
+            .update_sticker_pack_metadata(&pack_id, &user_id, "Renamed", PackVisibility::Public)
+            .await
+            .unwrap());
+        let updated = repo
+            .find_sticker_pack_record(&pack_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated.title, "Renamed");
+        assert_eq!(updated.visibility, PackVisibility::Public);
+        assert_eq!(updated.sticker_pack.title, "Renamed");
+
+        assert!(repo.delete_sticker_pack(&pack_id, &user_id).await.unwrap());
+        assert!(!repo.delete_sticker_pack(&pack_id, &user_id).await.unwrap());
+        assert!(repo.find_sticker_pack(&pack_id).await.unwrap().is_none());
     }
 
     async fn assert_folder_contract(repo: &StorageRepository, prefix: &str) {
@@ -4269,8 +4399,17 @@ mod tests {
             repo.list_folders(&created.tenant_id, &created.owner_user_id)
                 .await
                 .unwrap(),
-            vec![created]
+            vec![created.clone()]
         );
+        let renamed = repo.rename_folder(&created.id, "Renamed").await.unwrap();
+        assert_eq!(renamed.name, "Renamed");
+        assert!(repo.delete_folder(&created.id).await.unwrap());
+        assert!(!repo.delete_folder(&created.id).await.unwrap());
+        assert!(repo
+            .find_folder_record(&created.id)
+            .await
+            .unwrap()
+            .is_none());
     }
 
     async fn assert_tag_contract(repo: &StorageRepository, prefix: &str) {
@@ -4298,8 +4437,11 @@ mod tests {
         );
         assert_eq!(
             repo.list_tags(&created.tenant_id).await.unwrap(),
-            vec![created]
+            vec![created.clone()]
         );
+        assert!(repo.delete_tag(&created.id).await.unwrap());
+        assert!(!repo.delete_tag(&created.id).await.unwrap());
+        assert!(repo.find_tag_record(&created.id).await.unwrap().is_none());
     }
 
     async fn assert_subscription_group_contract(repo: &StorageRepository, prefix: &str) {
@@ -4341,8 +4483,20 @@ mod tests {
             repo.list_subscription_groups(&created.tenant_id, &created.owner_user_id)
                 .await
                 .unwrap(),
-            vec![created]
+            vec![created.clone()]
         );
+        let renamed = repo
+            .rename_subscription_group(&created.id, "Renamed")
+            .await
+            .unwrap();
+        assert_eq!(renamed.title, "Renamed");
+        assert!(repo.delete_subscription_group(&created.id).await.unwrap());
+        assert!(!repo.delete_subscription_group(&created.id).await.unwrap());
+        assert!(repo
+            .find_subscription_group_record(&created.id)
+            .await
+            .unwrap()
+            .is_none());
     }
 
     async fn assert_metadata_membership_contract(repo: &StorageRepository, prefix: &str) {
