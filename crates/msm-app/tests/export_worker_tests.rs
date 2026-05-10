@@ -10,12 +10,15 @@ use msm_app::{
 use msm_domain::{Sticker, StickerPack};
 use msm_media::ConversionCommand;
 use msm_storage::{
-    models::{ExportJobStatus, NewExportJob, NewExportTarget, PackVisibility},
+    models::{
+        ExportJobStatus, NewExportJob, NewExportTarget, NewPreparedMediaAsset, PackVisibility,
+    },
     DatabaseConfig, DbPool, StorageRepository,
 };
 use msm_telegram::{
     TelegramFetchedSticker, TelegramFetchedStickerSet, TelegramPublishError, TelegramPublishedSet,
 };
+use sha2::{Digest, Sha256};
 use teloxide::types::StickerType;
 
 #[tokio::test]
@@ -110,6 +113,63 @@ async fn worker_plans_telegram_export_job_without_network_calls() {
         .expect("prepared media should be cached");
     assert_eq!(cached.output_asset_key, "prepared/file.png");
     assert_eq!(cached.mime_type, "image/png");
+}
+
+#[tokio::test]
+async fn worker_reuses_prepared_media_cache_without_executor_call() {
+    let repo = seeded_repository().await;
+    repo.create_export_target(NewExportTarget {
+        id: "target_telegram",
+        tenant_id: "tenant_1",
+        kind: "telegram",
+        name: "Telegram",
+        config_json: r#"{"botUsername":"msm_bot","ownerUserId":42,"botToken":"123:secret"}"#,
+        is_enabled: true,
+    })
+    .await
+    .unwrap();
+    repo.create_export_job(NewExportJob {
+        id: "job_telegram_cached_media",
+        tenant_id: "tenant_1",
+        owner_user_id: "user_1",
+        source_pack_id: "pack_1",
+        target_id: "target_telegram",
+        request_json: r#"{"options":{"setNameSlug":"Sample Pack","defaultEmoji":"😀"}}"#,
+        max_attempts: 3,
+    })
+    .await
+    .unwrap();
+    let source_hash = format!(
+        "sha256:{:x}",
+        Sha256::digest("https://msm.example/assets/packs/sample/file.webp".as_bytes())
+    );
+    repo.upsert_prepared_media_asset(NewPreparedMediaAsset {
+        source_asset_hash: &source_hash,
+        profile_key: "telegram.sticker.static.v1",
+        output_asset_key: "telegram.sticker.static.v1/cached.png",
+        mime_type: "image/png",
+        width_px: 512,
+        height_px: 512,
+        duration_ms: None,
+        file_size_bytes: 1234,
+    })
+    .await
+    .unwrap();
+    let worker = ExportWorker::with_media_executor(
+        repo.clone(),
+        worker_config(),
+        Arc::new(PanicPreparedMediaExecutor),
+    );
+
+    let completed = worker.run_job("job_telegram_cached_media").await.unwrap();
+    let result: serde_json::Value = serde_json::from_str(&completed.result_json.unwrap()).unwrap();
+
+    assert_eq!(completed.status, ExportJobStatus::Succeeded);
+    assert_eq!(
+        result["preparedMedia"][0]["outputAssetKey"],
+        "telegram.sticker.static.v1/cached.png"
+    );
+    assert_eq!(result["preparedMedia"][0]["fileSizeBytes"], 1234);
 }
 
 #[tokio::test]
@@ -1012,6 +1072,19 @@ impl PreparedMediaExecutor for FakePreparedMediaExecutor {
                 converter_exit_code: Some(0),
             }))
         })
+    }
+}
+
+#[derive(Debug)]
+struct PanicPreparedMediaExecutor;
+
+impl PreparedMediaExecutor for PanicPreparedMediaExecutor {
+    fn prepare(
+        &self,
+        _request: PreparedMediaRequest,
+    ) -> Pin<Box<dyn Future<Output = ExportWorkerResult<Option<PreparedMediaOutput>>> + Send + '_>>
+    {
+        Box::pin(async move { panic!("prepared media executor should not be called on cache hit") })
     }
 }
 

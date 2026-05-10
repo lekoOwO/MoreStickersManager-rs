@@ -1679,3 +1679,9 @@
 - Added `ConversionCommandOutput` as the process-runner diagnostic envelope for stdout, stderr, and exit code.
 - Process-backed prepared media execution now returns converter diagnostics through `PreparedMediaOutput`.
 - Added focused executor coverage with an injected runner; next Phase F slice should persist prepared-media diagnostics/cache metadata and expose it through API/CLI/MCP/Web surfaces.
+
+## 2026-05-10 Prepared Media Cache Reuse
+
+- Export worker now checks `prepared_media_assets` by source asset hash and profile key before invoking the media executor.
+- Cache hits are reused in Telegram result summaries, avoiding unnecessary reconversion.
+- Added focused worker coverage proving cached prepared media bypasses the media executor; next Phase F slice should expose conversion errors and output metadata across API/CLI/MCP/Web surfaces.

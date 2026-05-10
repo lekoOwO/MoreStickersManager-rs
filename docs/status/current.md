@@ -123,7 +123,7 @@ Last completed:
 - LINE product page parsing slice: LINE normalization now accepts product pages with embedded metadata and the provider import worker can internalize their direct remote assets.
 
 Current task:
-- Continue Phase F media conversion with prepared media cache completion.
+- Continue Phase F media conversion with Web/API/CLI/MCP visibility into conversion errors and output metadata.
 
 Short roadmap:
 - See `docs/status/roadmap.md` for the concise current focus, immediate plan,
@@ -265,9 +265,10 @@ Last verification:
 - Planned provider registry slice: confirmed and documented `msm-providers` planned metadata for Signal, WhatsApp, Kakao, Band, OGQ, and Viber with `ProviderStatus::Planned` coverage.
 - ffprobe media probing slice: `msm-media` now has shell-free ffprobe command planning and JSON report parsing for static image, animated image, and video facts.
 - ffmpeg diagnostics slice: process-backed media execution now captures converter stdout, stderr, and exit code in `ConversionCommandOutput` and returns those fields through `PreparedMediaOutput`.
+- Prepared media cache reuse slice: export worker now reuses matching `prepared_media_assets` records by source asset hash and profile key before invoking the media executor.
 
 Next step:
-- Phase F media conversion is active: next slice should persist prepared-media diagnostics/cache metadata and expose conversion results across surfaces.
+- Phase F media conversion is active: next slice should expose conversion errors and output metadata across API/CLI/MCP/Web surfaces.
 
 Known issues:
 - PowerShell profile emits an fnm symlink permission warning in this environment.

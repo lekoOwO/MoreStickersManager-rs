@@ -55,4 +55,4 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Continue with Phase F media conversion: prepared-media cache completion and surface visibility.
+Continue with Phase F media conversion: surface visibility into conversion errors and output metadata.

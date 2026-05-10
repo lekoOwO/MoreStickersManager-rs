@@ -12,6 +12,7 @@ use msm_storage::{
     models::{
         ExportJobRecord, ExportJobStatus, ExportTargetRecord, NewExportJobEvent,
         NewPreparedMediaAsset, NewTelegramPublication, NewTelegramStickerMapping,
+        PreparedMediaAssetRecord,
     },
     StorageRepository,
 };
@@ -1348,6 +1349,15 @@ impl ExportWorker {
                 })?;
             let profile = media_profile_for_key(&planned.target_profile_key)?;
             let source_hash = source_asset_hash(&source.image);
+            if let Some(cached) = self
+                .repository
+                .find_prepared_media_asset(&source_hash, &planned.target_profile_key)
+                .await?
+            {
+                prepared.push(cached_prepared_media_summary(&planned.sticker_id, cached));
+                continue;
+            }
+
             let output = self
                 .media_executor
                 .prepare(PreparedMediaRequest {
@@ -1442,6 +1452,20 @@ struct WorkerTelegramOptions {
     remote_set: Option<TelegramRemoteSet>,
     execute_reconciliation: Option<bool>,
     allow_destructive_reconciliation: Option<bool>,
+}
+
+fn cached_prepared_media_summary(
+    sticker_id: &str,
+    record: PreparedMediaAssetRecord,
+) -> CachedPreparedMediaSummary {
+    CachedPreparedMediaSummary {
+        sticker_id: sticker_id.to_owned(),
+        source_asset_hash: record.source_asset_hash,
+        profile_key: record.profile_key,
+        output_asset_key: record.output_asset_key,
+        mime_type: record.mime_type,
+        file_size_bytes: record.file_size_bytes,
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
