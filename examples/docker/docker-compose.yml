@@ -1,0 +1,68 @@
+# Docker Compose example for MoreStickersManager-rs.
+#
+# Usage from repository root:
+#   cp examples/docker/.env.example examples/docker/.env
+#   edit examples/docker/.env
+#   docker compose --env-file examples/docker/.env -f examples/docker/docker-compose.yml up -d --build
+#
+# This compose file builds the local repository by default. Set MSM_IMAGE in
+# .env if you prefer pulling a prebuilt image.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-msm}
+      POSTGRES_USER: ${POSTGRES_USER:-msm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in examples/docker/.env}
+    volumes:
+      - msm-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  msm:
+    image: ${MSM_IMAGE:-morestickersmanager-rs:local}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      MSM_BIND_ADDR: 0.0.0.0:3000
+      MSM_DATABASE_URL: postgres://${POSTGRES_USER:-msm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-msm}
+      MSM_ASSET_DIR: /data/assets
+      MSM_PREPARED_MEDIA_DIR: /data/prepared-media
+      MSM_PUBLIC_ASSET_URL: ${MSM_PUBLIC_ASSET_URL:-}
+      MSM_PUBLIC_ASSET_BASE_URL: ${MSM_PUBLIC_ASSET_BASE_URL:-${MSM_EXTERNAL_URL:-http://localhost:3000}}
+      MSM_REQUEST_BODY_LIMIT_BYTES: ${MSM_REQUEST_BODY_LIMIT_BYTES:-10485760}
+      MSM_IMPORT_RATE_LIMIT_REQUESTS: ${MSM_IMPORT_RATE_LIMIT_REQUESTS:-60}
+      MSM_IMPORT_RATE_LIMIT_WINDOW_SECS: ${MSM_IMPORT_RATE_LIMIT_WINDOW_SECS:-60}
+      MSM_EXPORT_WORKER_ENABLED: ${MSM_EXPORT_WORKER_ENABLED:-false}
+      MSM_EXPORT_WORKER_POLL_INTERVAL_MS: ${MSM_EXPORT_WORKER_POLL_INTERVAL_MS:-5000}
+      MSM_EXPORT_RETRY_BACKOFF_MS: ${MSM_EXPORT_RETRY_BACKOFF_MS:-60000}
+      MSM_PROVIDER_IMPORT_WORKER_ENABLED: ${MSM_PROVIDER_IMPORT_WORKER_ENABLED:-false}
+      MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS: ${MSM_PROVIDER_IMPORT_WORKER_POLL_INTERVAL_MS:-5000}
+      MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS: ${MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS:-60000}
+      MSM_BOOTSTRAP_EXPORT_TARGETS_JSON: ${MSM_BOOTSTRAP_EXPORT_TARGETS_JSON:-}
+    ports:
+      - "${MSM_HTTP_PORT:-3000}:3000"
+    volumes:
+      - msm-app-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/readyz >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  msm-postgres-data:
+  msm-app-data:
