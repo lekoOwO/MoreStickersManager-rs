@@ -220,4 +220,4 @@ cargo run -p msm-app
 
 ## License
 
-此 workspace 在 `Cargo.toml` 宣告 `MIT OR Apache-2.0`。
+本專案使用 GNU General Public License v3.0 or later（`GPL-3.0-or-later`）授權。

@@ -1659,8 +1659,8 @@ fn export_job_from_pg_row(row: &PgRow) -> StorageResult<ExportJobRecord> {
         request_json: row.get("request_json"),
         result_json: row.get("result_json"),
         error_summary: row.get("error_summary"),
-        attempt_count: row.get("attempt_count"),
-        max_attempts: row.get("max_attempts"),
+        attempt_count: pg_i32_as_i64(row, "attempt_count"),
+        max_attempts: pg_i32_as_i64(row, "max_attempts"),
         next_attempt_at: row.get("next_attempt_at"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -1682,7 +1682,7 @@ fn export_job_event_from_sqlite_row(row: &SqliteRow) -> ExportJobEventRecord {
 fn export_job_event_from_pg_row(row: &PgRow) -> ExportJobEventRecord {
     ExportJobEventRecord {
         job_id: row.get("job_id"),
-        sequence: row.get("sequence"),
+        sequence: pg_i32_as_i64(row, "sequence"),
         level: row.get("level"),
         stage: row.get("stage"),
         message: row.get("message"),
@@ -1747,8 +1747,8 @@ fn provider_import_job_from_pg_row(row: &PgRow) -> StorageResult<ProviderImportJ
         request_json: row.get("request_json"),
         result_json: row.get("result_json"),
         error_summary: row.get("error_summary"),
-        attempt_count: row.get("attempt_count"),
-        max_attempts: row.get("max_attempts"),
+        attempt_count: pg_i32_as_i64(row, "attempt_count"),
+        max_attempts: pg_i32_as_i64(row, "max_attempts"),
         next_attempt_at: row.get("next_attempt_at"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -1770,7 +1770,7 @@ fn provider_import_job_event_from_sqlite_row(row: &SqliteRow) -> ProviderImportJ
 fn provider_import_job_event_from_pg_row(row: &PgRow) -> ProviderImportJobEventRecord {
     ProviderImportJobEventRecord {
         job_id: row.get("job_id"),
-        sequence: row.get("sequence"),
+        sequence: pg_i32_as_i64(row, "sequence"),
         level: row.get("level"),
         stage: row.get("stage"),
         message: row.get("message"),
@@ -1854,10 +1854,10 @@ fn prepared_media_asset_from_pg_row(row: &PgRow) -> PreparedMediaAssetRecord {
         profile_key: row.get("profile_key"),
         output_asset_key: row.get("output_asset_key"),
         mime_type: row.get("mime_type"),
-        width_px: row.get("width_px"),
-        height_px: row.get("height_px"),
-        duration_ms: row.get("duration_ms"),
-        file_size_bytes: row.get("file_size_bytes"),
+        width_px: pg_i32_as_i64(row, "width_px"),
+        height_px: pg_i32_as_i64(row, "height_px"),
+        duration_ms: pg_optional_i32_as_i64(row, "duration_ms"),
+        file_size_bytes: pg_i32_as_i64(row, "file_size_bytes"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }
@@ -1895,7 +1895,7 @@ fn telegram_publication_from_pg_row(row: &PgRow) -> TelegramPublicationRecord {
         job_id: row.get("job_id"),
         sticker_set_name: row.get("sticker_set_name"),
         sticker_set_url: row.get("sticker_set_url"),
-        sticker_count: row.get("sticker_count"),
+        sticker_count: pg_i32_as_i64(row, "sticker_count"),
         sticker_type: row.get("sticker_type"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -1935,10 +1935,18 @@ fn telegram_sticker_mapping_from_pg_row(row: &PgRow) -> TelegramStickerMappingRe
         source_sticker_id: row.get("source_sticker_id"),
         telegram_file_id: row.get("telegram_file_id"),
         telegram_file_unique_id: row.get("telegram_file_unique_id"),
-        position: row.get("position"),
+        position: pg_i32_as_i64(row, "position"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     }
+}
+
+fn pg_i32_as_i64(row: &PgRow, column: &str) -> i64 {
+    i64::from(row.get::<i32, _>(column))
+}
+
+fn pg_optional_i32_as_i64(row: &PgRow, column: &str) -> Option<i64> {
+    row.get::<Option<i32>, _>(column).map(i64::from)
 }
 
 fn telegram_sticker_mapping_id(

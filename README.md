@@ -236,4 +236,4 @@ product scope should be tracked as a new PRD revision before implementation.
 
 ## License
 
-This workspace declares `MIT OR Apache-2.0` in `Cargo.toml`.
+This project is licensed under the GNU General Public License v3.0 or later (`GPL-3.0-or-later`).
