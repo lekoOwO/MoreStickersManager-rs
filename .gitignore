@@ -43,3 +43,6 @@ Thumbs.db
 /tmp/
 *.tmp
 *.bak
+
+# Local skill cache
+skills-lock.json
