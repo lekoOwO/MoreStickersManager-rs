@@ -2,59 +2,90 @@
 
 [繁體中文](README.zh-TW.md)
 
-MoreStickersManager-rs (MSM) is a self-hosted sticker pack manager for
-MoreStickers-compatible clients and export targets such as Telegram. It is a
-Rust rewrite and expansion of the MoreStickersConverter companion tooling for
-Equicord's moreStickers plugin.
+**MoreStickersManager-rs (MSM)** is a self-hosted sticker library for people who
+collect, manage, share, subscribe to, and publish sticker packs across
+MoreStickers/Discord and Telegram.
 
-MSM keeps the MoreStickers `.stickerpack` export contract stable while adding a
-Web UI, HTTP API, CLI, MCP endpoint, provider import jobs, Telegram publication,
-multi-tenant access control, and portable user data migration.
+Instead of keeping sticker exports in scattered files, MSM gives you one private
+place to import packs, organize them, generate subscription links, control who
+can access private assets, and publish selected packs to Telegram sticker sets.
 
-## Highlights
+## What you can do with MSM
 
-- **MoreStickers compatibility**: imports and exports the existing
-  `.stickerpack` JSON shape.
-- **Provider imports**: Telegram and LINE provider ingestion are implemented;
-  Signal, WhatsApp, Kakao, Band, OGQ, and Viber are registered as planned
-  provider families for future work.
-- **Telegram export**: prepares media with ffmpeg/ffprobe, plans sticker-set
-  creation/update flows, publishes through a teloxide-backed Telegram Bot API
-  boundary, stores publication history, and supports guarded reconciliation.
-- **Web UI**: responsive Vue UI with desktop/mobile layouts, dark/light theme,
-  Traditional Chinese and English locales, pack management, exports,
-  subscription links, tenant administration, and migration workflows.
-- **API/OpenAPI**: axum API with utoipa OpenAPI output at `/openapi.json`.
-- **CLI and MCP**: command-line and JSON-RPC MCP surfaces for automation.
-- **Multi-tenant security**: tenant membership, admin/user roles, fine-grained
-  permissions, PATs, local accounts, OIDC/SSO, and protected asset access.
-- **Data portability**: export/import user data for migration between MSM
-  instances.
-- **Storage backends**: SQLite and PostgreSQL migrations/repositories.
-- **Self-contained binary**: the Web UI can be embedded into the Rust service
-  binary at build time.
+### Manage sticker packs in one place
 
-## Repository layout
+- Import existing MoreStickers `.stickerpack` exports.
+- Import packs from supported providers such as Telegram and LINE.
+- Create, rename, update, delete, and re-export sticker packs.
+- Keep public packs openly accessible while protecting private packs behind
+  login, PATs, or subscription secrets.
+- Store sticker images on your own MSM instance and optionally publish asset
+  URLs through a CDN such as Cloudflare.
 
-```text
-apps/web/                  Vue + Tailwind CSS v4 + shadcn-vue Web UI
-crates/msm-app/            All-in-one HTTP service and worker orchestration
-crates/msm-api/            API routes and OpenAPI schema
-crates/msm-cli/            CLI client
-crates/msm-domain/         Sticker pack domain model and compatibility helpers
-crates/msm-exporters/      Export target registry and Telegram planning
-crates/msm-mcp/            MCP JSON-RPC endpoint and tools
-crates/msm-media/          Media probing/conversion planning
-crates/msm-providers/      Telegram/LINE provider normalization and fetch plans
-crates/msm-storage/        SQLite/PostgreSQL storage layer
-crates/msm-telegram/       teloxide-backed Telegram Bot API boundary
-docs/                      User, developer, status, and release-readiness docs
-examples/docker/           Docker Compose deployment example
-```
+### Organize packs for real daily use
+
+- Put packs into folders.
+- Add tags to packs.
+- Build curated subscription groups from multiple packs.
+- Manage everything from the Web UI instead of manually editing JSON files.
+
+### Share auto-updating subscriptions
+
+MSM can generate subscription-style endpoints for both individual sticker packs
+and custom sticker-pack groups.
+
+Use this when you want a client such as moreStickers to periodically refresh the
+latest version of a pack or a curated collection:
+
+- **Pack subscription**: every pack has its own default subscription-style
+  payload so consumers can follow that pack directly.
+- **Subscription groups**: create a group, add multiple packs, and share one
+  subscription link for the entire collection.
+- **Public subscriptions**: anyone with the link can read public payloads.
+- **Protected subscriptions**: private pack/group payloads and assets require a
+  matching subscription secret, a PAT, or an authenticated Web session.
+- **Rotatable links**: subscription access tokens can be created, rotated, and
+  revoked when links leak or membership changes.
+
+### Publish to Telegram
+
+MSM includes a Telegram export pipeline inspired by sticker-bot workflows:
+
+- Prepare images/video for Telegram sticker requirements with ffmpeg/ffprobe.
+- Create Telegram sticker sets through a bot token.
+- Append missing stickers to an existing set.
+- Reconcile MSM packs with Telegram sets using create-only, append-missing, or
+  guarded mirror behavior.
+- Keep publication history and per-sticker Telegram mapping records.
+- Run exports from the Web UI, API, CLI, or MCP.
+
+### Run it for yourself, a team, or a community
+
+- Multi-tenant data model.
+- Admin and regular-user roles.
+- Fine-grained permissions for packs, assets, imports, exports, subscriptions,
+  PATs, and tenant administration.
+- Local accounts and OIDC/SSO login.
+- Personal Access Tokens for API, CLI, and MCP clients.
+- Export/import user data to migrate between MSM instances.
+
+## Screens and workflows
+
+The Web UI is designed as the primary management surface:
+
+- Dashboard overview of packs and system state.
+- Pack management with import, rename, visibility, delete, and export actions.
+- Provider import workspace for Telegram/LINE.
+- Organize workspace for folders, tags, subscription groups, and memberships.
+- Export workspace for MoreStickers and Telegram jobs.
+- Tenant admin workspace for members, roles, settings, local registration, and
+  OIDC providers.
+- Migration workspace for portable user export/import.
+- Desktop and mobile layouts, dark/light mode, English and Traditional Chinese.
 
 ## Quick start with Docker Compose
 
-The easiest deployment path is the Compose example with PostgreSQL:
+The Compose example runs MSM with PostgreSQL:
 
 ```bash
 cp examples/docker/.env.example examples/docker/.env
@@ -63,30 +94,99 @@ docker compose --env-file examples/docker/.env -f examples/docker/docker-compose
 curl -fsS http://localhost:3000/readyz
 ```
 
-Open `http://localhost:3000` or the `MSM_EXTERNAL_URL` you configured.
+Open `http://localhost:3000` or your configured `MSM_EXTERNAL_URL`.
 
-For Authentik SSO, create an Authentik OAuth2/OpenID provider and set the
-redirect URI to:
+Full deployment notes, including Authentik SSO setup and first-admin bootstrap,
+are in [`examples/docker/README.md`](examples/docker/README.md).
 
-```text
-${MSM_EXTERNAL_URL}/auth/oidc/callback
-```
+## Authentik / OIDC SSO
 
-Then store the issuer URL, client ID, and client secret in
-`examples/docker/.env`, bootstrap the first tenant admin, and register the OIDC
-provider in MSM. See [`examples/docker/README.md`](examples/docker/README.md)
-for the full walkthrough.
+To connect Authentik:
+
+1. Create an Authentik OAuth2/OpenID Provider and Application for MSM.
+2. Set the allowed redirect URI to:
+
+   ```text
+   ${MSM_EXTERNAL_URL}/auth/oidc/callback
+   ```
+
+3. Copy the issuer URL, client ID, and client secret into your deployment env.
+4. Bootstrap or log in as a tenant admin.
+5. Add the OIDC provider from the Web UI Tenant admin page, CLI, API, or MCP.
+
+See [`examples/docker/README.md`](examples/docker/README.md) and
+[`docs/user/oidc-sso.md`](docs/user/oidc-sso.md).
+
+## MoreStickers compatibility
+
+MSM preserves the existing MoreStickers `.stickerpack` export shape so packs can
+continue to be consumed by clients that understand the current moreStickers
+format. The project also supports dynamic pack and group subscription payloads
+for clients that refresh from a URL.
+
+Compatibility notes live in [`docs/dev/compatibility.md`](docs/dev/compatibility.md).
+
+## Supported surfaces
+
+The same product features are exposed through multiple surfaces:
+
+| Surface | What it is for |
+| --- | --- |
+| Web UI | Daily pack management, subscriptions, exports, tenant administration. |
+| HTTP API | Integration with scripts, services, reverse proxies, or custom clients. |
+| OpenAPI | Machine-readable API schema at `/openapi.json`. |
+| CLI | Terminal workflows and automation. |
+| MCP | Tool access for MCP-capable clients through `/mcp`. |
+
+## Import and export targets
+
+Currently implemented:
+
+- MoreStickers import/export.
+- Telegram provider import.
+- LINE provider import.
+- Telegram sticker-set export and guarded reconciliation.
+
+Planned provider families registered for future work:
+
+- Signal
+- WhatsApp
+- Kakao
+- Band
+- OGQ
+- Viber
+
+## Deployment notes
+
+Common runtime settings:
+
+| Variable | Purpose |
+| --- | --- |
+| `MSM_BIND_ADDR` | Service bind address. |
+| `MSM_DATABASE_URL` | SQLite or PostgreSQL database URL. |
+| `MSM_ASSET_DIR` | Local sticker asset storage. |
+| `MSM_PREPARED_MEDIA_DIR` | Prepared Telegram media output/cache. |
+| `MSM_PUBLIC_ASSET_URL` | Optional system-wide CDN/public asset URL. |
+| `MSM_EXPORT_WORKER_ENABLED` | Enable export job polling. |
+| `MSM_PROVIDER_IMPORT_WORKER_ENABLED` | Enable provider import job polling. |
+| `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON` | Optional startup export target bootstrap. |
+
+The Docker image includes ffmpeg/ffprobe for media conversion. Use PostgreSQL for
+multi-user deployments; SQLite is useful for small or single-user instances.
+
+Backup/restore guidance is in
+[`docs/user/backup-restore-runbook.md`](docs/user/backup-restore-runbook.md).
 
 ## Local development
 
 Prerequisites:
 
 - Rust stable toolchain
-- Bun or Node.js/npm for Web development
-- ffmpeg and ffprobe for media conversion flows
-- Optional: PostgreSQL for backend parity testing
+- Bun or Node.js/npm
+- ffmpeg and ffprobe
+- Optional PostgreSQL for backend parity tests
 
-Install Web dependencies and run checks:
+Useful checks:
 
 ```bash
 bun install --frozen-lockfile
@@ -98,86 +198,41 @@ npm run web:test
 npm run web:build
 ```
 
-Run the all-in-one service locally:
+Run locally:
 
 ```bash
 npm run web:build
 cargo run -p msm-app
 ```
 
-By default the service listens on `127.0.0.1:3000`, uses
-`sqlite:data/msm.sqlite3`, serves local assets from `data/assets`, and exposes:
+Default endpoints:
 
 - `GET /healthz`
 - `GET /readyz`
 - `GET /openapi.json`
 - `POST /mcp`
 
-## Configuration
-
-Common environment variables:
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `MSM_BIND_ADDR` | `127.0.0.1:3000` | Service bind address. |
-| `MSM_DATABASE_URL` | `sqlite:data/msm.sqlite3` | `sqlite:<path>` or PostgreSQL URL. |
-| `MSM_ASSET_DIR` | `data/assets` | Local source asset directory. |
-| `MSM_PREPARED_MEDIA_DIR` | `data/prepared-media` | Converted media cache/output directory. |
-| `MSM_WEB_DIST_DIR` | `apps/web/dist` | Optional runtime Web dist override. |
-| `MSM_PUBLIC_ASSET_URL` | unset | System-wide CDN/public asset URL fallback. |
-| `MSM_PUBLIC_ASSET_BASE_URL` | derived from bind addr | Public base used by provider import workers. |
-| `MSM_REQUEST_BODY_LIMIT_BYTES` | `10485760` | API request body cap. |
-| `MSM_IMPORT_RATE_LIMIT_REQUESTS` | `60` | Per-identity import-like request limit. |
-| `MSM_IMPORT_RATE_LIMIT_WINDOW_SECS` | `60` | Rate-limit window length. |
-| `MSM_FFMPEG_PATH` | `ffmpeg` | ffmpeg executable path. |
-| `MSM_FFPROBE_PATH` | `ffprobe` | ffprobe executable path. |
-| `MSM_EXPORT_WORKER_ENABLED` | `false` | Enable export worker polling. |
-| `MSM_PROVIDER_IMPORT_WORKER_ENABLED` | `false` | Enable provider import worker polling. |
-| `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON` | unset | Optional startup export-target bootstrap JSON. |
-
-## Authentication and SSO
-
-MSM supports local account registration/login and tenant-scoped OIDC providers.
-A successful local or OIDC login returns a PAT and sets an HttpOnly
-`msm_session` cookie for Web-session-protected reads.
-
-OIDC provider administration is available through Web Tenant admin, API, CLI,
-and MCP. User-facing SSO guidance is in [`docs/user/oidc-sso.md`](docs/user/oidc-sso.md).
-
-## CLI
-
-The CLI binary is named `msm`:
-
-```bash
-cargo run -p msm-cli -- --help
-cargo run -p msm-cli -- --base-url http://127.0.0.1:3000 --pat "$MSM_PAT" packs list --user-id user_1
-```
-
-## MCP
-
-The MCP endpoint is stateless JSON-RPC over HTTP POST at `/mcp`. Public
-metadata methods include `initialize`, `ping`, and `tools/list`. Protected tool
-calls require an HTTP `Authorization: Bearer msm_pat_...` header.
-
-See [`docs/dev/mcp-transport-contract.md`](docs/dev/mcp-transport-contract.md)
-for the transport contract.
-
 ## Documentation
 
-- [`docs/user/README.md`](docs/user/README.md): user guide and API/CLI examples
-- [`docs/user/oidc-sso.md`](docs/user/oidc-sso.md): OIDC/SSO guide
-- [`docs/user/backup-restore-runbook.md`](docs/user/backup-restore-runbook.md): backup and restore
-- [`docs/dev/architecture.md`](docs/dev/architecture.md): architecture notes
-- [`docs/dev/compatibility.md`](docs/dev/compatibility.md): MoreStickers compatibility
-- [`docs/status/completion-audit.md`](docs/status/completion-audit.md): release-readiness audit
-- [`docs/PRD.md`](docs/PRD.md): product requirements and completion status
+- [`examples/docker/README.md`](examples/docker/README.md): Docker Compose and
+  Authentik setup
+- [`docs/user/README.md`](docs/user/README.md): detailed user guide and API/CLI
+  examples
+- [`docs/user/oidc-sso.md`](docs/user/oidc-sso.md): SSO guide
+- [`docs/user/backup-restore-runbook.md`](docs/user/backup-restore-runbook.md):
+  backup and restore
+- [`docs/dev/compatibility.md`](docs/dev/compatibility.md): MoreStickers format
+  compatibility
+- [`docs/dev/mcp-transport-contract.md`](docs/dev/mcp-transport-contract.md):
+  MCP transport behavior
+- [`docs/status/completion-audit.md`](docs/status/completion-audit.md):
+  release-readiness audit
 
-## Current status
+## Project status
 
-The current PRD contract is complete and release-readiness verification is
-recorded in [`docs/status/completion-audit.md`](docs/status/completion-audit.md).
-Future product scope should be tracked as a new PRD revision before
-implementation.
+The current PRD contract is complete. Release-readiness verification is recorded
+in [`docs/status/completion-audit.md`](docs/status/completion-audit.md). New
+product scope should be tracked as a new PRD revision before implementation.
 
 ## License
 
