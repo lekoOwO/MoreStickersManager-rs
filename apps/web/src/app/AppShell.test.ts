@@ -165,6 +165,9 @@ describe("AppShell PAT scope policy", () => {
     const loginButton = wrapper.findAll("button").find((button) => button.text().trim() === "Local Login");
     expect(loginButton).toBeTruthy();
     await loginButton!.trigger("click");
+    await wrapper.get('[aria-label="OIDC tenant ID"]').setValue("tenant_1");
+    await wrapper.get('[aria-label="OIDC provider ID"]').setValue("google");
+    await wrapper.get('[aria-label="OIDC redirect URI"]').setValue("https://app.example.test/callback");
     await wrapper.get('[aria-label="Start OIDC login"]').trigger("click");
     await flushPromises();
 

@@ -298,7 +298,7 @@ pub enum TenantSettingsCommand {
         name: String,
         #[arg(long)]
         public_asset_url: Option<String>,
-        #[arg(long, default_value_t = true)]
+        #[arg(long, default_value_t = false)]
         local_registration_enabled: bool,
     },
 }
@@ -2029,7 +2029,7 @@ mod tests {
             } if tenant_id == "tenant_1"
                 && name == "Production"
                 && public_asset_url.as_deref() == Some("https://cdn.example.test/msm")
-                && local_registration_enabled
+                && !local_registration_enabled
         ));
 
         let user_status = Cli::parse_from([
@@ -3045,7 +3045,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             settings_update,
-            "tenant_1\tProduction\thttps://cdn.example.test/prod\ttrue"
+            "tenant_1\tProduction\thttps://cdn.example.test/prod\tfalse"
         );
         assert_eq!(
             client
@@ -3058,7 +3058,7 @@ mod tests {
                 "tenant_1".to_owned(),
                 "Production".to_owned(),
                 Some("https://cdn.example.test/prod".to_owned()),
-                true
+                false
             )
         );
     }

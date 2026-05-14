@@ -32,7 +32,8 @@ use crate::{
     request_body = RegisterLocalUserRequest,
     responses(
         (status = 201, description = "Local user registered", body = LocalUserResponse),
-        (status = 400, description = "Invalid registration", body = crate::error::ApiErrorBody)
+        (status = 400, description = "Invalid registration", body = crate::error::ApiErrorBody),
+        (status = 403, description = "Tenant local registration disabled", body = crate::error::ApiErrorBody)
     )
 )]
 /// Registers a local user with a password credential.
@@ -44,24 +45,36 @@ pub async fn register_local_user(
     State(state): State<ApiState>,
     Json(request): Json<RegisterLocalUserRequest>,
 ) -> ApiResult<(StatusCode, Json<LocalUserResponse>)> {
-    let tenant = if let Some(tenant_id) = request
+    let Some(tenant_id) = request
         .tenant_id
         .as_deref()
         .filter(|value| !value.is_empty())
-    {
-        let tenant = state.repository().find_tenant(tenant_id).await?;
-        if tenant
-            .as_ref()
-            .is_some_and(|tenant| !tenant.local_registration_enabled)
-        {
-            return Err(ApiError::Forbidden(
-                "local registration is disabled for this tenant".to_owned(),
-            ));
-        }
-        Some((tenant_id.to_owned(), tenant))
-    } else {
-        None
+    else {
+        return Err(ApiError::BadRequest(
+            "tenantId is required for local registration".to_owned(),
+        ));
     };
+    if request
+        .tenant_role
+        .as_deref()
+        .is_some_and(|role| !role.is_empty() && role != "user")
+    {
+        return Err(ApiError::BadRequest(
+            "local self-registration can only request tenantRole `user`".to_owned(),
+        ));
+    }
+    let tenant = state
+        .repository()
+        .find_tenant(tenant_id)
+        .await?
+        .ok_or_else(|| {
+            ApiError::Forbidden("local registration is disabled for this tenant".to_owned())
+        })?;
+    if !tenant.local_registration_enabled {
+        return Err(ApiError::Forbidden(
+            "local registration is disabled for this tenant".to_owned(),
+        ));
+    }
 
     let user = state
         .repository()
@@ -72,20 +85,10 @@ pub async fn register_local_user(
             &request.password,
         )
         .await?;
-    if let Some((tenant_id, tenant)) = tenant {
-        let tenant_name = request.tenant_name.as_deref().unwrap_or(&tenant_id);
-        let tenant_role = request.tenant_role.as_deref().unwrap_or("admin");
-        if tenant.is_none() {
-            state
-                .repository()
-                .create_tenant(&tenant_id, tenant_name)
-                .await?;
-        }
-        state
-            .repository()
-            .add_tenant_member(&tenant_id, &user.id, tenant_role)
-            .await?;
-    }
+    state
+        .repository()
+        .add_tenant_member(tenant_id, &user.id, "user")
+        .await?;
 
     Ok((StatusCode::CREATED, Json(LocalUserResponse::from(user))))
 }

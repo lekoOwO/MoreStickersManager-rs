@@ -96,8 +96,10 @@ curl -fsS http://localhost:3000/readyz
 
 Open `http://localhost:3000` or your configured `MSM_EXTERNAL_URL`.
 
-Full deployment notes, including Authentik SSO setup and first-admin bootstrap,
-are in [`examples/docker/README.md`](examples/docker/README.md).
+On the first empty-database start, MSM creates the default tenant/admin and
+prints the admin password in the `bootstrap_admin_created` log event. Full
+deployment notes, including Authentik SSO setup and first-admin bootstrap, are
+in [`examples/docker/README.md`](examples/docker/README.md).
 
 ## Authentik / OIDC SSO
 
@@ -111,7 +113,7 @@ To connect Authentik:
    ```
 
 3. Copy the issuer URL, client ID, and client secret into your deployment env.
-4. Bootstrap or log in as a tenant admin.
+4. Log in as the first-start bootstrap admin or another tenant admin.
 5. Add the OIDC provider from the Web UI Tenant admin page, CLI, API, or MCP.
 
 See [`examples/docker/README.md`](examples/docker/README.md) and

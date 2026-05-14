@@ -184,6 +184,38 @@ function parseEnvFile(filePath) {
   return parsed;
 }
 
+function valueOrDefault(value, fallback) {
+  return value === undefined || value === "" ? fallback : value;
+}
+
+function normalizeBootstrapEnv(values) {
+  const tenantId = valueOrDefault(values.MSM_DEV_TENANT_ID, "tenant_1");
+  const userId = valueOrDefault(
+    values.MSM_DEV_USER_ID,
+    valueOrDefault(values.VITE_MSM_USER_ID, "user_1"),
+  );
+  const next = { ...values };
+  next.MSM_BOOTSTRAP_TENANT_ID = valueOrDefault(next.MSM_BOOTSTRAP_TENANT_ID, tenantId);
+  next.MSM_BOOTSTRAP_TENANT_NAME = valueOrDefault(
+    next.MSM_BOOTSTRAP_TENANT_NAME,
+    valueOrDefault(next.MSM_DEV_TENANT_NAME, "MSM Development"),
+  );
+  next.MSM_BOOTSTRAP_ADMIN_USER_ID = valueOrDefault(next.MSM_BOOTSTRAP_ADMIN_USER_ID, userId);
+  next.MSM_BOOTSTRAP_ADMIN_EMAIL = valueOrDefault(
+    next.MSM_BOOTSTRAP_ADMIN_EMAIL,
+    valueOrDefault(next.MSM_DEV_USER_EMAIL, "dev@msm.local"),
+  );
+  next.MSM_BOOTSTRAP_ADMIN_DISPLAY_NAME = valueOrDefault(
+    next.MSM_BOOTSTRAP_ADMIN_DISPLAY_NAME,
+    valueOrDefault(next.MSM_DEV_USER_DISPLAY_NAME, "MSM Developer"),
+  );
+  next.MSM_BOOTSTRAP_ADMIN_PASSWORD = valueOrDefault(
+    next.MSM_BOOTSTRAP_ADMIN_PASSWORD,
+    valueOrDefault(next.MSM_DEV_USER_PASSWORD, "dev-password"),
+  );
+  return next;
+}
+
 function rootRelativePath(value) {
   return path.isAbsolute(value) ? value : path.join(ROOT, value);
 }
@@ -222,14 +254,12 @@ function loadEnv() {
       throw new Error(`Missing ${path.basename(envPath)} and ${path.basename(example)}`);
     }
   }
-  return {
-    envName,
-    values: {
-      ...process.env,
-      ...parseEnvFile(envPath),
-      ...parseEnvFile(LOCAL_ENV_FILE),
-    },
-  };
+  const values = normalizeBootstrapEnv({
+    ...process.env,
+    ...parseEnvFile(envPath),
+    ...parseEnvFile(LOCAL_ENV_FILE),
+  });
+  return { envName, values };
 }
 
 function pidPath(service) {
@@ -500,8 +530,6 @@ async function registerDevUser(baseUrl, values) {
       displayName: values.MSM_DEV_USER_DISPLAY_NAME ?? "MSM Developer",
       password: values.MSM_DEV_USER_PASSWORD ?? "dev-password",
       tenantId: values.MSM_DEV_TENANT_ID ?? "tenant_1",
-      tenantName: values.MSM_DEV_TENANT_NAME ?? "MSM Development",
-      tenantRole: values.MSM_DEV_TENANT_ROLE ?? "admin",
     },
   });
   if (response.ok || response.status === 409) {
@@ -519,7 +547,7 @@ async function createDevPat(baseUrl, values) {
   const response = await requestJson(baseUrl, "/api/v1/auth/local/login", {
     method: "POST",
     body: {
-      email: values.MSM_DEV_USER_EMAIL ?? "dev@example.test",
+      email: values.MSM_DEV_USER_EMAIL ?? "dev@msm.local",
       password: values.MSM_DEV_USER_PASSWORD ?? "dev-password",
       tokenId: `${tokenIdPrefix}-${Date.now()}`,
       tokenName: values.MSM_DEV_PAT_NAME ?? "Development Web UI",
@@ -552,8 +580,13 @@ async function bootstrapDevEnvironment() {
     return;
   }
 
-  await registerDevUser(baseUrl, values);
-  const token = await createDevPat(baseUrl, values);
+  let token;
+  try {
+    token = await createDevPat(baseUrl, values);
+  } catch (error) {
+    await registerDevUser(baseUrl, values);
+    token = await createDevPat(baseUrl, values);
+  }
   updateLocalEnvBootstrap({ VITE_MSM_PAT: token });
   process.env.VITE_MSM_PAT = token;
   await importDevSamplePack(baseUrl, { ...values, VITE_MSM_PAT: token }, token);
@@ -584,12 +617,16 @@ function startWindowsHiddenProcess(service, config, values, logFile, errLogFile)
       windowsHide: true,
     },
   );
-  if (launcher.status !== 0) {
-    throw new Error(launcher.stderr.trim() || "Failed to start hidden Windows process");
+  if (launcher.error) {
+    throw new Error(launcher.error.message);
   }
-  const pid = Number.parseInt(launcher.stdout.trim(), 10);
+  if (launcher.status !== 0) {
+    throw new Error((launcher.stderr ?? "").trim() || "Failed to start hidden Windows process");
+  }
+  const stdout = launcher.stdout ?? "";
+  const pid = Number.parseInt(stdout.trim(), 10);
   if (!Number.isFinite(pid)) {
-    throw new Error(`Failed to read child PID from launcher output: ${launcher.stdout.trim()}`);
+    throw new Error(`Failed to read child PID from launcher output: ${stdout.trim()}`);
   }
   if (config.port) {
     return waitForListeningPid(config.port) ?? pid;

@@ -2015,3 +2015,11 @@
 - Reviewed CI, prerelease, release, Docker workflow, and Dockerfile contracts; local Docker image execution remains CI-bound because Docker CLI is unavailable in this Windows workspace.
 - Added `docs/status/completion-audit.md`, updated the PRD queue to no open current-contract implementation items, and recorded the completion-definition evidence.
 - Verification: `cargo fmt --all -- --check`; `cargo test --workspace --locked`; `cargo clippy --workspace --all-targets --locked -- -D warnings`; `cargo build --workspace --locked`; `cargo run -p msm-cli --locked -- --help`; temporary `msm-app` smoke with `GET /readyz` and `GET /healthz`; `npm run web:typecheck`; `npm run web:test`; `npm run web:build`; `npm run web:e2e`.
+## 2026-05-14 First-Start Admin Bootstrap And Closed Local Registration
+
+- Added empty-database service startup bootstrap for a default/configured tenant and local admin, with the bootstrap password emitted in the `bootstrap_admin_created` console/log event.
+- Changed tenant creation defaults so tenant-local registration starts disabled, including repository inserts and migration follow-up behavior.
+- Closed public local registration: it now requires an existing tenant with `localRegistrationEnabled=true`, creates only `user` membership, rejects unknown tenants, and rejects admin self-assignment.
+- Updated CLI/MCP/Web defaults and Web local registration to use a tenant ID, with `default` as the fallback tenant ID.
+- Updated PRD, user docs, Docker Compose example docs/env, roadmap, current status, and implementation matrix.
+- Verification: `cargo fmt --all -- --check`; `cargo test -p msm-storage -p msm-api -p msm-app --locked`; `cargo test -p msm-cli -p msm-mcp --locked`; `cargo clippy -p msm-storage -p msm-api -p msm-app -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings` with `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-bootstrap-registrationp0RpJP`; `pnpm --filter @morestickersmanager/web typecheck`; `pnpm --filter @morestickersmanager/web test -- api-client.test.ts AppShell.test.ts`; `pnpm --filter @morestickersmanager/web build`; `node --check scripts/dev-manager.mjs`; `pnpm run dev:stop`; `pnpm run dev:start`; `pnpm run dev:status`; `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`; `pnpm run dev:stop`; `git diff --check`.

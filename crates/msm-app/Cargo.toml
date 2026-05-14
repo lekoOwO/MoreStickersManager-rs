@@ -9,6 +9,7 @@ repository.workspace = true
 axum = "0.8"
 bytes = "1"
 chrono = "0.4"
+getrandom = "0.3"
 include_dir = "0.7"
 mime_guess = "2"
 msm-api = { path = "../msm-api" }

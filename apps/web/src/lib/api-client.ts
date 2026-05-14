@@ -193,6 +193,7 @@ export interface RegisterLocalUserRequest {
   email: string;
   displayName: string;
   password: string;
+  tenantId: string;
 }
 
 export interface LocalUserResponse {

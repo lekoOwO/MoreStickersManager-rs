@@ -641,6 +641,7 @@ describe("local auth API client", () => {
       email: "leko@example.com",
       displayName: "Leko",
       password: "password",
+      tenantId: "default",
     });
 
     expect(fetchImpl).toHaveBeenCalledWith("https://msm.example.test/api/v1/auth/local/register", {
@@ -653,6 +654,7 @@ describe("local auth API client", () => {
         email: "leko@example.com",
         displayName: "Leko",
         password: "password",
+        tenantId: "default",
       }),
     });
     expect(user.id).toBe("user_1");

@@ -4575,11 +4575,22 @@ mod tests {
     #[tokio::test]
     async fn local_auth_registers_and_logs_in_with_pat() {
         let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .update_tenant_settings("tenant_1", "Tenant", None, true)
+            .await
+            .unwrap();
         let register_body = serde_json::json!({
             "id": "user_1",
             "email": "leko@example.com",
             "displayName": "Leko",
             "password": "correct horse battery staple",
+            "tenantId": "tenant_1"
         });
 
         let register_response = build_router(state.clone())
@@ -4594,6 +4605,13 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(register_response.status(), StatusCode::CREATED);
+        let member = state
+            .repository()
+            .find_tenant_member("tenant_1", "user_1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(member.role, "user");
 
         let login_body = serde_json::json!({
             "email": "leko@example.com",
@@ -4637,11 +4655,6 @@ mod tests {
             .create_tenant("tenant_1", "Tenant")
             .await
             .unwrap();
-        state
-            .repository()
-            .update_tenant_settings("tenant_1", "Tenant", None, false)
-            .await
-            .unwrap();
         let register_body = serde_json::json!({
             "id": "user_1",
             "email": "leko@example.com",
@@ -4664,6 +4677,45 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert!(state
+            .repository()
+            .find_user("user_1")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn local_auth_register_rejects_unknown_tenant_registration() {
+        let state = test_state().await;
+        let register_body = serde_json::json!({
+            "id": "user_1",
+            "email": "leko@example.com",
+            "displayName": "Leko",
+            "password": "correct horse battery staple",
+            "tenantId": "tenant_missing",
+            "tenantName": "Tenant"
+        });
+
+        let response = build_router(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/auth/local/register")
+                    .header("content-type", "application/json")
+                    .body(Body::from(register_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert!(state
+            .repository()
+            .find_tenant("tenant_missing")
+            .await
+            .unwrap()
+            .is_none());
         assert!(state
             .repository()
             .find_user("user_1")
@@ -5457,8 +5509,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn admin_bootstrap_registers_tenant_admin() {
+    async fn local_auth_register_rejects_tenant_admin_self_assignment() {
         let state = test_state().await;
+        state
+            .repository()
+            .create_tenant("tenant_1", "Tenant")
+            .await
+            .unwrap();
+        state
+            .repository()
+            .update_tenant_settings("tenant_1", "Tenant", None, true)
+            .await
+            .unwrap();
         let register_body = serde_json::json!({
             "id": "user_1",
             "email": "leko@example.com",
@@ -5481,41 +5543,13 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::CREATED);
-
-        let token = state
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert!(state
             .repository()
-            .create_personal_access_token(
-                "patimport",
-                "user_1",
-                "Import",
-                &BTreeSet::from([Permission::ImportRun]),
-                None,
-            )
+            .find_user("user_1")
             .await
             .unwrap()
-            .token;
-        let import_body = serde_json::json!({
-            "tenantId": "tenant_1",
-            "ownerUserId": "user_1",
-            "packId": "pack_1",
-            "visibility": "private",
-            "pack": sample_pack(),
-        });
-        let import_response = build_router(state)
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/api/v1/packs/import")
-                    .header("authorization", format!("Bearer {token}"))
-                    .header("content-type", "application/json")
-                    .body(Body::from(import_body.to_string()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(import_response.status(), StatusCode::CREATED);
+            .is_none());
     }
 
     #[tokio::test]

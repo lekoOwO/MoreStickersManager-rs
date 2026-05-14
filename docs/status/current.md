@@ -3,6 +3,26 @@
 Phase: Current PRD contract complete; release/staging verification passed.
 
 Last completed:
+- First-start admin bootstrap and closed local registration slice: empty
+  databases now create the configured/default tenant and admin account during
+  `msm-app` startup, logging `bootstrap_admin_created` with the admin password;
+  public local registration now requires an existing tenant with
+  `localRegistrationEnabled=true`, creates only `user` memberships, rejects
+  unknown tenants/admin self-assignment, and new tenants default to
+  registration disabled across storage/API/CLI/MCP/Web.
+  Verification: `cargo fmt --all -- --check`;
+  `cargo test -p msm-storage -p msm-api -p msm-app --locked`;
+  `cargo test -p msm-cli -p msm-mcp --locked`; and
+  `cargo clippy -p msm-storage -p msm-api -p msm-app -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings`
+  with `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and
+  `CARGO_TARGET_DIR=target\msm-bootstrap-registrationp0RpJP`;
+  `pnpm --filter @morestickersmanager/web typecheck`;
+  `pnpm --filter @morestickersmanager/web test -- api-client.test.ts AppShell.test.ts`;
+  `pnpm --filter @morestickersmanager/web build`; `node --check scripts/dev-manager.mjs`;
+  `pnpm run dev:stop`; `pnpm run dev:start`; `pnpm run dev:status`;
+  `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`;
+  `pnpm run dev:stop`;
+  `git diff --check`.
 - Release-readiness verification slice: fixed the Web E2E tenant-admin fixture so all mocked tenant-admin dependencies return JSON, reran full Web verification, confirmed the Rust workspace tests/clippy/build, smoke-tested `msm-app` `/readyz` and `/healthz`, reviewed CI/release/Docker workflows, and recorded the final PRD completion audit in `docs/status/completion-audit.md`.
 - Current-contract status normalization slice: aligned PRD and implementation matrix snapshot rows with completed roadmap items for storage, API, CLI, Web, export targets, Telegram publication, asset privacy/CDN, tenant admin, and media docs.
 - Provider ingestion audit slice: closed the Phase E Telegram fetch/internalization, LINE fetch/internalization, and provider job progress/retry items based on existing worker/API/CLI/MCP/Web coverage and provider worker regression tests.

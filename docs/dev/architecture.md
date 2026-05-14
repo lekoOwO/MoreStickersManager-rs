@@ -151,24 +151,25 @@ user's built-in user permissions, tenant-admin permissions, or custom
 role-template permissions.
 
 Local Web sessions use the same hash-only secret storage pattern in the
-`web_sessions` table. `/api/v1/auth/local/login` preserves the PAT response body
-for API/Web bootstrap compatibility and also sets an HttpOnly `msm_session`
-cookie. Asset authorization accepts that cookie only when the session user owns
-the private pack being read.
+`web_sessions` table. Empty-database service startup creates the configured or
+default tenant/admin local account and logs the bootstrap password once.
+`/api/v1/auth/local/register` only joins existing tenants that have
+`localRegistrationEnabled=true`; it never creates tenants or admin membership.
+`/api/v1/auth/local/login` preserves the PAT response body for API/Web
+compatibility and also sets an HttpOnly `msm_session` cookie. Asset
+authorization accepts that cookie only when the session user owns the private
+pack being read.
 
 Tenant member administration currently lives in `tenant_members`. The API
 requires both a `tenant.manage_members` PAT scope and an `admin` membership in
-the target tenant before listing or upserting member roles. This is the first
-tenant-admin slice. Role templates, tenant settings, local-registration
-enable/disable, tenant user status, and UI/CLI/MCP parity are implemented for
-the current tenant administration surface; OIDC/SSO provider administration is
-still future work.
+the target tenant before listing or upserting member roles. Role templates,
+tenant settings, local-registration enable/disable, tenant user status,
+OIDC/SSO provider administration, and UI/CLI/MCP parity are implemented for the
+current tenant administration surface.
 
 OIDC provider configuration storage lives in `oidc_provider_configs`. It is scoped
 per tenant and stores issuer URL, client ID/secret, requested scopes, enabled
-state, and whether the provider may create local MSM users during callback. The
-current slice is storage-only; OAuth state, callback verification, discovery, and
-admin API/UI surfaces are intentionally left to the Phase D login/callback work.
+state, and whether the provider may create local MSM users during callback.
 
 OIDC login state storage uses `oidc_login_states` and stores only a hash of the
 raw state token. The API start endpoint returns the provider authorization URL

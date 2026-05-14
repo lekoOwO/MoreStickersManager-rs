@@ -52,11 +52,12 @@ const authDialogOpen = ref(false);
 const accessDialogOpen = ref(false);
 const tokenDraft = ref(props.patToken);
 const authUserId = ref(import.meta.env.VITE_MSM_USER_ID || "user_1");
+const authTenantId = ref(import.meta.env.VITE_MSM_TENANT_ID || "default");
 const authDisplayName = ref("Leko");
 const authEmail = ref("");
 const authPassword = ref("");
 const authTokenId = ref("webui");
-const oidcTenantId = ref(import.meta.env.VITE_MSM_TENANT_ID || "tenant_1");
+const oidcTenantId = ref(import.meta.env.VITE_MSM_TENANT_ID || "default");
 const oidcProviderId = ref(import.meta.env.VITE_MSM_OIDC_PROVIDER_ID || "google");
 const oidcRedirectUri = ref(
   typeof window === "undefined"
@@ -292,6 +293,7 @@ async function registerLocalUser() {
       email: authEmail.value.trim(),
       displayName: authDisplayName.value.trim() || authUserId.value.trim(),
       password: authPassword.value,
+      tenantId: authTenantId.value.trim(),
     });
   } catch (error) {
     authError.value = error instanceof Error ? error.message : String(error);
@@ -703,6 +705,14 @@ function requirePatClient() {
           <label class="flex flex-col gap-2 text-sm font-medium">
             {{ labels.userId }}
             <input v-model="authUserId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+          </label>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.localTenantId }}
+            <input
+              v-model="authTenantId"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.localTenantId"
+            />
           </label>
           <label class="flex flex-col gap-2 text-sm font-medium">
             {{ labels.displayName }}

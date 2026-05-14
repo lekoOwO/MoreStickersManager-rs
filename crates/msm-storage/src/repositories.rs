@@ -52,23 +52,69 @@ impl StorageRepository {
         let now = now();
         match &self.pool {
             DbPool::Sqlite(pool) => {
-                sqlx::query("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, ?)")
-                    .bind(id)
-                    .bind(name)
-                    .bind(now)
-                    .execute(pool)
-                    .await?;
+                sqlx::query(
+                    "INSERT INTO tenants (id, name, local_registration_enabled, created_at)
+                    VALUES (?, ?, ?, ?)",
+                )
+                .bind(id)
+                .bind(name)
+                .bind(false)
+                .bind(now)
+                .execute(pool)
+                .await?;
             }
             DbPool::Postgres(pool) => {
-                sqlx::query("INSERT INTO tenants (id, name, created_at) VALUES ($1, $2, $3)")
-                    .bind(id)
-                    .bind(name)
-                    .bind(now)
-                    .execute(pool)
-                    .await?;
+                sqlx::query(
+                    "INSERT INTO tenants (id, name, local_registration_enabled, created_at)
+                    VALUES ($1, $2, $3, $4)",
+                )
+                .bind(id)
+                .bind(name)
+                .bind(false)
+                .bind(now)
+                .execute(pool)
+                .await?;
             }
         }
         Ok(())
+    }
+
+    /// Counts tenants in the database.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when SQL execution fails.
+    pub async fn count_tenants(&self) -> StorageResult<i64> {
+        match &self.pool {
+            DbPool::Sqlite(pool) => {
+                Ok(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM tenants")
+                    .fetch_one(pool)
+                    .await?)
+            }
+            DbPool::Postgres(pool) => {
+                Ok(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM tenants")
+                    .fetch_one(pool)
+                    .await?)
+            }
+        }
+    }
+
+    /// Counts users in the database.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when SQL execution fails.
+    pub async fn count_users(&self) -> StorageResult<i64> {
+        match &self.pool {
+            DbPool::Sqlite(pool) => Ok(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
+                .fetch_one(pool)
+                .await?),
+            DbPool::Postgres(pool) => {
+                Ok(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
+                    .fetch_one(pool)
+                    .await?)
+            }
+        }
     }
 
     /// Finds a tenant by ID.
@@ -4204,7 +4250,7 @@ mod tests {
         let tenant = repo.find_tenant(&tenant_id).await.unwrap().unwrap();
         assert_eq!(tenant.id, tenant_id);
         assert_eq!(tenant.name, "Tenant");
-        assert!(tenant.local_registration_enabled);
+        assert!(!tenant.local_registration_enabled);
 
         let user = repo.find_user(&user_id).await.unwrap().unwrap();
         assert_eq!(user.email, email);
@@ -5184,7 +5230,7 @@ mod tests {
         let initial = repo.find_tenant("tenant_1").await.unwrap().unwrap();
         assert_eq!(initial.name, "Tenant");
         assert_eq!(initial.public_asset_url, None);
-        assert!(initial.local_registration_enabled);
+        assert!(!initial.local_registration_enabled);
 
         let updated = repo
             .update_tenant_settings(

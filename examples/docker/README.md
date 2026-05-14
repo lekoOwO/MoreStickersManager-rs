@@ -58,8 +58,20 @@ admin, CLI, MCP, or API.
 
 ## Bootstrap the first tenant admin
 
-Register a local admin once. This creates the tenant and admin membership; the
-login response returns a PAT that can configure the OIDC provider.
+On an empty database, `msm-app` creates the bootstrap tenant/admin during
+startup and prints the password once in the `bootstrap_admin_created` log event.
+The default tenant ID is `default`; override it with
+`MSM_BOOTSTRAP_TENANT_ID` if needed.
+
+Read the generated or configured password from logs:
+
+```powershell
+docker compose --env-file examples/docker/.env -f examples/docker/docker-compose.yml logs msm |
+  Select-String bootstrap_admin_created
+```
+
+Then log in as the bootstrap admin. The login response returns a PAT that can
+configure the OIDC provider.
 
 PowerShell example:
 
@@ -72,21 +84,15 @@ foreach ($line in $envFile) {
 }
 
 $baseUrl = $vars.MSM_EXTERNAL_URL
-$registerBody = @{
-  id = $vars.MSM_ADMIN_USER_ID
-  email = $vars.MSM_ADMIN_EMAIL
-  displayName = $vars.MSM_ADMIN_DISPLAY_NAME
-  password = $vars.MSM_ADMIN_PASSWORD
-  tenantId = $vars.MSM_TENANT_ID
-  tenantName = $vars.MSM_TENANT_NAME
-  tenantRole = 'admin'
-} | ConvertTo-Json
-
-Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/local/register" -ContentType 'application/json' -Body $registerBody
+$adminEmail = $vars.MSM_BOOTSTRAP_ADMIN_EMAIL
+$adminPassword = $vars.MSM_BOOTSTRAP_ADMIN_PASSWORD
+if ([string]::IsNullOrWhiteSpace($adminPassword)) {
+  $adminPassword = Read-Host -Prompt 'Paste adminPassword from bootstrap_admin_created logs'
+}
 
 $loginBody = @{
-  email = $vars.MSM_ADMIN_EMAIL
-  password = $vars.MSM_ADMIN_PASSWORD
+  email = $adminEmail
+  password = $adminPassword
   tokenId = 'admin-bootstrap'
   tokenName = 'Admin bootstrap'
   scopes = @('tenant.manage_settings','tenant.manage_members','tenant.manage_users','tenant.manage_roles','pat.manage','pack.create','pack.read','pack.update','pack.delete','pack.manage_access','asset.read','import.run','provider.import','export.read','export.run','export.target.manage','subscription.create','subscription.read')
@@ -94,11 +100,12 @@ $loginBody = @{
 } | ConvertTo-Json -Depth 4
 
 $login = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/local/login" -ContentType 'application/json' -Body $loginBody
-$pat = $login.rawToken
+$pat = $login.token
 $pat
 ```
 
-If the user already exists, skip registration and run only the login step.
+If the database is not empty, startup bootstrap is skipped and existing admins
+should log in normally.
 
 ## Register the Authentik provider in MSM
 
@@ -117,7 +124,7 @@ $oidcBody = @{
 
 Invoke-RestMethod `
   -Method Put `
-  -Uri "$baseUrl/api/v1/tenants/$($vars.MSM_TENANT_ID)/oidc-providers/$($vars.MSM_OIDC_PROVIDER_ID)" `
+  -Uri "$baseUrl/api/v1/tenants/$($vars.MSM_BOOTSTRAP_TENANT_ID)/oidc-providers/$($vars.MSM_OIDC_PROVIDER_ID)" `
   -Headers @{ Authorization = "Bearer $pat" } `
   -ContentType 'application/json' `
   -Body $oidcBody

@@ -371,7 +371,7 @@ pub struct TenantMemberResponse {
 pub struct UpdateTenantSettingsRequest {
     pub name: String,
     pub public_asset_url: Option<String>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub local_registration_enabled: bool,
 }
 
@@ -411,10 +411,6 @@ pub struct OidcProviderResponse {
     pub allow_registration: bool,
     pub created_at: String,
     pub updated_at: String,
-}
-
-const fn default_true() -> bool {
-    true
 }
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]

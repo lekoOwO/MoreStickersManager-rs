@@ -167,9 +167,10 @@ release tagging/staging or for drafting the next PRD revision.
   role-allowed scope template.
 - Fine-grained RBAC audit for tenant/resource-owning API routes is closed in
   the PRD.
-- Tenant settings now include a local-registration enable/disable switch across
-  storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
-  new local registrations.
+- Tenant settings include a local-registration enable/disable switch across
+  storage, API/OpenAPI, CLI, MCP, and Web. New tenants default to disabled
+  registration, disabled tenants reject new local registrations, and public
+  local registration no longer creates tenants or admin memberships.
 - Tenant-scoped provider import config storage, API/OpenAPI routes, and CLI commands now exist for Telegram and LINE provider secrets, with recursive token/secret redaction and tenant admin/custom-role write authorization.
 - OIDC provider configuration storage now exists for per-tenant issuer, client,
   scope, enabled-state, and registration-policy settings. API OIDC start/state and callback completion now exist with authorization-code exchange, discovery, signed ID-token validation, and userinfo fallback. CLI, MCP, and Web provider list/upsert/delete management now exist; Web can start OIDC login, show authorization state, prefill provider callback redirects, complete callback requests, and store returned PATs. User docs now cover SSO-backed PAT usage for Web/API/CLI/MCP.
@@ -199,9 +200,9 @@ release tagging/staging or for drafting the next PRD revision.
   whose owner is no longer a member of the token tenant.
 - Fine-grained RBAC audit for tenant/resource-owning API routes is closed in
   the PRD.
-- Tenant settings now include a local-registration enable/disable switch across
-  storage, API/OpenAPI, CLI, MCP, and Web, and disabled existing tenants reject
-  new local registrations.
+- Empty-database service startup now creates the default tenant/admin and logs
+  the bootstrap password once; tenant-local registration remains disabled until
+  an admin enables it through API/CLI/MCP/Web tenant settings.
 
 ## Immediate Plan
 

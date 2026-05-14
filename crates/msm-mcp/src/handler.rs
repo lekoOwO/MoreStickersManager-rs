@@ -1267,7 +1267,7 @@ async fn update_tenant_settings(
             &args.tenant_id,
             &args.name,
             args.public_asset_url.as_deref(),
-            args.local_registration_enabled.unwrap_or(true),
+            args.local_registration_enabled.unwrap_or(false),
         )
         .await
         .map_err(|error| error.to_string())?;

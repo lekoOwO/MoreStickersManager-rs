@@ -79,7 +79,7 @@ Status meanings:
 | Export targets | Implemented | MoreStickers export and Telegram planning/publication/reconciliation targets exist with API/CLI/MCP/Web parity and failed-job recovery. Non-Telegram future remote targets dispatch through an injectable unsupported-target boundary so planned future adapters do not masquerade as implemented. |
 | Media conversion | Implemented | Profiles, ffmpeg command plans, ffprobe command/report parsing, converter stdout/stderr/exit-code diagnostics, prepared-media cache reuse, export-job result visibility for output metadata, and target-specific validation exist. |
 | Telegram publication | Implemented | `teloxide` boundary, publish, mutation, reconciliation planning, guarded execution, remote metadata fetch, mapping persistence, publication history, failed-job recovery, and Web/API/CLI/MCP controls exist for the current Telegram sticker-set contract. |
-| Auth/RBAC | Implemented | PAT scopes, local auth, Web session cookie storage, bootstrap admin, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, local-registration enable/disable tenant settings, OIDC provider administration, OIDC login/callback with authorization-code exchange, verified ID-token/JWKS and userinfo handling, SSO-backed PAT/session issuance, SSO usage docs, and cross-tenant audit coverage exist. |
+| Auth/RBAC | Implemented | PAT scopes, local auth, Web session cookie storage, first-start default tenant/admin bootstrap with console/log credentials, PAT lifecycle scope policy, API/CLI/MCP/Web scope-policy discovery, tenant member/settings/user-status/role-template administration, tenant-scoped local-registration enable/disable settings defaulting off, OIDC provider administration, OIDC login/callback with authorization-code exchange, verified ID-token/JWKS and userinfo handling, SSO-backed PAT/session issuance, SSO usage docs, and cross-tenant audit coverage exist. |
 | Asset privacy/CDN | Implemented | Tenant public asset/CDN URL settings exist across API/OpenAPI, CLI, MCP, and Web. `MSM_PUBLIC_ASSET_URL` provides a system-wide fallback CDN base, and tenant settings take precedence. Protected pack exports and public pack/subscription payloads rewrite local sticker asset URLs to the selected CDN base when configured. Private pack/subscription reads accept owner PAT, matching subscription secret, or owner Web session. |
 | Data portability | Implemented | Storage helpers plus API/OpenAPI, CLI, Web, and MCP portable user export/import surfaces exist, with cross-instance API compatibility coverage for moving user data between MSM instances. |
 | CI/release | Implemented | CI, Docker publish, prerelease, release workflows, Dockerfile, and dev manager exist. |
@@ -178,12 +178,25 @@ tests and docs are updated.
 
 ### Phase D: Auth Providers
 
-- [x] Local registration/login bootstrap.
+- [x] First-start default tenant/admin bootstrap.
+  Progress: service startup now creates a `default` tenant and `admin`
+  local account only when the database has no tenants and no users. The
+  generated or configured bootstrap password is emitted through the structured
+  `bootstrap_admin_created` console/log event. The bootstrapped tenant keeps
+  `localRegistrationEnabled=false`.
+- [x] Local registration/login.
+  Progress: local register now requires an existing tenant with
+  `localRegistrationEnabled=true`, creates a normal `user` membership only,
+  and no longer creates tenants or allows self-assigned `admin` membership.
+  Login still verifies Argon2 credentials, returns a PAT, and creates a Web
+  session cookie.
 - [x] Admin switches for enabling/disabling local registration.
   Progress: tenant settings now include `localRegistrationEnabled` across
   SQLite storage, API/OpenAPI DTOs, CLI, MCP, and Web tenant administration.
   Existing tenants can reject local registrations while existing accounts
-  continue to log in; new-tenant bootstrap remains available.
+  continue to log in. New tenants default to closed registration, and the
+  switch is managed through API/CLI/MCP/Web tenant settings instead of runtime
+  env.
 - [x] OIDC provider configuration storage.
   Progress: SQLite migration, repository methods, and tenant admin API/OpenAPI
   routes now store per-tenant OIDC provider configs with issuer, redacted client

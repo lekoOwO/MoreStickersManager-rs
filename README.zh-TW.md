@@ -86,7 +86,9 @@ curl -fsS http://localhost:3000/readyz
 
 接著開啟 `http://localhost:3000`，或你設定的 `MSM_EXTERNAL_URL`。
 
-包含 Authentik SSO 與第一個 admin bootstrap 的完整部署說明在
+第一次用空資料庫啟動時，MSM 會建立預設 tenant/admin，並在
+`bootstrap_admin_created` log event 印出 admin 密碼。包含 Authentik SSO
+與第一個 admin bootstrap 的完整部署說明在
 [`examples/docker/README.md`](examples/docker/README.md)。
 
 ## Authentik / OIDC SSO
@@ -101,7 +103,7 @@ curl -fsS http://localhost:3000/readyz
    ```
 
 3. 把 issuer URL、client ID、client secret 填入部署 env。
-4. Bootstrap 或登入 tenant admin。
+4. 用第一次啟動產生的 bootstrap admin 或其他 tenant admin 登入。
 5. 從 Web UI Tenant admin、CLI、API 或 MCP 新增 OIDC provider。
 
 請參考 [`examples/docker/README.md`](examples/docker/README.md) 與

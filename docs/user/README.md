@@ -666,7 +666,20 @@ PAT enforcement status:
   same-tenant admins with matching PAT scopes can manage non-owned packs, while
   regular non-owners are denied.
 
-Local auth bootstrap endpoints:
+First-start local admin bootstrap:
+
+- On an empty database, `msm-app` creates tenant `default` and local admin
+  user `admin` during startup.
+- The admin email defaults to `admin@msm.local`.
+- The generated password is printed once in the structured
+  `bootstrap_admin_created` console/log event as `adminPassword`.
+- Optional startup overrides are `MSM_BOOTSTRAP_TENANT_ID`,
+  `MSM_BOOTSTRAP_TENANT_NAME`, `MSM_BOOTSTRAP_ADMIN_USER_ID`,
+  `MSM_BOOTSTRAP_ADMIN_EMAIL`, `MSM_BOOTSTRAP_ADMIN_DISPLAY_NAME`, and
+  `MSM_BOOTSTRAP_ADMIN_PASSWORD`.
+- The bootstrapped tenant keeps local self-registration disabled by default.
+
+Local auth endpoints:
 
 - `POST /api/v1/auth/local/register`
 - `POST /api/v1/auth/local/login`
@@ -682,7 +695,9 @@ the API-issued cookie for Web-session protected asset reads.
 
 OIDC provider login is implemented for the current Web/API contract. The login start endpoint returns an authorization URL plus one-time state and nonce values. The callback endpoint can exchange an authorization code, verify ID-token issuer/audience/nonce/expiration and RS256 JWKS signature, fetch userinfo when profile claims are missing, link or create a tenant user when provider registration allows it, return a PAT, and set an `msm_session` cookie. See `docs/user/oidc-sso.md` for the full SSO-backed account guide.
 
-Local register can also bootstrap a tenant admin:
+Local registration joins an existing tenant only when tenant settings allow it.
+It always creates a normal `user` membership; use tenant member administration
+to promote a member to `admin`.
 
 ```json
 {
@@ -690,9 +705,7 @@ Local register can also bootstrap a tenant admin:
   "email": "leko@example.com",
   "displayName": "Leko",
   "password": "password",
-  "tenantId": "tenant_1",
-  "tenantName": "Tenant",
-  "tenantRole": "admin"
+  "tenantId": "default"
 }
 ```
 
@@ -758,7 +771,8 @@ Tenant CDN URLs take precedence over the system-wide `MSM_PUBLIC_ASSET_URL`
 fallback for protected pack exports and public subscription payloads.
 When `localRegistrationEnabled` is `false`, existing users can still log in,
 but `POST /api/v1/auth/local/register` rejects new registrations into that
-existing tenant. New-tenant bootstrap registrations are still allowed.
+tenant. New tenants default to `localRegistrationEnabled=false`, and public
+local registration no longer creates tenants.
 
 OIDC provider administration currently exists on the API, CLI, MCP, and Web tenant admin surfaces. Provider
 responses redact `clientSecret`; update calls replace it with the submitted

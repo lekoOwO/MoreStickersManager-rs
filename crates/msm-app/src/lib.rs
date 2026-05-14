@@ -60,6 +60,7 @@ pub struct AppConfig {
     pub export_worker: ExportWorkerConfig,
     pub provider_import_worker: ProviderImportWorkerConfig,
     pub bootstrap_export_targets: Vec<BootstrapExportTargetConfig>,
+    pub first_start_bootstrap: FirstStartBootstrapConfig,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -70,6 +71,26 @@ pub struct BootstrapExportTargetConfig {
     pub name: String,
     pub config_json: String,
     pub is_enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FirstStartBootstrapConfig {
+    pub tenant_id: String,
+    pub tenant_name: String,
+    pub admin_user_id: String,
+    pub admin_email: String,
+    pub admin_display_name: String,
+    pub admin_password: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BootstrapAdminCredentials {
+    pub tenant_id: String,
+    pub tenant_name: String,
+    pub admin_user_id: String,
+    pub admin_email: String,
+    pub password: String,
+    pub password_was_generated: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -85,6 +106,9 @@ pub enum AppError {
 
     #[error("invalid JSON environment value `{key}`: {message}")]
     InvalidJson { key: String, message: String },
+
+    #[error("random generation failed: {message}")]
+    Random { message: String },
 
     #[error("storage error: {0}")]
     Storage(#[from] msm_storage::StorageError),
@@ -115,6 +139,11 @@ impl AppConfig {
         msm_api::state::DEFAULT_IMPORT_RATE_LIMIT_REQUESTS;
     pub const DEFAULT_IMPORT_RATE_LIMIT_WINDOW_SECS: u64 =
         msm_api::state::DEFAULT_IMPORT_RATE_LIMIT_WINDOW_SECS;
+    pub const DEFAULT_BOOTSTRAP_TENANT_ID: &'static str = "default";
+    pub const DEFAULT_BOOTSTRAP_TENANT_NAME: &'static str = "Default workspace";
+    pub const DEFAULT_BOOTSTRAP_ADMIN_USER_ID: &'static str = "admin";
+    pub const DEFAULT_BOOTSTRAP_ADMIN_EMAIL: &'static str = "admin@msm.local";
+    pub const DEFAULT_BOOTSTRAP_ADMIN_DISPLAY_NAME: &'static str = "MSM Admin";
 
     /// Reads service configuration from process environment variables.
     ///
@@ -221,6 +250,7 @@ impl AppConfig {
                 )?),
             },
             bootstrap_export_targets: read_bootstrap_export_targets(vars)?,
+            first_start_bootstrap: read_first_start_bootstrap_config(vars),
         })
     }
 }
@@ -237,6 +267,22 @@ pub async fn initialize_state(config: &AppConfig) -> AppResult<ApiState> {
     pool.run_migrations().await?;
     std::fs::create_dir_all(&config.asset_dir)?;
     let repository = StorageRepository::new(pool);
+    if let Some(credentials) =
+        bootstrap_first_start_admin(&repository, &config.first_start_bootstrap).await?
+    {
+        log_service_event(
+            "bootstrap_admin_created",
+            serde_json::json!({
+                "tenantId": credentials.tenant_id,
+                "tenantName": credentials.tenant_name,
+                "adminUserId": credentials.admin_user_id,
+                "adminEmail": credentials.admin_email,
+                "adminPassword": credentials.password,
+                "passwordWasGenerated": credentials.password_was_generated,
+                "localRegistrationEnabled": false,
+            }),
+        );
+    }
     bootstrap_export_targets(&repository, &config.bootstrap_export_targets).await?;
     let asset_store = LocalAssetStore::new(config.asset_dir.clone());
     Ok(ApiState::new(repository, asset_store)
@@ -275,6 +321,56 @@ async fn bootstrap_export_targets(
         }
     }
     Ok(())
+}
+
+async fn bootstrap_first_start_admin(
+    repository: &StorageRepository,
+    config: &FirstStartBootstrapConfig,
+) -> AppResult<Option<BootstrapAdminCredentials>> {
+    if repository.count_tenants().await? != 0 || repository.count_users().await? != 0 {
+        return Ok(None);
+    }
+
+    let password_was_generated = config.admin_password.is_none();
+    let password = config
+        .admin_password
+        .clone()
+        .map_or_else(generate_bootstrap_password, Ok)?;
+    repository
+        .create_tenant(&config.tenant_id, &config.tenant_name)
+        .await?;
+    repository
+        .create_local_user_with_password(
+            &config.admin_user_id,
+            &config.admin_email,
+            &config.admin_display_name,
+            &password,
+        )
+        .await?;
+    repository
+        .add_tenant_member(&config.tenant_id, &config.admin_user_id, "admin")
+        .await?;
+
+    Ok(Some(BootstrapAdminCredentials {
+        tenant_id: config.tenant_id.clone(),
+        tenant_name: config.tenant_name.clone(),
+        admin_user_id: config.admin_user_id.clone(),
+        admin_email: config.admin_email.clone(),
+        password,
+        password_was_generated,
+    }))
+}
+
+fn generate_bootstrap_password() -> AppResult<String> {
+    const ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789_-+=.";
+    let mut bytes = [0_u8; 32];
+    getrandom::fill(&mut bytes).map_err(|error| AppError::Random {
+        message: error.to_string(),
+    })?;
+    Ok(bytes
+        .iter()
+        .map(|byte| char::from(ALPHABET[usize::from(*byte) % ALPHABET.len()]))
+        .collect())
 }
 
 pub fn build_app_router(
@@ -358,6 +454,37 @@ fn read_optional(vars: &BTreeMap<String, String>, key: &str) -> Option<String> {
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
+}
+
+fn read_first_start_bootstrap_config(vars: &BTreeMap<String, String>) -> FirstStartBootstrapConfig {
+    FirstStartBootstrapConfig {
+        tenant_id: read(
+            vars,
+            "MSM_BOOTSTRAP_TENANT_ID",
+            AppConfig::DEFAULT_BOOTSTRAP_TENANT_ID,
+        ),
+        tenant_name: read(
+            vars,
+            "MSM_BOOTSTRAP_TENANT_NAME",
+            AppConfig::DEFAULT_BOOTSTRAP_TENANT_NAME,
+        ),
+        admin_user_id: read(
+            vars,
+            "MSM_BOOTSTRAP_ADMIN_USER_ID",
+            AppConfig::DEFAULT_BOOTSTRAP_ADMIN_USER_ID,
+        ),
+        admin_email: read(
+            vars,
+            "MSM_BOOTSTRAP_ADMIN_EMAIL",
+            AppConfig::DEFAULT_BOOTSTRAP_ADMIN_EMAIL,
+        ),
+        admin_display_name: read(
+            vars,
+            "MSM_BOOTSTRAP_ADMIN_DISPLAY_NAME",
+            AppConfig::DEFAULT_BOOTSTRAP_ADMIN_DISPLAY_NAME,
+        ),
+        admin_password: read_optional(vars, "MSM_BOOTSTRAP_ADMIN_PASSWORD"),
+    }
 }
 
 fn read_usize(vars: &BTreeMap<String, String>, key: &str, default: usize) -> AppResult<usize> {
@@ -514,7 +641,9 @@ fn status_response(status: StatusCode) -> Response<Body> {
 mod tests {
     use std::{collections::BTreeMap, net::SocketAddr, path::PathBuf};
 
-    use crate::AppConfig;
+    use msm_storage::{DatabaseConfig, DbPool, StorageRepository};
+
+    use crate::{AppConfig, FirstStartBootstrapConfig};
 
     #[test]
     fn config_uses_defaults() {
@@ -570,6 +699,15 @@ mod tests {
             std::time::Duration::from_mins(1)
         );
         assert!(config.bootstrap_export_targets.is_empty());
+        assert_eq!(config.first_start_bootstrap.tenant_id, "default");
+        assert_eq!(
+            config.first_start_bootstrap.tenant_name,
+            "Default workspace"
+        );
+        assert_eq!(config.first_start_bootstrap.admin_user_id, "admin");
+        assert_eq!(config.first_start_bootstrap.admin_email, "admin@msm.local");
+        assert_eq!(config.first_start_bootstrap.admin_display_name, "MSM Admin");
+        assert_eq!(config.first_start_bootstrap.admin_password, None);
     }
 
     #[test]
@@ -621,6 +759,30 @@ mod tests {
         vars.insert(
             "MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS".to_owned(),
             "1500".to_owned(),
+        );
+        vars.insert(
+            "MSM_BOOTSTRAP_TENANT_ID".to_owned(),
+            "tenant_boot".to_owned(),
+        );
+        vars.insert(
+            "MSM_BOOTSTRAP_TENANT_NAME".to_owned(),
+            "Bootstrap Tenant".to_owned(),
+        );
+        vars.insert(
+            "MSM_BOOTSTRAP_ADMIN_USER_ID".to_owned(),
+            "admin_boot".to_owned(),
+        );
+        vars.insert(
+            "MSM_BOOTSTRAP_ADMIN_EMAIL".to_owned(),
+            "admin@example.test".to_owned(),
+        );
+        vars.insert(
+            "MSM_BOOTSTRAP_ADMIN_DISPLAY_NAME".to_owned(),
+            "Bootstrap Admin".to_owned(),
+        );
+        vars.insert(
+            "MSM_BOOTSTRAP_ADMIN_PASSWORD".to_owned(),
+            "known-dev-password".to_owned(),
         );
         insert_bootstrap_export_target_override(&mut vars);
 
@@ -683,6 +845,21 @@ mod tests {
         assert_eq!(
             config.bootstrap_export_targets[0].config_json,
             r#"{"botToken":"secret","botUsername":"msm_bot"}"#
+        );
+        assert_eq!(config.first_start_bootstrap.tenant_id, "tenant_boot");
+        assert_eq!(config.first_start_bootstrap.tenant_name, "Bootstrap Tenant");
+        assert_eq!(config.first_start_bootstrap.admin_user_id, "admin_boot");
+        assert_eq!(
+            config.first_start_bootstrap.admin_email,
+            "admin@example.test"
+        );
+        assert_eq!(
+            config.first_start_bootstrap.admin_display_name,
+            "Bootstrap Admin"
+        );
+        assert_eq!(
+            config.first_start_bootstrap.admin_password.as_deref(),
+            Some("known-dev-password")
         );
     }
 
@@ -788,10 +965,7 @@ mod tests {
 
     #[tokio::test]
     async fn bootstrap_export_targets_creates_and_updates_targets() {
-        let config = msm_storage::DatabaseConfig::parse("sqlite::memory:").unwrap();
-        let pool = msm_storage::DbPool::connect(&config).await.unwrap();
-        pool.run_migrations().await.unwrap();
-        let repository = msm_storage::StorageRepository::new(pool);
+        let repository = test_repository().await;
         repository
             .create_tenant("tenant_1", "Tenant")
             .await
@@ -821,6 +995,85 @@ mod tests {
             .unwrap();
         assert_eq!(stored.name, "Telegram Updated");
         assert!(!stored.is_enabled);
+    }
+
+    #[tokio::test]
+    async fn first_start_bootstrap_creates_default_tenant_admin_on_empty_database() {
+        let repository = test_repository().await;
+        let config = FirstStartBootstrapConfig {
+            tenant_id: "tenant_boot".to_owned(),
+            tenant_name: "Bootstrap Tenant".to_owned(),
+            admin_user_id: "admin_boot".to_owned(),
+            admin_email: "admin@example.test".to_owned(),
+            admin_display_name: "Bootstrap Admin".to_owned(),
+            admin_password: Some("known-bootstrap-password".to_owned()),
+        };
+
+        let created = super::bootstrap_first_start_admin(&repository, &config)
+            .await
+            .unwrap()
+            .expect("empty database should be bootstrapped");
+
+        assert_eq!(created.tenant_id, "tenant_boot");
+        assert_eq!(created.tenant_name, "Bootstrap Tenant");
+        assert_eq!(created.admin_user_id, "admin_boot");
+        assert_eq!(created.admin_email, "admin@example.test");
+        assert_eq!(created.password, "known-bootstrap-password");
+        assert!(!created.password_was_generated);
+        let tenant = repository
+            .find_tenant("tenant_boot")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(tenant.name, "Bootstrap Tenant");
+        assert!(!tenant.local_registration_enabled);
+        let member = repository
+            .find_tenant_member("tenant_boot", "admin_boot")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(member.role, "admin");
+        assert!(repository
+            .verify_local_user_password("admin@example.test", "known-bootstrap-password")
+            .await
+            .unwrap()
+            .is_some());
+    }
+
+    #[tokio::test]
+    async fn first_start_bootstrap_skips_non_empty_database() {
+        let repository = test_repository().await;
+        repository
+            .create_tenant("tenant_existing", "Existing")
+            .await
+            .unwrap();
+        let config = FirstStartBootstrapConfig {
+            tenant_id: "tenant_boot".to_owned(),
+            tenant_name: "Bootstrap Tenant".to_owned(),
+            admin_user_id: "admin_boot".to_owned(),
+            admin_email: "admin@example.test".to_owned(),
+            admin_display_name: "Bootstrap Admin".to_owned(),
+            admin_password: Some("known-bootstrap-password".to_owned()),
+        };
+
+        let skipped = super::bootstrap_first_start_admin(&repository, &config)
+            .await
+            .unwrap();
+
+        assert!(skipped.is_none());
+        assert!(repository
+            .find_tenant("tenant_boot")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(repository.find_user("admin_boot").await.unwrap().is_none());
+    }
+
+    async fn test_repository() -> StorageRepository {
+        let database = DatabaseConfig::parse("sqlite::memory:").unwrap();
+        let pool = DbPool::connect(&database).await.unwrap();
+        pool.run_migrations().await.unwrap();
+        StorageRepository::new(pool)
     }
 
     #[test]

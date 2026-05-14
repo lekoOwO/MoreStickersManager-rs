@@ -49,7 +49,7 @@ const internalSection = ref<WorkspaceSection>(props.activeSection ?? "packs");
 const drafts = ref<Record<string, { title: string; visibility: WritablePackVisibility }>>({});
 
 const labels = computed(() => allMessages()[props.locale]);
-const tenantId = computed(() => props.tenantId ?? import.meta.env.VITE_MSM_TENANT_ID ?? "tenant_1");
+const tenantId = computed(() => props.tenantId ?? import.meta.env.VITE_MSM_TENANT_ID ?? "default");
 const ownerUserId = computed(() => props.ownerUserId ?? import.meta.env.VITE_MSM_USER_ID ?? "user_1");
 const currentSection = computed(() => props.activeSection ?? internalSection.value);
 const currentSectionLabel = computed(() =>

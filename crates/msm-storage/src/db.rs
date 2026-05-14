@@ -143,11 +143,11 @@ mod tests {
             SQLITE_MIGRATOR.iter().count(),
             POSTGRES_MIGRATOR.iter().count()
         );
-        assert!(POSTGRES_MIGRATOR
-            .iter()
-            .any(|migration| migration.sql.contains("BOOLEAN NOT NULL DEFAULT TRUE")));
+        assert!(POSTGRES_MIGRATOR.iter().any(|migration| migration
+            .sql
+            .contains("ALTER COLUMN local_registration_enabled SET DEFAULT FALSE")));
         assert!(SQLITE_MIGRATOR
             .iter()
-            .any(|migration| migration.sql.contains("INTEGER NOT NULL DEFAULT 1")));
+            .any(|migration| migration.sql.contains("SET local_registration_enabled = 0")));
     }
 }
