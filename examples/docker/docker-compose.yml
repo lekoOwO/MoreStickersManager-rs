@@ -5,7 +5,7 @@
 #   edit examples/docker/.env
 #   docker compose --env-file examples/docker/.env -f examples/docker/docker-compose.yml up -d --build
 #
-# This compose file builds the local repository by default. Set MSM_IMAGE in
+# This compose file builds the local repository by default. Set _MSM_IMAGE in
 # .env if you prefer pulling a prebuilt image.
 
 services:
@@ -25,7 +25,7 @@ services:
       retries: 10
 
   msm:
-    image: ${MSM_IMAGE:-morestickersmanager-rs:local}
+    image: ${_MSM_IMAGE:-morestickersmanager-rs:local}
     build:
       context: ../..
       dockerfile: Dockerfile
@@ -41,7 +41,7 @@ services:
       MSM_ASSET_DIR: /data/assets
       MSM_PREPARED_MEDIA_DIR: /data/prepared-media
       MSM_PUBLIC_ASSET_URL: ${MSM_PUBLIC_ASSET_URL:-}
-      MSM_PUBLIC_ASSET_BASE_URL: ${MSM_PUBLIC_ASSET_BASE_URL:-${MSM_EXTERNAL_URL:-http://localhost:3000}}
+      MSM_PUBLIC_ASSET_BASE_URL: ${MSM_PUBLIC_ASSET_BASE_URL:-${_MSM_EXTERNAL_URL:-http://localhost:3000}}
       MSM_REQUEST_BODY_LIMIT_BYTES: ${MSM_REQUEST_BODY_LIMIT_BYTES:-10485760}
       MSM_IMPORT_RATE_LIMIT_REQUESTS: ${MSM_IMPORT_RATE_LIMIT_REQUESTS:-60}
       MSM_IMPORT_RATE_LIMIT_WINDOW_SECS: ${MSM_IMPORT_RATE_LIMIT_WINDOW_SECS:-60}
@@ -53,7 +53,7 @@ services:
       MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS: ${MSM_PROVIDER_IMPORT_RETRY_BACKOFF_MS:-60000}
       MSM_BOOTSTRAP_EXPORT_TARGETS_JSON: ${MSM_BOOTSTRAP_EXPORT_TARGETS_JSON:-}
     ports:
-      - "${MSM_HTTP_PORT:-3000}:3000"
+      - "${_MSM_HTTP_PORT:-3000}:3000"
     volumes:
       - msm-app-data:/data
     healthcheck:

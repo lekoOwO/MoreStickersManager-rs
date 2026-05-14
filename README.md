@@ -94,7 +94,7 @@ docker compose --env-file examples/docker/.env -f examples/docker/docker-compose
 curl -fsS http://localhost:3000/readyz
 ```
 
-Open `http://localhost:3000` or your configured `MSM_EXTERNAL_URL`.
+Open `http://localhost:3000` or your configured `_MSM_EXTERNAL_URL`.
 
 On the first empty-database start, MSM creates the default tenant/admin and
 prints the admin password in the `bootstrap_admin_created` log event. Full
@@ -109,7 +109,7 @@ To connect Authentik:
 2. Set the allowed redirect URI to:
 
    ```text
-   ${MSM_EXTERNAL_URL}/auth/oidc/callback
+   ${_MSM_EXTERNAL_URL}/auth/oidc/callback
    ```
 
 3. Copy the issuer URL, client ID, and client secret into your deployment env.

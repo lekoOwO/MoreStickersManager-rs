@@ -25,7 +25,7 @@ Check readiness:
 curl -fsS http://localhost:3000/readyz
 ```
 
-Open the Web UI at the value of `MSM_EXTERNAL_URL`, for example
+Open the Web UI at the value of `_MSM_EXTERNAL_URL`, for example
 `http://localhost:3000`.
 
 ## Authentik application/provider settings
@@ -40,17 +40,17 @@ Recommended Authentik provider values:
 | Signing key | Your normal Authentik signing key |
 | Client type | Confidential |
 | Authorization flow | Your normal explicit-consent or default authorization flow |
-| Redirect URI / allowed redirect URI | `${MSM_EXTERNAL_URL}/auth/oidc/callback` |
+| Redirect URI / allowed redirect URI | `${_MSM_EXTERNAL_URL}/auth/oidc/callback` |
 | Scopes | `openid`, `email`, `profile` |
 | Subject mode | stable per-user subject, usually Authentik default |
 
 Then copy these Authentik values into `examples/docker/.env`:
 
-- `MSM_OIDC_ISSUER_URL` — usually
+- `_MSM_OIDC_ISSUER_URL` — usually
   `https://<authentik-host>/application/o/<slug>/`.
-- `MSM_OIDC_CLIENT_ID`.
-- `MSM_OIDC_CLIENT_SECRET`.
-- `MSM_OIDC_SCOPES` — normally `openid email profile`.
+- `_MSM_OIDC_CLIENT_ID`.
+- `_MSM_OIDC_CLIENT_SECRET`.
+- `_MSM_OIDC_SCOPES` — normally `openid email profile`.
 
 The OIDC values in `.env` are setup inputs. `msm-app` stores OIDC providers in
 its database, so you still need to register the provider once through Web Tenant
@@ -83,7 +83,7 @@ foreach ($line in $envFile) {
   $vars[$key] = $value
 }
 
-$baseUrl = $vars.MSM_EXTERNAL_URL
+$baseUrl = $vars['_MSM_EXTERNAL_URL']
 $adminEmail = $vars.MSM_BOOTSTRAP_ADMIN_EMAIL
 $adminPassword = $vars.MSM_BOOTSTRAP_ADMIN_PASSWORD
 if ([string]::IsNullOrWhiteSpace($adminPassword)) {
@@ -113,18 +113,18 @@ PowerShell example using the PAT from the previous step:
 
 ```powershell
 $oidcBody = @{
-  displayName = $vars.MSM_OIDC_DISPLAY_NAME
-  issuerUrl = $vars.MSM_OIDC_ISSUER_URL
-  clientId = $vars.MSM_OIDC_CLIENT_ID
-  clientSecret = $vars.MSM_OIDC_CLIENT_SECRET
-  scopes = $vars.MSM_OIDC_SCOPES.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
+  displayName = $vars['_MSM_OIDC_DISPLAY_NAME']
+  issuerUrl = $vars['_MSM_OIDC_ISSUER_URL']
+  clientId = $vars['_MSM_OIDC_CLIENT_ID']
+  clientSecret = $vars['_MSM_OIDC_CLIENT_SECRET']
+  scopes = $vars['_MSM_OIDC_SCOPES'].Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
   isEnabled = $true
-  allowRegistration = [System.Convert]::ToBoolean($vars.MSM_OIDC_ALLOW_REGISTRATION)
+  allowRegistration = [System.Convert]::ToBoolean($vars['_MSM_OIDC_ALLOW_REGISTRATION'])
 } | ConvertTo-Json -Depth 4
 
 Invoke-RestMethod `
   -Method Put `
-  -Uri "$baseUrl/api/v1/tenants/$($vars.MSM_BOOTSTRAP_TENANT_ID)/oidc-providers/$($vars.MSM_OIDC_PROVIDER_ID)" `
+  -Uri "$baseUrl/api/v1/tenants/$($vars.MSM_BOOTSTRAP_TENANT_ID)/oidc-providers/$($vars['_MSM_OIDC_PROVIDER_ID'])" `
   -Headers @{ Authorization = "Bearer $pat" } `
   -ContentType 'application/json' `
   -Body $oidcBody

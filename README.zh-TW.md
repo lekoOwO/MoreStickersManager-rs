@@ -84,7 +84,7 @@ docker compose --env-file examples/docker/.env -f examples/docker/docker-compose
 curl -fsS http://localhost:3000/readyz
 ```
 
-接著開啟 `http://localhost:3000`，或你設定的 `MSM_EXTERNAL_URL`。
+接著開啟 `http://localhost:3000`，或你設定的 `_MSM_EXTERNAL_URL`。
 
 第一次用空資料庫啟動時，MSM 會建立預設 tenant/admin，並在
 `bootstrap_admin_created` log event 印出 admin 密碼。包含 Authentik SSO
@@ -99,7 +99,7 @@ curl -fsS http://localhost:3000/readyz
 2. Allowed redirect URI 設為：
 
    ```text
-   ${MSM_EXTERNAL_URL}/auth/oidc/callback
+   ${_MSM_EXTERNAL_URL}/auth/oidc/callback
    ```
 
 3. 把 issuer URL、client ID、client secret 填入部署 env。
