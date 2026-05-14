@@ -44,6 +44,9 @@ jobs:
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust
+          cache-bin: false
 
       - name: Format
         run: cargo fmt --all -- --check
@@ -102,11 +105,11 @@ jobs:
             target: aarch64-unknown-linux-musl
             artifact_name: msm-linux-arm64-musl
             use_cross: true
-          - os: macos-latest
+          - os: macos-15-intel
             target: x86_64-apple-darwin
             artifact_name: msm-darwin-x64
             use_cross: false
-          - os: macos-latest
+          - os: macos-15
             target: aarch64-apple-darwin
             artifact_name: msm-darwin-arm64
             use_cross: false
@@ -125,6 +128,10 @@ jobs:
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust
+          cache-bin: false
+          save-if: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

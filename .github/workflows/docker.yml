@@ -47,6 +47,9 @@ jobs:
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust
+          cache-bin: false
 
       - name: Format
         run: cargo fmt --all -- --check
