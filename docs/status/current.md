@@ -14,8 +14,11 @@ Last completed:
   `3a45528`. The patch was then applied to a clean local Equicord worktree,
   dependencies were installed using a D-drive pnpm store, and `pnpm testTsc`,
   targeted moreStickers ESLint/stylelint, and `pnpm buildStandalone` passed.
-  Full `pnpm lint` still fails only on upstream-unrelated files, and
-  Discord/Equicord runtime verification remains pending.
+  Full `pnpm lint` still fails only on upstream-unrelated files. The patch was
+  pushed to `lekoOwO/Vencord:msm-morestickers-adapter` and opened as
+  Equicord PR https://github.com/Equicord/Equicord/pull/1084; PR
+  GitHub Actions `Test` passed. PR review/merge/deployment and
+  Discord/Equicord runtime verification remain pending.
 - Equicord moreStickers MSM adapter planning slice: inspected the upstream
   plugin's static and dynamic pack handling, documented the MSM adapter contract
   in `docs/integrations/equicord-morestickers-msm-adapter.md`, added

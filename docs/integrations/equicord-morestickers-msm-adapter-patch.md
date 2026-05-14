@@ -4,6 +4,10 @@ Patch file:
 
 - `docs/integrations/patches/equicord-morestickers-msm-adapter.patch`
 
+Upstream pull request:
+
+- https://github.com/Equicord/Equicord/pull/1084
+
 Upstream base inspected:
 
 - Repository: `https://github.com/Equicord/Equicord`
@@ -38,6 +42,7 @@ Evidence collected in this repository:
 - Targeted ESLint passed for the changed moreStickers TypeScript/TSX files.
 - Targeted stylelint passed for `src/equicordplugins/moreStickers/style.css`.
 - `pnpm buildStandalone` passed.
+- Equicord PR 1084 GitHub Actions `Test` check passed.
 - Patch content includes new `assetCache.tsx` and `msm.ts` files plus settings,
   picker, upload, dynamic-sync, type, and style updates.
 
@@ -48,6 +53,7 @@ Not yet verified:
   `src/main/hostUpdateHook.ts`, and `src/main/patchWin32Updater.ts`.
 - Runtime behavior inside Discord/Equicord.
 - Public and protected MSM pack/group subscriptions end-to-end.
+- PR review, merge, and deployment status in Equicord.
 
 ## Apply Command
 

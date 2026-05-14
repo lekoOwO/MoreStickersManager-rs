@@ -106,8 +106,11 @@ Status meanings:
    - [x] Verify plugin-side header-aware asset blob cache code path for
      protected MSM assets through TypeScript, targeted lint, and standalone
      build.
-   - [ ] Upstream the prepared Equicord plugin patch or otherwise make it
-     available in the actual deployed plugin repository.
+   - [x] Upstream the prepared Equicord plugin patch or otherwise make it
+     available in the actual deployed plugin repository. PR:
+     https://github.com/Equicord/Equicord/pull/1084.
+   - [ ] Track PR review/merge/deployment status for the Equicord plugin patch
+     (PR 1084 is open and its GitHub Actions `Test` check passed).
    - [ ] Runtime-verify public and protected MSM pack/group subscriptions in
      Discord/Equicord.
 
