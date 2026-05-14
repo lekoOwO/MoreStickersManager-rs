@@ -11,9 +11,11 @@ Last completed:
   `docs/integrations/equicord-morestickers-msm-adapter-patch.md` with scope,
   apply command, and verification limits. Patch whitespace checks passed, and
   `git apply --check` passed against a clean detached Equicord worktree at
-  `3a45528`; local Equicord TypeScript/runtime verification remains pending
-  because the sparse clone has no installed dependencies and the current shell
-  has no global `tsc`.
+  `3a45528`. The patch was then applied to a clean local Equicord worktree,
+  dependencies were installed using a D-drive pnpm store, and `pnpm testTsc`,
+  targeted moreStickers ESLint/stylelint, and `pnpm buildStandalone` passed.
+  Full `pnpm lint` still fails only on upstream-unrelated files, and
+  Discord/Equicord runtime verification remains pending.
 - Equicord moreStickers MSM adapter planning slice: inspected the upstream
   plugin's static and dynamic pack handling, documented the MSM adapter contract
   in `docs/integrations/equicord-morestickers-msm-adapter.md`, added

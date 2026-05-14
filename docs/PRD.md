@@ -96,15 +96,20 @@ Status meanings:
    - [x] Prepare an Equicord plugin patch artifact for adding MSM subscriptions
      from URL. Artifact:
      `docs/integrations/patches/equicord-morestickers-msm-adapter.patch`.
-   - [ ] Upstream or apply the prepared Equicord plugin patch in the plugin
-     repository.
-   - [ ] Verify plugin-side direct MSM fetch that never sends MSM bearer
-     credentials through third-party CORS proxies.
-   - [ ] Verify plugin-side dynamic pack-set sync fixes for initial add,
-     update, remove, manual refresh, and startup refresh.
-   - [ ] Verify plugin-side header-aware asset blob cache for protected MSM
-     assets.
-   - [ ] Verify public and protected MSM pack/group subscriptions in Equicord.
+   - [x] Apply the prepared Equicord plugin patch in a clean local plugin
+     worktree and verify it builds.
+   - [x] Verify plugin-side direct MSM fetch code path through TypeScript,
+     targeted lint, and standalone build.
+   - [x] Verify plugin-side dynamic pack-set sync code path for initial add,
+     update, remove, manual refresh, and startup refresh through TypeScript,
+     targeted lint, and standalone build.
+   - [x] Verify plugin-side header-aware asset blob cache code path for
+     protected MSM assets through TypeScript, targeted lint, and standalone
+     build.
+   - [ ] Upstream the prepared Equicord plugin patch or otherwise make it
+     available in the actual deployed plugin repository.
+   - [ ] Runtime-verify public and protected MSM pack/group subscriptions in
+     Discord/Equicord.
 
 Each queue item must update this section when completed or reordered.
 

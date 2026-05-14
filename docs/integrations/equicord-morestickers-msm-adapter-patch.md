@@ -34,13 +34,18 @@ Evidence collected in this repository:
 - `git diff --check -- docs/integrations/patches/equicord-morestickers-msm-adapter.patch` passed.
 - `git -C tmp/Equicord-patch-check apply --check <patch>` passed against a
   clean detached worktree at `3a45528`.
+- `pnpm testTsc` passed in `tmp/Equicord-patch-work` after applying the patch.
+- Targeted ESLint passed for the changed moreStickers TypeScript/TSX files.
+- Targeted stylelint passed for `src/equicordplugins/moreStickers/style.css`.
+- `pnpm buildStandalone` passed.
 - Patch content includes new `assetCache.tsx` and `msm.ts` files plus settings,
   picker, upload, dynamic-sync, type, and style updates.
 
 Not yet verified:
 
-- Equicord TypeScript/lint/build checks. The local sparse clone has no
-  `node_modules`, and `tsc` is not installed globally in the current shell.
+- Full `pnpm lint` still fails on upstream-unrelated files:
+  `src/equicordplugins/userpfp/index.tsx`, `src/main/applyHostPatch.ts`,
+  `src/main/hostUpdateHook.ts`, and `src/main/patchWin32Updater.ts`.
 - Runtime behavior inside Discord/Equicord.
 - Public and protected MSM pack/group subscriptions end-to-end.
 
