@@ -3,6 +3,17 @@
 Phase: Equicord moreStickers MSM adapter scope opened.
 
 Last completed:
+- Equicord moreStickers MSM adapter patch-artifact slice: prepared
+  `docs/integrations/patches/equicord-morestickers-msm-adapter.patch` against
+  upstream plugin commit `3a45528`, covering an MSM subscription settings tab,
+  direct MSM fetches, dynamic pack-set refresh/remove/update behavior, startup
+  refresh, and protected asset blob-cache rendering/sending support. Added
+  `docs/integrations/equicord-morestickers-msm-adapter-patch.md` with scope,
+  apply command, and verification limits. Patch whitespace checks passed, and
+  `git apply --check` passed against a clean detached Equicord worktree at
+  `3a45528`; local Equicord TypeScript/runtime verification remains pending
+  because the sparse clone has no installed dependencies and the current shell
+  has no global `tsc`.
 - Equicord moreStickers MSM adapter planning slice: inspected the upstream
   plugin's static and dynamic pack handling, documented the MSM adapter contract
   in `docs/integrations/equicord-morestickers-msm-adapter.md`, added

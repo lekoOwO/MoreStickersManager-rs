@@ -1,0 +1,812 @@
+diff --git a/src/equicordplugins/moreStickers/assetCache.tsx b/src/equicordplugins/moreStickers/assetCache.tsx
+new file mode 100644
+index 0000000..fac821b
+--- /dev/null
++++ b/src/equicordplugins/moreStickers/assetCache.tsx
+@@ -0,0 +1,97 @@
++/*
++ * Vencord, a Discord client mod
++ * Copyright (c) 2024 Vendicated and contributors
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++import { React } from "@webpack/common";
++import type { JSX } from "react";
++
++import { getStickerPackMeta } from "./stickers";
++import type { Sticker } from "./types";
++import { corsFetch } from "./utils";
++
++const objectUrls = new Map<string, string>();
++
++function sameOrigin(left: string, right: string): boolean {
++    try {
++        return new URL(left).origin === new URL(right).origin;
++    } catch {
++        return false;
++    }
++}
++
++function cacheKey(src: string, headers?: Record<string, string>): string {
++    return `${src}\n${JSON.stringify(headers ?? {})}`;
++}
++
++async function getAuthHeadersForAsset(src: string, stickerPackId?: string): Promise<Record<string, string> | undefined> {
++    if (!stickerPackId) return undefined;
++
++    const meta = await getStickerPackMeta(stickerPackId);
++    const { dynamic } = meta ?? {};
++    const { authHeaders: headers, refreshUrl } = dynamic ?? {};
++    if (!headers || !refreshUrl || !sameOrigin(src, refreshUrl)) return undefined;
++    return headers;
++}
++
++export async function fetchStickerAsset(sticker: Sticker): Promise<Response> {
++    const headers = await getAuthHeadersForAsset(sticker.image, sticker.stickerPackId);
++    if (headers && Object.keys(headers).length > 0) {
++        return fetch(sticker.image, { headers });
++    }
++    return corsFetch(sticker.image);
++}
++
++export async function resolveStickerAssetUrl(src: string, stickerPackId?: string): Promise<string> {
++    const headers = await getAuthHeadersForAsset(src, stickerPackId);
++    if (!headers || Object.keys(headers).length === 0) return src;
++
++    const key = cacheKey(src, headers);
++    const cached = objectUrls.get(key);
++    if (cached) return cached;
++
++    const response = await fetch(src, { headers });
++    if (!response.ok) throw new Error(`Failed to fetch protected sticker asset: HTTP ${response.status}`);
++
++    const objectUrl = URL.createObjectURL(await response.blob());
++    objectUrls.set(key, objectUrl);
++    return objectUrl;
++}
++
++export function revokeStickerAssetCache(): void {
++    for (const url of objectUrls.values()) {
++        URL.revokeObjectURL(url);
++    }
++    objectUrls.clear();
++}
++
++export function StickerAssetImage({
++    src,
++    stickerPackId,
++    ...props
++}: JSX.IntrinsicElements["img"] & { stickerPackId?: string; }) {
++    const [resolvedSrc, setResolvedSrc] = React.useState<string | undefined>(src);
++
++    React.useEffect(() => {
++        let cancelled = false;
++        if (!src) {
++            setResolvedSrc(src);
++            return;
++        }
++
++        resolveStickerAssetUrl(src, stickerPackId)
++            .then(nextSrc => {
++                if (!cancelled) setResolvedSrc(nextSrc);
++            })
++            .catch(() => {
++                if (!cancelled) setResolvedSrc(src);
++            });
++
++        return () => {
++            cancelled = true;
++        };
++    }, [src, stickerPackId]);
++
++    return <img {...props} src={resolvedSrc} />;
++}
+diff --git a/src/equicordplugins/moreStickers/components/categories.tsx b/src/equicordplugins/moreStickers/components/categories.tsx
+index 734d5b2..2558bb3 100644
+--- a/src/equicordplugins/moreStickers/components/categories.tsx
++++ b/src/equicordplugins/moreStickers/components/categories.tsx
+@@ -4,12 +4,13 @@
+  * SPDX-License-Identifier: GPL-3.0-or-later
+  */
+ 
++import { StickerAssetImage } from "@equicordplugins/moreStickers/assetCache";
+ import { CategoryImageProps, StickerCategoryProps } from "@equicordplugins/moreStickers/types";
+ import { cl } from "@equicordplugins/moreStickers/utils";
+ import { React } from "@webpack/common";
+ import { JSX } from "react";
+ 
+-export function CategoryImage({ src, alt, isActive }: CategoryImageProps) {
++export function CategoryImage({ src, alt, isActive, stickerPackId }: CategoryImageProps) {
+     return (
+         <div>
+             <svg width={32} height={32} style={{
+@@ -32,8 +33,9 @@ export function CategoryImage({ src, alt, isActive }: CategoryImageProps) {
+                     height={32}
+                     overflow="visible"
+                 >
+-                    <img
++                    <StickerAssetImage
+                         src={src}
++                        stickerPackId={stickerPackId}
+                         alt={alt}
+                         width={32}
+                         height={32}
+diff --git a/src/equicordplugins/moreStickers/components/misc.tsx b/src/equicordplugins/moreStickers/components/misc.tsx
+index bca8f29..6e2b90e 100644
+--- a/src/equicordplugins/moreStickers/components/misc.tsx
++++ b/src/equicordplugins/moreStickers/components/misc.tsx
+@@ -11,13 +11,16 @@ import { Divider } from "@components/Divider";
+ import { Flex } from "@components/Flex";
+ import { Heading } from "@components/Heading";
+ import { Paragraph } from "@components/Paragraph";
++import { StickerAssetImage } from "@equicordplugins/moreStickers/assetCache";
+ import { convert as convertLineEP, getIdFromUrl as getLineEmojiPackIdFromUrl, getStickerPackById as getLineEmojiPackById, isLineEmojiPackHtml, parseHtml as getLineEPFromHtml } from "@equicordplugins/moreStickers/lineEmojis";
+ import { convert as convertLineSP, getIdFromUrl as getLineStickerPackIdFromUrl, getStickerPackById as getLineStickerPackById, isLineStickerPackHtml, parseHtml as getLineSPFromHtml } from "@equicordplugins/moreStickers/lineStickers";
+ import { isV1, migrate } from "@equicordplugins/moreStickers/migrate-v1";
+-import { deleteStickerPack, getStickerPack, getStickerPackMetas, saveStickerPack } from "@equicordplugins/moreStickers/stickers";
++import { addMsmSubscription, isMsmSubscriptionUrl, syncMsmSubscription } from "@equicordplugins/moreStickers/msm";
++import type { MsmDynamicPackSetMeta } from "@equicordplugins/moreStickers/msm";
++import { deleteDynamicPackSetMeta, deleteStickerPack, getDynamicPackSetMetas, getStickerPack, getStickerPackMetas, saveStickerPack } from "@equicordplugins/moreStickers/stickers";
+ import { SettingsTabsKey, Sticker, StickerPack, StickerPackMeta } from "@equicordplugins/moreStickers/types";
+ import { cl, clPicker, Mutex } from "@equicordplugins/moreStickers/utils";
+-import { Button, React, TabBar, TextArea, Toasts } from "@webpack/common";
++import { Button, React, TabBar, TextArea, TextInput, Toasts } from "@webpack/common";
+ import { JSX } from "react";
+ 
+ const mutex = new Mutex();
+@@ -52,7 +55,7 @@ const StickerPackMetadata = ({ meta, hoveredStickerPackId, setHoveredStickerPack
+                 height: "96px",
+                 width: "96px",
+             }}></div>
+-            {meta.logo?.image ? <img src={meta.logo.image} width="96" {...noDrag} /> : null}
++            {meta.logo?.image ? <StickerAssetImage src={meta.logo.image} stickerPackId={meta.id} width="96" {...noDrag} /> : null}
+             <button
+                 className={hoveredStickerPackId === meta.id ? "show" : ""}
+                 onClick={async () => {
+@@ -92,7 +95,11 @@ const StickerPackMetadata = ({ meta, hoveredStickerPackId, setHoveredStickerPack
+ 
+ export const Packs = () => {
+     const [stickerPackMetas, setstickerPackMetas] = React.useState<StickerPackMeta[]>([]);
++    const [dynamicPackSetMetas, setDynamicPackSetMetas] = React.useState<MsmDynamicPackSetMeta[]>([]);
+     const [addStickerUrl, setAddStickerUrl] = React.useState<string>("");
++    const [addMsmUrl, setAddMsmUrl] = React.useState<string>("");
++    const [addMsmToken, setAddMsmToken] = React.useState<string>("");
++    const [addMsmLabel, setAddMsmLabel] = React.useState<string>("");
+     const [addStickerHtml, setAddStickerHtml] = React.useState<string>("");
+     const [tab, setTab] = React.useState<SettingsTabsKey>(SettingsTabsKey.ADD_STICKER_PACK_URL);
+     const [hoveredStickerPackId, setHoveredStickerPackId] = React.useState<string | null>(null);
+@@ -101,8 +108,12 @@ export const Packs = () => {
+     async function refreshStickerPackMetas() {
+         setstickerPackMetas(await getStickerPackMetas());
+     }
++    async function refreshDynamicPackSetMetas() {
++        setDynamicPackSetMetas(((await getDynamicPackSetMetas()) ?? []) as MsmDynamicPackSetMeta[]);
++    }
+     React.useEffect(() => {
+         refreshStickerPackMetas();
++        refreshDynamicPackSetMetas();
+     }, []);
+     React.useEffect(() => {
+         isV1().then(setV1);
+@@ -234,6 +245,111 @@ export const Packs = () => {
+                     </Flex>
+                 </div>
+             }
++            {tab === SettingsTabsKey.ADD_MSM_SUBSCRIPTION &&
++                <div className="section">
++                    <Heading>Add MSM Subscription</Heading>
++                    <Paragraph>
++                        <p>
++                            Add an MSM pack subscription or subscription-group URL. Protected MSM
++                            subscriptions should use a subscription token or PAT; the token is sent
++                            only to the MSM origin and is reused for protected assets.
++                        </p>
++                    </Paragraph>
++                    <Flex flexDirection="column" style={{ gap: "8px" }}>
++                        <CheckedTextInput
++                            initialValue={addMsmUrl}
++                            onChange={setAddMsmUrl}
++                            validate={(v: string) => isMsmSubscriptionUrl(v) || "Invalid MSM subscription URL"}
++                            placeholder="https://msm.example.com/api/public/subscriptions/..."
++                        />
++                        <TextInput
++                            value={addMsmToken}
++                            onChange={setAddMsmToken}
++                            placeholder="Optional subscription token or PAT"
++                        />
++                        <TextInput
++                            value={addMsmLabel}
++                            onChange={setAddMsmLabel}
++                            placeholder="Optional display label"
++                        />
++                        <Button
++                            size={Button.Sizes.SMALL}
++                            onClick={async e => {
++                                e.preventDefault();
++                                try {
++                                    await addMsmSubscription(addMsmUrl, addMsmToken, addMsmLabel);
++                                    setAddMsmUrl("");
++                                    setAddMsmToken("");
++                                    setAddMsmLabel("");
++                                    await Promise.all([refreshStickerPackMetas(), refreshDynamicPackSetMetas()]);
++                                    Toasts.show({
++                                        message: "MSM subscription added",
++                                        type: Toasts.Type.SUCCESS,
++                                        id: Toasts.genId(),
++                                        options: { duration: 1000 }
++                                    });
++                                } catch (e: any) {
++                                    Toasts.show({
++                                        message: e.message,
++                                        type: Toasts.Type.FAILURE,
++                                        id: Toasts.genId(),
++                                        options: { duration: 1000 }
++                                    });
++                                }
++                            }}
++                        >Add MSM Subscription</Button>
++                    </Flex>
++                    <Divider style={{ marginTop: "12px", marginBottom: "12px" }} />
++                    <Heading>MSM Subscriptions</Heading>
++                    <Flex flexDirection="column" style={{ gap: "8px" }}>
++                        {
++                            dynamicPackSetMetas.length === 0 ? <BaseText tag="span">No MSM subscriptions added.</BaseText> :
++                                dynamicPackSetMetas.map(meta => (
++                                    <div key={meta.id} className={cl("msm-subscription-row")}>
++                                        <div>
++                                            <BaseText tag="strong">{meta.msm?.label ?? meta.title ?? meta.id}</BaseText>
++                                            <BaseText tag="div">{meta.packs.length} packs</BaseText>
++                                            <BaseText tag="div">Last sync: {meta.msm?.lastSyncedAt ?? "never"}</BaseText>
++                                            {meta.msm?.lastError ? <BaseText tag="div">Last error: {meta.msm.lastError}</BaseText> : null}
++                                        </div>
++                                        <Flex flexDirection="row" style={{ gap: "8px" }}>
++                                            <Button
++                                                size={Button.Sizes.SMALL}
++                                                onClick={async () => {
++                                                    try {
++                                                        await syncMsmSubscription(meta, true);
++                                                        await Promise.all([refreshStickerPackMetas(), refreshDynamicPackSetMetas()]);
++                                                        Toasts.show({
++                                                            message: "MSM subscription synced",
++                                                            type: Toasts.Type.SUCCESS,
++                                                            id: Toasts.genId(),
++                                                            options: { duration: 1000 }
++                                                        });
++                                                    } catch (e: any) {
++                                                        await refreshDynamicPackSetMetas();
++                                                        Toasts.show({
++                                                            message: e.message,
++                                                            type: Toasts.Type.FAILURE,
++                                                            id: Toasts.genId(),
++                                                            options: { duration: 1000 }
++                                                        });
++                                                    }
++                                                }}
++                                            >Sync now</Button>
++                                            <Button
++                                                size={Button.Sizes.SMALL}
++                                                onClick={async () => {
++                                                    await deleteDynamicPackSetMeta(meta.id);
++                                                    await Promise.all([refreshStickerPackMetas(), refreshDynamicPackSetMetas()]);
++                                                }}
++                                            >Remove</Button>
++                                        </Flex>
++                                    </div>
++                                ))
++                        }
++                    </Flex>
++                </div>
++            }
+             {tab === SettingsTabsKey.ADD_STICKER_PACK_HTML &&
+                 <div className="section">
+                     <Heading>Add Sticker Pack from HTML</Heading>
+diff --git a/src/equicordplugins/moreStickers/components/picker.tsx b/src/equicordplugins/moreStickers/components/picker.tsx
+index 6c652a3..ec9eece 100644
+--- a/src/equicordplugins/moreStickers/components/picker.tsx
++++ b/src/equicordplugins/moreStickers/components/picker.tsx
+@@ -5,6 +5,7 @@
+  */
+ 
+ import { HeadingPrimary } from "@components/Heading";
++import { StickerAssetImage } from "@equicordplugins/moreStickers/assetCache";
+ import { PickerContent, PickerContentHeader, PickerContentRow, PickerContentRowGrid, PickerHeaderProps, SidebarProps, Sticker, StickerCategoryType, StickerPack } from "@equicordplugins/moreStickers/types";
+ import { sendSticker } from "@equicordplugins/moreStickers/upload";
+ import { clPicker, FFmpegStateContext } from "@equicordplugins/moreStickers/utils";
+@@ -58,7 +59,7 @@ export const PickerSidebar = ({ packMetas, onPackSelect }: SidebarProps) => {
+                                 }}
+                                 isActive={activePack?.id === pack.id}
+                             >
+-                                <CategoryImage src={pack.iconUrl!} alt={pack.name} isActive={activePack?.id === pack.id} />
++                                <CategoryImage src={pack.iconUrl!} alt={pack.name} isActive={activePack?.id === pack.id} stickerPackId={pack.stickerPackId ?? pack.id} />
+                             </StickerCategory>
+                         );
+                     })
+@@ -139,9 +140,10 @@ function PickerContentRowGrid({
+                             height: "96px",
+                             width: "96px"
+                         }}>
+-                            <img
++                            <StickerAssetImage
+                                 alt={sticker.title}
+                                 src={sticker.image}
++                                stickerPackId={sticker.stickerPackId}
+                                 draggable="false"
+                                 data-id={sticker.id}
+                                 className={clPicker("content-row-grid-img")}
+@@ -185,6 +187,7 @@ function HeaderCollapseIcon({ isExpanded }: { isExpanded: boolean; }) {
+ export function PickerContentHeader({
+     image,
+     title,
++    stickerPackId,
+     children,
+     isSelected = false,
+     afterScroll = () => { },
+@@ -228,9 +231,10 @@ export function PickerContentHeader({
+                                     x={0} y={0} width={16} height={16}
+                                     overflow="visible" mask="url(#svg-mask-squircle)"
+                                 >
+-                                    <img
++                                    <StickerAssetImage
+                                         alt={title}
+                                         src={image}
++                                        stickerPackId={stickerPackId}
+                                         className={clPicker("content-header-guild-icon")}
+                                         loading="lazy"
+                                     ></img>
+@@ -364,6 +368,7 @@ export function PickerContent({ stickerPacks, selectedStickerPackId, setSelected
+                                             key={sp.id}
+                                             image={sp.logo.image}
+                                             title={sp.title}
++                                            stickerPackId={sp.id}
+                                             isSelected={sp.id === selectedStickerPackId}
+                                             beforeScroll={() => {
+                                                 scrollerRef.current?.scrollTo({
+@@ -398,9 +403,10 @@ export function PickerContent({ stickerPacks, selectedStickerPackId, setSelected
+                                 height: "28px",
+                                 width: "28px"
+                             }}>
+-                                <img
++                                <StickerAssetImage
+                                     alt={currentSticker?.title ?? ""}
+                                     src={currentSticker?.image}
++                                    stickerPackId={currentSticker?.stickerPackId}
+                                     draggable="false"
+                                     data-id={currentSticker?.id ?? ""}
+                                     className={clPicker("content-inspector-img")}
+@@ -419,9 +425,10 @@ export function PickerContent({ stickerPacks, selectedStickerPackId, setSelected
+                         <div>
+                             <svg width={32} height={32} viewBox="0 0 32 32">
+                                 <foreignObject x={0} y={0} width={32} height={32} overflow="visible" mask="url(#svg-mask-squircle)">
+-                                    <img
++                                    <StickerAssetImage
+                                         alt={currentStickerPack?.title ?? ""}
+                                         src={currentStickerPack?.logo?.image}
++                                        stickerPackId={currentStickerPack?.id}
+                                     ></img>
+                                 </foreignObject>
+                             </svg>
+diff --git a/src/equicordplugins/moreStickers/index.tsx b/src/equicordplugins/moreStickers/index.tsx
+index 4e89d80..519cbfa 100644
+--- a/src/equicordplugins/moreStickers/index.tsx
++++ b/src/equicordplugins/moreStickers/index.tsx
+@@ -14,7 +14,7 @@ import { Channel } from "@vencord/discord-types";
+ import { React } from "@webpack/common";
+ 
+ import { Packs, PickerContent, PickerHeader, PickerSidebar, Wrapper } from "./components";
+-import { getStickerPack, getStickerPackMetas } from "./stickers";
++import { fetchAndRefreshAllDynamicPackSets, getStickerPack, getStickerPackMetas } from "./stickers";
+ import { StickerPack, StickerPackMeta } from "./types";
+ import { cl, FFmpegStateContext, loadFFmpeg } from "./utils";
+ 
+@@ -38,6 +38,10 @@ export default definePlugin({
+     authors: [EquicordDevs.Leko, Devs.Arjix],
+     settings,
+ 
++    start() {
++        fetchAndRefreshAllDynamicPackSets().catch(console.error);
++    },
++
+     patches: [
+         {
+             find: "#{intl::STICKER_BUTTON_LABEL}",
+@@ -182,7 +186,8 @@ export default definePlugin({
+                         stickerPackMetas.map(meta => ({
+                             id: meta.id,
+                             name: meta.title,
+-                            iconUrl: meta.logo.image
++                            iconUrl: meta.logo.image,
++                            stickerPackId: meta.id
+                         }))
+                     }
+                     onPackSelect={pack => {
+diff --git a/src/equicordplugins/moreStickers/msm.ts b/src/equicordplugins/moreStickers/msm.ts
+new file mode 100644
+index 0000000..b97fbf6
+--- /dev/null
++++ b/src/equicordplugins/moreStickers/msm.ts
+@@ -0,0 +1,137 @@
++/*
++ * Vencord, a Discord client mod
++ * Copyright (c) 2024 Vendicated and contributors
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++import { fetchDynamicPackSetMeta, saveDynamicPackSetMeta } from "./stickers";
++import type { DynamicPackSetMeta, DynamicStickerPackMeta } from "./types";
++
++export type MsmDynamicPackSetMeta = DynamicPackSetMeta & {
++    msm?: {
++        label?: string;
++        subscriptionUrl: string;
++        lastSyncedAt?: string;
++        lastError?: string;
++    };
++};
++
++function bearerHeaders(token: string): Record<string, string> | undefined {
++    const trimmed = token.trim();
++    if (!trimmed) return undefined;
++    return {
++        Authorization: trimmed.toLowerCase().startsWith("bearer ") ? trimmed : `Bearer ${trimmed}`,
++    };
++}
++
++export function isMsmSubscriptionUrl(value: string): boolean {
++    try {
++        const path = new URL(value).pathname;
++        return /^\/api\/public\/packs\/[^/]+\/subscription$/.test(path)
++            || /^\/api\/public\/subscriptions\/[^/]+$/.test(path);
++    } catch {
++        return false;
++    }
++}
++
++function assertObject(value: unknown, label: string): asserts value is Record<string, unknown> {
++    if (!value || typeof value !== "object") throw new Error(`${label} must be an object`);
++}
++
++function assertDynamicStickerPackMeta(value: unknown): asserts value is DynamicStickerPackMeta {
++    assertObject(value, "pack");
++    const { dynamic, id } = value;
++    if (typeof id !== "string") throw new Error("pack.id must be a string");
++    assertObject(dynamic, "pack.dynamic");
++    if (typeof dynamic.refreshUrl !== "string") throw new Error("pack.dynamic.refreshUrl must be a string");
++}
++
++function assertDynamicPackSetMeta(value: unknown): asserts value is DynamicPackSetMeta {
++    assertObject(value, "MSM subscription response");
++    const { id, packs, refreshUrl } = value;
++    if (typeof id !== "string") throw new Error("subscription.id must be a string");
++    if (typeof refreshUrl !== "string") throw new Error("subscription.refreshUrl must be a string");
++    if (!Array.isArray(packs)) throw new Error("subscription.packs must be an array");
++    packs.forEach(assertDynamicStickerPackMeta);
++}
++
++function withMsmMetadata(
++    meta: DynamicPackSetMeta,
++    subscriptionUrl: string,
++    token: string,
++    label: string,
++    previous?: MsmDynamicPackSetMeta
++): MsmDynamicPackSetMeta {
++    const { authHeaders: metaAuthHeaders, id, packs: metaPacks, title } = meta;
++    const authHeaders = metaAuthHeaders ?? bearerHeaders(token);
++    const packs = metaPacks.map(pack => {
++        const { dynamic } = pack;
++        return {
++            ...pack,
++            dynamic: {
++                ...dynamic,
++                authHeaders: dynamic.authHeaders ?? authHeaders,
++            },
++        };
++    });
++
++    return {
++        ...meta,
++        authHeaders,
++        packs,
++        msm: {
++            label: label.trim() || previous?.msm?.label || title || id,
++            subscriptionUrl,
++            lastSyncedAt: new Date().toISOString(),
++        },
++    };
++}
++
++export async function fetchMsmSubscription(subscriptionUrl: string, token = "", label = ""): Promise<MsmDynamicPackSetMeta> {
++    const url = subscriptionUrl.trim();
++    if (!isMsmSubscriptionUrl(url)) throw new Error("Invalid MSM subscription URL");
++
++    const headers = bearerHeaders(token);
++    const response = await fetch(url, headers ? { headers } : undefined);
++    if (!response.ok) throw new Error(`MSM subscription fetch failed: HTTP ${response.status}`);
++
++    const data = await response.json();
++    assertDynamicPackSetMeta(data);
++
++    return withMsmMetadata(data, url, token, label);
++}
++
++export async function addMsmSubscription(subscriptionUrl: string, token = "", label = ""): Promise<MsmDynamicPackSetMeta> {
++    const meta = await fetchMsmSubscription(subscriptionUrl, token, label);
++    await saveDynamicPackSetMeta(meta, undefined, true);
++    return meta;
++}
++
++export async function syncMsmSubscription(meta: MsmDynamicPackSetMeta, force = true): Promise<MsmDynamicPackSetMeta> {
++    try {
++        const fetched = await fetchDynamicPackSetMeta(meta);
++        if (!fetched) throw new Error("MSM subscription refresh failed");
++
++        const synced = withMsmMetadata(
++            fetched,
++            meta.msm?.subscriptionUrl ?? meta.refreshUrl,
++            meta.authHeaders?.Authorization ?? "",
++            meta.msm?.label ?? meta.title ?? meta.id,
++            meta
++        );
++        await saveDynamicPackSetMeta(synced, undefined, force);
++        return synced;
++    } catch (error) {
++        const failed: MsmDynamicPackSetMeta = {
++            ...meta,
++            msm: {
++                label: meta.msm?.label,
++                subscriptionUrl: meta.msm?.subscriptionUrl ?? meta.refreshUrl,
++                lastSyncedAt: meta.msm?.lastSyncedAt,
++                lastError: error instanceof Error ? error.message : String(error),
++            },
++        };
++        await saveDynamicPackSetMeta(failed);
++        throw error;
++    }
++}
+diff --git a/src/equicordplugins/moreStickers/stickers.ts b/src/equicordplugins/moreStickers/stickers.ts
+index 0d3717f..667da18 100644
+--- a/src/equicordplugins/moreStickers/stickers.ts
++++ b/src/equicordplugins/moreStickers/stickers.ts
+@@ -12,8 +12,26 @@ import { corsFetch, Mutex } from "./utils";
+ 
+ const mutex = new Mutex();
+ 
+-const PACKS_KEY = "MoreStickers:Packs";
+-const DYNAMIC_PACK_SET_METAS_KEY = "MoreStickers:DynamicPackSetMetas";
++export const PACKS_KEY = "MoreStickers:Packs";
++export const DYNAMIC_PACK_SET_METAS_KEY = "MoreStickers:DynamicPackSetMetas";
++
++function dynamicFetch(url: string, headers?: Record<string, string>): Promise<Response> {
++    const init = headers ? { headers } : undefined;
++    if ((headers && Object.keys(headers).length > 0) || isMsmDynamicUrl(url)) {
++        return fetch(url, init);
++    }
++    return corsFetch(url, init);
++}
++
++function isMsmDynamicUrl(url: string): boolean {
++    try {
++        const path = new URL(url).pathname;
++        return /^\/api\/public\/packs\/[^/]+\/(subscription|stickerpack)$/.test(path)
++            || /^\/api\/public\/subscriptions\/[^/]+$/.test(path);
++    } catch {
++        return false;
++    }
++}
+ 
+ /**
+   * Convert StickerPack to StickerPackMeta
+@@ -118,62 +136,90 @@ export async function deleteStickerPack(id: string, packsKey: string = PACKS_KEY
+ // ---------------------------- Dynamic Packs ----------------------------
+ 
+ export async function getDynamicStickerPack(dspm: DynamicStickerPackMeta): Promise<StickerPack | null> {
+-    const dsp = await corsFetch(dspm.dynamic.refreshUrl, {
+-        headers: dspm.dynamic.authHeaders,
+-    });
++    const dsp = await dynamicFetch(dspm.dynamic.refreshUrl, dspm.dynamic.authHeaders);
+     if (!dsp.ok) return null;
+-    return await dsp.json();
++    const stickerPack = await dsp.json() as StickerPack;
++    return {
++        ...stickerPack,
++        dynamic: stickerPack.dynamic ?? dspm.dynamic,
++    };
+ }
+ 
+ export async function getDynamicPackSetMetas(dpsmKey: string = DYNAMIC_PACK_SET_METAS_KEY): Promise<DynamicPackSetMeta[] | null> {
+     return (await DataStore.get(dpsmKey)) ?? null as DynamicPackSetMeta[] | null;
+ }
+ 
+-function hasDynamicPackSetMeta(dpsm: DynamicPackSetMeta, metas?: DynamicPackSetMeta[] | null): boolean {
+-    return !!metas?.some(m => m.id === dpsm.id);
+-}
+-
+ export async function fetchDynamicPackSetMeta(dpsm: DynamicPackSetMeta): Promise<DynamicPackSetMeta | null> {
+-    const dpsm_ = await corsFetch(dpsm.refreshUrl, {
+-        headers: dpsm.authHeaders,
+-    });
++    const dpsm_ = await dynamicFetch(dpsm.refreshUrl, dpsm.authHeaders);
+     if (!dpsm_.ok) return null;
+ 
+     const dpsmData = await dpsm_.json();
+     return dpsmData as DynamicPackSetMeta;
+ }
+ 
+-export async function refreshDynamicPackSet(old: DynamicPackSetMeta, _new: DynamicPackSetMeta): Promise<void> {
+-    const oldPacks = old.packs.map(p => p.id);
++export async function refreshDynamicPackSet(old: DynamicPackSetMeta | null, _new: DynamicPackSetMeta, force = false): Promise<void> {
++    const oldPacks = old?.packs.map(p => p.id) ?? [];
++    const oldPackMap = new Map((old?.packs ?? []).map(p => [p.id, p]));
++    const newPackMap = new Map(_new.packs.map(p => [p.id, p]));
+     const newPacks = _new.packs.map(p => p.id);
+ 
+-    const toRemove = oldPacks.filter(p => !newPacks.includes(p));
+-    const toAdd = newPacks.filter(p => !oldPacks.includes(p));
++    const toRemove = oldPacks.filter(p => !newPackMap.has(p));
++    const toRefresh = newPacks.filter(id => {
++        const oldPack = oldPackMap.get(id);
++        const newPack = newPackMap.get(id);
++        return force || !oldPack || oldPack.dynamic?.version !== newPack?.dynamic?.version;
++    });
+ 
+     await Promise.all([
+         ...toRemove.map(id => deleteStickerPack(id)),
+-        ...toAdd.map(id => getDynamicStickerPack(_new.packs.find(p => p.id === id)!).then(sp => sp && saveStickerPack(sp)))
++        ...toRefresh.map(id => getDynamicStickerPack(newPackMap.get(id)!).then(sp => sp && saveStickerPack(sp)))
+     ]);
+ }
+ 
+-export async function saveDynamicPackSetMeta(dpsm: DynamicPackSetMeta, dpsmKey: string = DYNAMIC_PACK_SET_METAS_KEY): Promise<void> {
+-    let metas = (await DataStore.get(dpsmKey) ?? null) as (DynamicPackSetMeta[] | null);
+-    if (hasDynamicPackSetMeta(dpsm, metas)) {
+-        await refreshDynamicPackSet(metas!.find(m => m.id === dpsm.id)!, dpsm);
+-        metas = metas!.map(m => m.id === dpsm.id ? dpsm : m);
++export async function deleteDynamicPackSetMeta(id: string, dpsmKey: string = DYNAMIC_PACK_SET_METAS_KEY): Promise<void> {
++    let meta: DynamicPackSetMeta | undefined;
++    const unlock = await mutex.lock();
++    try {
++        const metas = (await DataStore.get(dpsmKey) ?? null) as (DynamicPackSetMeta[] | null);
++        meta = metas?.find(m => m.id === id);
++        await DataStore.set(dpsmKey, metas?.filter(m => m.id !== id) ?? []);
++    } finally {
++        unlock();
+     }
++    await Promise.all(meta?.packs.map(pack => deleteStickerPack(pack.id)) ?? []);
++}
++
++export async function saveDynamicPackSetMeta(dpsm: DynamicPackSetMeta, dpsmKey: string = DYNAMIC_PACK_SET_METAS_KEY, force = false): Promise<void> {
++    let metas = (await DataStore.get(dpsmKey) ?? null) as (DynamicPackSetMeta[] | null);
++    const old = metas?.find(m => m.id === dpsm.id) ?? null;
++    await refreshDynamicPackSet(old, dpsm, force);
+ 
+     const unlock = await mutex.lock();
+     try {
+-        await DataStore.set(dpsmKey, metas === null ? [dpsm] : metas);
++        metas = (await DataStore.get(dpsmKey) ?? null) as (DynamicPackSetMeta[] | null);
++        await DataStore.set(
++            dpsmKey,
++            metas === null
++                ? [dpsm]
++                : metas.some(m => m.id === dpsm.id)
++                    ? metas.map(m => m.id === dpsm.id ? dpsm : m)
++                    : [...metas, dpsm]
++        );
+     } finally {
+         unlock();
+     }
+ }
+ 
+-export async function fetchAndRefreshDynamicPackSet(dpsm: DynamicPackSetMeta, dpsmKey: string = DYNAMIC_PACK_SET_METAS_KEY): Promise<void> {
++export async function fetchAndRefreshDynamicPackSet(dpsm: DynamicPackSetMeta, dpsmKey: string = DYNAMIC_PACK_SET_METAS_KEY, force = false): Promise<void> {
+     const _new = await fetchDynamicPackSetMeta(dpsm);
+     if (!_new) return;
+ 
+-    await saveDynamicPackSetMeta(_new, dpsmKey);
++    await saveDynamicPackSetMeta(_new, dpsmKey, force);
++}
++
++export async function fetchAndRefreshAllDynamicPackSets(dpsmKey: string = DYNAMIC_PACK_SET_METAS_KEY): Promise<void> {
++    const metas = await getDynamicPackSetMetas(dpsmKey);
++    if (!metas) return;
++
++    await Promise.all(metas.map(meta => fetchAndRefreshDynamicPackSet(meta, dpsmKey)));
+ }
+diff --git a/src/equicordplugins/moreStickers/style.css b/src/equicordplugins/moreStickers/style.css
+index e3b2587..244952c 100644
+--- a/src/equicordplugins/moreStickers/style.css
++++ b/src/equicordplugins/moreStickers/style.css
+@@ -490,9 +490,18 @@
+     padding-bottom: 4px;
+ }
+ 
++.vc-more-stickers-msm-subscription-row {
++    display: flex;
++    justify-content: space-between;
++    gap: 12px;
++    padding: 12px;
++    border-radius: 8px;
++    background-color: var(--background-secondary-alt);
++}
++
+ .vc-more-stickers-pack-title {
+     font-family: var(--font-primary);
+     font-size: 8pt;
+     font-weight: 600;
+     color: var(--text-default);
+-}
+\ No newline at end of file
++}
+diff --git a/src/equicordplugins/moreStickers/types.ts b/src/equicordplugins/moreStickers/types.ts
+index 5d545bd..90ea460 100644
+--- a/src/equicordplugins/moreStickers/types.ts
++++ b/src/equicordplugins/moreStickers/types.ts
+@@ -10,6 +10,7 @@ export interface CategoryImageProps {
+     src: string;
+     alt?: string;
+     isActive?: boolean;
++    stickerPackId?: string;
+ }
+ 
+ export interface LineSticker {
+@@ -72,6 +73,7 @@ export interface PickerContent {
+ export interface PickerContentHeader {
+     image: string | React.ReactNode;
+     title: string;
++    stickerPackId?: string;
+     children?: React.ReactNode;
+     isSelected?: boolean;
+     afterScroll?: () => void;
+@@ -98,6 +100,7 @@ export interface PickerContentRowGrid {
+ 
+ export enum SettingsTabsKey {
+     ADD_STICKER_PACK_URL = "Add from URL",
++    ADD_MSM_SUBSCRIPTION = "Add MSM Subscription",
+     ADD_STICKER_PACK_HTML = "Add from HTML",
+     ADD_STICKER_PACK_FILE = "Add from File",
+     MISC = "Misc",
+@@ -121,6 +124,7 @@ export interface StickerCategoryType {
+     id: string;
+     name: string;
+     iconUrl?: string;
++    stickerPackId?: string;
+ }
+ 
+ export interface StickerCategoryProps {
+diff --git a/src/equicordplugins/moreStickers/upload.ts b/src/equicordplugins/moreStickers/upload.ts
+index 5f36bcd..8e007c4 100644
+--- a/src/equicordplugins/moreStickers/upload.ts
++++ b/src/equicordplugins/moreStickers/upload.ts
+@@ -11,8 +11,8 @@ import { CloudUploadPlatform } from "@vencord/discord-types/enums";
+ import { ChannelStore, CloudUploader, Constants, DraftStore, FluxDispatcher, MessageActions, PendingReplyStore, RestAPI, showToast, SnowflakeUtils, Toasts, UploadHandler } from "@webpack/common";
+ 
+ import { settings } from ".";
++import { fetchStickerAsset } from "./assetCache";
+ import { FFmpegState, Sticker } from "./types";
+-import { corsFetch } from "./utils";
+ 
+ type SendStickerOptions = {
+     channelId: string;
+@@ -73,9 +73,9 @@ async function resizeImage(url: string) {
+     return blob;
+ }
+ 
+-async function toGIF(url: string, ffmpeg: FFmpeg): Promise<File> {
+-    const filename = (new URL(url)).pathname.split("/").pop() ?? "image.png";
+-    const res = await corsFetch(url);
++async function toGIF(sticker: Sticker, ffmpeg: FFmpeg): Promise<File> {
++    const filename = (new URL(sticker.image)).pathname.split("/").pop() ?? "image.png";
++    const res = await fetchStickerAsset(sticker);
+     if (!res.ok) throw new Error("Failed to fetch image for GIF conversion");
+     const arr = new Uint8Array(await res.arrayBuffer());
+     await ffmpeg.writeFile(filename, arr);
+@@ -128,9 +128,9 @@ export async function sendSticker({ channelId, sticker, ctrlKey, shiftKey, ffmpe
+ 
+     if (sticker?.isAnimated) {
+         if (!ffmpegState?.ffmpeg || !ffmpegState.isLoaded) throw new Error("FFmpeg not ready");
+-        file = await toGIF(sticker.image, ffmpegState.ffmpeg);
++        file = await toGIF(sticker, ffmpegState.ffmpeg);
+     } else {
+-        const res = await corsFetch(sticker.image);
++        const res = await fetchStickerAsset(sticker);
+         if (!res.ok) throw new Error("Failed to fetch sticker image");
+         const blobUrl = URL.createObjectURL(await res.blob());
+         const processed = await resizeImage(blobUrl);

@@ -8,6 +8,11 @@ Reference plugin source:
 
 - https://github.com/Equicord/Equicord/tree/main/src/equicordplugins/moreStickers
 
+Prepared patch artifact:
+
+- `docs/integrations/equicord-morestickers-msm-adapter-patch.md`
+- `docs/integrations/patches/equicord-morestickers-msm-adapter.patch`
+
 ## Current Compatibility
 
 MSM already emits the same static `.stickerpack` shape consumed by

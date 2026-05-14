@@ -71,7 +71,7 @@ Status meanings:
 | Area | Status | Notes |
 | --- | --- | --- |
 | MoreStickers compatibility | Implemented | Domain models preserve `.stickerpack` shape and provider ID conventions. |
-| Equicord plugin MSM adapter | Partially complete | MSM emits compatible static and dynamic pack/subscription payloads and now has configurable CORS for Discord/Equicord origins. The upstream moreStickers plugin still needs an MSM subscription UI, direct MSM fetch path, dynamic sync fixes, and header-aware protected asset loading. See `docs/integrations/equicord-morestickers-msm-adapter.md`. |
+| Equicord plugin MSM adapter | Partially complete | MSM emits compatible static and dynamic pack/subscription payloads and now has configurable CORS for Discord/Equicord origins. A prepared upstream patch artifact covers MSM subscription UI, direct MSM fetches, dynamic sync fixes, and header-aware protected asset loading; applying/upstreaming and Equicord build/runtime verification remain. See `docs/integrations/equicord-morestickers-msm-adapter.md`. |
 | Storage foundation | Implemented | SQLite and PostgreSQL migrations/repositories exist for tenants, users, packs, assets, PATs, Web sessions, product metadata, export jobs, Telegram publications, provider import jobs/configs, and portability helpers. Storage repository surfaces have backend-aware SQLite/PostgreSQL execution paths with shared tests, PostgreSQL CI service coverage, and user-facing deployment notes for both backends. |
 | API/OpenAPI | Implemented | Health/readiness, OpenAPI, assets, pack CRUD/import/export, PATs, local/OIDC auth, tenant administration, export targets/jobs/recovery, provider import plan/job/config routes, Telegram publication history, product metadata, product membership, subscription links, and portability endpoints exist. |
 | CLI | Implemented | Pack, PAT, PAT scope-policy discovery, export target/job/recovery, Telegram publication history, product metadata, product membership, tenant member, tenant settings, user status, role template, OIDC provider administration, provider import plan/job/config, and portable user export/import commands exist. |
@@ -93,13 +93,17 @@ Status meanings:
    Next slices:
    - [x] Document the upstream plugin adapter contract.
    - [x] Add MSM CORS configuration for Discord/Equicord browser origins.
-   - [ ] Prepare or upstream an Equicord plugin patch for adding MSM
-     subscriptions from URL.
-   - [ ] Add plugin-side direct MSM fetch that never sends MSM bearer
+   - [x] Prepare an Equicord plugin patch artifact for adding MSM subscriptions
+     from URL. Artifact:
+     `docs/integrations/patches/equicord-morestickers-msm-adapter.patch`.
+   - [ ] Upstream or apply the prepared Equicord plugin patch in the plugin
+     repository.
+   - [ ] Verify plugin-side direct MSM fetch that never sends MSM bearer
      credentials through third-party CORS proxies.
-   - [ ] Add plugin-side dynamic pack-set sync fixes for initial add, update,
-     remove, manual refresh, and startup refresh.
-   - [ ] Add plugin-side header-aware asset blob cache for protected MSM assets.
+   - [ ] Verify plugin-side dynamic pack-set sync fixes for initial add,
+     update, remove, manual refresh, and startup refresh.
+   - [ ] Verify plugin-side header-aware asset blob cache for protected MSM
+     assets.
    - [ ] Verify public and protected MSM pack/group subscriptions in Equicord.
 
 Each queue item must update this section when completed or reordered.
