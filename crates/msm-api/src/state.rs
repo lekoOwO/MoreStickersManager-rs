@@ -43,6 +43,7 @@ pub struct ApiState {
     oidc_jwks_fetcher: Arc<dyn OidcJwksFetcher>,
     oidc_userinfo_fetcher: Arc<dyn OidcUserinfoFetcher>,
     public_asset_url: Option<String>,
+    cors_allowed_origins: Vec<String>,
     rate_limit_config: RateLimitConfig,
     import_rate_limiter: Arc<Mutex<ImportRateLimiter>>,
 }
@@ -58,6 +59,7 @@ impl ApiState {
             oidc_jwks_fetcher: Arc::new(HttpOidcJwksFetcher::new()),
             oidc_userinfo_fetcher: Arc::new(HttpOidcUserinfoFetcher::new()),
             public_asset_url: None,
+            cors_allowed_origins: Vec::new(),
             rate_limit_config: RateLimitConfig::default(),
             import_rate_limiter: Arc::new(Mutex::new(ImportRateLimiter::default())),
         }
@@ -103,6 +105,12 @@ impl ApiState {
     }
 
     #[must_use]
+    pub fn with_cors_allowed_origins(mut self, cors_allowed_origins: Vec<String>) -> Self {
+        self.cors_allowed_origins = cors_allowed_origins;
+        self
+    }
+
+    #[must_use]
     pub fn with_rate_limit_config(mut self, rate_limit_config: RateLimitConfig) -> Self {
         self.rate_limit_config = rate_limit_config;
         self.import_rate_limiter = Arc::new(Mutex::new(ImportRateLimiter::default()));
@@ -142,6 +150,11 @@ impl ApiState {
     #[must_use]
     pub fn public_asset_url(&self) -> Option<&str> {
         self.public_asset_url.as_deref()
+    }
+
+    #[must_use]
+    pub fn cors_allowed_origins(&self) -> &[String] {
+        &self.cors_allowed_origins
     }
 
     #[must_use]

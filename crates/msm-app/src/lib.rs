@@ -18,7 +18,7 @@ use axum::{
 };
 use bytes::Bytes;
 use include_dir::{include_dir, Dir};
-use msm_api::{build_router_with_body_limit, ApiState, RateLimitConfig};
+use msm_api::{build_router_with_body_limit_and_cors, ApiState, CorsConfig, RateLimitConfig};
 use msm_storage::models::NewExportTarget;
 use msm_storage::{DatabaseConfig, DbPool, LocalAssetStore, StorageRepository};
 
@@ -54,6 +54,7 @@ pub struct AppConfig {
     pub asset_dir: PathBuf,
     pub web_dist_dir: PathBuf,
     pub public_asset_url: Option<String>,
+    pub cors_allowed_origins: Vec<String>,
     pub request_body_limit_bytes: usize,
     pub import_rate_limit_requests: usize,
     pub import_rate_limit_window: Duration,
@@ -183,6 +184,7 @@ impl AppConfig {
             asset_dir: PathBuf::from(read(vars, "MSM_ASSET_DIR", Self::DEFAULT_ASSET_DIR)),
             web_dist_dir: PathBuf::from(read(vars, "MSM_WEB_DIST_DIR", Self::DEFAULT_WEB_DIST_DIR)),
             public_asset_url: read_optional(vars, "MSM_PUBLIC_ASSET_URL"),
+            cors_allowed_origins: read_list(vars, "MSM_CORS_ALLOWED_ORIGINS"),
             request_body_limit_bytes: read_usize(
                 vars,
                 "MSM_REQUEST_BODY_LIMIT_BYTES",
@@ -287,6 +289,7 @@ pub async fn initialize_state(config: &AppConfig) -> AppResult<ApiState> {
     let asset_store = LocalAssetStore::new(config.asset_dir.clone());
     Ok(ApiState::new(repository, asset_store)
         .with_public_asset_url(config.public_asset_url.clone())
+        .with_cors_allowed_origins(config.cors_allowed_origins.clone())
         .with_rate_limit_config(RateLimitConfig {
             import_requests: config.import_rate_limit_requests,
             import_window: config.import_rate_limit_window,
@@ -379,12 +382,16 @@ pub fn build_app_router(
     request_body_limit_bytes: usize,
 ) -> Router {
     let assets = WebAssets::new(web_dist_dir.into());
-    build_router_with_body_limit(state.clone(), request_body_limit_bytes)
-        .merge(msm_mcp::build_router(state))
-        .fallback(get(move |OriginalUri(uri): OriginalUri| {
-            serve_web_asset(uri, assets.clone())
-        }))
-        .layer(from_fn(log_request))
+    build_router_with_body_limit_and_cors(
+        state.clone(),
+        request_body_limit_bytes,
+        CorsConfig::from_allowed_origins(state.cors_allowed_origins().iter().cloned()),
+    )
+    .merge(msm_mcp::build_router(state))
+    .fallback(get(move |OriginalUri(uri): OriginalUri| {
+        serve_web_asset(uri, assets.clone())
+    }))
+    .layer(from_fn(log_request))
 }
 
 pub fn log_service_event(event: &str, fields: impl serde::Serialize) {
@@ -454,6 +461,19 @@ fn read_optional(vars: &BTreeMap<String, String>, key: &str) -> Option<String> {
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
+}
+
+fn read_list(vars: &BTreeMap<String, String>, key: &str) -> Vec<String> {
+    vars.get(key)
+        .map(|value| {
+            value
+                .split(',')
+                .map(|item| item.trim().trim_end_matches('/'))
+                .filter(|item| !item.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn read_first_start_bootstrap_config(vars: &BTreeMap<String, String>) -> FirstStartBootstrapConfig {
@@ -657,6 +677,7 @@ mod tests {
         assert_eq!(config.asset_dir, PathBuf::from("data/assets"));
         assert_eq!(config.web_dist_dir, PathBuf::from("apps/web/dist"));
         assert_eq!(config.public_asset_url, None);
+        assert!(config.cors_allowed_origins.is_empty());
         assert_eq!(
             config.request_body_limit_bytes,
             AppConfig::DEFAULT_REQUEST_BODY_LIMIT_BYTES
@@ -731,6 +752,10 @@ mod tests {
             "MSM_PUBLIC_ASSET_URL".to_owned(),
             "https://global-cdn.example.test/msm".to_owned(),
         );
+        vars.insert(
+            "MSM_CORS_ALLOWED_ORIGINS".to_owned(),
+            "https://discord.com, https://canary.discord.com/".to_owned(),
+        );
         vars.insert("MSM_FFMPEG_PATH".to_owned(), "bin/ffmpeg".to_owned());
         vars.insert("MSM_FFPROBE_PATH".to_owned(), "bin/ffprobe".to_owned());
         vars.insert(
@@ -804,6 +829,13 @@ mod tests {
         assert_eq!(
             config.public_asset_url.as_deref(),
             Some("https://global-cdn.example.test/msm")
+        );
+        assert_eq!(
+            config.cors_allowed_origins,
+            vec![
+                "https://discord.com".to_owned(),
+                "https://canary.discord.com".to_owned()
+            ]
         );
         assert_eq!(
             config.export_worker.ffmpeg_path,

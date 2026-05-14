@@ -169,6 +169,7 @@ Common runtime settings:
 | `MSM_ASSET_DIR` | Local sticker asset storage. |
 | `MSM_PREPARED_MEDIA_DIR` | Prepared Telegram media output/cache. |
 | `MSM_PUBLIC_ASSET_URL` | Optional system-wide CDN/public asset URL. |
+| `MSM_CORS_ALLOWED_ORIGINS` | Optional comma-separated browser/plugin origins allowed to call MSM directly, for example Discord/Equicord origins. |
 | `MSM_EXPORT_WORKER_ENABLED` | Enable export job polling. |
 | `MSM_PROVIDER_IMPORT_WORKER_ENABLED` | Enable provider import job polling. |
 | `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON` | Optional startup export target bootstrap. |

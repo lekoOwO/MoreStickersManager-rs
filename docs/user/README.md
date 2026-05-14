@@ -530,6 +530,13 @@ and subscription payloads served by the API. When a tenant also has
 `publicAssetUrl` configured, the tenant value wins; when neither is configured,
 MSM uses the request-derived app URL from `Host`/`X-Forwarded-Proto`.
 
+Set `MSM_CORS_ALLOWED_ORIGINS` when browser-based clients such as the Equicord
+moreStickers plugin should fetch MSM subscription payloads and protected assets
+directly. The value is comma-separated and should contain origins only, for
+example `https://discord.com,https://canary.discord.com,https://ptb.discord.com`.
+MSM echoes CORS headers only for configured origins and does not enable
+credentialed cookie CORS.
+
 PAT foundation status:
 
 - token format is `msm_pat_<token_id>_<random_secret>`;

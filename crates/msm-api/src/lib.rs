@@ -12,7 +12,13 @@ pub mod routes;
 pub mod state;
 
 use axum::{
-    extract::DefaultBodyLimit,
+    extract::{DefaultBodyLimit, State},
+    http::{
+        header::{ORIGIN, VARY},
+        HeaderValue, Method, StatusCode,
+    },
+    middleware::{from_fn_with_state, Next},
+    response::{IntoResponse, Response},
     routing::{delete, get, patch, post, put},
     Router,
 };
@@ -23,12 +29,61 @@ pub use state::{ApiState, RateLimitConfig};
 
 pub const DEFAULT_REQUEST_BODY_LIMIT_BYTES: usize = 10 * 1024 * 1024;
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CorsConfig {
+    allowed_origins: Vec<String>,
+}
+
+impl CorsConfig {
+    #[must_use]
+    pub fn disabled() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub fn from_allowed_origins(origins: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        let mut allowed_origins = Vec::new();
+        for origin in origins {
+            let origin = origin.into().trim().trim_end_matches('/').to_owned();
+            if origin.is_empty() || allowed_origins.contains(&origin) {
+                continue;
+            }
+            allowed_origins.push(origin);
+        }
+        Self { allowed_origins }
+    }
+
+    #[must_use]
+    pub fn is_enabled(&self) -> bool {
+        !self.allowed_origins.is_empty()
+    }
+
+    #[must_use]
+    pub fn allowed_origins(&self) -> &[String] {
+        &self.allowed_origins
+    }
+
+    fn allows_origin(&self, origin: &str) -> bool {
+        self.allowed_origins
+            .iter()
+            .any(|allowed| allowed == "*" || allowed == origin.trim_end_matches('/'))
+    }
+}
+
 pub fn build_router(state: ApiState) -> Router {
     build_router_with_body_limit(state, DEFAULT_REQUEST_BODY_LIMIT_BYTES)
 }
 
 pub fn build_router_with_body_limit(state: ApiState, request_body_limit_bytes: usize) -> Router {
-    Router::new()
+    build_router_with_body_limit_and_cors(state, request_body_limit_bytes, CorsConfig::disabled())
+}
+
+pub fn build_router_with_body_limit_and_cors(
+    state: ApiState,
+    request_body_limit_bytes: usize,
+    cors_config: CorsConfig,
+) -> Router {
+    let router = Router::new()
         .merge(system_routes())
         .merge(auth_routes())
         .merge(pack_routes())
@@ -41,7 +96,65 @@ pub fn build_router_with_body_limit(state: ApiState, request_body_limit_bytes: u
         .merge(portability_routes())
         .merge(tenant_routes())
         .layer(DefaultBodyLimit::max(request_body_limit_bytes))
-        .with_state(state)
+        .with_state(state);
+
+    if cors_config.is_enabled() {
+        router.layer(from_fn_with_state(cors_config, apply_cors))
+    } else {
+        router
+    }
+}
+
+async fn apply_cors(
+    State(config): State<CorsConfig>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    let allowed_origin = request
+        .headers()
+        .get(ORIGIN)
+        .filter(|origin| {
+            origin
+                .to_str()
+                .is_ok_and(|origin| config.allows_origin(origin))
+        })
+        .cloned();
+    let is_preflight = request.method() == Method::OPTIONS
+        && request
+            .headers()
+            .contains_key("access-control-request-method");
+
+    if is_preflight {
+        let mut response = StatusCode::NO_CONTENT.into_response();
+        if let Some(origin) = allowed_origin {
+            apply_cors_headers(response.headers_mut(), origin);
+        }
+        return response;
+    }
+
+    let mut response = next.run(request).await;
+    if let Some(origin) = allowed_origin {
+        apply_cors_headers(response.headers_mut(), origin);
+    }
+    response
+}
+
+fn apply_cors_headers(headers: &mut axum::http::HeaderMap, origin: HeaderValue) {
+    headers.insert("access-control-allow-origin", origin);
+    headers.append(VARY, HeaderValue::from_static("origin"));
+    headers.insert(
+        "access-control-allow-methods",
+        HeaderValue::from_static("GET,POST,PUT,PATCH,DELETE,OPTIONS"),
+    );
+    headers.insert(
+        "access-control-allow-headers",
+        HeaderValue::from_static("authorization,content-type,accept"),
+    );
+    headers.insert(
+        "access-control-expose-headers",
+        HeaderValue::from_static("content-type"),
+    );
+    headers.insert("access-control-max-age", HeaderValue::from_static("3600"));
 }
 
 fn system_routes() -> Router<ApiState> {
@@ -315,15 +428,69 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::{
-        build_router, build_router_with_body_limit,
+        build_router, build_router_with_body_limit, build_router_with_body_limit_and_cors,
         oidc::{
             OidcDiscoveryDocument, OidcDiscoveryFetcher, OidcDiscoveryFuture, OidcJwk,
             OidcJwksDocument, OidcJwksFetcher, OidcJwksFuture, OidcTokenExchangeFuture,
             OidcTokenExchangeRequest, OidcTokenExchanger, OidcTokenResponse, OidcUserinfoClaims,
             OidcUserinfoFetcher, OidcUserinfoFuture,
         },
-        ApiState, RateLimitConfig,
+        ApiState, CorsConfig, RateLimitConfig, DEFAULT_REQUEST_BODY_LIMIT_BYTES,
     };
+
+    #[tokio::test]
+    async fn cors_preflight_allows_configured_discord_origin() {
+        let response = build_router_with_body_limit_and_cors(
+            test_state().await,
+            DEFAULT_REQUEST_BODY_LIMIT_BYTES,
+            CorsConfig::from_allowed_origins(["https://discord.com"]),
+        )
+        .oneshot(
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/api/public/subscriptions/sub_1")
+                .header("origin", "https://discord.com")
+                .header("access-control-request-method", "GET")
+                .header("access-control-request-headers", "authorization")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(
+            response.headers()["access-control-allow-origin"],
+            "https://discord.com"
+        );
+        assert!(response.headers()["access-control-allow-headers"]
+            .to_str()
+            .unwrap()
+            .contains("authorization"));
+    }
+
+    #[tokio::test]
+    async fn cors_headers_are_omitted_for_unconfigured_origins() {
+        let response = build_router_with_body_limit_and_cors(
+            test_state().await,
+            DEFAULT_REQUEST_BODY_LIMIT_BYTES,
+            CorsConfig::from_allowed_origins(["https://discord.com"]),
+        )
+        .oneshot(
+            Request::builder()
+                .uri("/healthz")
+                .header("origin", "https://evil.example")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(!response
+            .headers()
+            .contains_key("access-control-allow-origin"));
+    }
 
     #[tokio::test]
     async fn health_endpoint_returns_ok() {

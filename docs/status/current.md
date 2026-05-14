@@ -1,8 +1,14 @@
 # Current Status
 
-Phase: Current PRD contract complete; release/staging verification passed.
+Phase: Equicord moreStickers MSM adapter scope opened.
 
 Last completed:
+- Equicord moreStickers MSM adapter planning slice: inspected the upstream
+  plugin's static and dynamic pack handling, documented the MSM adapter contract
+  in `docs/integrations/equicord-morestickers-msm-adapter.md`, added
+  `MSM_CORS_ALLOWED_ORIGINS` API/app configuration for direct Discord/Equicord
+  fetches, and reopened the PRD implementation queue for upstream plugin
+  subscription UI/sync and protected-asset work.
 - First-start admin bootstrap and closed local registration slice: empty
   databases now create the configured/default tenant and admin account during
   `msm-app` startup, logging `bootstrap_admin_created` with the admin password;

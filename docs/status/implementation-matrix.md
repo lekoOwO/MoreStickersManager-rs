@@ -1,6 +1,6 @@
 # Implementation Matrix
 
-Last updated: 2026-05-10.
+Last updated: 2026-05-14.
 
 This file is the quick truth source for what MSM can do today versus what is
 only designed or planned. Use `../PRD.md` for the broader product requirements,
@@ -12,6 +12,7 @@ roadmap, and completion definition.
 | --- | --- | --- |
 | Repository hygiene | Implemented | `.gitignore`, workspace layout, `pnpm-workspace.yaml`, documentation structure, local dev manager, env examples, dev account/PAT/sample-pack bootstrap, CI baseline, release workflows, Dockerfile, and `.dockerignore` exist. |
 | MoreStickers compatibility | Implemented | `msm-domain` preserves `.stickerpack` JSON shape and upstream-compatible IDs. |
+| Equicord moreStickers MSM adapter | Partially complete | MSM emits compatible static/dynamic pack payloads and exposes `MSM_CORS_ALLOWED_ORIGINS` for direct Discord/Equicord browser fetches. Upstream plugin changes remain: MSM subscription UI, direct MSM fetch, dynamic pack-set sync, and header-aware protected asset rendering/sending. |
 | Domain authorization | Implemented | Pure RBAC/PAT policy primitives and pack/subscription access evaluators exist in `msm-domain::authz`. |
 | Storage foundation | Implemented | SQLite storage primitives, migrations, local asset storage, pack/sticker records, PAT storage, Web session storage, local credentials, export target/job tables, export retry metadata, prepared media cache records, Telegram publication records, Telegram per-sticker file mappings, and portable user export/import exist. |
 | PostgreSQL support | Implemented | `DbPool` can connect to PostgreSQL and selects a backend-specific PostgreSQL migration set. Tenant/user/tenant-member core repository operations, sticker-pack upsert/find/list/read-record operations, folder create/list/find operations, tag create/list/find operations, subscription-group create/list/find operations, folder-pack/pack-tag/subscription-group-pack membership add/list operations, personal-access-token create/list/find/verify/revoke operations, Web-session create/verify/revoke operations, local-credential create/read/verify operations, OIDC provider/state/user-link operations, subscription access-token create/list/find/verify/rotate/revoke operations, export-target create/list/find/update/delete operations, export-job create/find/queue/retry/status/recovery/event operations, prepared-media upsert/find operations, and Telegram publication/mapping upsert/find/list operations, provider config upsert/list/find/delete operations, provider import-job create/find/due/status/retry/failure/event operations, metadata membership removal operations, portable user export/import helpers, tenant admin helper operations (tenant settings updates, user disabled-status updates, tenant member upsert, role template upsert/list/find), metadata rename/delete operations, and sticker-pack metadata update/delete/list-accessible helpers have backend-aware SQL paths and shared contract coverage with optional `MSM_TEST_POSTGRES_URL`; CI starts a PostgreSQL service for Rust tests with `MSM_TEST_POSTGRES_URL`, and README/user docs cover both SQLite and PostgreSQL deployment configuration. |
@@ -62,4 +63,6 @@ roadmap, and completion definition.
 
 ## Current Next Phase
 
-Current PRD contract is complete. Next activity is release tagging/staging or a new PRD revision for additional product scope.
+Current next phase is the Equicord moreStickers MSM adapter described in
+`../integrations/equicord-morestickers-msm-adapter.md` and tracked in
+`../PRD.md`.

@@ -158,6 +158,7 @@ pack 與貼圖包組訂閱 payload。
 | `MSM_ASSET_DIR` | 本機貼圖圖片儲存位置。 |
 | `MSM_PREPARED_MEDIA_DIR` | Telegram prepared media output/cache。 |
 | `MSM_PUBLIC_ASSET_URL` | 可選的 system-wide CDN/public asset URL。 |
+| `MSM_CORS_ALLOWED_ORIGINS` | 可選的逗號分隔 browser/plugin origin allow-list，例如 Discord/Equicord origin。 |
 | `MSM_EXPORT_WORKER_ENABLED` | 啟用 export job polling。 |
 | `MSM_PROVIDER_IMPORT_WORKER_ENABLED` | 啟用 provider import job polling。 |
 | `MSM_BOOTSTRAP_EXPORT_TARGETS_JSON` | 可選的 startup export target bootstrap。 |

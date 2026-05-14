@@ -28,6 +28,10 @@ curl -fsS http://localhost:3000/readyz
 Open the Web UI at the value of `_MSM_EXTERNAL_URL`, for example
 `http://localhost:3000`.
 
+Keep `MSM_CORS_ALLOWED_ORIGINS` set to the Discord origins that should be able
+to fetch MSM subscription payloads and assets directly. This is required for an
+MSM-aware Equicord moreStickers plugin that avoids third-party CORS proxies.
+
 ## Authentik application/provider settings
 
 Create an Authentik OAuth2/OpenID provider and application for MSM.
