@@ -110,7 +110,9 @@ Status meanings:
      available in the actual deployed plugin repository. PR:
      https://github.com/Equicord/Equicord/pull/1084.
    - [ ] Track PR review/merge/deployment status for the Equicord plugin patch
-     (PR 1084 is open and its GitHub Actions `Test` check passed).
+     (PR 1084 is open, its GitHub Actions `Test` check passed, and its body
+     now includes MSM's GitHub link, feature summary, and MSC replacement
+     recommendation).
    - [ ] Runtime-verify public and protected MSM pack/group subscriptions in
      Discord/Equicord.
 

@@ -22,6 +22,9 @@ packs and subscription groups.
 It adds:
 
 - an MSM subscription tab in the plugin settings modal;
+- a short MSM GitHub link and recommendation in the existing URL-import help
+  text, replacing the older MoreStickersConverter recommendation for Telegram
+  and synced pack workflows;
 - direct MSM subscription fetches without the public LINE CORS proxy;
 - validation for MSM dynamic pack-set payloads;
 - initial add, startup refresh, manual refresh, removal, and version-aware
@@ -42,7 +45,8 @@ Evidence collected in this repository:
 - Targeted ESLint passed for the changed moreStickers TypeScript/TSX files.
 - Targeted stylelint passed for `src/equicordplugins/moreStickers/style.css`.
 - `pnpm buildStandalone` passed.
-- Equicord PR 1084 GitHub Actions `Test` check passed.
+- Equicord PR 1084 GitHub Actions `Test` check passed after the MSM
+  recommendation update.
 - Patch content includes new `assetCache.tsx` and `msm.ts` files plus settings,
   picker, upload, dynamic-sync, type, and style updates.
 

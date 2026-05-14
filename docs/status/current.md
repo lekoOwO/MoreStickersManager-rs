@@ -17,7 +17,9 @@ Last completed:
   Full `pnpm lint` still fails only on upstream-unrelated files. The patch was
   pushed to `lekoOwO/Vencord:msm-morestickers-adapter` and opened as
   Equicord PR https://github.com/Equicord/Equicord/pull/1084; PR
-  GitHub Actions `Test` passed. PR review/merge/deployment and
+  GitHub Actions `Test` passed. The PR body now includes a short MSM GitHub
+  link, concrete feature summary, and recommendation to use MSM instead of the
+  older MSC flow for Telegram and synced packs. PR review/merge/deployment and
   Discord/Equicord runtime verification remain pending.
 - Equicord moreStickers MSM adapter planning slice: inspected the upstream
   plugin's static and dynamic pack handling, documented the MSM adapter contract
