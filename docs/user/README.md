@@ -81,8 +81,9 @@ to opt out. The `testing` example keeps bootstrap disabled by default.
 
 The Web UI can run against mock data or the current API. It uses a wide desktop
 workspace, Ant Design-inspired blue/gray theme tokens, workspace tabs, and
-dialogs for local login, OIDC login-start, PAT management, and `.stickerpack` import instead of
-placing every workflow on one page. It supports theme toggle, language toggle,
+separate dialogs for local login, local registration, SSO/OIDC, PAT management,
+PAT creation, and `.stickerpack` import instead of placing every workflow on
+one page. It supports theme toggle, language toggle,
 pack list, pack rename, visibility edit, delete, and pasted `.stickerpack`
 import. It also exposes export target settings, Telegram target token
 validation, pack export job creation, job refresh, and ordered job event display
@@ -110,13 +111,16 @@ not set at build time. That means a normal same-origin deployment such as
 not show the mock preview state by default. Plain Vite development without an
 API base URL still falls back to mock data intentionally. When a live API is
 available, the Web UI can store a PAT in browser localStorage and send it to
-protected pack API calls. `VITE_MSM_PAT` can seed the token during Vite development only; production builds ignore that seed value so local dev PATs are not embedded into release assets.
-When the stored PAT has `pat.manage`, the PAT and local-login dialogs load
-role-allowed scopes from `GET /api/v1/pats/scope-policy?userId=...` and filter
-the selectable scope cards. If no suitable PAT or API is available, the dialogs
-fall back to the built-in scope catalog.
+protected pack API calls. `VITE_MSM_PAT` can seed the token during Vite
+development only; production builds ignore that seed value so local dev PATs
+are not embedded into release assets. Local login only asks for Email/password;
+local registration only asks for account and tenant details. Scope selection is
+part of the dedicated Create PAT dialog for API/CLI/MCP automation tokens. When
+the stored PAT has `pat.manage`, that dialog loads role-allowed scopes from
+`GET /api/v1/pats/scope-policy?userId=...` and filters the selectable permission
+cards.
 
-The auth dialog can also start and complete an OIDC/SSO login against a
+The SSO dialog can start and complete an OIDC/SSO login against a
 configured tenant provider. Set or confirm the tenant ID, provider ID, and
 redirect URI, then use the SSO/OIDC action to call
 `GET /api/v1/auth/oidc/{tenant_id}/{provider_id}/login?redirectUri=...`. The UI
@@ -549,9 +553,10 @@ PAT foundation status:
 - local login sets an HttpOnly `msm_session` cookie for Web-session protected
   reads.
 - PAT lifecycle endpoints require a same-user Bearer PAT with `pat.manage`.
-- PAT creation and local login reject requested scopes that are not allowed by
-  the user's built-in role, tenant-admin membership, or custom role-template
-  permissions.
+- PAT creation rejects requested scopes that are not allowed by the user's
+  built-in role, tenant-admin membership, or custom role-template permissions.
+  The Web login flow uses the Web UI's fixed scope set rather than asking users
+  to choose scopes during login.
 
 PAT API endpoints:
 
@@ -805,7 +810,7 @@ MCP tools:
 
 The Web Tenant admin workspace can list providers, create or update a provider,
 toggle provider enablement, toggle provider-backed registration, and delete
-providers. The Web auth dialog can start OIDC login with a configured provider,
+providers. The Web SSO dialog can start OIDC login with a configured provider,
 display the authorization URL/state/nonce response, pre-fill the callback form
 after the provider redirect, complete the callback request, and store the
 returned PAT.

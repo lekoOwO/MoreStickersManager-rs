@@ -2040,6 +2040,16 @@
 - Added a shared Web runtime resolver so embedded production `msm-app`/Docker deployments use the browser origin as the API base when `VITE_MSM_API_BASE_URL` is unset, while plain Vite development with no API base still intentionally shows mock data.
 - Moved Pack, Export, Provider Import, Product Metadata, Tenant Admin, and Portability Web clients to the shared runtime API base resolver.
 - Made `VITE_MSM_PAT` a development-only seed so local dev PATs are not embedded into production Web assets.
-- Switched MSM JavaScript tooling to npm workspaces and `package-lock.json` only: removed `pnpm-workspace.yaml` and `bun.lock`, added the npm package-manager declaration, and changed the Docker Web stage to `node:24-alpine` with `npm ci` plus `npm run web:build`.
-- Updated README/user/status/PRD docs to describe npm-only MSM workflows. Upstream Equicord verification notes continue to mention pnpm only for that external repository.
-- Verification: `npm ci`; `npm run web:test -- runtime-config.test.ts PackDashboard.test.ts AppShell.test.ts`; `npm run web:typecheck`; `npm run web:test` (74 tests); `npm run web:build`; production asset scan confirming the local `VITE_MSM_PAT` value is absent from built JS assets; `node --check scripts/dev-manager.mjs`; `npm run dev:status`; `docker --version` (unavailable in this Windows workspace, so Docker image execution remains CI-bound); `git diff --check`.
+- Switched MSM local/CI JavaScript tooling to npm workspaces and `package-lock.json`: removed `pnpm-workspace.yaml` and added the npm package-manager declaration.
+- Restored the Docker Web stage to `oven/bun:alpine` with `bun.lock`; Docker builds intentionally keep using Bun while local/CI checks use npm.
+- Updated README/user/status/PRD docs to describe npm-based MSM local workflows and the Bun Docker exception. Upstream Equicord verification notes continue to mention pnpm only for that external repository.
+- Verification: `npm ci`; `npm run web:test -- runtime-config.test.ts PackDashboard.test.ts AppShell.test.ts`; `npm run web:typecheck`; `npm run web:test` (74 tests); `npm run web:build`; production asset scan confirming the local `VITE_MSM_PAT` value is absent from built JS assets; `node --check scripts/dev-manager.mjs`; `npm run dev:status`; `docker --version` (unavailable in this Windows workspace, so Docker image execution remains CI-bound); Dockerfile Bun-stage restore review; `git diff --check`.
+
+## 2026-05-17 Auth and PAT UX Separation
+
+- Split the Web auth entrypoint into separate Local Login, Local Registration, and SSO/OIDC dialogs.
+- Reduced Local Login to Email and password only. It now creates an internal Web-session PAT with a generated token ID and fixed Web UI scopes instead of exposing token ID or scope controls to users.
+- Removed PAT scopes from Local Registration; registration now asks only for user/tenant/profile credentials.
+- Split PAT management into a current browser PAT section plus an explicit "Create PAT" dialog for CLI/MCP/API automation tokens.
+- Removed noisy "manual scope string" copy from Web i18n; scope selection appears only where a PAT is actually being created.
+- Verification: RED AppShell UI tests failed against the old mixed dialog, then `npm run web:test -- AppShell.test.ts`, `npm run web:typecheck`, `npm run web:test` (76 tests), and `npm run web:build` passed.

@@ -3,6 +3,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import AppShell from "./AppShell.vue";
 
+function mountShell(props: Partial<InstanceType<typeof AppShell>["$props"]> = {}) {
+  return mount(AppShell, {
+    props: {
+      locale: "en",
+      patToken: "",
+      theme: "light",
+      ...props,
+    },
+    global: {
+      stubs: {
+        PackDashboard: { template: "<main />" },
+      },
+    },
+  });
+}
+
+function buttonByText(wrapper: ReturnType<typeof mount>, text: string) {
+  return wrapper.findAll("button").find((button) => button.text().trim() === text);
+}
+
 describe("AppShell PAT scope policy", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -29,23 +49,16 @@ describe("AppShell PAT scope policy", () => {
     });
     vi.stubGlobal("fetch", fetchImpl);
 
-    const wrapper = mount(AppShell, {
-      props: {
-        locale: "en",
-        patToken: "msm_pat_admin_secret",
-        theme: "light",
-      },
-      global: {
-        stubs: {
-          PackDashboard: { template: "<main />" },
-        },
-      },
-    });
+    const wrapper = mountShell({ patToken: "msm_pat_admin_secret" });
 
     await flushPromises();
-    const patButton = wrapper.findAll("button").find((button) => button.text().trim() === "PAT");
+    const patButton = buttonByText(wrapper, "PAT");
     expect(patButton).toBeTruthy();
     await patButton!.trigger("click");
+    expect(wrapper.text()).not.toContain("Read packs");
+    const createPatButton = buttonByText(wrapper, "Create PAT");
+    expect(createPatButton).toBeTruthy();
+    await createPatButton!.trigger("click");
     await flushPromises();
 
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -61,7 +74,102 @@ describe("AppShell PAT scope policy", () => {
     expect(wrapper.text()).not.toContain("Manage tenant users");
   });
 
-  it("starts OIDC login from the auth dialog", async () => {
+  it("keeps local login focused on email and password", async () => {
+    vi.stubEnv("VITE_MSM_API_BASE_URL", "https://msm.example.test");
+    const loginBody: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (input.toString().endsWith("/api/v1/auth/local/login") && init?.method === "POST") {
+          loginBody.push(JSON.parse(init.body as string));
+          return new Response(
+            JSON.stringify({
+              id: "webui-login",
+              userId: "user_1",
+              name: "Web UI",
+              token: "msm_pat_login_secret",
+              scopes: ["pack.read"],
+              expiresAt: null,
+              revokedAt: null,
+              createdAt: "2026-05-17T00:00:00Z",
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response(JSON.stringify([]), { status: 200 });
+      }),
+    );
+    const wrapper = mountShell();
+
+    await buttonByText(wrapper, "Login")!.trigger("click");
+
+    expect(wrapper.get('[aria-label="Login email"]').exists()).toBe(true);
+    expect(wrapper.get('[aria-label="Login password"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="User ID"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label="Token ID"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Scopes");
+    expect(wrapper.text()).not.toContain("manual scope");
+
+    await wrapper.get('[aria-label="Login email"]').setValue("user@example.test");
+    await wrapper.get('[aria-label="Login password"]').setValue("secret-password");
+    await buttonByText(wrapper, "Log in")!.trigger("click");
+    await flushPromises();
+
+    expect(loginBody).toHaveLength(1);
+    expect(loginBody[0]).toMatchObject({
+      email: "user@example.test",
+      password: "secret-password",
+      tokenName: "Web UI",
+    });
+    expect((loginBody[0] as { tokenId: string }).tokenId).toMatch(/^webui-[a-z0-9-]+$/);
+    expect(wrapper.emitted("updatePatToken")?.at(-1)).toEqual(["msm_pat_login_secret"]);
+  });
+
+  it("keeps registration separate from login and PAT scopes", async () => {
+    vi.stubEnv("VITE_MSM_API_BASE_URL", "https://msm.example.test");
+    const registerBody: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (input.toString().endsWith("/api/v1/auth/local/register") && init?.method === "POST") {
+          registerBody.push(JSON.parse(init.body as string));
+        }
+        return new Response(JSON.stringify({ id: "user_1" }), { status: 200 });
+      }),
+    );
+    const wrapper = mountShell();
+
+    await buttonByText(wrapper, "Login")!.trigger("click");
+    await buttonByText(wrapper, "Create account")!.trigger("click");
+
+    expect(wrapper.get('[aria-label="User ID"]').exists()).toBe(true);
+    expect(wrapper.get('[aria-label="Tenant ID"]').exists()).toBe(true);
+    expect(wrapper.get('[aria-label="Display name"]').exists()).toBe(true);
+    expect(wrapper.get('[aria-label="Register email"]').exists()).toBe(true);
+    expect(wrapper.get('[aria-label="Register password"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("Scopes");
+    expect(wrapper.text()).not.toContain("manual scope");
+
+    await wrapper.get('[aria-label="User ID"]').setValue("user_1");
+    await wrapper.get('[aria-label="Tenant ID"]').setValue("default");
+    await wrapper.get('[aria-label="Display name"]').setValue("MSM User");
+    await wrapper.get('[aria-label="Register email"]').setValue("user@example.test");
+    await wrapper.get('[aria-label="Register password"]').setValue("secret-password");
+    await buttonByText(wrapper, "Create account")!.trigger("click");
+    await flushPromises();
+
+    expect(registerBody).toEqual([
+      {
+        id: "user_1",
+        email: "user@example.test",
+        displayName: "MSM User",
+        password: "secret-password",
+        tenantId: "default",
+      },
+    ]);
+  });
+
+  it("starts OIDC login from the SSO dialog", async () => {
     vi.stubEnv("VITE_MSM_API_BASE_URL", "https://msm.example.test");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = input.toString();
@@ -82,23 +190,13 @@ describe("AppShell PAT scope policy", () => {
     });
     vi.stubGlobal("fetch", fetchImpl);
 
-    const wrapper = mount(AppShell, {
-      props: {
-        locale: "en",
-        patToken: "",
-        theme: "light",
-      },
-      global: {
-        stubs: {
-          PackDashboard: { template: "<main />" },
-        },
-      },
-    });
+    const wrapper = mountShell();
 
     await flushPromises();
-    const loginButton = wrapper.findAll("button").find((button) => button.text().trim() === "Local Login");
+    const loginButton = buttonByText(wrapper, "Login");
     expect(loginButton).toBeTruthy();
     await loginButton!.trigger("click");
+    await buttonByText(wrapper, "SSO login")!.trigger("click");
     await wrapper.get('[aria-label="OIDC tenant ID"]').setValue("tenant_1");
     await wrapper.get('[aria-label="OIDC provider ID"]').setValue("google");
     await wrapper.get('[aria-label="OIDC redirect URI"]').setValue("https://app.example.test/callback");
@@ -112,7 +210,7 @@ describe("AppShell PAT scope policy", () => {
     expect(wrapper.text()).toContain("state_1");
   });
 
-  it("completes OIDC login from the auth dialog and stores the returned PAT", async () => {
+  it("completes OIDC login from the SSO dialog and stores the returned PAT", async () => {
     vi.stubEnv("VITE_MSM_API_BASE_URL", "https://msm.example.test");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
@@ -148,23 +246,13 @@ describe("AppShell PAT scope policy", () => {
     });
     vi.stubGlobal("fetch", fetchImpl);
 
-    const wrapper = mount(AppShell, {
-      props: {
-        locale: "en",
-        patToken: "",
-        theme: "light",
-      },
-      global: {
-        stubs: {
-          PackDashboard: { template: "<main />" },
-        },
-      },
-    });
+    const wrapper = mountShell();
 
     await flushPromises();
-    const loginButton = wrapper.findAll("button").find((button) => button.text().trim() === "Local Login");
+    const loginButton = buttonByText(wrapper, "Login");
     expect(loginButton).toBeTruthy();
     await loginButton!.trigger("click");
+    await buttonByText(wrapper, "SSO login")!.trigger("click");
     await wrapper.get('[aria-label="OIDC tenant ID"]').setValue("tenant_1");
     await wrapper.get('[aria-label="OIDC provider ID"]').setValue("google");
     await wrapper.get('[aria-label="OIDC redirect URI"]').setValue("https://app.example.test/callback");
@@ -221,18 +309,7 @@ describe("AppShell PAT scope policy", () => {
       vi.fn(async () => new Response(JSON.stringify({ userId: "user_1", allowedScopes: ["pack.read"] }), { status: 200 })),
     );
 
-    const wrapper = mount(AppShell, {
-      props: {
-        locale: "en",
-        patToken: "",
-        theme: "light",
-      },
-      global: {
-        stubs: {
-          PackDashboard: { template: "<main />" },
-        },
-      },
-    });
+    const wrapper = mountShell();
 
     await flushPromises();
 

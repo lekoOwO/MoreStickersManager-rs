@@ -3,17 +3,26 @@
 Phase: Equicord moreStickers MSM adapter scope opened.
 
 Last completed:
-- npm-only Web tooling slice: MSM now uses npm workspaces and
-  `package-lock.json` as the single JavaScript package-management path. Removed
-  `pnpm-workspace.yaml` and `bun.lock`, changed the Docker Web build stage to
-  `node:24-alpine` with `npm ci` / `npm run web:build`, and updated user/status
-  docs away from pnpm/bun commands for MSM-local workflows. Upstream Equicord
-  verification notes still mention pnpm because that repository uses pnpm.
+- Auth/PAT Web UX separation slice: local login now contains only Email and
+  password, local registration is a separate dialog without PAT scopes, SSO/OIDC
+  is isolated behind its own action, and PAT management separates the current
+  browser PAT from the "Create PAT" flow. Removed the noisy "manual scope
+  string" copy; scope selection now appears only inside PAT creation. A focused
+  UI copy audit found no remaining user-facing `manual scope`/hand-writing
+  messaging in Web i18n. Verification: `npm run web:test -- AppShell.test.ts`;
+  `npm run web:typecheck`; `npm run web:test`; `npm run web:build`.
+- npm workspace tooling slice: MSM local development and CI Web checks now use
+  npm workspaces with `package-lock.json`; `pnpm-workspace.yaml` was removed.
+  The Dockerfile intentionally stays on `oven/bun:alpine` with `bun.lock` for
+  the container Web build path. User/status docs now avoid pnpm commands for
+  MSM-local workflows. Upstream Equicord verification notes still mention pnpm
+  because that repository uses pnpm.
   Verification: `npm ci`; `npm run web:typecheck`; `npm run web:test`;
   `npm run web:build`; production asset scan for the local `VITE_MSM_PAT` value;
   `node --check scripts/dev-manager.mjs`; `npm run dev:status`;
-  `git diff --check`. Docker CLI is unavailable in this Windows workspace, so
-  Docker image execution remains CI-bound.
+  Dockerfile Bun-stage restore review; `git diff --check`. Docker CLI is
+  unavailable in this Windows workspace, so Docker image execution remains
+  CI-bound.
 - Production Web same-origin API fallback slice: the Web runtime now resolves a
   live API base URL from the browser origin for embedded production
   `msm-app`/Docker deployments when `VITE_MSM_API_BASE_URL` is not set at build

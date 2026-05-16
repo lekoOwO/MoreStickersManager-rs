@@ -49,15 +49,17 @@ const oidcPendingStorageKey = "msm.oidc.pending";
 const mobileNavOpen = ref(false);
 const sidebarExpanded = ref(false);
 const activeSection = ref<WorkspaceSection>("packs");
-const authDialogOpen = ref(false);
+const loginDialogOpen = ref(false);
+const registerDialogOpen = ref(false);
+const oidcDialogOpen = ref(false);
 const accessDialogOpen = ref(false);
+const createPatDialogOpen = ref(false);
 const tokenDraft = ref(props.patToken);
 const authUserId = ref(import.meta.env.VITE_MSM_USER_ID || "user_1");
 const authTenantId = ref(import.meta.env.VITE_MSM_TENANT_ID || "default");
 const authDisplayName = ref("Leko");
 const authEmail = ref("");
 const authPassword = ref("");
-const authTokenId = ref("webui");
 const oidcTenantId = ref(import.meta.env.VITE_MSM_TENANT_ID || "default");
 const oidcProviderId = ref(import.meta.env.VITE_MSM_OIDC_PROVIDER_ID || "google");
 const oidcRedirectUri = ref(
@@ -77,6 +79,17 @@ const oidcTokenId = ref("webui-oidc");
 const oidcTokenName = ref("Web OIDC");
 const oidcScopes = ref<string[]>(["pack.read"]);
 const oidcStartResult = ref<OidcLoginStartResponse | null>(null);
+const webLoginScopes = [
+  "pack.read",
+  "pack.update",
+  "pack.delete",
+  "import.run",
+  "provider.import",
+  "export.read",
+  "export.run",
+  "subscription.create",
+  "subscription.read",
+] as const;
 const defaultPatScopes = [
   "pack.create",
   "pack.read",
@@ -98,21 +111,10 @@ const defaultPatScopes = [
   "pat.manage",
 ] as const;
 type KnownPatScope = (typeof defaultPatScopes)[number];
-const authScopes = ref<string[]>([
-  "pack.read",
-  "pack.update",
-  "pack.delete",
-  "import.run",
-  "provider.import",
-  "export.read",
-  "export.run",
-  "subscription.create",
-  "subscription.read",
-]);
 const authResult = ref<CreatedPersonalAccessTokenResponse | null>(null);
 const authError = ref("");
-const tokenId = ref("webui");
-const tokenName = ref("Web UI");
+const tokenId = ref(nextWebTokenId("pat"));
+const tokenName = ref("CLI / MCP automation");
 const tokenScopes = ref<string[]>([...defaultPatScopes]);
 const tokens = ref<PersonalAccessTokenResponse[]>([]);
 const createdToken = ref<CreatedPersonalAccessTokenResponse | null>(null);
@@ -245,8 +247,8 @@ watch(
   },
 );
 
-watch([accessDialogOpen, authDialogOpen, () => props.patToken], ([isAccessOpen, isAuthOpen]) => {
-  if (isAccessOpen || isAuthOpen) {
+watch([createPatDialogOpen, () => props.patToken], ([isCreatePatOpen]) => {
+  if (isCreatePatOpen) {
     void loadPatScopePolicy();
   }
 });
@@ -254,6 +256,10 @@ watch([accessDialogOpen, authDialogOpen, () => props.patToken], ([isAccessOpen, 
 onMounted(() => {
   applyOidcCallbackFromLocation();
 });
+
+function nextWebTokenId(prefix: string) {
+  return `${prefix}-${Date.now().toString(36)}`;
+}
 
 function selectSection(section: WorkspaceSection) {
   activeSection.value = section;
@@ -286,6 +292,31 @@ function clearToken() {
   emit("updatePatToken", "");
 }
 
+function openLoginDialog() {
+  authError.value = "";
+  authResult.value = null;
+  loginDialogOpen.value = true;
+}
+
+function openRegisterDialog() {
+  authError.value = "";
+  loginDialogOpen.value = false;
+  registerDialogOpen.value = true;
+}
+
+function openOidcDialog() {
+  authError.value = "";
+  loginDialogOpen.value = false;
+  oidcDialogOpen.value = true;
+}
+
+function openCreatePatDialog() {
+  patError.value = "";
+  createdToken.value = null;
+  tokenId.value = nextWebTokenId("pat");
+  createPatDialogOpen.value = true;
+}
+
 async function registerLocalUser() {
   authError.value = "";
   try {
@@ -308,9 +339,9 @@ async function loginLocalUser() {
     authResult.value = await requireLocalAuthClient().loginLocalUser({
       email: authEmail.value.trim(),
       password: authPassword.value,
-      tokenId: authTokenId.value.trim(),
+      tokenId: nextWebTokenId("webui"),
       tokenName: "Web UI",
-      scopes: authScopes.value,
+      scopes: [...webLoginScopes],
       expiresAt: null,
     });
     emit("updatePatToken", authResult.value.token);
@@ -425,7 +456,7 @@ function applyOidcCallbackFromLocation() {
   oidcTenantId.value = pending?.tenantId || oidcTenantId.value;
   oidcProviderId.value = pending?.providerId || oidcProviderId.value;
   oidcRedirectUri.value = pending?.redirectUri || oidcRedirectUri.value;
-  authDialogOpen.value = true;
+  oidcDialogOpen.value = true;
 }
 
 async function loadPatScopePolicy() {
@@ -460,7 +491,6 @@ function applyAllowedScopes(allowedScopes: string[]) {
   tokenScopes.value = tokenWasDefault
     ? [...knownAllowedScopes]
     : tokenScopes.value.filter((scope) => allowed.has(scope));
-  authScopes.value = authScopes.value.filter((scope) => allowed.has(scope));
 }
 
 function requireLocalAuthClient() {
@@ -638,7 +668,7 @@ function requirePatClient() {
 
             <div class="flex items-center gap-2">
               <Badge class="hidden md:inline-flex" data-testid="runtime-badge" :variant="runtimeMode.badgeVariant">{{ runtimeMode.label }}</Badge>
-              <Button variant="outline" size="sm" type="button" @click="authDialogOpen = true">
+              <Button variant="outline" size="sm" type="button" @click="openLoginDialog">
                 <LogInIcon data-icon="inline-start" />
                 <span class="hidden sm:inline">{{ labels.localLogin }}</span>
               </Button>
@@ -691,21 +721,70 @@ function requirePatClient() {
       </div>
     </div>
 
-    <div v-show="authDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
-      <section class="max-h-[88dvh] w-full max-w-3xl overflow-y-auto rounded-3xl border bg-card p-5 shadow-2xl msm-scrollbar" role="dialog" aria-modal="true" :aria-label="labels.localLogin">
+    <div v-if="loginDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
+      <section class="w-full max-w-md rounded-3xl border bg-card p-5 shadow-2xl" role="dialog" aria-modal="true" :aria-label="labels.localLogin">
         <div class="flex items-start justify-between gap-4">
           <div>
             <h2 class="text-xl font-semibold">{{ labels.localLogin }}</h2>
             <p class="mt-1 text-sm text-muted-foreground">{{ labels.localLoginHelp }}</p>
           </div>
-          <Button variant="ghost" size="icon" type="button" :aria-label="labels.close" @click="authDialogOpen = false">
+          <Button variant="ghost" size="icon" type="button" :aria-label="labels.close" @click="loginDialogOpen = false">
+            <XIcon data-icon="inline-start" />
+          </Button>
+        </div>
+        <div class="mt-5 grid gap-3">
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.email }}
+            <input
+              v-model="authEmail"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.loginEmail"
+              type="email"
+            />
+          </label>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.password }}
+            <input
+              v-model="authPassword"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.loginPassword"
+              type="password"
+            />
+          </label>
+        </div>
+        <div class="mt-5 flex flex-wrap gap-2">
+          <Button type="button" @click="loginLocalUser">{{ labels.loginLocalUser }}</Button>
+          <Button type="button" variant="outline" @click="openRegisterDialog">{{ labels.registerLocalUser }}</Button>
+          <Button type="button" variant="ghost" @click="openOidcDialog">{{ labels.openOidcLogin }}</Button>
+        </div>
+        <p v-if="authResult" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm">
+          {{ labels.loginTokenStored }} <code class="font-mono">{{ authResult.token }}</code>
+        </p>
+        <p v-if="authError" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
+          {{ authError }}
+        </p>
+      </section>
+    </div>
+
+    <div v-if="registerDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
+      <section class="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-3xl border bg-card p-5 shadow-2xl msm-scrollbar" role="dialog" aria-modal="true" :aria-label="labels.registerLocalUser">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-semibold">{{ labels.registerLocalUser }}</h2>
+            <p class="mt-1 text-sm text-muted-foreground">{{ labels.registerLocalUserHelp }}</p>
+          </div>
+          <Button variant="ghost" size="icon" type="button" :aria-label="labels.close" @click="registerDialogOpen = false">
             <XIcon data-icon="inline-start" />
           </Button>
         </div>
         <div class="mt-5 grid gap-3 md:grid-cols-2">
           <label class="flex flex-col gap-2 text-sm font-medium">
             {{ labels.userId }}
-            <input v-model="authUserId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+            <input
+              v-model="authUserId"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.userId"
+            />
           </label>
           <label class="flex flex-col gap-2 text-sm font-medium">
             {{ labels.localTenantId }}
@@ -717,185 +796,179 @@ function requirePatClient() {
           </label>
           <label class="flex flex-col gap-2 text-sm font-medium">
             {{ labels.displayName }}
-            <input v-model="authDisplayName" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+            <input
+              v-model="authDisplayName"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.displayName"
+            />
           </label>
           <label class="flex flex-col gap-2 text-sm font-medium">
             {{ labels.email }}
-            <input v-model="authEmail" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" type="email" />
+            <input
+              v-model="authEmail"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.registerEmail"
+              type="email"
+            />
           </label>
           <label class="flex flex-col gap-2 text-sm font-medium">
             {{ labels.password }}
-            <input v-model="authPassword" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" type="password" />
+            <input
+              v-model="authPassword"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.registerPassword"
+              type="password"
+            />
           </label>
-          <label class="flex flex-col gap-2 text-sm font-medium">
-            {{ labels.tokenId }}
-            <input v-model="authTokenId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
-          </label>
-          <fieldset class="md:col-span-2">
-            <legend class="text-sm font-medium">{{ labels.tokenScopes }}</legend>
-            <p class="mt-1 text-xs text-muted-foreground">{{ labels.tokenScopesHelp }}</p>
-            <p class="mt-2 rounded-lg border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-              {{ scopePolicyStatus }}
-            </p>
-            <div class="mt-3 grid gap-2 md:grid-cols-2">
-              <label
-                v-for="scope in scopeOptions"
-                :key="`auth-${scope.key}`"
-                class="flex cursor-pointer items-start gap-3 rounded-xl border bg-background/72 p-3 text-sm hover:border-primary/45 hover:bg-accent/55"
-              >
-                <input
-                  v-model="authScopes"
-                  class="mt-1 size-4 cursor-pointer accent-[var(--primary)]"
-                  type="checkbox"
-                  :value="scope.key"
-                />
-                <span class="min-w-0">
-                  <span class="block font-semibold">{{ scope.label }}</span>
-                  <code class="mt-1 block truncate font-mono text-xs text-muted-foreground">{{ scope.key }}</code>
-                  <span class="mt-1 block text-xs leading-5 text-muted-foreground">{{ scope.help }}</span>
-                </span>
-              </label>
-            </div>
-          </fieldset>
         </div>
         <div class="mt-5 flex flex-wrap gap-2">
-          <Button type="button" variant="outline" @click="registerLocalUser">{{ labels.registerLocalUser }}</Button>
-          <Button type="button" @click="loginLocalUser">{{ labels.loginLocalUser }}</Button>
+          <Button type="button" @click="registerLocalUser">{{ labels.registerLocalUser }}</Button>
+          <Button type="button" variant="ghost" @click="openLoginDialog">{{ labels.localLogin }}</Button>
         </div>
+        <p v-if="authError" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
+          {{ authError }}
+        </p>
+      </section>
+    </div>
 
-        <section class="mt-6 border-t pt-5" :aria-label="labels.oidcLogin">
+    <div v-if="oidcDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
+      <section class="max-h-[88dvh] w-full max-w-3xl overflow-y-auto rounded-3xl border bg-card p-5 shadow-2xl msm-scrollbar" role="dialog" aria-modal="true" :aria-label="labels.oidcLogin">
+        <div class="flex items-start justify-between gap-4">
           <div class="flex flex-col gap-1">
-            <h3 class="text-base font-semibold">{{ labels.oidcLogin }}</h3>
+            <h2 class="text-xl font-semibold">{{ labels.oidcLogin }}</h2>
             <p class="text-sm leading-6 text-muted-foreground">{{ labels.oidcLoginHelp }}</p>
           </div>
-          <div class="mt-4 grid gap-3 md:grid-cols-3">
-            <label class="flex flex-col gap-2 text-sm font-medium">
-              {{ labels.oidcTenantId }}
-              <input
-                v-model="oidcTenantId"
-                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                :aria-label="labels.oidcTenantId"
-              />
-            </label>
-            <label class="flex flex-col gap-2 text-sm font-medium">
-              {{ labels.oidcProviderId }}
-              <input
-                v-model="oidcProviderId"
-                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                :aria-label="labels.oidcProviderId"
-              />
-            </label>
-            <label class="flex flex-col gap-2 text-sm font-medium md:col-span-3">
-              {{ labels.oidcRedirectUri }}
-              <input
-                v-model="oidcRedirectUri"
-                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                :aria-label="labels.oidcRedirectUri"
-              />
-            </label>
-          </div>
-          <Button type="button" class="mt-4" :aria-label="labels.startOidcLogin" @click="startOidcLogin">
-            {{ labels.startOidcLogin }}
+          <Button variant="ghost" size="icon" type="button" :aria-label="labels.close" @click="oidcDialogOpen = false">
+            <XIcon data-icon="inline-start" />
           </Button>
-          <div v-if="oidcStartResult" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm">
-            <a
-              class="font-semibold text-primary underline-offset-4 hover:underline"
-              :href="oidcStartResult.authorizationUrl"
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              {{ labels.openOidcAuthorizationUrl }}
-            </a>
-            <dl class="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
-              <div>
-                <dt class="font-semibold text-foreground">{{ labels.oidcState }}</dt>
-                <dd class="break-all font-mono">{{ oidcStartResult.state }}</dd>
-              </div>
-              <div>
-                <dt class="font-semibold text-foreground">{{ labels.oidcNonce }}</dt>
-                <dd class="break-all font-mono">{{ oidcStartResult.nonce }}</dd>
-              </div>
-              <div>
-                <dt class="font-semibold text-foreground">{{ labels.oidcExpiresAt }}</dt>
-                <dd class="break-all font-mono">{{ oidcStartResult.expiresAt }}</dd>
-              </div>
-            </dl>
-          </div>
-          <details class="mt-4 rounded-xl border bg-background/70 p-3 text-sm" open>
-            <summary class="cursor-pointer font-semibold">{{ labels.oidcCallbackCompletion }}</summary>
-            <p class="mt-2 text-xs leading-5 text-muted-foreground">{{ labels.oidcCallbackHelp }}</p>
-            <div class="mt-4 grid gap-3 md:grid-cols-2">
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.oidcAuthorizationCode }}
-                <input
-                  v-model="oidcAuthorizationCode"
-                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  :aria-label="labels.oidcAuthorizationCode"
-                />
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.oidcCallbackState }}
-                <input
-                  v-model="oidcCallbackState"
-                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  :aria-label="labels.oidcCallbackState"
-                />
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.oidcCallbackNonce }}
-                <input
-                  v-model="oidcCallbackNonce"
-                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  :aria-label="labels.oidcCallbackNonce"
-                />
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.oidcIssuer }}
-                <input
-                  v-model="oidcIssuer"
-                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  :aria-label="labels.oidcIssuer"
-                />
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.oidcAudience }}
-                <input
-                  v-model="oidcAudience"
-                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  :aria-label="labels.oidcAudience"
-                />
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.oidcProviderSubject }}
-                <input
-                  v-model="oidcProviderSubject"
-                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  :aria-label="labels.oidcProviderSubject"
-                />
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.oidcEmail }}
-                <input
-                  v-model="oidcEmail"
-                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  :aria-label="labels.oidcEmail"
-                  type="email"
-                />
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                {{ labels.oidcProfileDisplayName }}
-                <input
-                  v-model="oidcDisplayName"
-                  class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  :aria-label="labels.oidcProfileDisplayName"
-                />
-              </label>
+        </div>
+        <div class="mt-4 grid gap-3 md:grid-cols-3">
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.oidcTenantId }}
+            <input
+              v-model="oidcTenantId"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.oidcTenantId"
+            />
+          </label>
+          <label class="flex flex-col gap-2 text-sm font-medium">
+            {{ labels.oidcProviderId }}
+            <input
+              v-model="oidcProviderId"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.oidcProviderId"
+            />
+          </label>
+          <label class="flex flex-col gap-2 text-sm font-medium md:col-span-3">
+            {{ labels.oidcRedirectUri }}
+            <input
+              v-model="oidcRedirectUri"
+              class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              :aria-label="labels.oidcRedirectUri"
+            />
+          </label>
+        </div>
+        <Button type="button" class="mt-4" :aria-label="labels.startOidcLogin" @click="startOidcLogin">
+          {{ labels.startOidcLogin }}
+        </Button>
+        <div v-if="oidcStartResult" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm">
+          <a
+            class="font-semibold text-primary underline-offset-4 hover:underline"
+            :href="oidcStartResult.authorizationUrl"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {{ labels.openOidcAuthorizationUrl }}
+          </a>
+          <dl class="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
+            <div>
+              <dt class="font-semibold text-foreground">{{ labels.oidcState }}</dt>
+              <dd class="break-all font-mono">{{ oidcStartResult.state }}</dd>
             </div>
-            <Button type="button" class="mt-4" :aria-label="labels.completeOidcLogin" @click="completeOidcLogin">
-              {{ labels.completeOidcLogin }}
-            </Button>
-          </details>
-        </section>
+            <div>
+              <dt class="font-semibold text-foreground">{{ labels.oidcNonce }}</dt>
+              <dd class="break-all font-mono">{{ oidcStartResult.nonce }}</dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-foreground">{{ labels.oidcExpiresAt }}</dt>
+              <dd class="break-all font-mono">{{ oidcStartResult.expiresAt }}</dd>
+            </div>
+          </dl>
+        </div>
+        <details class="mt-4 rounded-xl border bg-background/70 p-3 text-sm" open>
+          <summary class="cursor-pointer font-semibold">{{ labels.oidcCallbackCompletion }}</summary>
+          <p class="mt-2 text-xs leading-5 text-muted-foreground">{{ labels.oidcCallbackHelp }}</p>
+          <div class="mt-4 grid gap-3 md:grid-cols-2">
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcAuthorizationCode }}
+              <input
+                v-model="oidcAuthorizationCode"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcAuthorizationCode"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcCallbackState }}
+              <input
+                v-model="oidcCallbackState"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcCallbackState"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcCallbackNonce }}
+              <input
+                v-model="oidcCallbackNonce"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcCallbackNonce"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcIssuer }}
+              <input
+                v-model="oidcIssuer"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcIssuer"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcAudience }}
+              <input
+                v-model="oidcAudience"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcAudience"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcProviderSubject }}
+              <input
+                v-model="oidcProviderSubject"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcProviderSubject"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcEmail }}
+              <input
+                v-model="oidcEmail"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcEmail"
+                type="email"
+              />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              {{ labels.oidcProfileDisplayName }}
+              <input
+                v-model="oidcDisplayName"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.oidcProfileDisplayName"
+              />
+            </label>
+          </div>
+          <Button type="button" class="mt-4" :aria-label="labels.completeOidcLogin" @click="completeOidcLogin">
+            {{ labels.completeOidcLogin }}
+          </Button>
+        </details>
         <p v-if="authResult" class="mt-4 rounded-xl border bg-background/70 p-3 text-sm">
           {{ labels.loginTokenStored }} <code class="font-mono">{{ authResult.token }}</code>
         </p>
@@ -905,8 +978,8 @@ function requirePatClient() {
       </section>
     </div>
 
-    <div v-show="accessDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
-      <section class="max-h-[88dvh] w-full max-w-4xl overflow-y-auto rounded-3xl border bg-card p-5 shadow-2xl msm-scrollbar" role="dialog" aria-modal="true" :aria-label="labels.personalAccessTokens">
+    <div v-if="accessDialogOpen" class="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
+      <section class="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-3xl border bg-card p-5 shadow-2xl msm-scrollbar" role="dialog" aria-modal="true" :aria-label="labels.personalAccessTokens">
         <div class="flex items-start justify-between gap-4">
           <div>
             <h2 class="text-xl font-semibold">{{ labels.personalAccessTokens }}</h2>
@@ -931,15 +1004,63 @@ function requirePatClient() {
             <Button type="button" @click="saveToken">{{ labels.savePatToken }}</Button>
             <Button type="button" variant="outline" @click="clearToken">{{ labels.clearPatToken }}</Button>
             <Button type="button" variant="secondary" @click="listTokens">{{ labels.refreshTokens }}</Button>
+            <Button type="button" variant="outline" @click="openCreatePatDialog">{{ labels.createPatToken }}</Button>
           </div>
+          <p v-if="patError" class="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
+            {{ patError }}
+          </p>
+          <div class="rounded-2xl border bg-background/54 p-3">
+            <p class="text-sm font-semibold">{{ labels.patList }}</p>
+            <p class="mt-1 text-xs text-muted-foreground">{{ labels.patListHelp }}</p>
+          </div>
+          <article
+            v-for="token in tokens"
+            :key="token.id"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-3"
+          >
+            <div class="min-w-0">
+              <p class="font-semibold">{{ token.name }}</p>
+              <p class="text-sm text-muted-foreground">{{ token.id }} · {{ token.scopes.join(", ") }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <Badge variant="secondary">{{ token.createdAt.split("T")[0] }}</Badge>
+              <Button type="button" variant="outline" size="sm" @click="revokeToken(token.id)">
+                {{ labels.revokePatToken }}
+              </Button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="createPatDialogOpen" class="fixed inset-0 z-50 grid place-items-center bg-foreground/24 p-4 backdrop-blur-sm">
+      <section class="max-h-[88dvh] w-full max-w-3xl overflow-y-auto rounded-3xl border bg-card p-5 shadow-2xl msm-scrollbar" role="dialog" aria-modal="true" :aria-label="labels.createPatToken">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-semibold">{{ labels.createPatToken }}</h2>
+            <p class="mt-1 text-sm text-muted-foreground">{{ labels.createPatTokenHelp }}</p>
+          </div>
+          <Button variant="ghost" size="icon" type="button" :aria-label="labels.close" @click="createPatDialogOpen = false">
+            <XIcon data-icon="inline-start" />
+          </Button>
+        </div>
+        <div class="mt-5 flex flex-col gap-4">
           <div class="grid gap-3 md:grid-cols-3">
             <label class="flex flex-col gap-2 text-sm font-medium">
               {{ labels.tokenId }}
-              <input v-model="tokenId" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <input
+                v-model="tokenId"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.tokenId"
+              />
             </label>
             <label class="flex flex-col gap-2 text-sm font-medium">
               {{ labels.tokenName }}
-              <input v-model="tokenName" class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+              <input
+                v-model="tokenName"
+                class="h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                :aria-label="labels.tokenName"
+              />
             </label>
           </div>
           <fieldset>
@@ -975,22 +1096,6 @@ function requirePatClient() {
           <p v-if="patError" class="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
             {{ patError }}
           </p>
-          <article
-            v-for="token in tokens"
-            :key="token.id"
-            class="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 p-3"
-          >
-            <div class="min-w-0">
-              <p class="font-semibold">{{ token.name }}</p>
-              <p class="text-sm text-muted-foreground">{{ token.id }} · {{ token.scopes.join(", ") }}</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <Badge variant="secondary">{{ token.createdAt.split("T")[0] }}</Badge>
-              <Button type="button" variant="outline" size="sm" @click="revokeToken(token.id)">
-                {{ labels.revokePatToken }}
-              </Button>
-            </div>
-          </article>
         </div>
       </section>
     </div>
