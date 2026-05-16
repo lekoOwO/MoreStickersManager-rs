@@ -20,6 +20,7 @@ import {
 } from "@/lib/api-client";
 import type { ExportClient } from "@/lib/exportApi";
 import { allMessages, type Locale } from "@/lib/i18n";
+import { resolveApiBaseUrl } from "@/lib/runtime-config";
 import { type PackVisibility, type StickerPackSummary } from "@/lib/sticker-packs";
 import type { WorkspaceSection } from "@/lib/workspace";
 
@@ -176,7 +177,7 @@ function packClient() {
   return (
     props.packClient ??
     createPackClient({
-      baseUrl: import.meta.env.VITE_MSM_API_BASE_URL,
+      baseUrl: resolveApiBaseUrl(),
       userId: import.meta.env.VITE_MSM_USER_ID,
       authToken: props.patToken,
     })

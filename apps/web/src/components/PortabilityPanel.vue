@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import { Button } from "@/components/ui/button";
 import { createPortabilityClient, type PortabilityClient } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
+import { resolveApiBaseUrl } from "@/lib/runtime-config";
 
 const props = defineProps<{
   locale: Locale;
@@ -57,7 +58,7 @@ function client() {
   return (
     props.portabilityClient ??
     createPortabilityClient({
-      baseUrl: import.meta.env.VITE_MSM_API_BASE_URL,
+      baseUrl: resolveApiBaseUrl(),
       authToken: props.patToken,
     })
   );

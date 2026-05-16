@@ -29,6 +29,7 @@ import {
   type PersonalAccessTokenResponse,
 } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
+import { resolveApiBaseUrl } from "@/lib/runtime-config";
 import type { ThemePreference } from "@/lib/theme";
 import type { WorkspaceSection } from "@/lib/workspace";
 
@@ -120,7 +121,7 @@ const scopePolicyAllowedScopes = ref<string[] | null>(null);
 const scopePolicyLoading = ref(false);
 const scopePolicyError = ref("");
 const labels = computed(() => allMessages()[props.locale]);
-const apiBaseUrl = computed(() => import.meta.env.VITE_MSM_API_BASE_URL?.trim() ?? "");
+const apiBaseUrl = computed(() => resolveApiBaseUrl());
 const isConnected = computed(() => Boolean(apiBaseUrl.value));
 const hasPat = computed(() => Boolean(props.patToken.trim()));
 const runtimeMode = computed(() => {

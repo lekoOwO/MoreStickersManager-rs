@@ -67,11 +67,10 @@ npm run web:build
 manager loads `.env.<name>` plus optional `.env.local`, writes stdout/stderr
 logs under `tmp/dev-manager/`, and supports `development` and `testing` examples
 out of the box through `.env.development.example` and `.env.testing.example`.
-`pnpm run` works as well; the repository includes `pnpm-workspace.yaml`, and the
-manager launches the local Vite binary directly instead of depending on
-package-manager argument forwarding. On Windows, services are launched through
-hidden wrappers so Rust/Vite child processes do not open visible console
-windows.
+The manager launches the local Vite binary directly, so npm workspace argument
+forwarding is not required for service startup. On Windows, services are
+launched through hidden wrappers so Rust/Vite child processes do not open
+visible console windows.
 The default `development` profile also bootstraps a usable local environment:
 after the API reports healthy, the manager registers or reuses the dev account,
 creates a fresh PAT, writes `VITE_MSM_PAT` into a managed block in `.env.local`,
@@ -104,10 +103,14 @@ $env:VITE_MSM_PAT="<raw-pat>"
 npm run web:dev
 ```
 
-When `VITE_MSM_API_BASE_URL` is omitted, the dashboard falls back to mock data.
-When it is configured, the Web UI can store a PAT in browser localStorage and
-send it to protected pack API calls. `VITE_MSM_PAT` can seed the token during
-development.
+When the Web UI is embedded in a production `msm-app` binary or Docker image, it
+uses the current browser origin as the API base if `VITE_MSM_API_BASE_URL` was
+not set at build time. That means a normal same-origin deployment such as
+`https://msm.example.test` talks to `https://msm.example.test/api/...` and does
+not show the mock preview state by default. Plain Vite development without an
+API base URL still falls back to mock data intentionally. When a live API is
+available, the Web UI can store a PAT in browser localStorage and send it to
+protected pack API calls. `VITE_MSM_PAT` can seed the token during Vite development only; production builds ignore that seed value so local dev PATs are not embedded into release assets.
 When the stored PAT has `pat.manage`, the PAT and local-login dialogs load
 role-allowed scopes from `GET /api/v1/pats/scope-policy?userId=...` and filter
 the selectable scope cards. If no suitable PAT or API is available, the dialogs
@@ -696,9 +699,11 @@ Local auth endpoints:
 Register creates a local user and Argon2 password credential. Login verifies
 the password, returns a raw PAT once, and sets an HttpOnly `msm_session` cookie.
 
-The Web UI can call these endpoints when `VITE_MSM_API_BASE_URL` is configured.
-Successful Web login stores the returned PAT in browser localStorage and keeps
-the API-issued cookie for Web-session protected asset reads.
+The embedded production Web UI calls these endpoints through the same-origin API
+by default. Set `VITE_MSM_API_BASE_URL` only when the Web build must talk to a
+different API origin, or when running Vite development against a non-default
+service. Successful Web login stores the returned PAT in browser localStorage
+and keeps the API-issued cookie for Web-session protected asset reads.
 
 OIDC provider login is implemented for the current Web/API contract. The login start endpoint returns an authorization URL plus one-time state and nonce values. The callback endpoint can exchange an authorization code, verify ID-token issuer/audience/nonce/expiration and RS256 JWKS signature, fetch userinfo when profile claims are missing, link or create a tenant user when provider registration allows it, return a PAT, and set an `msm_session` cookie. See `docs/user/oidc-sso.md` for the full SSO-backed account guide.
 

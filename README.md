@@ -185,14 +185,14 @@ Backup/restore guidance is in
 Prerequisites:
 
 - Rust stable toolchain
-- Bun or Node.js/npm
+- Node.js 24 with npm
 - ffmpeg and ffprobe
 - Optional PostgreSQL for backend parity tests
 
 Useful checks:
 
 ```bash
-bun install --frozen-lockfile
+npm ci
 cargo fmt --all -- --check
 cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings

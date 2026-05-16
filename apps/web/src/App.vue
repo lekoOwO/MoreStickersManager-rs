@@ -3,6 +3,7 @@ import { ref } from "vue";
 
 import AppShell from "@/app/AppShell.vue";
 import { createI18nController, type Locale } from "@/lib/i18n";
+import { resolveInitialPatToken } from "@/lib/runtime-config";
 import { createThemeController, type ThemePreference } from "@/lib/theme";
 
 const PAT_STORAGE_KEY = "msm.pat";
@@ -11,7 +12,15 @@ const i18nController = createI18nController();
 
 const theme = ref<ThemePreference>(themeController.preference);
 const locale = ref<Locale>(i18nController.locale);
-const patToken = ref(window.localStorage.getItem(PAT_STORAGE_KEY) ?? import.meta.env.VITE_MSM_PAT ?? "");
+const devPatSeed = import.meta.env.DEV ? import.meta.env.VITE_MSM_PAT : "";
+const patToken = ref(
+  resolveInitialPatToken({
+    envPat: devPatSeed,
+    isDev: import.meta.env.DEV,
+    storage: window.localStorage,
+    storageKey: PAT_STORAGE_KEY,
+  }),
+);
 
 function toggleTheme() {
   themeController.toggleResolvedTheme();

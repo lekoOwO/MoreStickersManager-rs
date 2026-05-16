@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createExportClient, type ExportClient, type ExportTarget, type ExportTargetKind } from "@/lib/exportApi";
 import { allMessages, type Locale } from "@/lib/i18n";
+import { resolveApiBaseUrl } from "@/lib/runtime-config";
 
 const props = defineProps<{
   locale: Locale;
@@ -77,7 +78,7 @@ function exportClient() {
   return (
     props.exportClient ??
     createExportClient({
-      baseUrl: import.meta.env.VITE_MSM_API_BASE_URL,
+      baseUrl: resolveApiBaseUrl(),
       authToken: props.patToken,
     })
   );

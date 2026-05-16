@@ -107,11 +107,14 @@ canonical pack.
 ## Frontend Boundary
 
 `apps/web` is an npm workspace package. It owns the browser UI, local UI
-primitives, i18n labels, theme preferences, and mock frontend client used by P7.
-The frontend must keep API access behind small client modules so later OpenAPI
-or handwritten HTTP clients can replace mock data without rewriting dashboard
-components. `apps/web/dist` is a build artifact and must remain ignored until a
-Rust embedding phase copies or embeds it intentionally.
+primitives, i18n labels, theme preferences, and API client boundaries. Plain
+Vite development can still use mock fallback data when no API base URL is
+configured, but embedded production builds resolve the live API base from the
+browser origin when `VITE_MSM_API_BASE_URL` is absent. The frontend must keep
+API access behind small client modules so later OpenAPI-generated or handwritten
+HTTP clients can replace the current clients without rewriting dashboard
+components. `apps/web/dist` is a build artifact and must remain ignored; release
+and Docker builds compile it before the Rust binary embeds it.
 
 Export Web UI code follows the same boundary: `apps/web/src/lib/exportApi.ts`
 contains HTTP calls, while `ExportTargetPanel`, `PackExportWizard`, and

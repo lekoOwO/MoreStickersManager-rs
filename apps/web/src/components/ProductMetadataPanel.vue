@@ -14,6 +14,7 @@ import {
   type WritablePackVisibility,
 } from "@/lib/api-client";
 import { allMessages, type Locale } from "@/lib/i18n";
+import { resolveApiBaseUrl } from "@/lib/runtime-config";
 import type { StickerPackSummary } from "@/lib/sticker-packs";
 
 const props = defineProps<{
@@ -269,7 +270,7 @@ function metadataClient() {
   return (
     props.metadataClient ??
     createProductMetadataClient({
-      baseUrl: import.meta.env.VITE_MSM_API_BASE_URL,
+      baseUrl: resolveApiBaseUrl(),
       authToken: props.patToken,
     })
   );

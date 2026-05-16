@@ -1,13 +1,13 @@
-FROM oven/bun:alpine AS web
+FROM node:24-alpine AS web
 WORKDIR /app
 
-COPY package.json package-lock.json bun.lock ./
+COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
-RUN bun install --frozen-lockfile
+RUN npm ci
 
 COPY apps/web apps/web
 COPY components.json ./
-RUN cd apps/web && bun run build
+RUN npm run web:build
 
 FROM rust:1-bookworm AS builder
 WORKDIR /app

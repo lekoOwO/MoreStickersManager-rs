@@ -531,9 +531,9 @@
 - Added environment profile commands for listing profiles, initializing `.env.<name>` files from tracked examples, and switching the active profile.
 - Added `.env.development.example` and `.env.testing.example` for repeatable local API/Web configuration without committing private overrides.
 - Added root npm shortcuts: `dev`, `dev:start`, `dev:stop`, `dev:restart`, `dev:status`, and `dev:env`.
-- Added `pnpm-workspace.yaml`, Windows-safe hidden wrapper process spawning, local runtime directory creation, split stdout/stderr logs, and direct local Vite startup for Web dev mode.
+- Added Windows-safe hidden wrapper process spawning, local runtime directory creation, split stdout/stderr logs, and direct local Vite startup for Web dev mode.
 - Documented usage in README, user docs, project map, testing guide, current status, and the implementation matrix.
-- Verified with `node scripts/dev-manager.mjs --help`, `node scripts/dev-manager.mjs env list`, `node scripts/dev-manager.mjs env init development`, `node scripts/dev-manager.mjs env use testing`, `node scripts/dev-manager.mjs status`, `npm run dev:status`, `node scripts/dev-manager.mjs env use development`, `node scripts/dev-manager.mjs stop`, `pnpm run dev:start`, `pnpm run dev:status`, API/Web HTTP checks, `pnpm run dev:stop`, `npm run dev:start`, `npm run dev:status`, API/Web HTTP checks, `npm run dev:stop`, hidden wrapper regression checks, and `git diff --check`.
+- Verified with `node scripts/dev-manager.mjs --help`, `node scripts/dev-manager.mjs env list`, `node scripts/dev-manager.mjs env init development`, `node scripts/dev-manager.mjs env use testing`, `node scripts/dev-manager.mjs status`, `npm run dev:status`, `node scripts/dev-manager.mjs env use development`, `node scripts/dev-manager.mjs stop`, `npm run dev:start`, `npm run dev:status`, API/Web HTTP checks, `npm run dev:stop`, `npm run dev:start`, `npm run dev:status`, API/Web HTTP checks, `npm run dev:stop`, hidden wrapper regression checks, and `git diff --check`.
 
 ## 2026-05-08 Web Workspace Redesign
 
@@ -542,7 +542,7 @@
 - Moved local login and PAT management into dialogs so authentication controls no longer dominate the main dashboard.
 - Reworked pack management into a metrics strip, tabbed workspace, table-style pack rows, and a dialog for `.stickerpack` import.
 - Kept the existing API client boundaries and injected-client tests for pack CRUD, import, export targets, export jobs, and Telegram publication history.
-- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `pnpm run dev:start`, API/Web HTTP smoke checks, and `pnpm run dev:stop`.
+- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run dev:start`, API/Web HTTP smoke checks, and `npm run dev:stop`.
 
 ## 2026-05-08 Development Bootstrap Usability
 
@@ -550,7 +550,7 @@
 - The manager now waits for API health, registers or reuses the local dev account, creates a fresh PAT, writes `VITE_MSM_PAT` into a managed `.env.local` block, and imports a small sample pack before starting Web.
 - Updated development/testing env examples so development bootstraps by default and testing remains isolated by default.
 - Documented the bootstrap behavior in README, user docs, agent docs, project map, testing guide, implementation matrix, and current status.
-- Verified with `node --check scripts/dev-manager.mjs`, `pnpm run dev:stop`, `node scripts/dev-manager.mjs env use development`, `pnpm run dev:start`, `pnpm run dev:status`, `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`, PAT-authenticated `GET /api/v1/packs?userId=user_1`, `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173`, `pnpm run dev:stop`, repeated `pnpm run dev:start` with an existing valid PAT, repeated `pnpm run dev:stop`, and `git diff --check`.
+- Verified with `node --check scripts/dev-manager.mjs`, `npm run dev:stop`, `node scripts/dev-manager.mjs env use development`, `npm run dev:start`, `npm run dev:status`, `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`, PAT-authenticated `GET /api/v1/packs?userId=user_1`, `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173`, `npm run dev:stop`, repeated `npm run dev:start` with an existing valid PAT, repeated `npm run dev:stop`, and `git diff --check`.
 
 ## 2026-05-08 Web Desktop/Mobile UX Correction
 
@@ -561,7 +561,7 @@
 - Fixed the `MoreStickersManager` brand overflow with constrained context-panel typography.
 - Added pointer cursor and pressed/hover motion states for interactive buttons and controls.
 - Increased blue accent chroma in both light and dark themes.
-- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `pnpm run dev:stop`, `pnpm run dev:start`, API health check, PAT-authenticated pack list check, Web HTTP check, Vite module env check, and `pnpm run dev:stop`.
+- Verified with `npm run web:typecheck`, `npm run web:test`, `npm run web:build`, `npm run dev:stop`, `npm run dev:start`, API health check, PAT-authenticated pack list check, Web HTTP check, Vite module env check, and `npm run dev:stop`.
 
 ## 2026-05-08 Web Native Navigation Correction
 
@@ -1478,7 +1478,7 @@
   issuer/client/scope/enabled/registration settings, and deleting providers.
 - Added Traditional Chinese and English UI labels plus unit coverage for API
   client calls and tenant-admin interactions.
-- Verification: RED failures were observed before implementation, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (52 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
+- Verification: RED failures were observed before implementation, then `npm run web:typecheck`, `npm run web:test` (52 tests), `npm run web:build`, and `git diff --check` passed.
 - Updated PRD/status/user docs; next Phase D slice should add end-user Web SSO
   login controls/callback UX and SSO-backed account docs.
 
@@ -1487,7 +1487,7 @@
 - Added Web API client support for OIDC login-start URL construction and callback completion calls.
 - Added Web auth dialog controls for tenant/provider/redirect URI, starting provider authorization, and displaying the returned authorization URL, state, nonce, and expiry.
 - Added Traditional Chinese and English labels for the SSO/OIDC login-start workflow.
-- Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding controls, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (55 tests), and `pnpm --filter @morestickersmanager/web build` passed.
+- Verification: RED failure was observed in `npm run web:test -- AppShell.test.ts` before adding controls, then `npm run web:typecheck`, `npm run web:test` (55 tests), and `npm run web:build` passed.
 - Updated PRD/status/user docs; next Phase D slice should wire Web OIDC callback completion UX and SSO-backed account documentation.
 
 ## 2026-05-10 OIDC Web Callback Completion
@@ -1495,14 +1495,14 @@
 - Added Web auth dialog callback-completion controls for authorization code, state, nonce, issuer, audience, provider subject, email, and display name.
 - Callback completion now calls the OIDC callback API, stores the returned PAT through the same Web auth path, and shows the one-time token result.
 - Added Traditional Chinese and English labels for the callback completion workflow.
-- Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before adding callback controls, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (56 tests), and `pnpm --filter @morestickersmanager/web build` passed.
+- Verification: RED failure was observed in `npm run web:test -- AppShell.test.ts` before adding callback controls, then `npm run web:typecheck`, `npm run web:test` (56 tests), and `npm run web:build` passed.
 - Updated PRD/status/user docs; next Phase D slice should finish SSO-backed account documentation and decide whether automatic callback redirect parsing is required.
 
 ## 2026-05-10 OIDC Web Redirect Prefill
 
 - Stored pending OIDC state/nonce, tenant, provider, redirect URI, and expiry in browser localStorage after login-start.
 - On `/auth/oidc/callback?code=...&state=...`, the Web shell opens the auth dialog and pre-fills authorization code, state, nonce, tenant, provider, and redirect URI fields from the redirect URL plus pending login state.
-- Verification: RED failure was observed in `pnpm --filter @morestickersmanager/web test -- AppShell.test.ts` before implementing redirect prefill, then `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (57 tests), and `pnpm --filter @morestickersmanager/web build` passed.
+- Verification: RED failure was observed in `npm run web:test -- AppShell.test.ts` before implementing redirect prefill, then `npm run web:typecheck`, `npm run web:test` (57 tests), and `npm run web:build` passed.
 - Updated PRD/status/user docs; next Phase D slice should finish SSO-backed account documentation for Web/API/CLI/MCP users.
 
 ## 2026-05-10 SSO-backed Account Documentation
@@ -1559,7 +1559,7 @@
 - Added a Provider import planner UI for Telegram and LINE remote IDs that calls the protected planning endpoint and displays the metadata request, redacted headers, and asset download strategy without writing packs.
 - Added provider import planning to the Web API client and exposed `provider.import` in PAT and role permission selectors.
 - Added Web API/client and component tests for the provider import planning flow.
-- Verification: `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client`, `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (59 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
+- Verification: `npm run web:test -- provider-import-ui api-client`, `npm run web:typecheck`, `npm run web:test` (59 tests), `npm run web:build`, and `git diff --check` passed.
 - Updated PRD/status/provider/user docs; next Phase E slice should wire executable provider import jobs for Telegram and LINE.
 
 ## 2026-05-10 Provider Import Job API Foundation
@@ -1608,7 +1608,7 @@
 - Added Web API client methods for provider import job create/read/event routes.
 - Extended the Providers workspace with job ID and target-pack controls, queue/refresh actions, status summary, attempt counts, and ordered event timeline rendering.
 - Added English and Traditional Chinese labels plus focused component/API tests for Web provider import job controls.
-- Verification: `pnpm --filter @morestickersmanager/web test -- provider-import-ui api-client` (26 tests), `pnpm --filter @morestickersmanager/web typecheck`, `pnpm --filter @morestickersmanager/web test` (61 tests), `pnpm --filter @morestickersmanager/web build`, and `git diff --check` passed.
+- Verification: `npm run web:test -- provider-import-ui api-client` (26 tests), `npm run web:typecheck`, `npm run web:test` (61 tests), `npm run web:build`, and `git diff --check` passed.
 - Updated PRD/status/provider/user docs; next Phase E slice should implement Telegram `getFile` execution and LINE product parsing.
 
 ## 2026-05-10 Provider Import Telegram getFile Execution
@@ -2022,7 +2022,7 @@
 - Closed public local registration: it now requires an existing tenant with `localRegistrationEnabled=true`, creates only `user` membership, rejects unknown tenants, and rejects admin self-assignment.
 - Updated CLI/MCP/Web defaults and Web local registration to use a tenant ID, with `default` as the fallback tenant ID.
 - Updated PRD, user docs, Docker Compose example docs/env, roadmap, current status, and implementation matrix.
-- Verification: `cargo fmt --all -- --check`; `cargo test -p msm-storage -p msm-api -p msm-app --locked`; `cargo test -p msm-cli -p msm-mcp --locked`; `cargo clippy -p msm-storage -p msm-api -p msm-app -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings` with `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-bootstrap-registrationp0RpJP`; `pnpm --filter @morestickersmanager/web typecheck`; `pnpm --filter @morestickersmanager/web test -- api-client.test.ts AppShell.test.ts`; `pnpm --filter @morestickersmanager/web build`; `node --check scripts/dev-manager.mjs`; `pnpm run dev:stop`; `pnpm run dev:start`; `pnpm run dev:status`; `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`; `pnpm run dev:stop`; `git diff --check`.
+- Verification: `cargo fmt --all -- --check`; `cargo test -p msm-storage -p msm-api -p msm-app --locked`; `cargo test -p msm-cli -p msm-mcp --locked`; `cargo clippy -p msm-storage -p msm-api -p msm-app -p msm-cli -p msm-mcp --all-targets --locked -- -D warnings` with `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-bootstrap-registrationp0RpJP`; `npm run web:typecheck`; `npm run web:test -- api-client.test.ts AppShell.test.ts`; `npm run web:build`; `node --check scripts/dev-manager.mjs`; `npm run dev:stop`; `npm run dev:start`; `npm run dev:status`; `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/healthz`; `npm run dev:stop`; `git diff --check`.
 
 ## 2026-05-14 Equicord moreStickers MSM Adapter
 
@@ -2034,3 +2034,12 @@
 - Updated the MoreStickers URL-import help text and PR body with a short MSM GitHub link, feature summary, and recommendation to use MSM instead of the older MoreStickersConverter flow for Telegram and synced packs.
 - Updated PRD/current status/implementation matrix to track remaining PR review/merge/deployment and Discord runtime verification.
 - Verification: `cargo test -p msm-api --locked`; `cargo test -p msm-app --locked`; `cargo clippy -p msm-api -p msm-app --all-targets --locked -- -D warnings`; `cargo fmt --all -- --check`; `git diff --check`; `git -C tmp/Equicord-moreStickers diff --check`; `git diff --check -- docs/integrations/patches/equicord-morestickers-msm-adapter.patch`; `git -C tmp/Equicord-patch-check apply --check <patch>` against clean Equicord `3a45528`; applying the patch to `tmp/Equicord-patch-work`; `pnpm install --frozen-lockfile --store-dir D:\DATA\Codes\MoreStickersManager-rs\tmp\pnpm-store`; `pnpm testTsc`; targeted `pnpm exec eslint` for the changed moreStickers TypeScript/TSX files; targeted `pnpm exec stylelint src/equicordplugins/moreStickers/style.css`; `pnpm buildStandalone`; Equicord PR 1084 GitHub Actions `Test` passed again after the MSM recommendation update. Rust verification used `TMP`/`TEMP=D:\Temp`, `CARGO_INCREMENTAL=0`, `CARGO_BUILD_JOBS=1`, and `CARGO_TARGET_DIR=target\msm-equicord-cors`. Full Equicord `pnpm lint` still fails only on upstream-unrelated files, and Discord/Equicord runtime verification remains pending.
+
+## 2026-05-17 Production Web Runtime And npm Tooling
+
+- Added a shared Web runtime resolver so embedded production `msm-app`/Docker deployments use the browser origin as the API base when `VITE_MSM_API_BASE_URL` is unset, while plain Vite development with no API base still intentionally shows mock data.
+- Moved Pack, Export, Provider Import, Product Metadata, Tenant Admin, and Portability Web clients to the shared runtime API base resolver.
+- Made `VITE_MSM_PAT` a development-only seed so local dev PATs are not embedded into production Web assets.
+- Switched MSM JavaScript tooling to npm workspaces and `package-lock.json` only: removed `pnpm-workspace.yaml` and `bun.lock`, added the npm package-manager declaration, and changed the Docker Web stage to `node:24-alpine` with `npm ci` plus `npm run web:build`.
+- Updated README/user/status/PRD docs to describe npm-only MSM workflows. Upstream Equicord verification notes continue to mention pnpm only for that external repository.
+- Verification: `npm ci`; `npm run web:test -- runtime-config.test.ts PackDashboard.test.ts AppShell.test.ts`; `npm run web:typecheck`; `npm run web:test` (74 tests); `npm run web:build`; production asset scan confirming the local `VITE_MSM_PAT` value is absent from built JS assets; `node --check scripts/dev-manager.mjs`; `npm run dev:status`; `docker --version` (unavailable in this Windows workspace, so Docker image execution remains CI-bound); `git diff --check`.
